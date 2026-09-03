@@ -18,17 +18,20 @@ Push this folder to a GitHub repository, then create a Cloudflare Pages project 
 
 ## Enable “search any concept”
 
-The search feature calls OpenAI from the Cloudflare Worker so the API key is never exposed in the browser.
+The search feature uses Cloudflare Workers AI directly. No external AI API key is required.
 
 1. Create a Cloudflare D1 database named `code-atlas-db`.
 2. Copy its database ID into `wrangler.jsonc`, replacing `REPLACE_WITH_YOUR_D1_DATABASE_ID`.
 3. Run `npx wrangler d1 migrations apply code-atlas-db --remote` once to create the tables.
-4. Create an OpenAI API key at `platform.openai.com/api-keys` (API billing is separate from a ChatGPT subscription).
-5. In Cloudflare, open this Worker → Settings → Variables and Secrets.
-6. Add an encrypted secret named `OPENAI_API_KEY`.
-7. Redeploy the Worker.
+4. Redeploy the Worker. The `AI` binding in `wrangler.jsonc` connects the site to Workers AI automatically.
 
-Every search checks D1 first. Only a missing concept calls OpenAI; the generated lesson is then stored and reused. Each IP can generate at most 20 new lessons per UTC day, while saved lessons remain unlimited.
+Important: every time you download a fresh Code Atlas package, replace the placeholder D1 ID in `wrangler.jsonc` with your real database ID before deploying.
+
+If search reports that the database is not connected, verify the D1 ID and run:
+
+`npx wrangler d1 migrations apply code-atlas-db --remote`
+
+Every search checks D1 first. Only a missing concept calls Workers AI; the generated lesson is then stored and reused. Each IP can generate at most 20 new lessons per UTC day, while saved lessons remain unlimited.
 
 Cloudflare build settings:
 
