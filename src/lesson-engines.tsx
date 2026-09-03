@@ -16,7 +16,8 @@ export function LessonEngine(props:Props){
 function NetworkEngine({mode,step,changed}:Props){
  const [protocol,setProtocol]=useState("TCP"),[latency,setLatency]=useState(45),[loss,setLoss]=useState(0);
  const layers=["Application","Transport","Internet","Link"];
- const active=step<4?step:Math.max(0,7-step);
+ const senderPath=[1,1,1,0,1,2,3,-1,-1,-1,1,1,1];
+ const receiverPath=[-1,-1,2,-1,-1,-1,-1,-1,0,2,2,2,2];
  const packetLost=changed||loss>20;
  return <div className="engine network-engine">
   <div className="engine-toolbar" aria-label="Network controls">
@@ -25,9 +26,9 @@ function NetworkEngine({mode,step,changed}:Props){
    <label>Loss <b>{loss}%</b><input aria-label="Packet loss" type="range" min="0" max="40" value={loss} onChange={e=>setLoss(+e.target.value)}/></label>
   </div>
   <div className="network-stage" style={{"--travel":`${Math.min(2.5,.45+latency/90)}s`} as React.CSSProperties}>
-   <Computer name="Computer A" side="sender" layers={layers} active={step<4?active:-1}/>
+   <Computer name="Computer A" side="sender" layers={layers} active={senderPath[step]??-1}/>
    <div className="network-medium"><Globe2/><b>{mode==="dns"?"DNS hierarchy":mode==="request"?"Internet + services":"Routers"}</b><span>frames change · IP packet continues</span><div className={`live-packet ${packetLost?"lost":""}`}><small>{protocol}</small><b>{protocol==="UDP"?"DATAGRAM":"SEGMENT"}</b></div>{packetLost&&<em><AlertTriangle/> loss detected · {protocol==="UDP"?"application decides":"retransmitting"}</em>}</div>
-   <Computer name="Computer B" side="receiver" layers={[...layers].reverse()} active={step>=4?active:-1}/>
+   <Computer name="Computer B" side="receiver" layers={[...layers].reverse()} active={receiverPath[step]??-1}/>
   </div>
   <div className="packet-anatomy"><span>PAYLOAD</span><span className={step>=1?"on":""}>{protocol} HEADER</span><span className={step>=2?"on":""}>IP HEADER</span><span className={step>=3?"on":""}>LINK HEADER + TRAILER</span></div>
  </div>

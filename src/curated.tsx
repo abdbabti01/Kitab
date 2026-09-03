@@ -9,6 +9,7 @@ import {
   Zap,
 } from "lucide-react";
 import { LessonEngine } from "./lesson-engines";
+import { LearningStudio } from "./learning-studio";
 
 export type ChapterMode =
   | "network"
@@ -50,6 +51,24 @@ export const chapters: Chapter[] = [
       "Segment 2 disappears. Duplicate ACKs reveal the gap and TCP retransmits it.",
     steps: [
       {
+        title: "Choose endpoints",
+        detail:
+          "The client opens a temporary source port and targets the server's listening port. The two IP addresses and two ports identify this conversation.",
+        state: "Socket pair selected",
+      },
+      {
+        title: "Send SYN",
+        detail:
+          "The client proposes an initial sequence number and asks the server to create TCP connection state.",
+        state: "SYN seq=1000",
+      },
+      {
+        title: "Complete the handshake",
+        detail:
+          "SYN-ACK confirms the client's sequence and introduces the server's sequence. The final ACK confirms both directions.",
+        state: "Connection established",
+      },
+      {
         title: "Application creates bytes",
         detail:
           "The browser creates HTTP request bytes. TCP does not understand the meaning; it receives an ordered byte stream.",
@@ -80,10 +99,40 @@ export const chapters: Chapter[] = [
         state: "In transit",
       },
       {
-        title: "Receiver unwraps it",
+        title: "Receiver unwraps the frame",
         detail:
           "The receiver checks and removes headers in reverse order, acknowledges the bytes and delivers them to the server.",
         state: "Bytes delivered",
+      },
+      {
+        title: "Acknowledge bytes",
+        detail:
+          "The receiver sends a cumulative ACK containing the sequence number of the next byte it expects.",
+        state: "ACK 2461 returned",
+      },
+      {
+        title: "Recover a lost segment",
+        detail:
+          "Duplicate acknowledgements or a timeout reveal a gap. TCP retransmits the missing byte range rather than restarting the request.",
+        state: "Missing segment retransmitted",
+      },
+      {
+        title: "Control receiver flow",
+        detail:
+          "The advertised receive window limits unacknowledged data so a fast sender cannot overflow the receiver's buffer.",
+        state: "Receive window respected",
+      },
+      {
+        title: "Control congestion",
+        detail:
+          "The congestion window grows while delivery succeeds and shrinks when loss suggests the path is crowded.",
+        state: "Send rate adapted",
+      },
+      {
+        title: "Close both directions",
+        detail:
+          "FIN and ACK close each direction independently. TIME_WAIT protects a new connection from delayed packets belonging to the old one.",
+        state: "Connection closed safely",
       },
     ],
   },
@@ -483,7 +532,11 @@ export function findChapter(value: string) {
   );
 }
 
-export function CuratedChapter({
+export function CuratedChapter({chapter,close}:{chapter:Chapter;close:()=>void}) {
+  return <LearningStudio chapter={chapter} close={close}/>;
+}
+
+function LegacyCuratedChapter({
   chapter,
   close,
 }: {
