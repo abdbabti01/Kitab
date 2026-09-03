@@ -12,12 +12,10 @@
   "ai": {
     "binding": "AI"
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "kitab-db",
-      "database_id": "c22c58b7-64af-4251-ab7f-5b18e8886247",
-      "migrations_dir": "migrations"
-    }
-  ]
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "code-atlas-db",
+    "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+    "migrations_dir": "migrations"
+  }]
 }
