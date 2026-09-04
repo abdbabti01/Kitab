@@ -241,6 +241,65 @@ export const chapters: Chapter[] = [
     ],
   },
   {
+    slug: "data-structures",
+    title: "Data structures: choosing the right model",
+    family: "Data structures",
+    mode: "array",
+    summary:
+      "Compare the main ways programs organize values, then choose a structure from the operations the program must perform—not from its name or theme.",
+    analogy:
+      "A toolbox has different tools because no single tool is best at every job; data structures make the same trade-off for operations on data.",
+    experiment: "Change the dominant operation",
+    normal:
+      "When indexed lookup dominates, an array offers direct access with compact contiguous storage.",
+    changed:
+      "When insertion order, key lookup, priority or relationships dominate, a list, queue, hash table, heap, tree or graph can be the better model.",
+    steps: [
+      {
+        title: "Start with the operations",
+        detail:
+          "A data structure is a concrete organization of values and relationships. Its layout determines the cost of lookup, insertion, deletion, ordering and traversal.",
+        state: "Requirements identified",
+      },
+      {
+        title: "Use an array for indexes",
+        detail:
+          "An array keeps equal-size elements in contiguous slots. Address arithmetic makes indexed access O(1), while a middle insertion usually shifts O(n) elements.",
+        state: "Fast indexed access",
+      },
+      {
+        title: "Use links for local changes",
+        detail:
+          "A linked list stores each value in a node with a pointer to the next node. Traversal is O(n), but a known neighboring node can be relinked without shifting every value.",
+        state: "Pointers connect nodes",
+      },
+      {
+        title: "Restrict access with stacks and queues",
+        detail:
+          "A stack exposes the newest item first (LIFO). A queue exposes the oldest item first (FIFO). Those rules make order part of the structure's contract.",
+        state: "Access order defined",
+      },
+      {
+        title: "Map keys with a hash table",
+        detail:
+          "A hash function maps a key to a bucket. Lookup is O(1) on average when collisions and load factor are controlled, but the keys are not automatically sorted.",
+        state: "Key mapped to bucket",
+      },
+      {
+        title: "Represent relationships",
+        detail:
+          "Trees represent hierarchy and ordered search paths. Graphs represent general relationships through vertices and edges. Traversal follows those explicit connections.",
+        state: "Relationships modeled",
+      },
+      {
+        title: "Choose the trade-off",
+        detail:
+          "Select the structure whose common operations are cheap and whose ordering, memory and update guarantees match the problem. Big-O describes growth, not the whole design decision.",
+        state: "Structure selected",
+      },
+    ],
+  },
+  {
     slug: "arrays",
     title: "Arrays & memory",
     family: "Data structures",
@@ -632,6 +691,8 @@ export function findChapter(value: string) {
           "message queues": "message-queues",
           "distributed systems": "message-queues",
           "state machines": "state-machines",
+          "data structure": "data-structures",
+          "data structures": "data-structures",
         } as Record<string, string>
       )[q] === c.slug,
   );

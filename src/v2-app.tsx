@@ -32,7 +32,7 @@ type SavedConcept = {
 const engineLibrary = [
   { id: "protocol", label: "Protocols", description: "Packets, layers, endpoints, delivery and loss.", example: "tcp", lesson: "TCP transport", icon: Network },
   { id: "request", label: "Request pipelines", description: "Follow work across browsers, DNS, APIs and databases.", example: "web-request", lesson: "Web request", icon: Globe2 },
-  { id: "memory", label: "Memory & data structures", description: "Inspect addresses, cells, buckets, nodes and pointers.", example: "arrays", lesson: "Arrays & memory", icon: HardDrive },
+  { id: "memory", label: "Memory & data structures", description: "Inspect addresses, cells, buckets, nodes and pointers.", example: "data-structures", lesson: "Data structures", icon: HardDrive },
   { id: "tree", label: "Trees & graphs", description: "See hierarchy, connections, decisions and traversal paths.", example: "trees", lesson: "Binary search tree", icon: Waypoints },
   { id: "execution", label: "Execution & call stacks", description: "Step through instructions, calls, frames and returns.", example: "recursion", lesson: "Recursion", icon: Braces },
   { id: "concurrency", label: "Concurrency", description: "Compare threads, scheduling, shared work and timing.", example: "processes-threads", lesson: "Processes & threads", icon: Cpu },
@@ -55,7 +55,7 @@ export default function KitabV2() {
     [query],
   );
   const savedResults = useMemo(
-    () => saved.filter((item) => !chapters.some((chapter) => chapter.slug === item.slug)),
+    () => saved.filter((item) => !findChapter(item.slug)),
     [saved],
   );
 
@@ -140,7 +140,7 @@ export default function KitabV2() {
               <button disabled={loading}>{loading ? <Loader2 className="spin" /> : <ChevronRight />}<span>{loading ? "Building lesson" : "Open lesson"}</span></button>
             </form>
             {error && <p className="v2-error">{error}</p>}
-            <div className="quick">Try:{["TCP", "Linked lists", "Recursion", "Database indexes"].map((item) => <button onClick={() => void open(item)} key={item}>{item}</button>)}</div>
+            <div className="quick">Try:{["TCP", "Data structures", "Linked lists", "Recursion"].map((item) => <button onClick={() => void open(item)} key={item}>{item}</button>)}</div>
           </div>
           <div className="book-map" aria-hidden="true">
             <div className="book-core"><BookOpen /><b>Kitab</b><small>learn by doing</small></div>

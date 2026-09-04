@@ -5,15 +5,18 @@ import {
   assertVisualizationSpec,
   buildGraphLevels,
   engineKinds,
+  hasEngineEvidence,
   normalizeVisualization,
   selectEngineKind,
 } from "../src/visual-engine/core/visualization-spec.ts";
 import { visualizationForChapter } from "../src/visual-engine/lessons/curated-visualizations.ts";
+import { applyEnginePolicy, lessonMatchesConcept } from "../worker/index.ts";
 
 const expectedCuratedEngines = {
   tcp: "protocol",
   "web-request": "request",
   dns: "request",
+  "data-structures": "memory",
   arrays: "memory",
   "linked-lists": "memory",
   recursion: "execution",
@@ -54,6 +57,65 @@ test("explicit generated engine choices cover all renderer families", () => {
   for (const engine of engineKinds) {
     assert.equal(selectEngineKind({ engine }), engine);
   }
+});
+
+test("semantic evidence overrides an incorrect AI engine suggestion", () => {
+  assert.equal(
+    selectEngineKind({
+      engine: "protocol",
+      title: "Data Structures",
+      category: "Computer Science",
+    }),
+    "memory",
+  );
+  assert.equal(
+    selectEngineKind({ engine: "memory", title: "TCP congestion control" }),
+    "protocol",
+  );
+});
+
+test("a themed catalog CRUD story is rejected as a data-structures lesson", () => {
+  const badDraft = {
+    schemaVersion: 2,
+    title: "Data Structures",
+    category: "Computer Science",
+    level: "Beginner",
+    summary: "Manage books in a library catalog.",
+    analogy: "A librarian adds and removes books.",
+    sections: [
+      { heading: "Add Book", body: "Add a book to the catalog." },
+      { heading: "Search Book", body: "Find a book in the catalog." },
+      { heading: "Delete Book", body: "Delete a book from the catalog." },
+    ],
+    terms: [
+      { term: "Book", definition: "A catalog item." },
+      { term: "Library", definition: "Stores books." },
+      { term: "Catalog", definition: "Organizes book titles." },
+    ],
+    visualization: {
+      engine: "protocol",
+      title: "Library catalog",
+      actors: [
+        { label: "Library", role: "Stores books" },
+        { label: "Catalog", role: "Lists titles" },
+      ],
+      links: [{ from: 0, to: 1, label: "contains" }],
+      events: Array.from({ length: 4 }, (_, index) => ({
+        from: 0,
+        to: 1,
+        label: `Catalog action ${index + 1}`,
+        detail: "Change a book record.",
+        state: "Catalog updated",
+        payload: "Book title",
+      })),
+    },
+    tryIt: ["Add a book", "Find a book", "Delete a book"],
+  } as const;
+  const governed = applyEnginePolicy("data structure", badDraft as never);
+  assert.equal(governed.visualization.engine, "memory");
+  assert.equal(lessonMatchesConcept("data structure", governed), false);
+  assert.equal(hasEngineEvidence("memory", "array slots, linked nodes and hash buckets", 2), true);
+  assert.equal(hasEngineEvidence("memory", "add and delete books in a library catalog"), false);
 });
 
 test("the home page exposes one reviewed example for every engine", () => {
@@ -141,4 +203,7 @@ test("Workers AI is constrained to semantic engine data", () => {
   for (const engine of engineKinds) assert.ok(worker.includes(`"${engine}"`));
   assert.match(worker, /Do not generate drawing coordinates, CSS, SVG, HTML or executable code/);
   assert.match(worker, /required: \["engine", "title", "actors", "links", "events"\]/);
+  assert.match(worker, /schemaVersion/);
+  assert.match(worker, /Ignoring stale or off-topic generated lesson/);
+  assert.match(worker, /applyEnginePolicy\(concept/);
 });

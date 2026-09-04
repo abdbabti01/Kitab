@@ -1,3 +1,10 @@
+import {
+  engineKinds,
+  hasEngineEvidence,
+  selectEngineKind,
+  type EngineKind,
+} from "../src/visual-engine/core/visualization-spec.ts";
+
 interface D1Result<T> {
   results?: T[];
   success?: boolean;
@@ -36,6 +43,7 @@ type StoredConcept = {
 };
 
 type GeneratedLesson = {
+  schemaVersion: 2;
   title: string;
   category: string;
   level: "Beginner" | "Beginner → Intermediate";
@@ -44,15 +52,7 @@ type GeneratedLesson = {
   sections: { heading: string; body: string }[];
   terms: { term: string; definition: string }[];
   visualization: {
-    engine:
-      | "protocol"
-      | "request"
-      | "memory"
-      | "tree"
-      | "execution"
-      | "concurrency"
-      | "distributed"
-      | "state-machine";
+    engine: EngineKind;
     title: string;
     actors: { label: string; role: string }[];
     links: { from: number; to: number; label: string }[];
@@ -72,6 +72,7 @@ const generatedLessonJsonSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
+    schemaVersion: { type: "integer", enum: [2] },
     title: { type: "string" },
     category: { type: "string" },
     level: {
@@ -184,6 +185,7 @@ const generatedLessonJsonSchema = {
     },
   },
   required: [
+    "schemaVersion",
     "title",
     "category",
     "level",
@@ -197,16 +199,7 @@ const generatedLessonJsonSchema = {
 };
 
 const DAILY_NEW_LESSON_LIMIT = 20;
-const visualizationEngines = [
-  "protocol",
-  "request",
-  "memory",
-  "tree",
-  "execution",
-  "concurrency",
-  "distributed",
-  "state-machine",
-] as const;
+const GENERATED_SCHEMA_VERSION = 2;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -262,12 +255,102 @@ function validTextPair(value: unknown, first: string, second: string) {
   return nonEmpty(record[first]) && nonEmpty(record[second]);
 }
 
+const genericQueryWords = new Set([
+  "about",
+  "computer",
+  "concept",
+  "data",
+  "explain",
+  "introduction",
+  "learn",
+  "programming",
+  "science",
+  "structure",
+  "structures",
+  "system",
+  "systems",
+  "the",
+  "what",
+]);
+
+function lessonSemanticText(lesson: GeneratedLesson) {
+  return [
+    lesson.summary,
+    lesson.analogy,
+    ...lesson.sections.flatMap((section) => [section.heading, section.body]),
+    ...lesson.terms.flatMap((term) => [term.term, term.definition]),
+    lesson.visualization.title,
+    ...lesson.visualization.actors.flatMap((actor) => [actor.label, actor.role]),
+    ...lesson.visualization.events.flatMap((event) => [
+      event.label,
+      event.detail,
+      event.state,
+      event.payload,
+    ]),
+    ...lesson.tryIt,
+  ].join(" ");
+}
+
+function queryTokens(value: string) {
+  return normalize(value)
+    .split(" ")
+    .filter((token) => token.length >= 3 && !genericQueryWords.has(token));
+}
+
+export function applyEnginePolicy(
+  concept: string,
+  lesson: GeneratedLesson,
+): GeneratedLesson {
+  const engine = selectEngineKind({
+    engine: lesson.visualization.engine,
+    title: `${concept} ${lesson.title} ${lesson.summary}`,
+    category: lesson.category,
+  });
+  return {
+    ...lesson,
+    schemaVersion: GENERATED_SCHEMA_VERSION,
+    visualization: { ...lesson.visualization, engine },
+  };
+}
+
+export function lessonMatchesConcept(concept: string, lesson: GeneratedLesson) {
+  const semanticText = lessonSemanticText(lesson);
+  const normalizedText = normalize(semanticText);
+  const tokens = queryTokens(concept);
+  const tokenMatch =
+    tokens.length === 0 ||
+    tokens.some((token) => {
+      const singular = token.endsWith("s") ? token.slice(0, -1) : token;
+      return normalizedText.split(" ").some((word) => word === token || word === singular);
+    });
+  if (!tokenMatch) return false;
+
+  const broadDataStructures = /^data structures?$/i.test(concept.trim());
+  const minimumEvidence = broadDataStructures ? 2 : 1;
+  if (!hasEngineEvidence(lesson.visualization.engine, semanticText, minimumEvidence)) {
+    return false;
+  }
+
+  // This catches the reported failure: a book-catalog CRUD story labeled as a
+  // data-structures lesson without actually teaching any structure or operation.
+  if (
+    broadDataStructures &&
+    /\b(?:book|catalog|library)\b/i.test(semanticText) &&
+    !hasEngineEvidence("memory", semanticText, 3)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function validateLesson(value: unknown): GeneratedLesson {
   if (!value || typeof value !== "object") throw new Error("Incomplete lesson.");
   const lesson = value as Partial<GeneratedLesson>;
   if (
+    lesson.schemaVersion !== GENERATED_SCHEMA_VERSION ||
     !nonEmpty(lesson.title) ||
     !nonEmpty(lesson.category) ||
+    !["Beginner", "Beginner → Intermediate"].includes(lesson.level ?? "") ||
     !nonEmpty(lesson.summary) ||
     !nonEmpty(lesson.analogy) ||
     !Array.isArray(lesson.sections) ||
@@ -279,6 +362,8 @@ function validateLesson(value: unknown): GeneratedLesson {
     lesson.terms.length > 6 ||
     !lesson.terms.every((item) => validTextPair(item, "term", "definition")) ||
     !Array.isArray(lesson.tryIt) ||
+    lesson.tryIt.length < 3 ||
+    lesson.tryIt.length > 5 ||
     !lesson.tryIt.every(nonEmpty)
   ) {
     throw new Error("Incomplete lesson.");
@@ -287,7 +372,7 @@ function validateLesson(value: unknown): GeneratedLesson {
   const visualization = lesson.visualization;
   if (
     !visualization ||
-    !visualizationEngines.includes(visualization.engine) ||
+    !engineKinds.includes(visualization.engine) ||
     !nonEmpty(visualization.title) ||
     !Array.isArray(visualization.actors) ||
     visualization.actors.length < 2 ||
@@ -395,13 +480,20 @@ async function listConcepts(request: Request, env: Env) {
         `SELECT c.normalized_name AS slug, c.display_name AS title, c.category,
                 c.source, c.status, c.hit_count
          FROM concepts c
-         WHERE ? = ''
-            OR c.normalized_name LIKE ?
-            OR lower(c.display_name) LIKE ?
-            OR EXISTS (
+         WHERE (
+           ? = ''
+           OR c.normalized_name LIKE ?
+           OR lower(c.display_name) LIKE ?
+           OR EXISTS (
               SELECT 1 FROM concept_aliases a
               WHERE a.concept_id = c.id AND a.normalized_alias LIKE ?
-            )
+           )
+         )
+         AND c.status IN ('published', 'draft')
+         AND (
+           c.source = 'curated'
+           OR (c.source = 'ai' AND json_extract(c.content_json, '$.schemaVersion') = 2)
+         )
          ORDER BY CASE c.status WHEN 'published' THEN 0 ELSE 1 END,
                   c.hit_count DESC, c.updated_at DESC
          LIMIT 20`,
@@ -429,8 +521,29 @@ async function readConcept(request: Request, env: Env) {
   try {
     const concept = await findStoredConcept(env, key);
     if (!concept) return json({ error: "Lesson not found." }, 404);
+    const parsed = JSON.parse(concept.content_json) as unknown;
+    if (concept.source === "ai") {
+      try {
+        const saved = validateLesson(parsed);
+        const governed = applyEnginePolicy(key, saved);
+        if (
+          governed.visualization.engine !== saved.visualization.engine ||
+          !lessonMatchesConcept(key, governed)
+        ) {
+          throw new Error("Saved generated lesson failed the current quality policy.");
+        }
+      } catch {
+        return json(
+          {
+            error: "This saved draft is outdated. Search for it again to rebuild it.",
+            code: "STALE_GENERATED_LESSON",
+          },
+          409,
+        );
+      }
+    }
     return json({
-      ...JSON.parse(concept.content_json),
+      ...(parsed as Record<string, unknown>),
       _meta: {
         source: concept.source,
         cached: true,
@@ -546,17 +659,28 @@ async function generateConcept(request: Request, env: Env, ctx: WorkerContext) {
   }
 
   if (existing) {
-    ctx.waitUntil(
-      env.DB
-        .prepare(
-          "UPDATE concepts SET hit_count = hit_count + 1, last_accessed_at = CURRENT_TIMESTAMP WHERE id = ?",
-        )
-        .bind(existing.id)
-        .run(),
-    );
     try {
+      const parsed = JSON.parse(existing.content_json) as unknown;
+      if (existing.source === "ai") {
+        const saved = validateLesson(parsed);
+        const governed = applyEnginePolicy(concept, saved);
+        if (
+          governed.visualization.engine !== saved.visualization.engine ||
+          !lessonMatchesConcept(concept, governed)
+        ) {
+          throw new Error("Saved generated lesson failed the current quality policy.");
+        }
+      }
+      ctx.waitUntil(
+        env.DB
+          .prepare(
+            "UPDATE concepts SET hit_count = hit_count + 1, last_accessed_at = CURRENT_TIMESTAMP WHERE id = ?",
+          )
+          .bind(existing.id)
+          .run(),
+      );
       return json({
-        ...JSON.parse(existing.content_json),
+        ...(parsed as Record<string, unknown>),
         _meta: {
           source: "database",
           cached: true,
@@ -566,8 +690,8 @@ async function generateConcept(request: Request, env: Env, ctx: WorkerContext) {
               : "generated-draft",
         },
       });
-    } catch {
-      return json({ error: "This saved lesson needs to be regenerated." }, 500);
+    } catch (error) {
+      console.warn("Ignoring stale or off-topic generated lesson.", error);
     }
   }
 
@@ -587,7 +711,7 @@ async function generateConcept(request: Request, env: Env, ctx: WorkerContext) {
 
   const prompt = `Create an accurate lesson about this computer-science or programming concept: "${concept}".
 Write for a true beginner without removing important technical truth. If the term is ambiguous, interpret it in computing. If it is unrelated to computing, say so clearly.
-Describe a causal mechanism, not a decorative diagram. Choose exactly one visualization engine:
+Set schemaVersion to 2. Describe the real causal mechanism, not a themed analogy or decorative diagram. Suggest exactly one visualization engine; Kitab will verify and may override it:
 - protocol: packets, protocol layers, endpoints, headers, routing, delivery or loss
 - request: ordered web, DNS, API, database or processing pipelines
 - memory: arrays, linked structures, hashes, queues, buffers, allocation or pointers
@@ -600,7 +724,15 @@ Actors must be real components such as machines, protocol layers, processes, dat
   const generationRecord = await startGenerationRecord(env, key);
 
   try {
-    const lesson = await generateLesson(env, prompt);
+    let lesson = applyEnginePolicy(concept, await generateLesson(env, prompt));
+    if (!lessonMatchesConcept(concept, lesson)) {
+      const correction = `${prompt}
+The previous answer was rejected as off-topic or mechanically too vague. Regenerate the lesson about exactly "${concept}". Use the real terminology, components, operations, and state changes of that concept. Do not replace it with a book, library, catalog, restaurant, or other themed CRUD story.`;
+      lesson = applyEnginePolicy(concept, await generateLesson(env, correction));
+    }
+    if (!lessonMatchesConcept(concept, lesson)) {
+      throw new Error("Generated lesson failed concept relevance validation.");
+    }
     const content = JSON.stringify(lesson);
     try {
       await env.DB

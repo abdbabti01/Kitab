@@ -9,7 +9,8 @@ verified state; it does not treat AI output as drawing instructions.
 2. The current simulation event is the only source of truth for the canvas,
    narration, inspector, timeline, and checkpoints.
 3. AI may generate declarative lesson content, actors, and events. It may not
-   generate HTML, CSS, SVG, coordinates, or executable code.
+   generate HTML, CSS, SVG, coordinates, or executable code, and its engine
+   label is only a hint. Kitab selects the renderer from semantic evidence.
 4. Published reference lessons are versioned and schema validated.
 5. Generated lessons are drafts until reviewed.
 6. Text uses normal document layout. Moving visual tokens stay inside bounded
@@ -46,7 +47,8 @@ advance their own private step counters.
 - `src/visual-engine/tcp/`: specialized TCP projection and controls.
 - `src/visual-engine/generic/`: safe renderer for AI-generated draft traces.
 - `worker/index.ts`: D1 lookup, rate limiting, Workers AI generation, strict
-  output validation, and version persistence.
+  schema and topic validation, deterministic engine policy, stale-draft
+  rejection, and version persistence.
 - `migrations/`: append-only D1 schema history.
 
 React Flow and ELK are not part of the learner runtime. Every engine uses normal
@@ -85,6 +87,11 @@ undiscoverable implementation details.
 - `lesson_feedback`: feedback tied to a specific lesson version and event.
 - `generation_limits`: daily new-generation limit per hashed IP.
 
+Generated lesson JSON is versioned independently from the database schema.
+Only schema-version-2 AI drafts that still pass engine and relevance checks are
+reused. Older or off-topic drafts are ignored and replaced on the next search;
+this policy requires no destructive D1 migration.
+
 Schema changes are append-only. Never rewrite an applied migration.
 
 ## Layout contract
@@ -113,6 +120,8 @@ Schema changes are append-only. Never rewrite an applied migration.
 - unsafe parameter values are normalized.
 - every curated lesson resolves to a valid specialized engine;
 - all eight generated engine identities are supported;
+- semantic evidence overrides an incorrect AI engine suggestion;
+- themed CRUD output cannot masquerade as a data-structures lesson;
 - legacy saved visualization types map to the new engine registry;
 - generated actor references are bounded and validated;
 - cyclic graph input produces a finite, non-overlapping layout;

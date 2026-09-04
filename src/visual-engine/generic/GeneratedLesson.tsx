@@ -20,6 +20,7 @@ import { EngineCanvas } from "../engines/EngineCanvas.tsx";
 import "./generated-lesson.css";
 
 export type GeneratedLessonData = {
+  schemaVersion?: number;
   title: string;
   category: string;
   level?: string;

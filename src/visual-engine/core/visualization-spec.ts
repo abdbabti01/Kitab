@@ -62,6 +62,130 @@ export type RawVisualization = {
 
 const engineSet = new Set<string>(engineKinds);
 
+const engineEvidencePatterns: Record<EngineKind, RegExp[]> = {
+  "state-machine": [
+    /\bstate machines?\b/,
+    /\bfinite state\b/,
+    /\btransition(?:s|ed|ing)?\b/,
+    /\bguard(?:s|ed)?\b/,
+    /\bterminal state\b/,
+    /\blifecycles?\b/,
+    /\bcycles?\b/,
+  ],
+  request: [
+    /\brequests?\b/,
+    /\bresponses?\b/,
+    /\bhttps?\b/,
+    /\burls?\b/,
+    /\bbrowsers?\b/,
+    /\bdns\b/,
+    /\bapi(?:s)?\b/,
+    /\brequest pipeline\b/,
+    /\bweb lifecycle\b/,
+  ],
+  protocol: [
+    /\bprotocols?\b/,
+    /\btcp\b/,
+    /\budp\b/,
+    /\bquic\b/,
+    /\bpackets?\b/,
+    /\bsegments?\b/,
+    /\bdatagrams?\b/,
+    /\bethernet\b/,
+    /\bip routing\b/,
+    /\bports?\b/,
+    /\b(?:syn|ack|fin)\b/,
+  ],
+  tree: [
+    /\btrees?\b/,
+    /\bgraphs?\b/,
+    /\bb-?trees?\b/,
+    /\bbinary search\b/,
+    /\btravers(?:al|e|ed|ing)\b/,
+    /\bvertices\b/,
+    /\bedges?\b/,
+    /\bsubtrees?\b/,
+  ],
+  concurrency: [
+    /\bthreads?\b/,
+    /\bprocesses\b/,
+    /\bschedulers?\b/,
+    /\bmutex(?:es)?\b/,
+    /\bsemaphores?\b/,
+    /\bdeadlocks?\b/,
+    /\brace conditions?\b/,
+    /\bconcurr(?:ency|ent)\b/,
+    /\bshared resources?\b/,
+  ],
+  execution: [
+    /\bcall stacks?\b/,
+    /\bstack frames?\b/,
+    /\brecurs(?:ion|ive)\b/,
+    /\bfunctions?\b/,
+    /\bruntimes?\b/,
+    /\binstructions?\b/,
+    /\bcompilers?\b/,
+    /\bexecution\b/,
+    /\breturn values?\b/,
+  ],
+  memory: [
+    /\bdata structures?\b/,
+    /\barrays?\b/,
+    /\blinked lists?\b/,
+    /\bhash(?: tables?| maps?)\b/,
+    /\bpointers?\b/,
+    /\bmemory\b/,
+    /\bheaps?\b/,
+    /\bqueues?\b/,
+    /\bbuffers?\b/,
+    /\ballocat(?:e|ed|ion|ions)\b/,
+    /\bbuckets?\b/,
+    /\bindexes?\b/,
+    /\bcontiguous\b/,
+    /\bnodes?\b/,
+    /\bstacks?\b/,
+  ],
+  distributed: [
+    /\bdistributed systems?\b/,
+    /\bmessage (?:queues?|brokers?)\b/,
+    /\bkafka\b/,
+    /\breplicas?\b/,
+    /\bconsensus\b/,
+    /\bmicroservices?\b/,
+    /\bload balancers?\b/,
+    /\bevent[- ]driven\b/,
+    /\bkubernetes\b/,
+    /\bservice mesh\b/,
+  ],
+};
+
+const enginePriority: EngineKind[] = [
+  "request",
+  "state-machine",
+  "protocol",
+  "tree",
+  "concurrency",
+  "execution",
+  "memory",
+  "distributed",
+];
+
+function evidenceCount(engine: EngineKind, text: string) {
+  const normalized = text.toLowerCase();
+  return engineEvidencePatterns[engine].reduce(
+    (total, pattern) => total + (pattern.test(normalized) ? 1 : 0),
+    0,
+  );
+}
+
+export function hasEngineEvidence(
+  engine: EngineKind,
+  text: string,
+  minimum = 1,
+) {
+  return evidenceCount(engine, text) >= minimum;
+}
+
 function compact(value: unknown, fallback: string, max = 180) {
   if (typeof value !== "string") return fallback;
   const result = value.replace(/\s+/g, " ").trim();
@@ -74,32 +198,19 @@ export function selectEngineKind(input: {
   title?: string;
   category?: string;
 }): EngineKind {
-  if (input.engine && engineSet.has(input.engine)) {
-    return input.engine as EngineKind;
-  }
-
   const text = `${input.type ?? ""} ${input.title ?? ""} ${input.category ?? ""}`.toLowerCase();
-  if (/tcp|udp|quic|transport|packet|segment|datagram|protocol|ethernet|ip routing/.test(text)) {
-    return "protocol";
-  }
-  if (/array|linked list|hash|pointer|memory|heap|queue|buffer|allocation/.test(text)) {
-    return "memory";
-  }
-  if (/tree|graph|b-tree|binary search|traversal|node edge/.test(text)) {
-    return "tree";
-  }
-  if (/thread|process|scheduler|mutex|semaphore|deadlock|race condition|concurr/.test(text)) {
-    return "concurrency";
-  }
-  if (/stack|recursion|function|runtime|instruction|compiler|execution/.test(text)) {
-    return "execution";
-  }
-  if (/request|http|dns|browser|url|web lifecycle|pipeline/.test(text)) {
-    return "request";
-  }
-  if (/cycle|state|comparison/.test(text)) {
-    return "state-machine";
-  }
+  if (/\b(?:finite )?state machines?\b/.test(text)) return "state-machine";
+  const scores = enginePriority.map((engine) => ({
+    engine,
+    score: evidenceCount(engine, text),
+  }));
+  const best = scores.reduce((winner, candidate) =>
+    candidate.score > winner.score ? candidate : winner,
+  );
+  if (best.score > 0) return best.engine;
+
+  // A generated engine is only a hint. Semantic evidence always wins.
+  if (input.engine && engineSet.has(input.engine)) return input.engine as EngineKind;
   return "distributed";
 }
 

@@ -169,7 +169,13 @@ function MemoryScene({ spec, event, eventIndex, changed }: SceneProps) {
       <div className="memory-addresses">
         {spec.actors.map((actor, index) => (
           <article className={activeClass(actor, event)} key={actor.id}>
-            <span>{actor.group === "reference" ? "REF" : `0x${(4096 + index * 16).toString(16).toUpperCase()}`}</span>
+            <span>{
+              actor.group === "reference"
+                ? "REF"
+                : actor.group === "model"
+                  ? "MODEL"
+                  : `0x${(4096 + index * 16).toString(16).toUpperCase()}`
+            }</span>
             <Box aria-hidden="true" />
             <b>{actor.label}</b>
             <small>{actor.role}</small>
