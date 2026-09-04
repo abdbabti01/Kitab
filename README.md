@@ -1,12 +1,15 @@
 # Kitab
 
-A standalone React/Vite website with interactive beginner-friendly visualizations of TCP, web requests, and data structures.
+A React/Vite and Cloudflare Workers learning platform with deterministic reference simulations and AI-assisted draft lessons.
 
 ## Run locally
 
 1. Install Node.js 20 or newer.
 2. Run `npm install`.
 3. Run `npm run dev`.
+
+Open `/lesson/tcp` for the reference TCP learning system. The former
+`/visual-lab` address redirects to the same rebuilt experience.
 
 ## Deploy to Cloudflare Pages
 
@@ -22,7 +25,7 @@ The search feature uses Cloudflare Workers AI directly. No external AI API key i
 
 1. Create a Cloudflare D1 database named `kitab-db`.
 2. Copy its database ID into `wrangler.jsonc`, replacing `REPLACE_WITH_YOUR_D1_DATABASE_ID`.
-3. Run `npx wrangler d1 migrations apply kitab-db --remote` once to create the tables.
+3. Run `npx wrangler d1 migrations apply kitab-db --remote` after every release that adds a migration.
 4. Redeploy the Worker. The `AI` binding in `wrangler.jsonc` connects the site to Workers AI automatically.
 
 Important: every time you download a fresh Kitab package, replace the placeholder D1 ID in `wrangler.jsonc` with your real database ID before deploying.
@@ -31,7 +34,11 @@ If search reports that the database is not connected, verify the D1 ID and run:
 
 `npx wrangler d1 migrations apply kitab-db --remote`
 
-Every search checks D1 first. Only a missing concept calls Workers AI; the generated lesson is then stored and reused. Each IP can generate at most 20 new lessons per UTC day, while saved lessons remain unlimited.
+Every search checks D1 first. Only a missing concept calls Workers AI; the generated draft is validated, versioned, stored, and reused. AI provides semantic actors and events, while Kitab owns layout and playback. Each IP can generate at most 20 new lessons per UTC day, while saved lessons remain unlimited.
+
+## Verification
+
+Run `npm test` for the TCP simulation invariants. `npm run build` runs those tests automatically before the production build.
 
 Cloudflare build settings:
 
