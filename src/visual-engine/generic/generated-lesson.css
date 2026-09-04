@@ -154,6 +154,69 @@
   overflow-wrap: anywhere;
 }
 
+.generated-workbench header aside small {
+  display: block;
+  margin-top: 5px;
+  color: #ad9b7e;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.generated-engine-host {
+  min-width: 0;
+  padding: 0 14px 14px;
+}
+
+.generated-event-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 1fr);
+  gap: 1px;
+  overflow-x: auto;
+  padding: 0 14px 12px;
+}
+
+.generated-event-rail button {
+  min-width: 0;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 25px minmax(0, 1fr);
+  gap: 5px 8px;
+  align-content: center;
+  text-align: left;
+  padding: 9px;
+  border: 1px solid #57432e;
+  background: #241a12;
+  color: #b8a689;
+}
+
+.generated-event-rail button > span {
+  grid-row: 1 / 3;
+  color: #a88d65;
+  font: 800 0.65rem ui-monospace, monospace;
+}
+
+.generated-event-rail button b,
+.generated-event-rail button small {
+  overflow-wrap: anywhere;
+}
+
+.generated-event-rail button small {
+  color: #928169;
+  font-size: 0.67rem;
+}
+
+.generated-event-rail button.complete {
+  border-color: #637557;
+}
+
+.generated-event-rail button.active {
+  border-color: #d7a84b;
+  background: #3a2a18;
+  color: #ffd27a;
+  box-shadow: inset 0 -4px #d7a84b;
+}
+
 .generated-stage {
   padding: 18px;
 }
@@ -248,7 +311,7 @@
 
 .generated-controls {
   display: grid;
-  grid-template-columns: repeat(4, auto) minmax(160px, 1fr);
+  grid-template-columns: repeat(4, auto) minmax(130px, 1fr) auto;
   gap: 7px;
   align-items: center;
   padding: 10px;
@@ -286,6 +349,26 @@
 .generated-controls input {
   width: 100%;
   accent-color: #d7a84b;
+}
+
+.generated-speed {
+  display: grid;
+  grid-template-columns: 17px auto auto;
+  gap: 6px;
+  align-items: center;
+  color: #c2b092;
+  font-size: 0.75rem;
+}
+
+.generated-speed svg {
+  width: 16px;
+}
+
+.generated-speed select {
+  min-height: 36px;
+  border: 1px solid #6a5035;
+  background: #312318;
+  color: #f8edd9;
 }
 
 .generated-reading {
@@ -407,6 +490,10 @@
   .generated-controls label {
     grid-column: 1 / -1;
   }
+
+  .generated-event-rail {
+    grid-auto-columns: minmax(135px, 75vw);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -417,4 +504,3 @@
     transition-duration: 0.01ms !important;
   }
 }
-

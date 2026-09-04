@@ -44,17 +44,25 @@ type GeneratedLesson = {
   sections: { heading: string; body: string }[];
   terms: { term: string; definition: string }[];
   visualization: {
-    type: "flow" | "timeline" | "stack" | "network" | "tree" | "comparison" | "cycle";
+    engine:
+      | "protocol"
+      | "request"
+      | "memory"
+      | "tree"
+      | "execution"
+      | "concurrency"
+      | "distributed"
+      | "state-machine";
     title: string;
-    nodes: { label: string; detail: string }[];
-    steps: string[];
     actors: { label: string; role: string }[];
+    links: { from: number; to: number; label: string }[];
     events: {
       from: number;
       to: number;
       label: string;
       detail: string;
       state: string;
+      payload: string;
     }[];
   };
   tryIt: string[];
@@ -104,35 +112,24 @@ const generatedLessonJsonSchema = {
       type: "object",
       additionalProperties: false,
       properties: {
-        type: {
+        engine: {
           type: "string",
-          enum: ["flow", "timeline", "stack", "network", "tree", "comparison", "cycle"],
+          enum: [
+            "protocol",
+            "request",
+            "memory",
+            "tree",
+            "execution",
+            "concurrency",
+            "distributed",
+            "state-machine",
+          ],
         },
         title: { type: "string" },
-        nodes: {
-          type: "array",
-          minItems: 3,
-          maxItems: 7,
-          items: {
-            type: "object",
-            additionalProperties: false,
-            properties: {
-              label: { type: "string" },
-              detail: { type: "string" },
-            },
-            required: ["label", "detail"],
-          },
-        },
-        steps: {
-          type: "array",
-          minItems: 4,
-          maxItems: 8,
-          items: { type: "string" },
-        },
         actors: {
           type: "array",
           minItems: 2,
-          maxItems: 6,
+          maxItems: 8,
           items: {
             type: "object",
             additionalProperties: false,
@@ -143,6 +140,21 @@ const generatedLessonJsonSchema = {
             required: ["label", "role"],
           },
         },
+        links: {
+          type: "array",
+          minItems: 1,
+          maxItems: 12,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              from: { type: "integer", minimum: 0, maximum: 7 },
+              to: { type: "integer", minimum: 0, maximum: 7 },
+              label: { type: "string" },
+            },
+            required: ["from", "to", "label"],
+          },
+        },
         events: {
           type: "array",
           minItems: 4,
@@ -151,17 +163,18 @@ const generatedLessonJsonSchema = {
             type: "object",
             additionalProperties: false,
             properties: {
-              from: { type: "integer", minimum: 0, maximum: 5 },
-              to: { type: "integer", minimum: 0, maximum: 5 },
+              from: { type: "integer", minimum: 0, maximum: 7 },
+              to: { type: "integer", minimum: 0, maximum: 7 },
               label: { type: "string" },
               detail: { type: "string" },
               state: { type: "string" },
+              payload: { type: "string" },
             },
-            required: ["from", "to", "label", "detail", "state"],
+            required: ["from", "to", "label", "detail", "state", "payload"],
           },
         },
       },
-      required: ["type", "title", "nodes", "steps", "actors", "events"],
+      required: ["engine", "title", "actors", "links", "events"],
     },
     tryIt: {
       type: "array",
@@ -184,6 +197,16 @@ const generatedLessonJsonSchema = {
 };
 
 const DAILY_NEW_LESSON_LIMIT = 20;
+const visualizationEngines = [
+  "protocol",
+  "request",
+  "memory",
+  "tree",
+  "execution",
+  "concurrency",
+  "distributed",
+  "state-machine",
+] as const;
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -264,11 +287,15 @@ function validateLesson(value: unknown): GeneratedLesson {
   const visualization = lesson.visualization;
   if (
     !visualization ||
+    !visualizationEngines.includes(visualization.engine) ||
     !nonEmpty(visualization.title) ||
     !Array.isArray(visualization.actors) ||
     visualization.actors.length < 2 ||
-    visualization.actors.length > 6 ||
+    visualization.actors.length > 8 ||
     !visualization.actors.every((item) => validTextPair(item, "label", "role")) ||
+    !Array.isArray(visualization.links) ||
+    visualization.links.length < 1 ||
+    visualization.links.length > 12 ||
     !Array.isArray(visualization.events) ||
     visualization.events.length < 4 ||
     visualization.events.length > 8
@@ -277,6 +304,16 @@ function validateLesson(value: unknown): GeneratedLesson {
   }
 
   const actorCount = visualization.actors.length;
+  const validLinks = visualization.links.every(
+    (link) =>
+      Number.isInteger(link.from) &&
+      Number.isInteger(link.to) &&
+      link.from >= 0 &&
+      link.to >= 0 &&
+      link.from < actorCount &&
+      link.to < actorCount &&
+      nonEmpty(link.label),
+  );
   const validEvents = visualization.events.every(
     (event) =>
       Number.isInteger(event.from) &&
@@ -287,9 +324,10 @@ function validateLesson(value: unknown): GeneratedLesson {
       event.to < actorCount &&
       nonEmpty(event.label) &&
       nonEmpty(event.detail) &&
-      nonEmpty(event.state),
+      nonEmpty(event.state) &&
+      nonEmpty(event.payload),
   );
-  if (!validEvents) throw new Error("Invalid simulation.");
+  if (!validLinks || !validEvents) throw new Error("Invalid simulation.");
   return lesson as GeneratedLesson;
 }
 
@@ -443,7 +481,7 @@ async function saveLessonVersion(
               ?, ?, 'ai', 'schema-valid', ?
        FROM concepts WHERE normalized_name = ?`,
     )
-    .bind(`generic.${lesson.visualization.type}`, content, checksum, key)
+    .bind(`generated.${lesson.visualization.engine}`, content, checksum, key)
     .run();
 }
 
@@ -549,7 +587,16 @@ async function generateConcept(request: Request, env: Env, ctx: WorkerContext) {
 
   const prompt = `Create an accurate lesson about this computer-science or programming concept: "${concept}".
 Write for a true beginner without removing important technical truth. If the term is ambiguous, interpret it in computing. If it is unrelated to computing, say so clearly.
-Describe a causal mechanism, not a decorative diagram. Actors must be real components such as machines, protocol layers, processes, data structures, variables, services, or memory regions. Events must form a chronological trace of movement or state change. Actor indexes in every event must be valid. For an internal state change, from and to may be the same actor. Every event must name the visible action, explain why it occurs, and give the resulting state. Do not generate drawing coordinates, CSS, SVG, or HTML. The application owns layout and animation.`;
+Describe a causal mechanism, not a decorative diagram. Choose exactly one visualization engine:
+- protocol: packets, protocol layers, endpoints, headers, routing, delivery or loss
+- request: ordered web, DNS, API, database or processing pipelines
+- memory: arrays, linked structures, hashes, queues, buffers, allocation or pointers
+- tree: trees, graphs, traversal, indexes or hierarchical relationships
+- execution: functions, recursion, call stacks, instructions, compilers or runtimes
+- concurrency: processes, threads, scheduling, locks, races, ordering or shared resources
+- distributed: services, brokers, replicas, caches, consensus or multi-service messages
+- state-machine: lifecycles, cycles, comparisons and transitions between named states
+Actors must be real components such as machines, protocol layers, processes, data structures, variables, services, or memory regions. Links describe stable structural relationships. Events must form a chronological trace of movement or state change. Actor indexes in every link and event must be valid. For an internal state change, from and to may be the same actor. Every event must name the visible action, explain why it occurs, give the resulting state, and provide a short payload label suitable for the visual token. Do not generate drawing coordinates, CSS, SVG, HTML or executable code. The application owns layout and animation.`;
   const generationRecord = await startGenerationRecord(env, key);
 
   try {

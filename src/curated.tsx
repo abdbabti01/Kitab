@@ -21,7 +21,9 @@ export type ChapterMode =
   | "hash"
   | "tree"
   | "index"
-  | "scheduler";
+  | "scheduler"
+  | "distributed"
+  | "state";
 export type Chapter = {
   slug: string;
   title: string;
@@ -506,6 +508,106 @@ export const chapters: Chapter[] = [
       },
     ],
   },
+  {
+    slug: "message-queues",
+    title: "Message queues & event-driven systems",
+    family: "Distributed systems",
+    mode: "distributed",
+    summary:
+      "Follow an event from a producer into a durable broker, through delivery and acknowledgement, including what happens when a consumer fails.",
+    analogy:
+      "A registered-mail desk holds each envelope until the correct recipient collects it and signs a receipt.",
+    experiment: "Crash the consumer before acknowledgement",
+    normal:
+      "The consumer finishes its work and acknowledges the event, so the broker advances its delivery position.",
+    changed:
+      "Without an acknowledgement, the broker makes the event available again; repeated failures can move it to a dead-letter queue.",
+    steps: [
+      {
+        title: "Publish an event",
+        detail:
+          "The producer writes a small immutable event containing an identifier, type and payload.",
+        state: "Event created",
+      },
+      {
+        title: "Persist in the broker",
+        detail:
+          "The broker stores the event before confirming publication, so a process restart does not silently erase it.",
+        state: "Event durable",
+      },
+      {
+        title: "Route to a subscription",
+        detail:
+          "Topic and subscription rules decide which consumer group should receive the event.",
+        state: "Delivery assigned",
+      },
+      {
+        title: "Consumer handles the event",
+        detail:
+          "A consumer reads the payload and performs an idempotent operation because delivery may happen more than once.",
+        state: "Work in progress",
+      },
+      {
+        title: "Acknowledge completion",
+        detail:
+          "Only after the work succeeds does the consumer acknowledge the event to the broker.",
+        state: "Offset committed",
+      },
+      {
+        title: "Retry or dead-letter",
+        detail:
+          "A failed delivery is retried. After the configured attempt limit, the event is isolated for investigation.",
+        state: "Failure contained",
+      },
+    ],
+  },
+  {
+    slug: "state-machines",
+    title: "State machines & lifecycles",
+    family: "Software design",
+    mode: "state",
+    summary:
+      "Model a system as named states and permitted event-driven transitions, with guards that reject impossible changes.",
+    analogy:
+      "A traffic light cannot jump to any color it wants; each signal moves through a controlled set of valid states.",
+    experiment: "Send an invalid event",
+    normal:
+      "A valid event follows a declared transition and produces one predictable next state.",
+    changed:
+      "An event with no valid transition is rejected, leaving the state unchanged instead of corrupting the lifecycle.",
+    steps: [
+      {
+        title: "Enter the initial state",
+        detail:
+          "Every machine starts in one explicitly defined state rather than an ambiguous combination of flags.",
+        state: "Idle",
+      },
+      {
+        title: "Receive an event",
+        detail:
+          "An external input such as submit requests a transition from the current state.",
+        state: "Submit received",
+      },
+      {
+        title: "Evaluate the guard",
+        detail:
+          "The transition proceeds only when its condition is true; invalid data follows the failure path.",
+        state: "Input valid",
+      },
+      {
+        title: "Run the transition action",
+        detail:
+          "The machine performs the controlled side effect associated with the accepted transition.",
+        state: "Processing",
+      },
+      {
+        title: "Enter the next state",
+        detail:
+          "Completion produces one named state with a known set of allowed future events.",
+        state: "Complete",
+      },
+    ],
+  },
 ];
 
 export function findChapter(value: string) {
@@ -527,6 +629,9 @@ export function findChapter(value: string) {
           "http lifecycle": "web-request",
           "processes & threads": "processes-threads",
           "databases & indexes": "database-indexes",
+          "message queues": "message-queues",
+          "distributed systems": "message-queues",
+          "state machines": "state-machines",
         } as Record<string, string>
       )[q] === c.slug,
   );
@@ -588,7 +693,7 @@ function LegacyCuratedChapter({
             <span>LIVE MECHANISM</span>
             <b>{current.state}</b>
           </div>
-          <LessonEngine mode={chapter.mode} step={step} changed={experiment} />
+          <LessonEngine chapter={chapter} step={step} changed={experiment} />
           <div className="chapter-controls">
             <button
               onClick={() => {

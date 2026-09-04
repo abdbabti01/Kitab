@@ -38,32 +38,42 @@ advance their own private step counters.
 - `src/visual-engine/core/lesson-spec.ts`: versioned lesson schema.
 - `src/visual-engine/core/simulation.ts`: generic playback state machine and
   timeline assertions.
-- `src/visual-engine/engines/`: deterministic concept-family engines.
-- `src/visual-engine/lessons/`: reviewed learning metadata and checkpoints.
+- `src/visual-engine/core/visualization-spec.ts`: safe generated-data adapter,
+  engine routing, reference validation, and deterministic graph levels.
+- `src/visual-engine/engines/`: responsive concept-family projections.
+- `src/visual-engine/lessons/`: reviewed learning metadata, semantic blueprints,
+  and checkpoints.
 - `src/visual-engine/tcp/`: specialized TCP projection and controls.
 - `src/visual-engine/generic/`: safe renderer for AI-generated draft traces.
 - `worker/index.ts`: D1 lookup, rate limiting, Workers AI generation, strict
   output validation, and version persistence.
 - `migrations/`: append-only D1 schema history.
 
-React Flow and ELK are not part of the TCP learner runtime. ELK may be used by a
-future generic graph projection or internal authoring tool. Specialized lessons
-use domain layouts so their meaning is not reduced to arbitrary boxes and edges.
+React Flow and ELK are not part of the learner runtime. Every engine uses normal
+document flow, bounded grids, and semantic ordering. This prevents generated
+labels from overlapping or escaping the learning surface.
 
 ## Concept-family strategy
 
 New verified lessons must target a reusable engine family:
 
-- `protocol.*`: endpoints, layers, messages, headers, routes, loss, and timing.
-- `data-structure.*`: cells, nodes, pointers, allocation, and operations.
-- `algorithm.*`: values, comparisons, mutations, and active code.
-- `runtime.*`: call frames, heap objects, references, and scheduling.
-- `request-lifecycle.*`: services, queues, requests, responses, and latency.
-- `concurrency.*`: actors, resources, ownership, waiting, and ordering.
+- `protocol`: endpoints, layers, messages, headers, paths, and loss.
+- `request`: ordered browser, DNS, edge, API, database, and render traces.
+- `memory`: cells, addresses, nodes, pointers, buckets, and mutation paths.
+- `tree`: hierarchy, graph relationships, search paths, and traversal decisions.
+- `execution`: instructions, calls, frames, returns, and runtime state.
+- `concurrency`: actors, scheduling, shared resources, waiting, and ordering.
+- `distributed`: services, replicas, brokers, caches, and message ledgers.
+- `state-machine`: named states, cycles, comparisons, and transitions.
 
 An engine owns correctness and invariants. A lesson owns the scenario,
 explanation, objectives, glossary, and checkpoints. A renderer only projects
 engine state.
+
+Each engine has a visible reviewed example on the home page. The distributed
+example follows durable message delivery; the state-machine example follows a
+guarded application lifecycle. Internal capabilities must never exist only as
+undiscoverable implementation details.
 
 ## Storage model
 
@@ -101,8 +111,13 @@ Schema changes are append-only. Never rewrite an applied migration.
 - reordering buffers bytes until a gap is filled;
 - playback cannot stop before the final event;
 - unsafe parameter values are normalized.
+- every curated lesson resolves to a valid specialized engine;
+- all eight generated engine identities are supported;
+- legacy saved visualization types map to the new engine registry;
+- generated actor references are bounded and validated;
+- cyclic graph input produces a finite, non-overlapping layout;
+- engine canvases use responsive document flow without absolute positioning.
 
 Every future engine must add equivalent domain-invariant tests. Browser-level
 regression coverage should inspect 1440, 1024, 768, and 390 CSS pixels plus 200%
 text enlargement before a reference lesson is marked reviewed.
-
