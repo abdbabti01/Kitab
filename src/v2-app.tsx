@@ -93,6 +93,10 @@ export default function KitabV2() {
       window.location.href = "/lesson/tcp";
       return;
     }
+    if (local?.slug === "data-structures") {
+      window.location.href = "/lesson/data-structures";
+      return;
+    }
     if (local) {
       setGenerated(null);
       setLesson(local);

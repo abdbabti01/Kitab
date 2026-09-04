@@ -55,6 +55,25 @@ React Flow and ELK are not part of the learner runtime. Every engine uses normal
 document flow, bounded grids, and semantic ordering. This prevents generated
 labels from overlapping or escaping the learning surface.
 
+## Typed domain simulators
+
+High-depth reference lessons sit above the generic visualization engines. A
+typed simulator accepts bounded parameters and produces immutable state frames.
+Each frame contains the complete structure snapshot, focused components,
+cumulative operation metrics, the state delta, pseudocode and the invariant
+that must remain true. The timeline, visual stage, before/after comparison and
+inspector all read the same frame.
+
+The Data Structures reference lab establishes this contract in
+`src/visual-engine/data-structures/` for arrays, linked lists, stacks, queues,
+hash tables, binary search trees and graphs. Its model calculates memory reads,
+writes, comparisons, pointer changes, collision chains, ordered tree paths and
+BFS frontiers. React projects those results but does not calculate them.
+
+AI-generated lessons may use a safe generic engine. A concept becomes a
+reference lab only after deterministic domain operations and invariants exist;
+more prose or AI-generated coordinates do not qualify it.
+
 ## Concept-family strategy
 
 New verified lessons must target a reusable engine family:
@@ -126,6 +145,10 @@ Schema changes are append-only. Never rewrite an applied migration.
 - generated actor references are bounded and validated;
 - cyclic graph input produces a finite, non-overlapping layout;
 - engine canvases use responsive document flow without absolute positioning.
+- every exposed data-structure operation produces a complete state timeline;
+- operation metrics never move backward across a simulation;
+- array shifts, linked-list reachability, hash collisions, BST paths and BFS
+  frontiers match their deterministic model;
 
 Every future engine must add equivalent domain-invariant tests. Browser-level
 regression coverage should inspect 1440, 1024, 768, and 390 CSS pixels plus 200%
