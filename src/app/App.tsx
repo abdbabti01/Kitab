@@ -4,7 +4,7 @@ import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
 import { linkProps, useRoute } from "./router.ts";
-import { findChapter } from "../content/chapters.ts";
+import { chapters } from "../content/chapters.ts";
 
 const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
 const ConceptPage = lazy(() => import("./ConceptPage.tsx").then((module) => ({ default: module.ConceptPage })));
@@ -29,7 +29,7 @@ export function App() {
     const mission = findMission(route.id);
     view = mission ? <MissionPage key={mission.id} mission={mission} /> : <NotFound what="that mission" />;
   } else if (route.name === "concept") {
-    const chapter = findChapter(route.slug);
+    const chapter = chapters.find((item) => item.slug === route.slug);
     view = chapter ? <ConceptPage key={chapter.slug} chapter={chapter} /> : <NotFound what="that concept" />;
   } else if (route.name === "draft") view = <DraftPage key={route.slug} slug={route.slug} />;
   else view = <NotFound what="this page" />;

@@ -157,3 +157,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* Shared step controls (missions and walkthroughs). */
+.playback-row { display: flex; align-items: center; gap: 8px; }
+.scrubber { flex: 1; min-width: 80px; }

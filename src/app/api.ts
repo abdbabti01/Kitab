@@ -62,6 +62,13 @@ export async function askTutor(request: TutorRequest, signal?: AbortSignal): Pro
   return { response: tutorResponseSchema.parse(data.response), source: data.source === "ai" ? "ai" : "fallback", reason: data.reason };
 }
 
+export type ComposedScenario = { id: number; params: Record<string, string | number | boolean>; scenarioKey: string };
+
+/** AI maps a description onto the mission's own controls; the Worker validates it against the engine. */
+export function composeScenario(missionId: string, missionVersion: string, description: string) {
+  return api<ComposedScenario>("/api/scenario", { method: "POST", body: JSON.stringify({ missionId, missionVersion, description }), timeoutMs: 15_000 });
+}
+
 export type FeedbackTarget =
   | { kind: "mission"; missionId: string; missionVersion: string; engineVersion: string; scenarioKey: string; frameId: string }
   | { kind: "draft"; versionId: number; frameId: string };

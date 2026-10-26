@@ -1,3 +1,4 @@
+import { handleCompose } from "./compose.ts";
 import type { Env, WorkerContext } from "./env.ts";
 import { handleEvent, handleFeedback } from "./feedback.ts";
 import { handleGenerate, handleListConcepts, handleReadLesson } from "./generation.ts";
@@ -13,6 +14,7 @@ const routes: Route[] = [
   { method: "GET", match: (path) => path.startsWith("/api/lessons/"), handle: handleReadLesson },
   { method: "POST", match: (path) => path === "/api/concept", handle: handleGenerate },
   { method: "POST", match: (path) => path === "/api/tutor", handle: handleTutor },
+  { method: "POST", match: (path) => path === "/api/scenario", handle: handleCompose },
   { method: "POST", match: (path) => path === "/api/feedback", handle: handleFeedback },
   { method: "POST", match: (path) => path === "/api/events", handle: handleEvent },
 ];

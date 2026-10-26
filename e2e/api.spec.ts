@@ -42,3 +42,12 @@ test("mission feedback is accepted for the exact frame", async ({ page }) => {
   await page.getByRole("button", { name: "Send feedback" }).click();
   await expect(page.getByRole("status").filter({ hasText: "linked to this exact step" })).toBeVisible();
 });
+
+test("lab: a described scenario is applied only after the engine validates it", async ({ page }) => {
+  await page.goto("/missions/tcp-lab");
+  await page.getByLabel(/Or describe it/).fill("a small 1,500-byte transfer where a segment is lost");
+  await page.getByRole("button", { name: "Apply description" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "The engine checked this scenario" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: /^Network/ })).toHaveValue("loss");
+  await expect(page.locator(".tcp-segment")).toHaveCount(3);
+});

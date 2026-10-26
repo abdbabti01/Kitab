@@ -128,8 +128,11 @@ export function MissionPage({ mission }: { mission: Mission }) {
   }
 
   function setParam(key: string, value: FactValue) {
+    setParams({ ...trace.params, [key]: value });
+  }
+
+  function setParams(params: Record<string, FactValue>) {
     // Only before a prediction: rebuilds the attempt with the new settings.
-    const params = { ...trace.params, [key]: value };
     const attempt = { ...createAttempt(mission, state.attempt.number, params, state.attempt.id), optionOrder: state.attempt.optionOrder };
     dispatch({ type: "NEW_ATTEMPT", attempt });
   }
@@ -227,6 +230,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
             onRetry={() => retry()}
             onShowEvidence={showEvidence}
             onParam={setParam}
+            onParams={setParams}
             nextMissionId={nextMission}
           />
           <KitabGuide

@@ -185,3 +185,10 @@ test("keyboard-only: predict, run and explain without a pointer", async ({ page 
   await page.keyboard.press("Enter");
   await expect(page.getByRole("heading", { name: /mastered|Not mastered yet/ })).toBeFocused();
 });
+
+test("concept routes match slugs exactly", async ({ page }) => {
+  await page.goto("/concepts/dns");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("DNS resolution");
+  await page.goto("/concepts/a");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Not found");
+});

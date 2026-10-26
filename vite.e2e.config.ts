@@ -11,6 +11,7 @@ const db = new FakeD1();
 const ai = new FakeAi((input) => {
   const messages = input.messages as { content: string }[];
   const user = messages.at(-1)!.content + messages[1]?.content;
+  if (user.includes("Controls:")) return { response: { params: { scenario: "loss", payloadBytes: 1500, mssBytes: 536 } } };
   if (user.includes("TRUSTED CONTEXT")) {
     // A grounded, number-free tutor reply that passes validation for TCP missions.
     return { response: { explanation: "A cumulative TCP acknowledgment names the next byte the receiver expects, so it cannot move past a missing segment.", evidence: ["tcp-cumulative-ack"], misconception: null, attention: null, action: "inspect" } };

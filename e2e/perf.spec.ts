@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
  */
 for (const throttle of [1, 4]) {
   test(`playback frame timing, CPU throttle ${throttle}×`, async ({ page }, info) => {
-    test.skip(!!process.env.CI, "Timing on shared CI runners is not meaningful.");
+    test.skip(!process.env.KITAB_PERF, "Opt-in: KITAB_PERF=1 npx playwright test perf --workers=1 (timing is meaningless under parallel load or on shared CI runners).");
     test.skip(info.project.name !== "desktop-1440" && info.project.name !== "phone-390");
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setCPUThrottlingRate", { rate: throttle });

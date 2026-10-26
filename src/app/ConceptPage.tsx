@@ -47,8 +47,6 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
           <p className="notice"><Info aria-hidden="true" /> Illustrative walkthrough: reviewed explanations arranged as steps. It is not a computed simulation{related.length ? " — the missions above are." : "."}</p>
           <div className="card walkthrough">
             <p className="scene-step">Step {index + 1} of {chapter.steps.length}</p>
-            <h3 className="scene-title">{step.title}</h3>
-            <p>{step.detail}</p>
             <EngineCanvas spec={spec} eventIndex={index} />
             <div className="playback-row">
               <button type="button" className="icon-button" onClick={() => setIndex((value) => Math.max(0, value - 1))} disabled={index === 0} aria-label="Previous step"><ChevronLeft aria-hidden="true" /></button>

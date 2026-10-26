@@ -5,6 +5,7 @@ import { REASONING_LIMIT, type MissionState } from "../learning/mission-controll
 import type { Mission } from "../learning/mission-schema.ts";
 import type { FactValue, Trace } from "../learning/types.ts";
 import { linkProps } from "../app/router.ts";
+import { ApiError, composeScenario } from "../app/api.ts";
 
 const steps = [
   { id: "inspect", label: "Inspect" },
@@ -27,7 +28,33 @@ function Stepper({ phase }: { phase: MissionState["phase"] }) {
   );
 }
 
-function LearnerParams({ mission, params, onChange }: { mission: Mission; params: Record<string, FactValue>; onChange: (key: string, value: FactValue) => void }) {
+function DescribeScenario({ mission, onApply }: { mission: Mission; onApply: (params: Record<string, FactValue>) => void }) {
+  const [text, setText] = useState("");
+  const [status, setStatus] = useState<{ busy: boolean; message: string }>({ busy: false, message: "" });
+  async function apply() {
+    if (text.trim().length < 3) return;
+    setStatus({ busy: true, message: "" });
+    try {
+      const scenario = await composeScenario(mission.id, mission.version, text.trim());
+      onApply(scenario.params);
+      setStatus({ busy: false, message: "Applied. The engine checked this scenario; review the controls above." });
+    } catch (error) {
+      setStatus({ busy: false, message: error instanceof ApiError ? error.message : "That description couldn't be applied." });
+    }
+  }
+  return (
+    <div className="describe">
+      <label className="field">
+        <span>Or describe it <em className="muted">(AI maps it onto these controls; the engine validates it)</em></span>
+        <input type="text" maxLength={300} value={text} placeholder="e.g. a small 1,500-byte transfer where a segment is lost" onChange={(event) => setText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void apply(); } }} />
+      </label>
+      <button type="button" className="button" onClick={() => void apply()} disabled={status.busy || text.trim().length < 3}>{status.busy ? "Checking…" : "Apply description"}</button>
+      <p role="status" className="small muted">{status.message}</p>
+    </div>
+  );
+}
+
+function LearnerParams({ mission, params, onChange, onApply }: { mission: Mission; params: Record<string, FactValue>; onChange: (key: string, value: FactValue) => void; onApply: (params: Record<string, FactValue>) => void }) {
   const id = useId();
   if (!mission.learnerParams.length) return null;
   return (
@@ -54,6 +81,7 @@ function LearnerParams({ mission, params, onChange }: { mission: Mission; params
         );
       })}
       <p className="muted small">Changing a setting rebuilds the engine trace. Your prediction is collected afterwards.</p>
+      <DescribeScenario mission={mission} onApply={onApply} />
     </fieldset>
   );
 }
@@ -70,6 +98,7 @@ export function PhasePanel({
   onRetry,
   onShowEvidence,
   onParam,
+  onParams,
   nextMissionId,
 }: {
   mission: Mission;
@@ -83,6 +112,7 @@ export function PhasePanel({
   onRetry: () => void;
   onShowEvidence: () => void;
   onParam: (key: string, value: FactValue) => void;
+  onParams: (params: Record<string, FactValue>) => void;
   nextMissionId?: string;
 }) {
   const { phase, attempt } = state;
@@ -145,7 +175,7 @@ export function PhasePanel({
       {(phase === "inspect" || phase === "predict") && (
         <form onSubmit={submit} noValidate>
           <h2 id={`${ids}-heading`} ref={heading} tabIndex={-1} className="phase-title">{phase === "inspect" ? "Inspect, then predict" : "Your prediction"}</h2>
-          {phase === "inspect" && <LearnerParams mission={mission} params={trace.params} onChange={onParam} />}
+          {phase === "inspect" && <LearnerParams mission={mission} params={trace.params} onChange={onParam} onApply={onParams} />}
           <fieldset className="prediction" onFocus={phase === "inspect" ? onBegin : undefined}>
             <legend>{prompt}</legend>
             {mission.prediction.kind === "choice" ? (

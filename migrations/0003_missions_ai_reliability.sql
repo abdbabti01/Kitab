@@ -75,3 +75,14 @@ CREATE TABLE IF NOT EXISTS tutor_requests (
 CREATE INDEX IF NOT EXISTS idx_mission_feedback_mission ON mission_feedback(mission_id, mission_version);
 CREATE INDEX IF NOT EXISTS idx_learning_events_mission ON learning_events(mission_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_tutor_requests_mission ON tutor_requests(mission_id, created_at);
+
+-- AI-proposed lab scenarios, saved only after engine validation.
+CREATE TABLE IF NOT EXISTS composed_scenarios (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  mission_id TEXT NOT NULL,
+  mission_version TEXT NOT NULL,
+  engine_version TEXT NOT NULL,
+  scenario_key TEXT NOT NULL,
+  params_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

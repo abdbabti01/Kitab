@@ -656,32 +656,3 @@ export const chapters: Chapter[] = [
     ],
   },
 ];
-
-export function findChapter(value: string) {
-  const q = value.toLowerCase().trim();
-  return chapters.find(
-    (c) =>
-      c.slug === q ||
-      c.title.toLowerCase() === q ||
-      c.title.toLowerCase().includes(q) ||
-      (
-        {
-          "transport layer": "tcp",
-          arrays: "arrays",
-          "linked lists": "linked-lists",
-          "stacks & queues": "recursion",
-          "hash tables": "hash-tables",
-          trees: "trees",
-          "dns resolution": "dns",
-          "http lifecycle": "web-request",
-          "processes & threads": "processes-threads",
-          "databases & indexes": "database-indexes",
-          "message queues": "message-queues",
-          "distributed systems": "message-queues",
-          "state machines": "state-machines",
-          "data structure": "data-structures",
-          "data structures": "data-structures",
-        } as Record<string, string>
-      )[q] === c.slug,
-  );
-}

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - name: Typecheck (frontend, Worker + shared contracts, e2e)
+        run: npm run typecheck
+      - name: Model, contract, tutor-eval and Worker integration tests
+        run: npm test
+      - name: Production build
+        run: npx vite build
+      - name: Browser journeys (1440/1024/768/390 + Worker integration)
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
