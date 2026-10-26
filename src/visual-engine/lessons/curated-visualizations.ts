@@ -1,10 +1,10 @@
-import type { Chapter } from "../../curated";
+import type { Chapter } from "../../content/chapters.ts";
 import type {
   EngineKind,
   VisualActor,
   VisualLink,
   VisualizationSpec,
-} from "../core/visualization-spec";
+} from "../core/visualization-spec.ts";
 
 type Blueprint = {
   engine: EngineKind;
