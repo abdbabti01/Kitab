@@ -1,9 +1,9 @@
 import { engineKinds, hasEngineEvidence, selectEngineKind, type EngineKind } from "../src/visual-engine/core/visualization-spec.ts";
 import { DRAFT_CONTRACT, draftContractSchema, type DraftContract } from "../src/learning/draft-contract.ts";
-import { AiError, runModel } from "./ai.ts";
+import { AiError, runBudgeted } from "./ai.ts";
 import { limit, modelFor, type D1Database, type Env, type WorkerContext } from "./env.ts";
 import { failure, HttpError, json, readJson, requester, sha256 } from "./http.ts";
-import { recordTokens, reserve } from "./quota.ts";
+import { reserve } from "./quota.ts";
 
 export const GENERATED_SCHEMA_VERSION = 2;
 export const PROMPT_VERSION = "draft-prompt/3";
@@ -204,9 +204,10 @@ async function generate(env: Env, concept: string, usage: Usage): Promise<Genera
   ];
   let lastError: unknown = new Error("No attempt ran.");
   for (const attempt of attempts.slice(0, MAX_INFERENCE_CALLS)) {
-    usage.calls += 1;
     try {
-      const result = await runModel(env.AI!, model, { ...attempt, max_tokens: 2400 }, limit(env.AI_TIMEOUT_MS, GENERATION_TIMEOUT_MS));
+      // Every attempt, including retries, reserves from the shared daily token allowance first.
+      const result = await runBudgeted(env.DB!, limit(env.DAILY_TOKEN_BUDGET, 2_000_000), env.AI!, model, { ...attempt, max_tokens: 2400 }, limit(env.AI_TIMEOUT_MS, GENERATION_TIMEOUT_MS));
+      usage.calls += 1;
       usage.inputTokens += result.inputTokens ?? 0;
       usage.outputTokens += result.outputTokens ?? 0;
       usage.latencyMs += result.latencyMs;
@@ -215,6 +216,10 @@ async function generate(env: Env, concept: string, usage: Usage): Promise<Genera
       lastError = new Error("Generated lesson failed concept relevance validation.");
     } catch (error) {
       lastError = error;
+      if (error instanceof AiError && error.code === "AI_BUDGET_EXHAUSTED") throw error; // no reservation, no call
+      usage.calls += 1;
+      usage.inputTokens += (error instanceof AiError ? error.usage?.inputTokens : null) ?? 0;
+      usage.outputTokens += (error instanceof AiError ? error.usage?.outputTokens : null) ?? 0;
       if (error instanceof AiError && error.code === "AI_TIMEOUT") break; // don't stack timeouts
     }
   }
@@ -273,6 +278,10 @@ async function acquireLease(db: D1Database, key: string, owner: string, now = Da
   return row?.owner === owner;
 }
 
+async function completeLease(db: D1Database, key: string, owner: string, versionId: number | null) {
+  await db.prepare("UPDATE generation_jobs SET status = 'completed', version_id = ?, error_code = NULL, updated_at = CURRENT_TIMESTAMP WHERE cache_key = ? AND owner = ?").bind(versionId, cacheKey(key), owner).run();
+}
+
 async function settleLease(db: D1Database, key: string, owner: string, status: "failed" | "released", code: string) {
   await db.prepare("UPDATE generation_jobs SET status = ?, error_code = ?, updated_at = CURRENT_TIMESTAMP WHERE cache_key = ? AND owner = ?").bind(status, code, cacheKey(key), owner).run();
 }
@@ -292,8 +301,11 @@ async function waitForLeader(env: Env, key: string, sleep: (ms: number) => Promi
   return failure(503, "GENERATION_IN_PROGRESS", "This draft is still being written. Try again in a few seconds.", { retryAfterSeconds: 5 });
 }
 
-/** Test seams. `localCoalescing: false` simulates requests landing on different Worker instances. */
-export type GenerationDeps = { sleep?: (ms: number) => Promise<void>; owner?: string; localCoalescing?: boolean };
+/**
+ * Test seams. `localCoalescing: false` simulates requests landing on different Worker instances;
+ * `beforeLease` pauses a request between its cache miss and its lease, to reproduce interleavings.
+ */
+export type GenerationDeps = { sleep?: (ms: number) => Promise<void>; owner?: string; localCoalescing?: boolean; beforeLease?: () => Promise<void> };
 
 export async function handleGenerate(request: Request, env: Env, ctx: WorkerContext, deps: GenerationDeps = {}) {
   if (!env.DB) return failure(503, "DB_UNAVAILABLE", "The concept database is not connected. Check the D1 binding and migrations.");
@@ -338,6 +350,7 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
   const owner = deps.owner ?? crypto.randomUUID();
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   let leader: boolean;
+  await deps.beforeLease?.();
   try {
     leader = await acquireLease(db, key, owner);
   } catch (error) {
@@ -345,6 +358,23 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
     return failure(503, "D1_UNAVAILABLE", "The lesson service is temporarily unavailable.");
   }
   if (!leader) return waitForLeader(env, key, sleep);
+
+  // Another request may have saved this query between our cache miss and this lease (its lease is then
+  // 'completed', which we may take over). Reuse valid current-policy content before spending any quota.
+  try {
+    const saved = await findConcept(db, key);
+    if (saved) {
+      const contract = await savedContract(db, key, saved, null).catch(() => null); // stale content → regenerate below
+      if (contract) {
+        await completeLease(db, key, owner, contract.meta.versionId).catch(() => undefined);
+        return json({ ...contract, coalesced: true });
+      }
+    }
+  } catch (error) {
+    console.error("D1 recheck after lease failed.", error);
+    await settleLease(db, key, owner, "released", "D1_LOOKUP_FAILED").catch(() => undefined);
+    return failure(503, "D1_LOOKUP_FAILED", "The lesson service is temporarily unavailable.");
+  }
 
   if (!env.AI) {
     await settleLease(db, key, owner, "released", "AI_UNAVAILABLE").catch(() => undefined);
@@ -358,7 +388,7 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
       { scope: "generate-ip", subject: who.ip, limit: limit(env.DAILY_GENERATIONS_PER_IP, 20) },
       { scope: "generate-session", subject: who.session, limit: limit(env.DAILY_GENERATIONS_PER_SESSION, 20) },
       { scope: "generate-global", subject: "global", limit: limit(env.DAILY_GENERATIONS_GLOBAL, 500) },
-    ], limit(env.DAILY_TOKEN_BUDGET, 2_000_000));
+    ]);
   } catch (error) {
     console.error("D1 quota reservation failed.", error);
     await settleLease(db, key, owner, "released", "QUOTA_UNAVAILABLE").catch(() => undefined);
@@ -384,12 +414,15 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
     lesson = await generate(env, concept, usage);
   } catch (error) {
     const code = error instanceof AiError ? error.code : "AI_GENERATION_FAILED";
+    const exhausted = code === "AI_BUDGET_EXHAUSTED";
     console.error("Workers AI generation failed.", error);
     await Promise.allSettled([
-      settleLease(db, key, owner, "failed", code),
+      settleLease(db, key, owner, exhausted ? "released" : "failed", code),
       requestId ? db.prepare("UPDATE generation_requests SET status = 'failed', error_code = ?, validation_outcome = 'rejected', inference_calls = ?, latency_ms = ?, input_tokens = ?, output_tokens = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?").bind(code, usage.calls, Date.now() - started, usage.inputTokens, usage.outputTokens, requestId).run() : Promise.resolve(),
-      recordTokens(db, "generate-global", usage.inputTokens + usage.outputTokens),
+      // Nothing was inferred: give the per-IP/session call back.
+      exhausted && usage.calls === 0 ? reservation.release() : Promise.resolve(),
     ]);
+    if (exhausted) return failure(429, "QUOTA_EXHAUSTED", "Today's AI allowance is used up. Saved drafts and reviewed missions remain available.", { scope: "ai-tokens" });
     return failure(code === "AI_TIMEOUT" ? 504 : 502, code, "Workers AI could not produce a valid draft. Please try again later.");
   }
 
@@ -429,7 +462,6 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
     ]);
     return failure(503, "D1_SAVE_FAILED", "The draft was generated but could not be saved, so it was not published. Please try again.");
   }
-  await recordTokens(db, "generate-global", usage.inputTokens + usage.outputTokens).catch(() => undefined);
   return json(toContract(key, lesson, { status: "draft", review: "not-reviewed", versionId: versionRow.id, contentVersion: versionRow.version, source: "workers-ai", cached: false, model }));
 }
 

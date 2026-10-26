@@ -21,6 +21,7 @@ export type GuideEvent =
   | { type: "tutor-pending" }
   | { type: "tutor-response"; text: string; target?: string; source: "ai" | "fallback" }
   | { type: "tutor-failed"; fallbackText: string; target?: string }
+  | { type: "tutor-cancelled" }
   | { type: "toggle-collapsed" };
 
 export type GuideState = {
@@ -77,6 +78,8 @@ export function guideReducer(state: GuideState, event: GuideEvent): GuideState {
       return say(state, "explaining", event.text, { target: event.target, source: event.source });
     case "tutor-failed":
       return say(state, "unavailable", "I couldn't reach my tutor service, so here's the reviewed explanation.", { detail: event.fallbackText, target: event.target, source: "fallback" });
+    case "tutor-cancelled":
+      return say(state, "idle", "The scenario changed, so I dropped that answer. Ask again for the new one.");
     case "toggle-collapsed":
       return { ...state, collapsed: !state.collapsed };
   }

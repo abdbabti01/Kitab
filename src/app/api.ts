@@ -65,8 +65,8 @@ export async function askTutor(request: TutorRequest, signal?: AbortSignal): Pro
 export type ComposedScenario = { id: number; params: Record<string, string | number | boolean>; scenarioKey: string };
 
 /** AI maps a description onto the mission's own controls; the Worker validates it against the engine. */
-export function composeScenario(missionId: string, missionVersion: string, description: string) {
-  return api<ComposedScenario>("/api/scenario", { method: "POST", body: JSON.stringify({ missionId, missionVersion, description }), timeoutMs: 15_000 });
+export function composeScenario(missionId: string, missionVersion: string, description: string, signal?: AbortSignal) {
+  return api<ComposedScenario>("/api/scenario", { method: "POST", body: JSON.stringify({ missionId, missionVersion, description }), timeoutMs: 15_000, signal });
 }
 
 export type FeedbackTarget =

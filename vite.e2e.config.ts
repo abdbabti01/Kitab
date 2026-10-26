@@ -8,10 +8,17 @@ import { handle } from "./worker/index.ts";
 import { FakeAi, FakeD1, lessonFor } from "./tests/support/fakes.ts";
 
 const db = new FakeD1();
-const ai = new FakeAi((input) => {
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const ai = new FakeAi(async (input) => {
   const messages = input.messages as { content: string }[];
   const user = messages.at(-1)!.content + messages[1]?.content;
-  if (user.includes("Controls:")) return { response: { params: { scenario: "loss", payloadBytes: 1500, mssBytes: 536 } } };
+  if (user.includes("Controls:")) {
+    // Deterministic delays for the stale-reply tests: a description containing "slow" answers after 2 s.
+    // Only the learner's description (between <<< >>>), not the control list, decides the fake reply.
+    const description = /<<<([\s\S]*?)>>>/.exec(user)?.[1] ?? "";
+    if (/slow/i.test(description)) await sleep(2000);
+    return { response: { params: /reorder/i.test(description) ? { scenario: "reorder", payloadBytes: 4000, mssBytes: 1200 } : { scenario: "loss", payloadBytes: 1500, mssBytes: 536 } } };
+  }
   if (user.includes("TRUSTED CONTEXT")) {
     // A grounded, number-free tutor reply that passes validation for TCP missions.
     return { response: { explanation: "A cumulative TCP acknowledgment names the next byte the receiver expects, so it cannot move past a missing segment.", evidence: ["tcp-cumulative-ack"], misconception: null, attention: null, action: "inspect" } };
@@ -31,7 +38,10 @@ function fakeWorker(): Plugin {
         const headers = new Headers();
         for (const [key, value] of Object.entries(req.headers)) if (typeof value === "string") headers.set(key, value);
         headers.set("CF-Connecting-IP", "198.51.100.7");
-        const request = new Request(`http://localhost${req.url}`, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method ?? "GET") ? undefined : Buffer.concat(chunks) });
+        const body = Buffer.concat(chunks);
+        // Slow network for TCP-lab tutor replies, so a reply can arrive after the learner changed the scenario.
+        if (req.url === "/api/tutor" && body.includes('"missionId":"tcp-lab"')) await sleep(1500);
+        const request = new Request(`http://localhost${req.url}`, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method ?? "GET") ? undefined : body });
         const response = await handle(request, { DB: db, AI: ai, AI_TIMEOUT_MS: "5000" }, { waitUntil: () => undefined });
         res.statusCode = response.status;
         response.headers.forEach((value, key) => res.setHeader(key, value));

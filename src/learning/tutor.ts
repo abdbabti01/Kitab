@@ -3,6 +3,7 @@ import { fillTemplate, resolvePredictionOptions, traceFor, assessPrediction } fr
 import type { Mission } from "./mission-schema.ts";
 import { frameAt, getEngine } from "./registry.ts";
 import type { Fact, FactValue, Trace } from "./types.ts";
+import { normalizeNumberWords } from "./claims.ts";
 
 export const tutorIntents = ["hint", "explain-step", "why-wrong"] as const;
 export type TutorIntent = (typeof tutorIntents)[number];
@@ -57,6 +58,8 @@ export type TutorContext = {
   request: TutorRequest;
   /** True once the run is complete: outcome facts may be discussed. */
   revealed: boolean;
+  /** True once a prediction was submitted (or skipped) and the run started. Before that, only reviewed content is served. */
+  predicted: boolean;
   frameIndex: number;
   facts: Fact[];
   previousFacts: Fact[];
@@ -120,6 +123,7 @@ export function buildTutorContext(mission: Mission, request: TutorRequest): Tuto
     trace,
     request,
     revealed,
+    predicted,
     frameIndex,
     facts: frame.facts,
     previousFacts: previous?.facts ?? [],
@@ -175,7 +179,7 @@ export function fallbackTutor(context: TutorContext): TutorResponse {
 }
 
 function numbersIn(text: string) {
-  const plain = text.replace(/(\d),(?=\d{3}\b)/g, "$1");
+  const plain = normalizeNumberWords(text).replace(/(\d),(?=\d{3}\b)/g, "$1");
   return [...plain.matchAll(/(?<![\w.])-?\d+(?:\.\d+)?(?![\w])/g)].map((match) => match[0].replace(/^-/, ""));
 }
 
@@ -218,19 +222,22 @@ export function validateTutorOutput(raw: unknown, context: TutorContext): TutorV
     ...(context.prediction ? [context.prediction.text] : []),
   ].join(" ");
   const grounded = new Set(numbersIn(groundedSources));
-  for (const number of numbersIn(text)) if (!grounded.has(number)) problems.push(`grounding: ${number} is not a value in the trace`);
+  // 0 and 1 are exempt here because number words ("one slot", "one at a time") are now normalized to digits.
+  for (const number of numbersIn(text)) if (!grounded.has(number) && number !== "0" && number !== "1") problems.push(`grounding: ${number} is not a value in the trace`);
 
   // Conservative: before the run, any mention of the answer value counts as a spoiler,
   // even when that number is also visible elsewhere in the scene.
   for (const value of context.withheld) {
-    const leaked = /^-?\d+(?:\.\d+)?$/.test(value) ? numbersIn(text).includes(value.replace(/^-/, "")) : text.toLowerCase().includes(value.toLowerCase());
+    const leaked = /^-?\d+(?:\.\d+)?$/.test(value) ? numbersIn(text).includes(value.replace(/^-/, "")) : normalizeNumberWords(text).toLowerCase().includes(normalizeNumberWords(value).toLowerCase());
     if (leaked) problems.push("spoiler: reveals the answer before the prediction");
   }
 
   const adapter = getEngine(context.trace.engine.id);
   const lower = text.toLowerCase();
   if (adapter && !adapter.vocabulary.some((term) => new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(lower))) problems.push("topic: explanation does not discuss this mechanism");
-  if (adapter?.checkClaims) problems.push(...adapter.checkClaims(text, [...context.facts, ...context.previousFacts, ...context.outcomeFacts]).map((problem) => `contradiction: ${problem}`));
+  // Engine-derived claim checks: the adapter compares the claim shapes it supports with the trace itself
+  // (including outcomes the learner has not seen yet), not with the model's own citations.
+  if (adapter?.checkClaims) problems.push(...adapter.checkClaims(text, [...context.facts, ...context.previousFacts, ...context.outcomeFacts], context.trace).map((problem) => `contradiction: ${problem}`));
 
   return problems.length ? { ok: false, problems } : { ok: true, response };
 }

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import "../src/learning/engines/index.ts";
 import { assessExplanation, assessPrediction, resolvePredictionOptions, traceFor } from "../src/learning/assessment.ts";
-import { attemptStatus, createAttempt, createMissionState, missionReducer, type MissionState } from "../src/learning/mission-controller.ts";
+import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionState } from "../src/learning/mission-controller.ts";
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { PROGRESS_KEY, loadProgress, missionStatus, recordState, recordVisit, restoreState, saveProgress } from "../src/learning/progress.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../src/learning/guide.ts";
@@ -128,4 +128,41 @@ test("repeating an event does not re-announce the same message", () => {
   const collapsed = guideReducer(once, { type: "toggle-collapsed" });
   assert.equal(collapsed.collapsed, true);
   assert.equal(collapsed.seq, once.seq);
+});
+
+test("finding 3: settings changes apply only to the attempt and scenario they were based on", () => {
+  const lab = findMission("tcp-lab")!;
+  let state = createMissionState(lab, createAttempt(lab, 1, undefined, "lab-1"));
+  const basedOn = { attemptId: state.attempt.id, params: state.attempt.params };
+  const loss = { ...state.attempt.params, scenario: "loss" };
+  const reorder = { ...state.attempt.params, scenario: "reorder", payloadBytes: 4000 };
+
+  // Applied while still inspecting.
+  const applied = missionReducer(state, { type: "APPLY_PARAMS", expect: basedOn, params: reorder });
+  assert.equal(applied.attempt.params.scenario, "reorder");
+  assert.equal(applied.attempt.id, state.attempt.id, "the attempt (and its option order) is kept");
+
+  // Out of order: a reply based on the old settings arrives after newer ones were applied.
+  assert.equal(missionReducer(applied, { type: "APPLY_PARAMS", expect: basedOn, params: loss }), applied);
+
+  // After the prediction: a slow reply must not touch the submitted attempt.
+  const trace = traceFor(lab, state.attempt.params);
+  state = missionReducer(state, { type: "SUBMIT_PREDICTION", answer: { number: 3 }, result: assessPrediction(lab, trace, { number: 3 }), reasoning: "three segments" });
+  const after = missionReducer(state, { type: "APPLY_PARAMS", expect: basedOn, params: loss });
+  assert.equal(after, state);
+  assert.equal(after.phase, "run");
+  assert.equal(after.attempt.prediction!.reasoning, "three segments");
+
+  // A reply for a previous attempt is ignored too.
+  const retried = missionReducer(state, { type: "NEW_ATTEMPT", attempt: createAttempt(lab, 2, undefined, "lab-2") });
+  assert.equal(missionReducer(retried, { type: "APPLY_PARAMS", expect: basedOn, params: loss }), retried);
+  assert.equal(paramsChangeIsCurrent(retried, basedOn), false);
+});
+
+test("finding 3: a dropped tutor reply is announced once, not shown", () => {
+  const pending = guideReducer(initialGuide, { type: "tutor-pending" });
+  const dropped = guideReducer(pending, { type: "tutor-cancelled" });
+  assert.equal(dropped.mood, "idle");
+  assert.match(dropped.message, /dropped that answer/);
+  assert.equal(guideReducer(dropped, { type: "tutor-cancelled" }), dropped);
 });

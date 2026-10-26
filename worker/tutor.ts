@@ -2,10 +2,10 @@ import "../src/learning/engines/index.ts";
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { buildTutorContext, buildTutorMessages, fallbackTutor, tutorJsonSchema, tutorRequestSchema, TutorRequestError, validateTutorOutput, type TutorContext } from "../src/learning/tutor.ts";
 import { EngineError } from "../src/learning/registry.ts";
-import { runModel } from "./ai.ts";
+import { AiError, runBudgeted } from "./ai.ts";
 import { limit, modelFor, type Env, type WorkerContext } from "./env.ts";
 import { failure, json, readJson, requester } from "./http.ts";
-import { recordTokens, reserve } from "./quota.ts";
+import { reserve } from "./quota.ts";
 
 const TUTOR_TIMEOUT_MS = 8_000;
 
@@ -39,6 +39,9 @@ export async function handleTutor(request: Request, env: Env, ctx: WorkerContext
     return json({ response: fallbackTutor(context), source: "fallback", reason });
   };
 
+  // Before the learner has committed to a prediction, only reviewed, answer-safe content is returned:
+  // no model output can leak the answer, and no inference is spent.
+  if (!context.predicted) return fallback("REVIEWED_BEFORE_PREDICTION");
   if (!env.AI) return fallback("AI_UNAVAILABLE");
   if (!env.DB) return fallback("QUOTA_UNAVAILABLE"); // fail closed: no quota, no inference
 
@@ -48,7 +51,7 @@ export async function handleTutor(request: Request, env: Env, ctx: WorkerContext
       { scope: "tutor-ip", subject: who.ip, limit: limit(env.DAILY_TUTOR_PER_IP, 120) },
       { scope: "tutor-session", subject: who.session, limit: limit(env.DAILY_TUTOR_PER_SESSION, 80) },
       { scope: "tutor-global", subject: "global", limit: limit(env.DAILY_TUTOR_GLOBAL, 5_000) },
-    ], limit(env.DAILY_TOKEN_BUDGET, 2_000_000));
+    ]);
     if (!reservation.ok) return fallback("QUOTA_EXHAUSTED");
   } catch (error) {
     console.error("Tutor quota reservation failed.", error);
@@ -57,9 +60,8 @@ export async function handleTutor(request: Request, env: Env, ctx: WorkerContext
 
   const model = modelFor(env);
   try {
-    const result = await runModel(env.AI, model, { messages: buildTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
+    const result = await runBudgeted(env.DB, limit(env.DAILY_TOKEN_BUDGET, 2_000_000), env.AI, model, { messages: buildTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
     const extra = { model, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens };
-    ctx.waitUntil(recordTokens(env.DB, "tutor-global", (result.inputTokens ?? 0) + (result.outputTokens ?? 0)).catch(() => undefined));
     const checked = validateTutorOutput(result.value, context);
     if (!checked.ok) {
       console.warn("Tutor output rejected.", checked.problems);
@@ -68,8 +70,9 @@ export async function handleTutor(request: Request, env: Env, ctx: WorkerContext
     audit(env, ctx, context, "ai", null, extra);
     return json({ response: checked.response, source: "ai" });
   } catch (error) {
-    const code = (error as { code?: string }).code ?? "AI_FAILED";
+    const code = error instanceof AiError ? error.code : "AI_FAILED";
+    if (code === "AI_BUDGET_EXHAUSTED") return fallback("QUOTA_EXHAUSTED");
     console.error("Tutor inference failed.", error);
-    return fallback(code, { model });
+    return fallback(code, { model, inputTokens: error instanceof AiError ? error.usage?.inputTokens : null, outputTokens: error instanceof AiError ? error.usage?.outputTokens : null });
   }
 }

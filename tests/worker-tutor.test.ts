@@ -57,15 +57,17 @@ test("tutor: contradictory, wrong-topic or malformed output falls back to the re
   }
 });
 
-test("tutor: before the prediction the model never sees the outcome, and spoilers are rejected", async () => {
+test("tutor: before the prediction only reviewed content is served and no inference runs", async () => {
   const ai = new FakeAi(() => ({ response: { explanation: `Watch closely: the receiver will answer ACK ${trace.outcome.gapStart} after the loss.`, evidence: ["tcp-cumulative-ack"], misconception: null, attention: null, action: "inspect" } }));
-  const { data } = await ask(envWith({ DB: new FakeD1(), AI: ai }), { phase: "predict", prediction: null, intent: "hint", frameIndex: duplicate });
-  const prompt = JSON.stringify(ai.calls[0].input);
-  assert.match(prompt, /The outcome is hidden/);
-  assert.doesNotMatch(prompt, /duplicate-created|Computed outcome/);
-  assert.match(prompt, /Current frame 1\//, "future frames are clamped to the inspect frame");
-  assert.equal(data.source, "fallback");
-  assert.doesNotMatch(data.response.explanation, new RegExp(String(trace.outcome.gapStart)));
+  const db = new FakeD1();
+  for (const intent of ["hint", "explain-step"]) {
+    const { data } = await ask(envWith({ DB: db, AI: ai }), { phase: "predict", prediction: null, intent, frameIndex: duplicate });
+    assert.equal(data.source, "fallback");
+    assert.equal(data.reason, "REVIEWED_BEFORE_PREDICTION");
+    assert.doesNotMatch(data.response.explanation, new RegExp(String(trace.outcome.gapStart)));
+  }
+  assert.equal(ai.calls.length, 0);
+  assert.equal(db.rows("SELECT * FROM usage_counters").length, 0, "no quota or tokens spent");
 });
 
 test("tutor: timeouts, AI errors, missing bindings and exhausted quota all degrade to fallback", async () => {
@@ -86,7 +88,7 @@ test("tutor: timeouts, AI errors, missing bindings and exhausted quota all degra
   assert.equal(capped.calls.length, 0);
 
   const budget = new FakeD1();
-  budget.sqlite.prepare("INSERT INTO usage_counters (scope, subject, day, count, tokens) VALUES ('tutor-global', 'global', ?, 1, 2000000)").run(today());
+  budget.sqlite.prepare("INSERT INTO usage_counters (scope, subject, day, count, tokens) VALUES ('ai-tokens', 'global', ?, 1, 2000000)").run(today());
   assert.equal((await ask(envWith({ DB: budget, AI: capped }))).data.reason, "QUOTA_EXHAUSTED", "global token budget enforced");
 });
 

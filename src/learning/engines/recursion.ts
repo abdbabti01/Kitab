@@ -7,6 +7,7 @@ import {
   type RecursionEvent,
 } from "../../visual-engine/engines/execution/recursion-engine.ts";
 import type { EngineAdapter, Fact } from "../types.ts";
+import { normalizeNumberWords } from "../claims.ts";
 
 const params = z
   .object({ fn: z.string().optional(), n: z.unknown().optional(), baseCase: z.unknown().optional(), stackLimit: z.unknown().optional() })
@@ -76,7 +77,7 @@ export const recursionAdapter: EngineAdapter<Record<string, string | number | bo
   checkClaims(text, facts) {
     const problems: string[] = [];
     const depth = facts.find((fact) => fact.id === "depth");
-    const claim = text.match(/\b(\d+)\s+frames?\b/i);
+    const claim = normalizeNumberWords(text).match(/\b(\d+)\s+frames?\b/i);
     if (claim && depth && !facts.some((fact) => String(fact.value) === claim[1])) problems.push(`Claims ${claim[1]} frames; the trace shows ${depth.value}.`);
     if (/\bfirst call (?:returns|finishes) first\b/i.test(text)) problems.push("Claims the first call returns first; the most recent call returns first.");
     return problems;

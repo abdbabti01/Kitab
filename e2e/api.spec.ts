@@ -26,8 +26,16 @@ test("search → create an AI draft → draft page shows review status, version 
   await expect(page.locator(".concept-list a", { hasText: "skip list" })).toBeVisible();
 });
 
-test("Kitab tutor answers through the Worker and labels AI output", async ({ page }) => {
+test("Kitab tutor: reviewed content before the prediction, labelled AI output after it", async ({ page }) => {
   await page.goto("/missions/tcp-lost-segment");
+  // Before predicting, the Worker serves only reviewed content (no model output can leak the answer).
+  await page.getByRole("button", { name: "Explain this step" }).click();
+  await expect(page.locator(".guide-source")).toHaveText("Reviewed explanation.");
+  await expect(page.locator(".guide-message")).toHaveText(/browser chooses a temporary port/);
+
+  await page.locator("label.choice", { hasText: "ACK 4501" }).click();
+  await page.getByRole("button", { name: "Test prediction" }).click();
+  await page.getByRole("button", { name: "Pause" }).click();
   await page.getByRole("button", { name: "Explain this step" }).click();
   await expect(page.locator(".guide-message")).toContainText("cumulative TCP acknowledgment");
   await expect(page.locator(".guide-source")).toHaveText(/AI explanation, checked against this trace/);

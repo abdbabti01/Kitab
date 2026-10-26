@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Check, Eye, FlaskConical, RefreshCw, Sparkles, X } from "lucide-react";
 import { fillTemplate, optionOrder, resolvePredictionOptions, type PredictionAnswer } from "../learning/assessment.ts";
-import { REASONING_LIMIT, type MissionState } from "../learning/mission-controller.ts";
+import { REASONING_LIMIT, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
 import type { Mission } from "../learning/mission-schema.ts";
 import type { FactValue, Trace } from "../learning/types.ts";
 import { linkProps } from "../app/router.ts";
@@ -28,18 +28,36 @@ function Stepper({ phase }: { phase: MissionState["phase"] }) {
   );
 }
 
-function DescribeScenario({ mission, onApply }: { mission: Mission; onApply: (params: Record<string, FactValue>) => void }) {
+type ApplyParams = (params: Record<string, FactValue>, expect: ParamsExpectation) => boolean;
+
+function DescribeScenario({ mission, expect, onApply }: { mission: Mission; expect: ParamsExpectation; onApply: ApplyParams }) {
   const [text, setText] = useState("");
   const [status, setStatus] = useState<{ busy: boolean; message: string }>({ busy: false, message: "" });
+  const pending = useRef<AbortController | null>(null);
+  // A request belongs to the attempt and settings it started from: changing either (or leaving) cancels it.
+  const contextKey = `${expect.attemptId}|${JSON.stringify(expect.params)}`;
+  useEffect(() => () => {
+    if (pending.current && !pending.current.signal.aborted) {
+      pending.current.abort();
+      setStatus({ busy: false, message: "Cancelled: the settings changed before Kitab answered." });
+    }
+  }, [contextKey]);
   async function apply() {
     if (text.trim().length < 3) return;
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    const basedOn = expect;
     setStatus({ busy: true, message: "" });
     try {
-      const scenario = await composeScenario(mission.id, mission.version, text.trim());
-      onApply(scenario.params);
-      setStatus({ busy: false, message: "Applied. The engine checked this scenario; review the controls above." });
+      const scenario = await composeScenario(mission.id, mission.version, text.trim(), controller.signal);
+      if (controller.signal.aborted) return;
+      setStatus({ busy: false, message: onApply(scenario.params, basedOn) ? "Applied. The engine checked this scenario; review the controls above." : "Not applied: the attempt changed while Kitab was checking." });
     } catch (error) {
+      if (controller.signal.aborted) return;
       setStatus({ busy: false, message: error instanceof ApiError ? error.message : "That description couldn't be applied." });
+    } finally {
+      if (pending.current === controller) pending.current = null;
     }
   }
   return (
@@ -54,7 +72,7 @@ function DescribeScenario({ mission, onApply }: { mission: Mission; onApply: (pa
   );
 }
 
-function LearnerParams({ mission, params, onChange, onApply }: { mission: Mission; params: Record<string, FactValue>; onChange: (key: string, value: FactValue) => void; onApply: (params: Record<string, FactValue>) => void }) {
+function LearnerParams({ mission, params, expect, onChange, onApply }: { mission: Mission; params: Record<string, FactValue>; expect: ParamsExpectation; onChange: (key: string, value: FactValue) => void; onApply: ApplyParams }) {
   const id = useId();
   if (!mission.learnerParams.length) return null;
   return (
@@ -81,7 +99,7 @@ function LearnerParams({ mission, params, onChange, onApply }: { mission: Missio
         );
       })}
       <p className="muted small">Changing a setting rebuilds the engine trace. Your prediction is collected afterwards.</p>
-      <DescribeScenario mission={mission} onApply={onApply} />
+      <DescribeScenario mission={mission} expect={expect} onApply={onApply} />
     </fieldset>
   );
 }
@@ -112,7 +130,7 @@ export function PhasePanel({
   onRetry: () => void;
   onShowEvidence: () => void;
   onParam: (key: string, value: FactValue) => void;
-  onParams: (params: Record<string, FactValue>) => void;
+  onParams: ApplyParams;
   nextMissionId?: string;
 }) {
   const { phase, attempt } = state;
@@ -175,7 +193,7 @@ export function PhasePanel({
       {(phase === "inspect" || phase === "predict") && (
         <form onSubmit={submit} noValidate>
           <h2 id={`${ids}-heading`} ref={heading} tabIndex={-1} className="phase-title">{phase === "inspect" ? "Inspect, then predict" : "Your prediction"}</h2>
-          {phase === "inspect" && <LearnerParams mission={mission} params={trace.params} onChange={onParam} onApply={onParams} />}
+          {phase === "inspect" && <LearnerParams mission={mission} params={trace.params} expect={{ attemptId: attempt.id, params: attempt.params }} onChange={onParam} onApply={onParams} />}
           <fieldset className="prediction" onFocus={phase === "inspect" ? onBegin : undefined}>
             <legend>{prompt}</legend>
             {mission.prediction.kind === "choice" ? (

@@ -99,7 +99,7 @@ test("generation: success associates content, immutable version, audit row and j
   assert.equal(audit.input_tokens, 900);
   assert.equal(audit.prompt_version, "draft-prompt/3");
   assert.equal(db.rows<{ status: string }>("SELECT status FROM generation_jobs WHERE cache_key = ?", cacheKey("linked list"))[0].status, "completed");
-  assert.equal(db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'generate-global'")[0].tokens, 1600);
+  assert.equal(db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'ai-tokens'")[0].tokens, 1600, "shared allowance reconciled to reported usage");
 
   // A cached read returns the same version without inference.
   const again = await handle(post("/api/concept", { concept: "linked list" }), envWith({ DB: db, AI: ai }), context());

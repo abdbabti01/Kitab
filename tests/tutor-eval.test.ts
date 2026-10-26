@@ -113,3 +113,41 @@ test("why-wrong fallback names the misconception the learner actually chose", ()
   assert.match(fallback.explanation, new RegExp(String(tcpTrace.outcome.gapStart)));
   assert.equal(fallback.attention, "segment-2");
 });
+
+// ---- Review finding 2: answer leaks before prediction and false array explanations.
+const arrayMission = findMission("array-insert-shift")!;
+function arrayContext(phase: "predict" | "explain", variant = 0, prediction: unknown = null) {
+  const v = arrayMission.variants[variant];
+  return buildTutorContext(arrayMission, tutorRequestSchema.parse({ missionId: arrayMission.id, missionVersion: arrayMission.version, params: v.params, frameIndex: phase === "predict" ? 0 : 3, intent: phase === "predict" ? "hint" : "explain-step", phase, prediction, reasoning: "" }));
+}
+const out = (explanation: string) => ({ explanation, evidence: ["array-model"], misconception: null, attention: null, action: "inspect" });
+
+test("finding 2: a spelled-out answer before prediction is a spoiler", () => {
+  const before = arrayContext("predict");
+  assert.deepEqual(before.withheld, ["3", "3 elements"]);
+  const result = validateTutorOutput(out("Three elements shift right to make room in the array. Count the suffix from the insertion index."), before);
+  assert.equal(result.ok, false);
+  assert.match((result as { problems: string[] }).problems.join(" "), /spoiler/);
+});
+
+test("finding 2: 'nothing moves / overwrite the slot' contradicts the engine after prediction", () => {
+  const after = arrayContext("explain", 0, { optionId: "three" });
+  const result = validateTutorOutput(out("No array elements need to move. Overwrite the indexed slot directly to insert the new value."), after);
+  assert.equal(result.ok, false);
+  const problems = (result as { problems: string[] }).problems.join(" ");
+  assert.match(problems, /Claims 0 element\(s\) move; the engine shifted 3/);
+  assert.match(problems, /overwrites a slot/);
+  // A wrong count written as a word is caught too.
+  assert.equal(validateTutorOutput(out("Five elements shift right because array slots are contiguous."), after).ok, false);
+});
+
+test("finding 2: legitimate hints and explanations remain accepted", () => {
+  const hint = validateTutorOutput(out("Look at the slots at or after index 2. Contiguous array slots leave no empty slot between them."), arrayContext("predict"));
+  assert.equal(hint.ok, true, hint.ok ? "" : hint.problems.join("; "));
+  const right = validateTutorOutput(out("Three elements shift right one slot because array slots are contiguous, so every element from index 2 onward moves before 7 is written."), arrayContext("explain", 0, { optionId: "three" }));
+  assert.equal(right.ok, true, right.ok ? "" : right.problems.join("; "));
+  // The same claim shape is judged against each variant's own computed count.
+  const front = validateTutorOutput(out("All five elements shift right because the insert is at index 0 and array slots are contiguous."), arrayContext("explain", 1, { optionId: "five" }));
+  assert.equal(front.ok, true, front.ok ? "" : front.problems.join("; "));
+  assert.equal(validateTutorOutput(out("Three elements shift right one slot because array slots are contiguous."), arrayContext("explain", 1, { optionId: "five" })).ok, false);
+});

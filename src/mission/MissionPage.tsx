@@ -3,7 +3,7 @@ import { ArrowLeft, BadgeCheck } from "lucide-react";
 import "../learning/engines/index.ts";
 import { assessExplanation, assessPrediction, evidenceFrameIndex, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.ts";
-import { attemptStatus, createAttempt, createMissionState, missionReducer, type MissionAction, type MissionState } from "../learning/mission-controller.ts";
+import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionAction, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
 import type { Mission } from "../learning/mission-schema.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, recordState, recordVisit, restoreState, safeStorage, saveProgress } from "../learning/progress.ts";
@@ -41,6 +41,10 @@ export function MissionPage({ mission }: { mission: Mission }) {
   const module = sceneFor(trace.engine.id);
   const lastIndex = trace.frames.length - 1;
 
+  // The latest committed state, for replies that resolve after the render that issued them.
+  const latest = useRef({ state, scenarioKey: trace.scenarioKey });
+  latest.current = { state, scenarioKey: trace.scenarioKey };
+
   const emit = useCallback((event: GuideEvent) => dispatchGuide(event), []);
   const dispatch = useCallback((action: MissionAction) => dispatchMission(action), []);
 
@@ -66,8 +70,14 @@ export function MissionPage({ mission }: { mission: Mission }) {
     }
   }, [state.phase, playback.index, lastIndex, dispatch, emit, state.attempt]);
 
-  // Cancel any in-flight tutor request when the attempt changes.
-  useEffect(() => () => tutorAbort.current?.abort(), [state.attempt.id]);
+  // Cancel an in-flight tutor request when the attempt or its scenario changes (settings edits keep the attempt id), or on leaving.
+  useEffect(() => () => {
+    const pending = tutorAbort.current;
+    if (pending && !pending.signal.aborted) {
+      pending.abort();
+      emit({ type: "tutor-cancelled" });
+    }
+  }, [state.attempt.id, trace.scenarioKey, emit]);
 
   const entities = new Map(frame.entities.map((item) => [item.id, item.label]));
   const attention = guide.target && entities.has(guide.target) ? guide.target : null;
@@ -128,13 +138,17 @@ export function MissionPage({ mission }: { mission: Mission }) {
   }
 
   function setParam(key: string, value: FactValue) {
-    setParams({ ...trace.params, [key]: value });
+    setParams({ ...trace.params, [key]: value }, { attemptId: state.attempt.id, params: state.attempt.params });
   }
 
-  function setParams(params: Record<string, FactValue>) {
-    // Only before a prediction: rebuilds the attempt with the new settings.
-    const attempt = { ...createAttempt(mission, state.attempt.number, params, state.attempt.id), optionOrder: state.attempt.optionOrder };
-    dispatch({ type: "NEW_ATTEMPT", attempt });
+  /**
+   * Applies new lab settings only while they are still based on the current attempt and scenario, before a
+   * prediction. Checked against the latest state here and again inside the reducer.
+   */
+  function setParams(params: Record<string, FactValue>, expect: ParamsExpectation) {
+    if (!paramsChangeIsCurrent(latest.current.state, expect)) return false;
+    dispatch({ type: "APPLY_PARAMS", expect, params });
+    return true;
   }
 
   async function askKitab(intent: GuideAction) {
@@ -153,16 +167,18 @@ export function MissionPage({ mission }: { mission: Mission }) {
     // The same context builder the server uses gives an instant, reviewed fallback.
     const fallback = fallbackTutor(buildTutorContext(mission, request));
     tutorAbort.current?.abort();
+    const issued = { attemptId: state.attempt.id, scenarioKey: trace.scenarioKey };
+    const stale = () => controller.signal.aborted || latest.current.state.attempt.id !== issued.attemptId || latest.current.scenarioKey !== issued.scenarioKey;
     const controller = new AbortController();
     tutorAbort.current = controller;
     setTutorBusy(true);
     emit({ type: "tutor-pending" });
     try {
       const reply = await askTutor(request, controller.signal);
-      if (controller.signal.aborted) return;
+      if (stale()) return;
       emit({ type: "tutor-response", text: reply.response.explanation, target: reply.response.attention ?? undefined, source: reply.source });
     } catch {
-      if (controller.signal.aborted) return;
+      if (stale()) return;
       emit({ type: "tutor-failed", fallbackText: fallback.explanation, target: fallback.attention ?? undefined });
     } finally {
       if (tutorAbort.current === controller) setTutorBusy(false);

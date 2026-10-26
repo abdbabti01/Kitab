@@ -28,7 +28,22 @@ export type MissionAction =
   | { type: "RUN_COMPLETED" }
   | { type: "SUBMIT_EXPLANATION"; choiceId: string; correct: boolean; misconception?: string }
   | { type: "SET_REFLECTION"; text: string }
-  | { type: "NEW_ATTEMPT"; attempt: Attempt };
+  | { type: "NEW_ATTEMPT"; attempt: Attempt }
+  /**
+   * Change a lab's settings. Applied only if, in the latest state, the phase is still before the prediction
+   * and the attempt and its parameters are exactly those the change was based on. A slow reply that comes
+   * back after the learner predicted, or after newer settings, is ignored.
+   */
+  | { type: "APPLY_PARAMS"; expect: ParamsExpectation; params: Record<string, FactValue> };
+
+export type ParamsExpectation = { attemptId: string; params: Record<string, FactValue> };
+
+const canonical = (params: Record<string, FactValue>) => JSON.stringify(Object.keys(params).sort().map((key) => [key, params[key]]));
+
+/** Whether a settings change based on `expect` may still be applied to `state`. */
+export function paramsChangeIsCurrent(state: MissionState, expect: ParamsExpectation) {
+  return (state.phase === "inspect" || state.phase === "predict") && state.attempt.id === expect.attemptId && !state.attempt.prediction && !state.attempt.skippedPrediction && canonical(state.attempt.params) === canonical(expect.params);
+}
 
 export const REASONING_LIMIT = 600;
 
@@ -88,6 +103,9 @@ export function missionReducer(state: MissionState, action: MissionAction): Miss
       return { ...state, attempt: { ...attempt, reflection: action.text.slice(0, REASONING_LIMIT) } };
     case "NEW_ATTEMPT":
       return { ...state, phase: "inspect", attempt: action.attempt };
+    case "APPLY_PARAMS":
+      if (!paramsChangeIsCurrent(state, action.expect)) return state;
+      return { ...state, attempt: { ...attempt, variantId: "custom", params: action.params } };
   }
 }
 

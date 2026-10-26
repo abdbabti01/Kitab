@@ -96,7 +96,7 @@ the ribbon bookmark is the pointer) animated with CSS keyframes.
 | Capability | What AI may do | What decides correctness |
 |---|---|---|
 | Concept drafts (`POST /api/concept`) | Write schema-bound explanatory content | Nothing is verified. Drafts are labelled “not reviewed”; walkthroughs are illustrative. The engine family is chosen once in the Worker (`applyEnginePolicy`). |
-| Tutor (`POST /api/tutor`) | Explain/hint using provided facts | The engine trace. The Worker rebuilds it from validated params, withholds outcome and future frames before prediction, and rejects output that fails schema, evidence-id, attention-id, misconception-code, numeric-grounding, adapter contradiction, topic or spoiler checks. |
+| Tutor (`POST /api/tutor`) | After the prediction only: explain/hint using provided facts | The engine trace. **Before a prediction no model is called**: the Worker returns the reviewed, answer-safe hint or frame narration. Afterwards it rebuilds the trace from validated params and rejects output that fails schema, evidence-id, attention-id, misconception-code, numeric-grounding (number words normalized), topic or spoiler checks, or an adapter's engine-derived claim checks (e.g. TCP ACK numbers and recovery; recursion depth; how many array elements an insert/delete shifts and whether it overwrites a slot, compared with the computed `shifts`). These checks cover specific claim shapes. They do not verify arbitrary prose, and a valid citation does not make a sentence true. |
 | Scenario composition (`POST /api/scenario`, labs only) | Map a learner's description onto the mission's declared controls (JSON schema derived from them) | `validateComposedParams`: keys must be declared controls, values allowed options or on-range/step, the engine must build a complete trace without downgrading or normalizing anything. Only then is it saved (`composed_scenarios`) and applied. The mechanism's correctness still comes from the engine; no second model is asked. |
 
 Fallbacks (reviewed hints, frame narration, misconception messages) are
@@ -109,12 +109,39 @@ checked 2026-10-25; the previous `-fast` id is no longer listed).
 
 ## Reliability and cost controls
 
-- **Atomic allowance**: one conditional UPSERT per scope (`usage_counters`),
-  per IP, per session and global, plus a global daily token budget; partial
+- **Call limits**: one conditional UPSERT per scope (`usage_counters`) per IP,
+  per session and per endpoint (drafts; tutor; composition); partial
   reservations are released.
+- **Shared AI token allowance** (`DAILY_TOKEN_BUDGET`, row `ai-tokens`/`global`
+  per UTC day): every inference call — drafts, tutor, composition and every
+  retry — goes through `runBudgeted`.
+  - *Measures*: model-reported prompt + completion tokens per call. Where
+    usage is not reported (timeout, transport error, missing `usage`), the
+    reservation stands. It does not measure Neurons or money.
+  - *Admission*: before each call one statement reserves an upper-bound
+    estimate (input characters ÷ 3 + the full `max_tokens`). The insert and
+    update paths share the same condition, `reserved + estimate ≤ budget`, so
+    a budget of 0 admits nothing, even on a fresh database, and concurrent
+    requests cannot jointly over-reserve.
+  - *Reconciliation*: after the call, the reservation is replaced by the
+    reported usage, including for rejected or invalid output.
+  - *Guarantee*: reservations never exceed the budget at admission. Recorded
+    usage can exceed it only if a call's real token count exceeds its estimate
+    (a tokenizer counting more than 1 token per 3 characters, or a provider
+    ignoring `max_tokens`). This is a reservation-based ceiling, not a billing
+    hard stop.
 - **Coalescing**: identical concurrent misses share one promise per instance
   and one D1 lease (`generation_jobs`) across instances; followers poll and
-  reserve nothing. Instance memory alone is not relied on.
+  reserve nothing. After winning a lease the leader re-reads the cache: if
+  another request saved current-policy content in the meantime, it returns
+  that content (and settles only its own lease) without reserving quota or
+  calling AI. Stale or incompatible content is still regenerated. Instance
+  memory alone is not relied on.
+- **Stale replies in the client**: scenario descriptions and tutor answers
+  carry the attempt and scenario they were asked for. A reply is applied only
+  if the latest state still matches; the reducer re-checks this
+  (`APPLY_PARAMS`). Pending requests are aborted when the settings or attempt
+  change, or when the page is left.
 - **Persistence**: concept, immutable `lesson_versions` row, audit
   (`generation_requests`, with prompt/schema version, calls, latency, tokens)
   and job state commit in one `DB.batch` transaction. A failed save publishes

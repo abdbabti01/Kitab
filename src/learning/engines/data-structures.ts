@@ -8,7 +8,34 @@ import {
   type StructureKind,
   type StructureSnapshot,
 } from "../../visual-engine/data-structures/model.ts";
-import type { EngineAdapter, Entity, Fact } from "../types.ts";
+import type { EngineAdapter, Entity, Fact, Trace } from "../types.ts";
+import { normalizeNumberWords } from "../claims.ts";
+
+/** "3 elements shift", "No array elements need to move", "all 5 values are moved" → the claimed count. */
+const MOVE_CLAIM = /\b(no|zero|a single|one|\d+|all \d+)\s+(?:existing\s+|array\s+|later\s+|other\s+)?(?:elements?|values?|items?|numbers?)\s+(?:\w+\s+){0,3}?(?:shift|move|get shifted|are shifted|are moved|is shifted|is moved)/gi;
+
+/**
+ * Array insertion/deletion claims checked against the engine's computed shift count. Supported claim shapes
+ * only: how many existing elements move, and whether an insert overwrites a slot. Anything else is not judged.
+ */
+function arrayClaims(text: string, trace: Trace): string[] {
+  const { kind, operation } = trace.params;
+  const shifts = trace.outcome.shifts;
+  if (kind !== "array" || (operation !== "insert" && operation !== "delete") || typeof shifts !== "number") return [];
+  const normalized = normalizeNumberWords(text);
+  const problems: string[] = [];
+  for (const match of normalized.matchAll(MOVE_CLAIM)) {
+    const head = match[1].toLowerCase();
+    const claimed = head === "no" || head === "zero" ? 0 : head === "a single" || head === "one" ? 1 : Number(/\d+/.exec(head)![0]);
+    if (claimed !== shifts) problems.push(`Claims ${claimed} element(s) move; the engine shifted ${shifts}.`);
+  }
+  // Affirmative "overwrite/replace the slot|value" only; "would destroy", "not", "instead of" phrasing is not a claim that it happens.
+  const overwrite = /(?<!\b(?:not|never|n't|instead of|rather than|without)\s+(?:\w+\s+)?)\b(?:overwrites?|replaces?)\s+(?:the|that|an?)\s+(?:indexed\s+|existing\s+|target\s+|old\s+)?(?:slot|value|element)/i;
+  if (operation === "insert" && shifts > 0 && overwrite.test(normalized)) {
+    problems.push(`Claims the insert overwrites a slot; the engine shifted ${shifts} element(s) first and kept every existing value.`);
+  }
+  return problems;
+}
 
 const params = z
   .object({
@@ -81,6 +108,7 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
   title: "Data structures",
   params: params as never,
   vocabulary: ["array", "index", "slot", "shift", "address", "write", "read", "node", "pointer", "queue", "stack", "bucket", "hash", "vertex", "visit", "bfs", "frontier", "tree", "compare", "element", "neighbor", "edge", "path", "root", "subtree", "left", "right", "smaller", "larger", "key", "list", "insert", "delet", "search", "collision", "head", "front", "rear", "top", "memory"],
+  checkClaims: (text, _facts, trace) => arrayClaims(text, trace),
   build(input) {
     const kind = input.kind as StructureKind;
     const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index) });

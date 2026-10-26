@@ -58,6 +58,9 @@ export type EngineAdapter<TParams extends Record<string, FactValue> = Record<str
   };
   /** Domain terms; the tutor must stay within this vocabulary. */
   vocabulary: string[];
-  /** Returns contradictions between free text and the trace facts. */
-  checkClaims?(text: string, facts: Fact[]): string[];
+  /**
+   * Returns contradictions between free text and the engine's trace for the claim shapes this adapter
+   * supports. A clean result means "no supported claim is contradicted", not "the text is true".
+   */
+  checkClaims?(text: string, facts: Fact[], trace: Trace): string[];
 };
