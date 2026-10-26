@@ -1,12 +1,14 @@
 import { findMission } from "../learning/missions/catalog.ts";
 import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
-import { MissionPage } from "../mission/MissionPage.tsx";
-import { ConceptPage } from "./ConceptPage.tsx";
-import { DraftPage } from "./DraftPage.tsx";
+import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
 import { linkProps, useRoute } from "./router.ts";
 import { findChapter } from "../content/chapters.ts";
+
+const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
+const ConceptPage = lazy(() => import("./ConceptPage.tsx").then((module) => ({ default: module.ConceptPage })));
+const DraftPage = lazy(() => import("./DraftPage.tsx").then((module) => ({ default: module.DraftPage })));
 
 function NotFound({ what }: { what: string }) {
   return (
@@ -51,7 +53,7 @@ export function App() {
           }
         }}
       >
-        {view}
+        <Suspense fallback={<main id="main" className="page" aria-busy="true"><p role="status">Opening…</p></main>}>{view}</Suspense>
       </ErrorBoundary>
     </>
   );
