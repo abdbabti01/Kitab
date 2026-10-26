@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "WebWorker"],
+    "lib": [
+      "ES2022",
+      "WebWorker"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
@@ -10,7 +13,17 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["worker", "tests", "src/learning", "src/visual-engine/engines/protocols", "src/visual-engine/engines/execution", "src/visual-engine/data-structures/model.ts", "src/visual-engine/core", "playwright.config.ts", "e2e"]
+  "include": [
+    "worker",
+    "tests",
+    "src/learning",
+    "src/visual-engine/engines/protocols",
+    "src/visual-engine/engines/execution",
+    "src/visual-engine/data-structures/model.ts",
+    "src/visual-engine/core"
+  ]
 }
