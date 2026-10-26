@@ -16,11 +16,22 @@ import { Inspector } from "./Inspector.tsx";
 import { KitabGuide, type GuideAction } from "./KitabGuide.tsx";
 import { useFlip, useReducedMotion } from "./motion.ts";
 import { PhasePanel } from "./PhasePanel.tsx";
+import { predictionSummary } from "./prediction.ts";
 import { PlaybackBar, usePlayback } from "./Playback.tsx";
 import { sceneFor } from "./scenes/index.ts";
 import "./mission.css";
 
 const storage = safeStorage();
+
+/**
+ * Stable identities for handlers that always call the latest closure. Panels that do not depend on the
+ * current frame can then skip re-rendering at every playback step.
+ */
+function useStableHandlers<T extends Record<string, (...args: never[]) => unknown>>(handlers: T): T {
+  const latest = useRef(handlers);
+  latest.current = handlers;
+  return useMemo(() => Object.fromEntries(Object.keys(handlers).map((key) => [key, (...args: never[]) => latest.current[key](...args)])) as T, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
 
 export function MissionPage({ mission }: { mission: Mission }) {
   const [progress, setProgress] = useState(() => recordVisit(loadProgress(storage).progress, mission.id, mission.version));
@@ -95,6 +106,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
     emit({ type: "prediction-submitted" });
     playback.dispatch({ type: "SEEK", index: 0 });
     playback.dispatch({ type: "PLAY" });
+    revealScene();
     void sendLearningEvent({ type: "prediction-submitted", missionId: mission.id, missionVersion: mission.version, engineVersion: trace.engine.version, scenarioKey: trace.scenarioKey, correct: result.correct });
   }
 
@@ -102,6 +114,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
     dispatch({ type: "SKIP_PREDICTION" });
     playback.dispatch({ type: "SEEK", index: 0 });
     playback.dispatch({ type: "PLAY" });
+    revealScene();
     emit({ type: "run-started" });
   }
 
@@ -114,7 +127,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
       void sendLearningEvent({ type: "mission-mastered", missionId: mission.id, missionVersion: mission.version, engineVersion: trace.engine.version, scenarioKey: trace.scenarioKey, correct: true });
     } else {
       const misconception = result.misconception ? mission.misconceptions[result.misconception] : undefined;
-      emit({ type: "explanation-assessed", correct: result.correct, message: misconception ? fillTemplate(misconception.message, trace) : undefined });
+      emit({ type: "explanation-assessed", correct: result.correct, predictionCorrect: Boolean(state.attempt.prediction?.correct), skipped: state.attempt.skippedPrediction, message: misconception ? fillTemplate(misconception.message, trace) : undefined });
     }
   }
 
@@ -124,8 +137,26 @@ export function MissionPage({ mission }: { mission: Mission }) {
     const code = state.attempt.prediction?.misconception;
     const misconception = code ? mission.misconceptions[code] : undefined;
     const evidenceFrame = trace.frames[index];
-    if (misconception) emit({ type: "misconception-identified", label: misconception.label, message: fillTemplate(misconception.message, trace), target: misconception.target ? fillTemplate(misconception.target, trace) : evidenceFrame.focus[0] });
-    else emit({ type: "hint-requested", text: `Step ${index + 1}: ${evidenceFrame.title}. ${evidenceFrame.narration}`, target: evidenceFrame.focus[0] });
+    const target = misconception?.target ? fillTemplate(misconception.target, trace) : evidenceFrame.focus[0];
+    if (misconception) emit({ type: "misconception-identified", label: misconception.label, message: fillTemplate(misconception.message, trace), target });
+    else emit({ type: "hint-requested", text: `Step ${index + 1}: ${evidenceFrame.title}. ${evidenceFrame.narration}`, target });
+    revealInScene(target);
+  }
+
+  /** Start of the run: bring the scene (not the panel) into view, without moving focus. */
+  function revealScene() {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const scene = sceneRef.current?.closest(".scene");
+      if (scene && scene.getBoundingClientRect().top > window.innerHeight * 0.5) scene.scrollIntoView({ block: "start", behavior: reducedMotion ? "auto" : "smooth" });
+    }));
+  }
+
+  /** Bring the evidence into view after the seek renders. Scrolls only; keyboard focus stays where it is. */
+  function revealInScene(entityId: string | undefined) {
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const element = (entityId && document.querySelector<HTMLElement>(`[data-entity="${CSS.escape(entityId)}"]`)) || sceneRef.current;
+      element?.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+    }));
   }
 
   function retry() {
@@ -200,9 +231,28 @@ export function MissionPage({ mission }: { mission: Mission }) {
     if (playback.status === "paused" && state.phase === "run") emit({ type: "run-paused" });
   }, [playback.status, state.phase, emit]);
 
+  const panel = useStableHandlers({
+    onBegin: () => { if (latest.current.state.phase === "inspect") { dispatch({ type: "BEGIN_PREDICTION" }); emit({ type: "prediction-started" }); } },
+    onPredict: predict,
+    onSkip: skip,
+    onExplain: explain,
+    onReflection: (text: string) => dispatch({ type: "SET_REFLECTION", text }),
+    onRetry: () => retry(),
+    onShowEvidence: showEvidence,
+    onParam: setParam,
+    onParams: setParams,
+  });
+  const guideHandlers = useStableHandlers({
+    onAction: (action: GuideAction) => void askKitab(action),
+    onShowTarget: showTarget,
+    onToggle: () => emit({ type: "toggle-collapsed" }),
+  });
+
   const missionIndex = missions.findIndex((item) => item.id === mission.id);
   const nextMission = missions[missionIndex + 1]?.id;
   const Scene = module?.Scene;
+  const revealed = state.phase === "explain" || state.phase === "result";
+  const summary = useMemo(() => predictionSummary(mission, trace, state.attempt), [mission, trace, state.attempt]);
 
   return (
     <div className="mission-page">
@@ -210,7 +260,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
         <a className="back" {...linkProps("/")}><ArrowLeft aria-hidden="true" /> <span>Kitab</span></a>
         <p className="crumb"><span>{mission.topic}</span> · Mission</p>
         <p className={`review-chip ${mission.review.status}`}>
-          <BadgeCheck aria-hidden="true" /> {mission.review.status === "reviewed" ? "Reviewed · computed by Kitab" : "Draft — not reviewed"}
+          <BadgeCheck aria-hidden="true" /> {mission.review.status === "reviewed" ? <>Reviewed<span className="chip-detail"> · computed by Kitab</span></> : "Draft — not reviewed"}
         </p>
       </header>
       <main id="main" className="mission-layout">
@@ -223,6 +273,12 @@ export function MissionPage({ mission }: { mission: Mission }) {
           <section className="scene card" aria-label="Interactive scene">
             <div className="scene-head">
               <p className="scene-step">{unlocked ? `Step ${frame.index + 1} of ${trace.frames.length}` : "Starting state"}</p>
+              {summary.predicted !== null || state.attempt.skippedPrediction ? (
+                <p className={`prediction-strip ${revealed ? (summary.correct ? "is-right" : "is-wrong") : ""}`} data-testid="prediction-strip">
+                  <span>{summary.predicted === null ? "Watching without a prediction" : <>You predicted <b>{summary.predicted}</b></>}</span>
+                  {revealed && <span>Engine computed <b>{summary.computed}</b></span>}
+                </p>
+              ) : null}
               <h2 className="scene-title">{frame.title}</h2>
               <p className="scene-narration">{frame.narration}</p>
             </div>
@@ -230,7 +286,8 @@ export function MissionPage({ mission }: { mission: Mission }) {
               {Scene ? <Scene frame={frame} trace={trace} selected={selected} attention={attention} onSelect={select} /> : <p className="error-text">No renderer is registered for engine “{trace.engine.id}”.</p>}
             </div>
             <PlaybackBar playback={playback} trace={trace} enabled={unlocked} disabledReason="Make a prediction to run the system. Until then, only the starting state is shown." />
-            <p className="sr-only" aria-live="polite">{unlocked ? `Step ${frame.index + 1}: ${frame.title}` : ""}</p>
+            {/* Announce steps the learner moves to; during autoplay this would read out every step. */}
+            <p className="sr-only" aria-live="polite">{unlocked && playback.status !== "playing" ? `Step ${frame.index + 1}: ${frame.title}` : ""}</p>
           </section>
         </div>
         <div className="mission-side">
@@ -238,15 +295,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
             mission={mission}
             trace={trace}
             state={state}
-            onBegin={() => { if (state.phase === "inspect") { dispatch({ type: "BEGIN_PREDICTION" }); emit({ type: "prediction-started" }); } }}
-            onPredict={predict}
-            onSkip={skip}
-            onExplain={explain}
-            onReflection={(text) => dispatch({ type: "SET_REFLECTION", text })}
-            onRetry={() => retry()}
-            onShowEvidence={showEvidence}
-            onParam={setParam}
-            onParams={setParams}
+            {...panel}
             nextMissionId={nextMission}
           />
           <KitabGuide
@@ -255,9 +304,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
             canAskWhyWrong={(state.phase === "explain" || state.phase === "result") && state.attempt.prediction?.correct === false}
             canExplainStep
             targetLabel={attention ? entities.get(attention) ?? null : null}
-            onAction={(action) => void askKitab(action)}
-            onShowTarget={showTarget}
-            onToggle={() => emit({ type: "toggle-collapsed" })}
+            {...guideHandlers}
           />
           <Inspector mission={mission} trace={trace} frame={frame} selected={selected} selectedLabel={selectedLabel} onSelect={select} Reference={module?.Reference} />
         </div>

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { memo, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Check, Eye, FlaskConical, RefreshCw, Sparkles, X } from "lucide-react";
 import { fillTemplate, optionOrder, resolvePredictionOptions, type PredictionAnswer } from "../learning/assessment.ts";
 import { REASONING_LIMIT, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
@@ -6,6 +6,7 @@ import type { Mission } from "../learning/mission-schema.ts";
 import type { FactValue, Trace } from "../learning/types.ts";
 import { linkProps } from "../app/router.ts";
 import { ApiError, composeScenario } from "../app/api.ts";
+import { predictionSummary } from "./prediction.ts";
 
 const steps = [
   { id: "inspect", label: "Inspect" },
@@ -104,7 +105,8 @@ function LearnerParams({ mission, params, expect, onChange, onApply }: { mission
   );
 }
 
-export function PhasePanel({
+/** Memoised: it depends on the attempt and scenario, not on the playback position. */
+export const PhasePanel = memo(function PhasePanel({
   mission,
   trace,
   state,
@@ -156,7 +158,8 @@ export function PhasePanel({
     if (previousPhase.current === phase) return;
     previousPhase.current = phase;
     // inspect → predict happens when the learner focuses an answer; moving focus then would steal it.
-    if (phase !== "predict") heading.current?.focus();
+    // During the run the page scrolls to the scene instead; focus still moves here for screen readers.
+    if (phase !== "predict") heading.current?.focus({ preventScroll: phase === "run" });
   }, [phase]);
 
   const options = resolvePredictionOptions(mission, trace);
@@ -177,14 +180,7 @@ export function PhasePanel({
     }
   }
 
-  const predictedText = attempt.prediction
-    ? "optionId" in attempt.prediction.answer
-      ? options.find((option) => option.id === (attempt.prediction!.answer as { optionId: string }).optionId)?.text
-      : `${(attempt.prediction.answer as { number: number }).number}${mission.prediction.kind === "numeric" && mission.prediction.unit ? ` ${mission.prediction.unit}` : ""}`
-    : null;
-  const expectedKey = mission.prediction.answer.fact.split(".")[1];
-  const expected = trace.outcome[expectedKey];
-  const expectedText = mission.prediction.kind === "choice" ? options.find((option) => option.value === expected)?.text : `${expected}${mission.prediction.unit ? ` ${mission.prediction.unit}` : ""}`;
+  const { predicted: predictedText, computed: expectedText } = predictionSummary(mission, trace, attempt);
   const explanationOrder = optionOrder(`${mission.id}:${attempt.id}:explain`, mission.explanation.options.map((option) => option.id));
 
   return (
@@ -290,4 +286,4 @@ export function PhasePanel({
       )}
     </section>
   );
-}
+});

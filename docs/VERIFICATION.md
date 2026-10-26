@@ -3,14 +3,62 @@
 Environment: Windows 10, Node 22.14.0, npm 9.9.4, Playwright 1.64.1 with
 headless Chromium 156. Run on branch `feature/kitab-missions-guide`.
 
-## Commands and results (local run after the PR #1 review fixes)
+## Commands and results (local run, learner-experience pass, 2026-10-26)
 
 | Check | Command | Result |
 |---|---|---|
-| Unit, model, mission, tutor-eval, Worker integration | `npm test` | 113 passed, 0 failed |
+| Unit, model, mission, tutor-eval, Worker integration | `npm test` | 114 passed, 0 failed |
 | Typecheck (frontend, Worker + shared contracts, e2e) | `npm run typecheck` | clean |
 | Production build | `npm run build` (tests + typecheck + Vite) | succeeds; largest chunk 306 kB (97 kB gzip) |
-| Browser journeys, 4 widths + Worker integration | `npx playwright test` | 76 passed, 13 skipped (opt-in or width-specific) |
+| Browser journeys, 4 widths + Worker integration | `npx playwright test` | 92 passed, 13 skipped (opt-in or width-specific) |
+
+All AI in these checks is the scripted fake in `tests/support/fakes.ts` /
+`vite.e2e.config.ts`. No real Workers AI call was made, and no D1 other than the
+in-memory SQLite fake was used.
+
+## Learner-experience pass (2026-10-26)
+
+Missions were walked through in Chromium at 1440 × 900 and 390 × 844 (TCP
+loss, array insertion and recursion depth, plus the TCP lab) before any
+changes. Problems observed, by priority, and what changed:
+
+1. **Playback out of reach.** On desktop, the controls sat below the fold while
+   the system ran. On phones, the sticky bar took three rows and covered most
+   of the scene. → One compact sticky bar beside the scene on every width (two
+   rows on phones), with a visible state label: Locked / Playing n× / Paused /
+   Run complete.
+2. **Prediction not connected to evidence.** "Show me the evidence" changed
+   content that was off-screen, especially on phones. → A strip in the scene
+   header shows "You predicted …" during the run and "Engine computed …" after
+   it. The evidence target is scrolled into view without moving keyboard focus.
+   After "Test prediction" the page scrolls to the running scene; on phones the
+   panel and Kitab previously filled the screen.
+3. **Mobile order and chrome.** Kitab's explanation of a mistake sat below the
+   whole scene, and the top bar wrapped onto two lines and clipped the heading.
+   → Phone/tablet order is phase panel → Kitab → scene → inspector, and the top
+   bar is one non-sticky line.
+4. **Kitab's messages did not match the state.** It said "Run it…" while the
+   run was already playing, and "That's the right evidence." after a missed
+   prediction, with no next step. → Messages now follow the attempt: point to
+   "Show me the evidence" after a miss; "Right evidence, but the prediction
+   missed. Retry…"; a separate message for watch-only attempts; nothing that
+   implies a correct answer unless mastery was earned. Idle avatar motion is
+   now finite (only the "thinking" dots loop while a request is pending).
+5. **Evidence placement.** The TCP byte stream, the evidence for both TCP
+   missions, was below the layer stacks. The recursion call stack was hidden
+   below the code on phones. → Both now come first.
+6. **Screen-reader noise.** Every autoplay step was announced. → Steps are
+   announced when the learner moves to them (paused or manual stepping), not
+   during autoplay.
+
+Regressions: `e2e/experience.spec.ts` covers:
+- the scene and Pause on screen after predicting;
+- evidence brought into view with focus unchanged;
+- rapid stepping, seeking during play, run complete and Replay;
+- no announcements during autoplay.
+
+The guide message rules are unit-tested in `tests/learning-runtime.test.ts`.
+Existing journeys (wrong prediction → evidence → changed retry → mastery, refresh restore, stale descriptions/tutor replies, keyboard, reduced motion, 200 % text, overflow and target sizes) still pass at all four widths.
 | Frame timing (opt-in) | `KITAB_PERF=1 npx playwright test perf --workers=1` | see below |
 | Dependency audit | `npm audit` | 0 vulnerabilities |
 
@@ -58,9 +106,9 @@ headless Chromium 156. Run on branch `feature/kitab-missions-guide`.
   motion present when allowed, and UI↔Worker contracts (draft creation,
   refresh, feedback, AI tutor label, described lab scenario).
 
-Browser summary (local run): **76 passed, 13 skipped**. The skips are the
-opt-in perf tests and width-specific tests on other projects. CI results for
-the pushed head are linked from PR #1.
+Browser summary (local run): **92 passed, 13 skipped**. The skips are the
+opt-in perf tests and width-specific tests on other projects. CI runs for
+the pushed commits are on the repository's GitHub Actions page (CI workflow).
 
 ## Review findings from PR #1 (reviewed head `330f974`)
 
@@ -79,17 +127,60 @@ The tutor checks are bounded: they catch the claim shapes listed above and the
 existing TCP/recursion rules. They do not establish that arbitrary model prose
 is true. The fixtures exercise the validator, not live model quality.
 
-## Frame timing (headless Chromium on this machine, TCP lab at 2×, 6 s)
+## Playback performance
 
-| Profile | p50 | p95 | max | frames > 50 ms |
-|---|---|---|---|---|
-| 1440 px, no throttle | 16.7 ms | 33.3 ms | 66.7 ms | 1 |
-| 1440 px, 4× CPU throttle | 16.7 ms | 33.4 ms | 233 ms | 9 |
-| 390 px, no throttle | 16.7 ms | 16.8 ms | 16.8 ms | 0 |
-| 390 px, 4× CPU throttle | 16.7 ms | 16.8 ms | 167 ms | 8 |
+Conditions for every comparison: headless Chromium 156 on this Windows
+machine, the same viewport (1440 × 900 or 390 × 844), the same mission and
+scenario, and CDP CPU throttling. *Before* is `dfa60da`; *after* is this pass.
+Both were built for production and served with `vite preview`.
 
-Long frames coincide with step transitions (React re-render + FLIP measure).
-This is **not** a 60 fps claim and **not** real-device validation.
+**Correction to the earlier report.** The 150–280 ms frames reported before
+were measured on the Vite **development** server. There, React's development
+JSX runtime (`jsxDEV`, `console.createTask`) dominated the profile. Re-measured
+on the dev server at `dfa60da` with 4× throttling, step changes caused
+119–225 ms long tasks. On a production build of the same commit the worst
+frame was 50–83 ms, with 0–2 long tasks per 6 s of 2× playback.
+
+**Main-thread work for 10 manual steps, 4× throttle, 1440 px.** Each cell is
+the range over 3 runs.
+
+| Mission | Build | Paint | Layout (passes) | Style | Script |
+|---|---|---|---|---|---|
+| TCP lab | before | 672–687 ms | 227–248 ms (217–225) | 127–190 ms | 212–233 ms |
+| TCP lab | after | 163–208 ms | 136–161 ms (94–109) | 51–64 ms | 188–223 ms |
+| TCP lab | after, but with the old motion helper | 346–354 ms | 219–227 ms (199–203) | 107–153 ms | 203–209 ms |
+| Recursion | before | 518–562 ms | 297–314 ms (250–262) | 220–233 ms | 276–302 ms |
+| Recursion | after | 430–458 ms | 278–282 ms (222–240) | 199–228 ms | 232–240 ms |
+
+The A/B row isolates the motion change.
+- **FLIP helper.** It called `getAnimations()` on every animated element at
+  each step, forcing extra style and layout passes. It now cancels only the
+  animations it started. This accounts for the halved layout passes, most of
+  the style reduction, and about half of the TCP paint reduction.
+- **Re-rendering.** The rest comes from memoising the phase panel and Kitab
+  (stable handlers, so they no longer re-render at every playback step), one
+  shared number formatter in the inspector, layout containment on the scene
+  and inspector, and denser TCP layer rows.
+- **Idle.** Neither build paints while idle on these pages.
+
+**What the learner waits for**: click "Next step" → the next frame painted.
+These are 4× throttle medians and p90 over 3 rounds of each scenario.
+
+| | before | after |
+|---|---|---|
+| Desktop TCP / graph / array / recursion | 34 / 34 / 46 / 47 ms (p90 48–60) | 32 / 34 / 48 / 32 ms (p90 48–72) |
+| Phone TCP / graph / array / recursion | 32 / 47 / 47 / 47 ms (p90 48–66) | 32 / 33 / 47 / 33 ms (p90 48–72) |
+
+Step latency is quantised to display frames (16.7 ms) and stays at about 2–3
+frames under 4× throttle in both builds. It did not measurably change; the
+reduction is in main-thread work, not in an observed latency gain.
+Unthrottled, every scenario held 16.7 ms frames with no long tasks before and
+after.
+
+Limits: this was emulated throttling on one desktop CPU, with no real phone or
+GPU, and the samples are small (n = 12–90 steps per cell). This is **not** a
+consistent 60 fps claim or real-device validation. The opt-in
+`e2e/perf.spec.ts` uses the dev server, which overstates costs, as noted above.
 
 ## Not verified (and how to verify)
 

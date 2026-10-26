@@ -5,8 +5,12 @@ import { FeedbackForm } from "./FeedbackForm.tsx";
 
 type Tab = "state" | "selected" | "changes" | "notes";
 
+// One formatter for every fact: toLocaleString() builds a new Intl formatter on each call, at every step.
+const grouped = new Intl.NumberFormat("en-US");
+const plain = new Intl.NumberFormat("en-US", { useGrouping: false });
+
 function format(value: Fact["value"]) {
-  return typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "number" ? value.toLocaleString("en-US", { useGrouping: value >= 10_000 }) : value;
+  return typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "number" ? (value >= 10_000 ? grouped : plain).format(value) : value;
 }
 
 function FactList({ facts, changed, onSelect }: { facts: Fact[]; changed: Set<string>; onSelect: (id: string) => void }) {

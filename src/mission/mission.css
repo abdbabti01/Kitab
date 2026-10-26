@@ -247,3 +247,52 @@
 }
 .scene-section { align-content: start; }
 .describe { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+
+/* ---- Interaction and hierarchy refinements ---- */
+
+/* Layout containment keeps per-step scene and inspector updates from relaying out the whole page. */
+.scene-body { contain: layout; }
+.inspector .tab-panel { contain: content; }
+
+/* Playback stays reachable beside the scene on every width while the scene scrolls. */
+.scene .playback { position: sticky; bottom: 0; z-index: 3; box-shadow: 0 -6px 16px rgb(22 24 29 / 0.06); }
+.playback-note { font-size: 0.86rem; }
+.step-count { display: grid; justify-items: end; line-height: 1.15; min-width: 76px; }
+.step-count b { font-variant-numeric: tabular-nums; color: var(--ink); font-size: 0.9rem; }
+.step-count small { color: var(--muted); font-size: 0.74rem; white-space: nowrap; }
+.playback.state-playing .step-count small { color: var(--primary-strong); font-weight: 650; }
+.playback.state-complete .step-count small { color: var(--success); font-weight: 650; }
+
+/* What the learner predicted, beside the evidence, for the whole run. */
+.prediction-strip { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 2px 0 8px; padding: 6px 10px; border-radius: 8px; background: var(--primary-soft); color: var(--ink-2); font-size: 0.9rem; }
+.prediction-strip.is-right { background: var(--success-soft); color: #145536; }
+.prediction-strip.is-wrong { background: var(--warning-soft); color: #6d3f00; }
+
+/* TCP: denser layer rows so the stacks and the path fit beside the byte stream. */
+.tcp-layer, .tcp-hop { min-height: 46px; padding: 6px 8px; }
+.tcp-endpoint-head { min-height: 52px; }
+
+@media (max-width: 1100px) {
+  /* Kitab's explanation sits next to the action, not after the whole scene. */
+  .phase { order: 1; }
+  .guide { order: 2; }
+  .scene { order: 3; }
+  .inspector { order: 4; }
+}
+
+@media (max-width: 760px) {
+  .playback { padding: 8px 10px; }
+  .playback-row { gap: 6px; }
+  .step-count { margin-left: auto; min-width: 0; }
+  .speed select { min-width: 64px; }
+  .scrubber { order: 10; flex-basis: 100%; }
+  /* Recursion: the call stack is the evidence; show it before the code on narrow screens. */
+  .rec-stack { order: -1; }
+}
+.tcp-scene { display: grid; gap: 14px; }
+@media (max-width: 420px) {
+  .playback-row { gap: 4px; }
+  .speed select { min-width: 58px; padding: 0 4px; }
+}
+.scene { scroll-margin-top: 76px; }
+@media (max-width: 760px) { .scene { scroll-margin-top: 8px; } }

@@ -17,7 +17,7 @@ Requires Node 22.12+ (`.nvmrc`).
 ```sh
 npm ci
 npm run dev            # UI only; /api calls fail and Kitab uses reviewed fallbacks
-npx vite --config vite.e2e.config.ts   # UI + the real Worker handler with fake D1/AI (local testing only)
+npm run preview:local   # http://localhost:5175 — UI + the real Worker handler with fake D1/AI (scripted, not real AI)
 ```
 
 ## Checks

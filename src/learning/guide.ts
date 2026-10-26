@@ -15,7 +15,7 @@ export type GuideEvent =
   | { type: "run-completed"; correct: boolean | null }
   | { type: "hint-requested"; text: string; target?: string }
   | { type: "misconception-identified"; label: string; message: string; target?: string }
-  | { type: "explanation-assessed"; correct: boolean; message?: string }
+  | { type: "explanation-assessed"; correct: boolean; predictionCorrect: boolean; skipped?: boolean; message?: string }
   | { type: "mastered" }
   | { type: "retry-started"; variantLabel: string }
   | { type: "tutor-pending" }
@@ -52,7 +52,7 @@ export function guideReducer(state: GuideState, event: GuideEvent): GuideState {
     case "prediction-started":
       return say(state, "thinking", "Take your time. Pick the answer you'd defend, and say why if you like.");
     case "prediction-submitted":
-      return say(state, "thinking", "Locked in. Run it and watch the highlighted state change.");
+      return say(state, "thinking", "Locked in. Watch the highlighted state; I'll point at the evidence when the run ends.");
     case "run-started":
       return state.mood === "idle" ? state : say(state, "idle", "Watching with you. Pause anytime to inspect.");
     case "run-paused":
@@ -61,13 +61,15 @@ export function guideReducer(state: GuideState, event: GuideEvent): GuideState {
       if (event.correct === null) return say(state, "explaining", "That's the full run. Now pick the evidence that explains it.");
       return event.correct
         ? say(state, "encouraging", "Your prediction matched the run. Can you name the evidence?")
-        : say(state, "pointing", "The run didn't match your prediction. Let's look at the evidence together.");
+        : say(state, "pointing", "The run didn't match your prediction. Press “Show me the evidence” to see where it differs.");
     case "hint-requested":
       return say(state, "explaining", event.text, { target: event.target });
     case "misconception-identified":
       return say(state, "pointing", event.message, { detail: event.label, target: event.target });
     case "explanation-assessed":
-      return event.correct ? say(state, "encouraging", "That's the right evidence.") : say(state, "encouraging", event.message ?? "Not quite. Compare that choice with the highlighted facts.");
+      // Mastery is announced by "mastered"; here the prediction or the evidence was missed. Never imply both were right.
+      if (event.correct) return say(state, "encouraging", event.skipped ? "Right evidence. Watching does not count toward mastery: retry and predict first." : "Right evidence, but the prediction missed. Retry the new scenario to earn mastery.");
+      return say(state, "pointing", event.message ?? "That evidence doesn't match the trace. Compare it with the highlighted facts, then retry.", { detail: event.predictionCorrect ? "Your prediction was right; the evidence choice was not." : undefined });
     case "mastered":
       return say(state, "celebrating", "You predicted it and explained why. That's real understanding.");
     case "retry-started":

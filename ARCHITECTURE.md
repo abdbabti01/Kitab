@@ -77,7 +77,7 @@ prediction), misconception messages, and reviewed source excerpts.
 previous scenario is ignored in the same render (the old TCP crash class).
 `frameAt()` clamps any index. `useFlip` animates elements sharing a
 `data-flip` id between frames (container-relative FLIP), fades in new ones,
-cancels in-flight animations each frame, resets on a new attempt, and is
+cancels only the animations it started (never scanning getAnimations()), resets on a new attempt, and is
 disabled under `prefers-reduced-motion` (CSS transitions also collapse).
 
 ## Kitab guide

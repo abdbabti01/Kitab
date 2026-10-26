@@ -42,8 +42,8 @@ function Endpoint({ side, props }: { side: "client" | "server"; props: Props }) 
       <button {...entity(side, props, `${side === "client" ? "Client" : "Server"} TCP state ${state}`, "tcp-endpoint-head")}>
         <Server aria-hidden="true" />
         <span>
-          <b>{side === "client" ? "Computer A · client" : "Computer B · server"}</b>
-          <small>{side === "client" ? "192.168.1.8:52491" : "203.0.113.10:443"}</small>
+          <b>{side === "client" ? "Client" : "Server"}</b>
+          <small>{side === "client" ? "Computer A · 192.168.1.8:52491" : "Computer B · 203.0.113.10:443"}</small>
         </span>
         <em>{state}</em>
       </button>
@@ -74,21 +74,7 @@ function Scene(props: Props) {
         <div><dt>Send window</dt><dd>{s.sendWindowSegments}</dd></div>
         <div className={s.senderUnacked.length >= s.sendWindowSegments ? "is-full" : ""}><dt>Unacked at sender</dt><dd>{s.senderUnacked.length}</dd></div>
       </dl>
-      <div className="tcp-grid">
-        <Endpoint side="client" props={props} />
-        <SceneSection label="Network path" className="tcp-path">
-          <ol className="tcp-hops">
-            {hops.map((hop, index) => (
-              <li className={`tcp-hop ${packet?.location === hop.id ? "is-active" : ""}`} key={hop.id}>
-                <span className="tcp-hop-name"><b>{hop.title}</b><small>{hop.detail}</small></span>
-                <span className="tcp-slot">{packet?.location === hop.id && <PacketGlyph packet={packet} props={props} />}</span>
-                {index < hops.length - 1 && <ChevronRight className="tcp-hop-arrow" aria-hidden="true" />}
-              </li>
-            ))}
-          </ol>
-        </SceneSection>
-        <Endpoint side="server" props={props} />
-      </div>
+      {/* Evidence first: the receiver/sender byte ledger is what both TCP missions ask about. */}
       <SceneSection label="Byte stream" className="tcp-stream">
         <p className="scene-caption">
           Receiver expects byte <b>{s.receiverNextByte}</b> · sender's highest ACK <b>{s.senderAckedThrough}</b> · {s.completedBytes.toLocaleString()} bytes delivered in order
@@ -109,6 +95,21 @@ function Scene(props: Props) {
           })}
         </ol>
       </SceneSection>
+      <div className="tcp-grid">
+        <Endpoint side="client" props={props} />
+        <SceneSection label="Network path" className="tcp-path">
+          <ol className="tcp-hops">
+            {hops.map((hop, index) => (
+              <li className={`tcp-hop ${packet?.location === hop.id ? "is-active" : ""}`} key={hop.id}>
+                <span className="tcp-hop-name"><b>{hop.title}</b><small>{hop.detail}</small></span>
+                <span className="tcp-slot">{packet?.location === hop.id && <PacketGlyph packet={packet} props={props} />}</span>
+                {index < hops.length - 1 && <ChevronRight className="tcp-hop-arrow" aria-hidden="true" />}
+              </li>
+            ))}
+          </ol>
+        </SceneSection>
+        <Endpoint side="server" props={props} />
+      </div>
     </div>
   );
 }

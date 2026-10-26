@@ -47,8 +47,11 @@ export function PlaybackBar({ playback, trace, enabled, disabledReason }: { play
   const { index, status, speed, dispatch, frameCount } = playback;
   const last = index >= frameCount - 1;
   const frame = trace.frames[index];
+  // One visible word for the run's state, so "nothing is moving" is never ambiguous.
+  const state = !enabled ? "locked" : status === "playing" ? "playing" : last ? "complete" : "paused";
+  const stateLabel = { locked: "Locked", playing: `Playing ${speed}×`, complete: "Run complete", paused: "Paused" }[state];
   return (
-    <div className="playback" role="group" aria-label="Playback">
+    <div className={`playback state-${state}`} role="group" aria-label="Playback">
       {!enabled && <p className="playback-note">{disabledReason}</p>}
       <div className="playback-row">
         <button type="button" className="icon-button" onClick={() => dispatch({ type: "SEEK", index: 0 })} disabled={!enabled || index === 0} aria-label="Restart run">
@@ -76,7 +79,10 @@ export function PlaybackBar({ playback, trace, enabled, disabledReason }: { play
             onChange={(event) => dispatch({ type: "SEEK", index: Number(event.target.value) })}
           />
         </label>
-        <span className="step-count" aria-hidden="true">{index + 1}/{frameCount}</span>
+        <span className="step-count" data-state={state} aria-hidden="true">
+          <b>{index + 1}/{frameCount}</b>
+          <small>{stateLabel}</small>
+        </span>
         <label className="speed">
           <span className="sr-only">Speed</span>
           <select value={speed} disabled={!enabled} onChange={(event) => dispatch({ type: "SET_SPEED", speed: Number(event.target.value) as PlaybackState["speed"] })}>

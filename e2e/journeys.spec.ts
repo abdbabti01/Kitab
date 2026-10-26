@@ -89,7 +89,7 @@ test("progress and reasoning survive a refresh; back and forward keep routes", a
   await page.getByRole("button", { name: "Test prediction" }).click();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Running the system" })).toBeVisible();
-  await expect(page.getByText("You predicted 4 frames")).toBeVisible();
+  await expect(page.locator(".phase").getByText("You predicted 4 frames")).toBeVisible();
   await expect(page.getByText("One frame per call")).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);

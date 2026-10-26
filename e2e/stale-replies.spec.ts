@@ -18,10 +18,10 @@ test("a slow scenario reply after the prediction does not reset the attempt", as
   await expect(page.getByRole("heading", { name: "Running the system" })).toBeVisible();
   await page.waitForTimeout(2600); // the slow reply has now arrived
   await expect(page.getByRole("heading", { name: "Running the system" })).toBeVisible();
-  await expect(page.getByText("You predicted 4 transmissions")).toBeVisible();
+  await expect(page.locator(".phase").getByText("You predicted 4 transmissions")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("heading", { name: "Running the system" })).toBeVisible();
-  await expect(page.getByText("You predicted 4 transmissions")).toBeVisible();
+  await expect(page.locator(".phase").getByText("You predicted 4 transmissions")).toBeVisible();
 });
 
 test("an out-of-order slow reply cannot overwrite a newer applied scenario", async ({ page }) => {

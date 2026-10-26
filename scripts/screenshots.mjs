@@ -39,8 +39,19 @@ await shot("06-bfs-run-768", { width: 768, height: 1024 }, async (p) => {
 });
 await shot("07-mission-phone-390", { width: 390, height: 844 }, (p) => p.goto(`${base}/missions/array-insert-shift`), true);
 await shot("08-tutor-ai-1440", { width: 1440, height: 1000 }, async (p) => {
-  await p.goto(`${base}/missions/tcp-lost-segment`); await p.getByRole("button", { name: "Explain this step" }).click();
-  await p.locator(".guide").scrollIntoViewIfNeeded();
+  // AI tutoring is only used after a prediction; before it, Kitab serves reviewed content.
+  await p.goto(`${base}/missions/tcp-lost-segment`); await choose(p, "ACK 4501");
+  await p.getByRole("button", { name: "Test prediction" }).click(); await p.getByRole("button", { name: "Pause" }).click();
+  await p.getByRole("button", { name: "Explain this step" }).click(); await p.locator(".guide-source").waitFor();
+});
+await shot("12-mission-running-390", { width: 390, height: 844 }, async (p) => {
+  await p.goto(`${base}/missions/recursion-depth`); await choose(p, "1 frame");
+  await p.getByRole("button", { name: "Test prediction" }).click(); await p.waitForTimeout(3200);
+});
+await shot("13-mission-evidence-390", { width: 390, height: 844 }, async (p) => {
+  await p.goto(`${base}/missions/tcp-lost-segment`); await choose(p, "ACK 4501");
+  await p.getByRole("button", { name: "Test prediction" }).click(); await end(p);
+  await p.getByRole("button", { name: "Show me the evidence" }).click(); await p.waitForTimeout(800);
 });
 await shot("09-ds-lab-1440", { width: 1440, height: 1000 }, (p) => p.goto(`${base}/missions/ds-lab`));
 await shot("10-draft-1440", { width: 1440, height: 1000 }, async (p) => {

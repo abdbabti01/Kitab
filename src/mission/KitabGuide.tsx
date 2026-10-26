@@ -1,10 +1,12 @@
 import { ChevronDown, ChevronUp, Crosshair, HelpCircle, Lightbulb, MessageCircleQuestion } from "lucide-react";
+import { memo } from "react";
 import type { GuideState } from "../learning/guide.ts";
 import { KitabAvatar, moodLabels } from "./KitabAvatar.tsx";
 
 export type GuideAction = "hint" | "explain-step" | "why-wrong";
 
-export function KitabGuide({
+/** Memoised: it re-renders when Kitab's state changes, not at every playback step. */
+export const KitabGuide = memo(function KitabGuide({
   guide,
   busy,
   canAskWhyWrong,
@@ -69,4 +71,4 @@ export function KitabGuide({
       </div>
     </aside>
   );
-}
+});

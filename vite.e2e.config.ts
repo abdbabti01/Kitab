@@ -27,11 +27,12 @@ const ai = new FakeAi(async (input) => {
   return { response: lessonFor(concept) };
 });
 
+type Middlewares = { use(handler: (req: import("node:http").IncomingMessage, res: import("node:http").ServerResponse, next: () => void) => void): void };
+
 function fakeWorker(): Plugin {
-  return {
-    name: "kitab-fake-worker",
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
+  // The same handler serves the dev server and `vite preview` (production build, used for performance runs).
+  const mount = (middlewares: Middlewares) =>
+      middlewares.use(async (req, res, next) => {
         if (!req.url?.startsWith("/api/")) return next();
         const chunks: Buffer[] = [];
         for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -47,6 +48,14 @@ function fakeWorker(): Plugin {
         response.headers.forEach((value, key) => res.setHeader(key, value));
         res.end(Buffer.from(await response.arrayBuffer()));
       });
+  return {
+    name: "kitab-fake-worker",
+    // Block bodies: a returned function would be treated by Vite as a post-middleware hook.
+    configureServer(server) {
+      mount(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      mount(server.middlewares);
     },
   };
 }

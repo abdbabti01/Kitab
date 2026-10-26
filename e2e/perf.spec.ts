@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 
 /**
  * Measures requestAnimationFrame intervals while a TCP mission plays at 2×.
- * Headless Chromium on the CI/dev machine, optionally with 4× CPU throttling
+ * Headless Chromium on the dev server (development React, which overstates costs: see
+ * docs/VERIFICATION.md › Playback performance for production-build measurements), with 4× CPU throttling
  * via CDP. These are indicative numbers, not real-device validation.
  */
 for (const throttle of [1, 4]) {

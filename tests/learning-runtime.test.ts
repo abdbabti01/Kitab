@@ -166,3 +166,17 @@ test("finding 3: a dropped tutor reply is announced once, not shown", () => {
   assert.match(dropped.message, /dropped that answer/);
   assert.equal(guideReducer(dropped, { type: "tutor-cancelled" }), dropped);
 });
+
+test("Kitab never implies both parts were right when mastery was missed", () => {
+  const rightEvidenceWrongPrediction = guideReducer(initialGuide, { type: "explanation-assessed", correct: true, predictionCorrect: false });
+  assert.match(rightEvidenceWrongPrediction.message, /prediction missed/);
+  assert.match(rightEvidenceWrongPrediction.message, /Retry/);
+  const watched = guideReducer(initialGuide, { type: "explanation-assessed", correct: true, predictionCorrect: false, skipped: true });
+  assert.match(watched.message, /Watching does not count/);
+  const wrongEvidence = guideReducer(initialGuide, { type: "explanation-assessed", correct: false, predictionCorrect: true });
+  assert.equal(wrongEvidence.mood, "pointing");
+  assert.equal(wrongEvidence.detail, "Your prediction was right; the evidence choice was not.");
+  for (const state of [rightEvidenceWrongPrediction, watched, wrongEvidence]) assert.notEqual(state.mood, "celebrating");
+  // While the run plays, Kitab does not tell the learner to "run it".
+  assert.doesNotMatch(guideReducer(initialGuide, { type: "prediction-submitted" }).message, /Run it/);
+});

@@ -24,12 +24,16 @@ export function useReducedMotion() {
 export function useFlip(container: RefObject<HTMLElement | null>, frameKey: string, resetKey: string, durationMs: number, disabled: boolean) {
   const positions = useRef(new Map<string, DOMRect>());
   const lastReset = useRef(resetKey);
+  // Only the animations this hook started. Cancelling them is cheap; calling getAnimations() on every
+  // element at every step was a measurable cost (it walks each element's effect stack).
+  const running = useRef<Animation[]>([]);
 
   useLayoutEffect(() => {
     const root = container.current;
     if (!root) return;
+    for (const animation of running.current) animation.cancel();
+    running.current = [];
     const elements = [...root.querySelectorAll<HTMLElement>("[data-flip]")];
-    for (const element of elements) element.getAnimations?.().forEach((animation) => animation.cancel());
     const reset = lastReset.current !== resetKey;
     lastReset.current = resetKey;
     const origin = root.getBoundingClientRect();
@@ -44,13 +48,13 @@ export function useFlip(container: RefObject<HTMLElement | null>, frameKey: stri
         const before = positions.current.get(id);
         const after = next.get(id)!;
         if (!before) {
-          if (positions.current.size) element.animate([{ opacity: 0, transform: "scale(0.92)" }, { opacity: 1, transform: "none" }], { duration: Math.min(320, durationMs), easing: "ease-out" });
+          if (positions.current.size) running.current.push(element.animate([{ opacity: 0, transform: "scale(0.92)" }, { opacity: 1, transform: "none" }], { duration: Math.min(320, durationMs), easing: "ease-out" }));
           continue;
         }
         const dx = before.left - after.left;
         const dy = before.top - after.top;
         if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) continue;
-        element.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: durationMs, easing: "cubic-bezier(.2,.7,.2,1)" });
+        running.current.push(element.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: "none" }], { duration: durationMs, easing: "cubic-bezier(.2,.7,.2,1)" }));
       }
     }
     positions.current = next;
