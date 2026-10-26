@@ -48,7 +48,10 @@ export type TcpSegment = {
   seqStart: number;
   seqEnd: number;
   length: number;
+  /** Receiver-side view: where these bytes are in the receive path. */
   status: TcpSegmentStatus;
+  /** Sender-side view: a cumulative ACK covering this range reached the sender. */
+  acked: boolean;
 };
 
 export type TcpPacket = {
@@ -78,6 +81,12 @@ export type TcpSnapshot = {
   packet: TcpPacket | null;
   segments: TcpSegment[];
   completedBytes: number;
+  /** Sender ledger: segment ids transmitted but not yet covered by an ACK received at the sender. */
+  senderUnacked: number[];
+  /** Highest cumulative ACK number that has reached the sender (SND.UNA). */
+  senderAckedThrough: number;
+  /** Data transmissions so far, including retransmissions. */
+  transmissions: number;
 };
 
 export type TcpEventKind =
@@ -121,19 +130,21 @@ export const defaultTcpConfig: TcpConfig = {
   scenario: "normal",
 };
 
-export function normalizeTcpConfig(config: TcpConfig): TcpConfig {
+function bounded(value: unknown, min: number, max: number, fallback: number) {
+  const number = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(number)) return fallback;
+  return Math.round(Math.max(min, Math.min(max, number)));
+}
+
+export function normalizeTcpConfig(config: Partial<TcpConfig>): TcpConfig {
   return {
-    payloadBytes: Math.round(Math.max(500, Math.min(8000, config.payloadBytes))),
-    mssBytes: [536, 1200, 1460].includes(config.mssBytes)
-      ? config.mssBytes
+    payloadBytes: bounded(config.payloadBytes, 500, 8000, defaultTcpConfig.payloadBytes),
+    mssBytes: [536, 1200, 1460].includes(Number(config.mssBytes))
+      ? Number(config.mssBytes)
       : 1460,
-    receiveWindowSegments: Math.round(
-      Math.max(1, Math.min(6, config.receiveWindowSegments)),
-    ),
-    latencyMs: Math.round(Math.max(5, Math.min(300, config.latencyMs))),
-    scenario: ["normal", "loss", "reorder"].includes(config.scenario)
-      ? config.scenario
-      : "normal",
+    receiveWindowSegments: bounded(config.receiveWindowSegments, 1, 6, defaultTcpConfig.receiveWindowSegments),
+    latencyMs: bounded(config.latencyMs, 5, 300, defaultTcpConfig.latencyMs),
+    scenario: (["normal", "loss", "reorder"] as const).find((item) => item === config.scenario) ?? "normal",
   };
 }
 
@@ -151,6 +162,7 @@ export function createSegments(config: TcpConfig): TcpSegment[] {
       seqEnd: seqStart + length - 1,
       length,
       status: "waiting" as const,
+      acked: false,
     };
   });
 }
@@ -166,6 +178,7 @@ function cloneSnapshot(snapshot: TcpSnapshot): TcpSnapshot {
         }
       : null,
     segments: snapshot.segments.map((segment) => ({ ...segment })),
+    senderUnacked: [...snapshot.senderUnacked],
   };
 }
 
@@ -223,6 +236,9 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     packet: null,
     segments: initialSegments,
     completedBytes: 0,
+    senderUnacked: [],
+    senderAckedThrough: CLIENT_ISN + 1,
+    transmissions: 0,
   };
   const events: TcpTimelineEvent[] = [];
 
@@ -611,6 +627,8 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     },
     (next) => {
       next.segments[0].status = "in-flight";
+      next.senderUnacked = [1];
+      next.transmissions = 1;
       if (next.packet) next.packet.location = "local-network";
     },
   );
@@ -740,7 +758,103 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     },
   );
 
+  /**
+   * The receiver sends one cumulative ACK and it travels back to the sender.
+   * Only the arrival at the sender releases bytes from the sender ledger; a
+   * receiver having the bytes is not enough for the sender to send more.
+   */
+  function returnAck(round: string, label: string) {
+    const ackNumber = snapshot.receiverNextByte;
+    const duplicate = ackNumber === snapshot.senderAckedThrough;
+    emit(
+      {
+        id: `ack-${round}-created`,
+        chapterId: "reliability",
+        kind: "state",
+        title: duplicate
+          ? `The receiver repeats ACK ${ackNumber}`
+          : `The receiver acknowledges byte ${ackNumber}`,
+        explanation: duplicate
+          ? "Later bytes arrived, but a gap remains. The cumulative ACK still names the first missing byte."
+          : "The ACK number names the next contiguous client byte the receiver expects.",
+        technical: `A cumulative ACK confirms every byte before ${ackNumber}, not only the most recent segment (${label}).`,
+      },
+      (next) => {
+        next.packet = packet(
+          `ack-${round}`,
+          `ACK ${ackNumber}`,
+          "ack",
+          "server-to-client",
+          "server-transport",
+          ["ACK"],
+          SERVER_ISN + 1,
+          ackNumber,
+          ["tcp"],
+        );
+      },
+    );
+    emit(
+      {
+        id: `ack-${round}-route`,
+        chapterId: "reliability",
+        kind: "transfer",
+        title: `ACK ${ackNumber} returns to the sender`,
+        explanation:
+          "The acknowledgment is wrapped in IP and link headers and routed back. Until it arrives, the sender must still treat those bytes as unacknowledged.",
+        technical:
+          "ACK traffic is itself carried in IP packets and can also be delayed or lost.",
+        durationMs: transferDuration(config),
+      },
+      (next) => {
+        if (next.packet) {
+          next.packet.location = "internet";
+          next.packet.wrappers = ["tcp", "ip", "link"];
+        }
+      },
+    );
+    emit(
+      {
+        id: `ack-${round}-at-sender`,
+        chapterId: "reliability",
+        kind: "state",
+        title: duplicate
+          ? "The sender learns nothing new"
+          : "The sender releases acknowledged bytes",
+        explanation: duplicate
+          ? "No outstanding range is covered by this ACK, so the send window stays occupied."
+          : "Ranges below the ACK number leave the retransmission queue, which frees room in the send window.",
+        technical: `The effective send window is the smaller of the congestion window and the advertised receive window (${config.receiveWindowSegments}).`,
+      },
+      (next) => {
+        if (next.packet) {
+          next.packet.location = "client-transport";
+          next.packet.wrappers = ["tcp"];
+        }
+        next.senderAckedThrough = Math.max(next.senderAckedThrough, ackNumber);
+        next.segments.forEach((segment) => {
+          if (segment.seqEnd < next.senderAckedThrough) segment.acked = true;
+        });
+        next.senderUnacked = next.senderUnacked.filter(
+          (id) => !next.segments[id - 1].acked,
+        );
+        next.clientNextSeq = Math.max(next.clientNextSeq, ackNumber);
+        if (!duplicate && next.congestionWindowSegments < 10) {
+          next.congestionWindowSegments += 1;
+        }
+        next.sendWindowSegments = Math.min(
+          next.congestionWindowSegments,
+          next.receiveWindowSegments,
+        );
+      },
+    );
+  }
+
+  // Declared simplification: segment 1 travels alone so its encapsulation can
+  // be inspected layer by layer. Its ACK returns before windowed sending starts.
+  returnAck("1", "segment 1");
+
   const remaining = initialSegments.slice(1);
+  const lostSegmentId = scenario === "loss" ? 2 : null;
 
   function sendSegment(segment: TcpSegment) {
     emit(
@@ -750,10 +864,13 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
         kind: "state",
         title: `TCP sends segment ${segment.id}`,
         explanation: `This segment carries bytes ${segment.seqStart} through ${segment.seqEnd}.`,
-        technical: `At most ${snapshot.sendWindowSegments} segment${snapshot.sendWindowSegments === 1 ? "" : "s"} may be outstanding in this round.`,
+        technical: `${snapshot.senderUnacked.length + 1} of ${snapshot.sendWindowSegments} send-window slot${snapshot.sendWindowSegments === 1 ? "" : "s"} will be occupied by unacknowledged data.`,
       },
       (next) => {
         next.segments[segment.id - 1].status = "in-flight";
+        next.senderUnacked = [...next.senderUnacked, segment.id];
+        next.clientNextSeq = segment.seqEnd + 1;
+        next.transmissions += 1;
         next.packet = packet(
           `data-${segment.id}`,
           `DATA ${segment.id}`,
@@ -788,40 +905,39 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
         }
       },
     );
-    if (scenario === "loss" && segment.id === 2) {
+    if (segment.id === lostSegmentId) {
       emit(
         {
-          id: "segment-2-lost",
+          id: `segment-${segment.id}-lost`,
           chapterId: "reliability",
           kind: "recovery",
-          title: "Segment 2 is lost before arrival",
+          title: `Segment ${segment.id} is lost before arrival`,
           explanation:
             "The receiver cannot acknowledge these missing bytes because they never arrived.",
           technical:
             "IP provides best-effort delivery. TCP detects the gap from acknowledgment behavior and timers.",
         },
         (next) => {
-          next.segments[1].status = "lost";
+          next.segments[segment.id - 1].status = "lost";
           if (next.packet) next.packet.lost = true;
         },
       );
     }
   }
 
-  function arriveSegment(segment: TcpSegment) {
+  function arriveSegment(segment: TcpSegment, id = `segment-${segment.id}-arrived`) {
+    const fillsGap = segment.seqStart === snapshot.receiverNextByte;
     emit(
       {
-        id: `segment-${segment.id}-arrived`,
+        id,
         chapterId: "reliability",
-        kind: "state",
-        title:
-          segment.seqStart === snapshot.receiverNextByte
-            ? `Segment ${segment.id} fills the next byte range`
-            : `Segment ${segment.id} arrives ahead of a gap`,
-        explanation:
-          segment.seqStart === snapshot.receiverNextByte
-            ? "The receiver can extend its contiguous byte stream and advance the acknowledgment."
-            : "TCP buffers these later bytes, but its cumulative acknowledgment still points to the first missing byte.",
+        kind: id.includes("retransmission") ? "recovery" : "state",
+        title: fillsGap
+          ? `Segment ${segment.id} fills the next byte range`
+          : `Segment ${segment.id} arrives ahead of a gap`,
+        explanation: fillsGap
+          ? "The receiver can extend its contiguous byte stream and advance the acknowledgment."
+          : "TCP buffers these later bytes, but its cumulative acknowledgment still points to the first missing byte.",
         technical: `Before this arrival, the receiver expected byte ${snapshot.receiverNextByte}.`,
       },
       (next) => {
@@ -843,8 +959,7 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     );
   }
 
-  function recoverMissingSegment() {
-    const missing = initialSegments[1];
+  function recoverMissingSegment(missing: TcpSegment) {
     emit(
       {
         id: "retransmission-timeout",
@@ -865,18 +980,19 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     );
     emit(
       {
-        id: "segment-2-retransmitted",
+        id: `segment-${missing.id}-retransmitted`,
         chapterId: "reliability",
         kind: "recovery",
         title: "TCP retransmits only the missing range",
         explanation: `The sender tries bytes ${missing.seqStart}–${missing.seqEnd} again instead of restarting the request.`,
-        technical: "Retransmitted bytes keep their original sequence numbers.",
+        technical: "Retransmitted bytes keep their original sequence numbers and still occupy their existing ledger entry.",
       },
       (next) => {
-        next.segments[1].status = "retransmitted";
+        next.segments[missing.id - 1].status = "retransmitted";
+        next.transmissions += 1;
         next.packet = packet(
-          "data-2-retransmission",
-          "RETRANSMIT 2",
+          `data-${missing.id}-retransmission`,
+          `RETRANSMIT ${missing.id}`,
           "data",
           "client-to-server",
           "client-transport",
@@ -885,13 +1001,13 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
           SERVER_ISN + 1,
           ["application", "tcp"],
           missing.length,
-          2,
+          missing.id,
         );
       },
     );
     emit(
       {
-        id: "segment-2-retransmission-route",
+        id: `segment-${missing.id}-retransmission-route`,
         chapterId: "reliability",
         kind: "transfer",
         title: "The retransmission takes the network path",
@@ -908,181 +1024,58 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
         }
       },
     );
-    emit(
-      {
-        id: "segment-2-retransmission-arrived",
-        chapterId: "reliability",
-        kind: "recovery",
-        title: "The missing range closes the gap",
-        explanation:
-          "TCP can now deliver segment 2 and any later contiguous segments that were already buffered.",
-        technical:
-          "The cumulative acknowledgment can jump across all newly contiguous bytes.",
-      },
-      (next) => {
-        if (next.packet) {
-          next.packet.location = "server-transport";
-          next.packet.wrappers = ["application", "tcp"];
-        }
-        updateCumulativeDelivery(next, 2);
-      },
-    );
-  }
-
-  function acknowledgeRound(round: number) {
-    emit(
-      {
-        id: `window-ack-${round}`,
-        chapterId: "reliability",
-        kind: "state",
-        title: `ACK ${snapshot.receiverNextByte} opens the next send round`,
-        explanation:
-          "Once this cumulative acknowledgment reaches the sender, more bytes may enter the network.",
-        technical:
-          "The sender never has more unacknowledged segments in flight than the effective send window permits.",
-      },
-      (next) => {
-        next.packet = packet(
-          `window-ack-${round}`,
-          `ACK ${next.receiverNextByte}`,
-          "ack",
-          "server-to-client",
-          "client-transport",
-          ["ACK"],
-          SERVER_ISN + 1,
-          next.receiverNextByte,
-          ["tcp"],
-        );
-        if (next.congestionWindowSegments < 10) {
-          next.congestionWindowSegments += 1;
-        }
-        next.sendWindowSegments = Math.min(
-          next.congestionWindowSegments,
-          next.receiveWindowSegments,
-        );
-      },
-    );
+    arriveSegment(missing, `segment-${missing.id}-retransmission-arrived`);
   }
 
   let cursor = 0;
   let round = 1;
   let reordered = false;
-  let recoveredLoss = false;
   while (cursor < remaining.length) {
-    const windowSize = Math.max(1, snapshot.sendWindowSegments);
-    const batch = remaining.slice(cursor, cursor + windowSize);
-    batch.forEach(sendSegment);
-    const deliverable = batch.filter(
-      (segment) => !(scenario === "loss" && segment.id === 2),
-    );
+    round += 1;
+    const batch: TcpSegment[] = [];
+    while (
+      cursor < remaining.length &&
+      snapshot.senderUnacked.length < Math.max(1, snapshot.sendWindowSegments)
+    ) {
+      const segment = remaining[cursor];
+      sendSegment(segment);
+      batch.push(segment);
+      cursor += 1;
+    }
+    const deliverable = batch.filter((segment) => segment.id !== lostSegmentId);
     const arrivalOrder =
       scenario === "reorder" && !reordered && deliverable.length >= 2
         ? [deliverable[1], deliverable[0], ...deliverable.slice(2)]
         : deliverable;
-    if (scenario === "reorder" && arrivalOrder.length >= 2) reordered = true;
-    arrivalOrder.forEach(arriveSegment);
-    if (
-      scenario === "loss" &&
-      !recoveredLoss &&
-      batch.some((segment) => segment.id === 2)
-    ) {
-      recoverMissingSegment();
-      recoveredLoss = true;
+    if (arrivalOrder !== deliverable) reordered = true;
+    arrivalOrder.forEach((segment) => arriveSegment(segment));
+    const lost = batch.find((segment) => segment.id === lostSegmentId);
+    if (lost) {
+      if (deliverable.length) returnAck(`${round}-duplicate`, "after the gap");
+      recoverMissingSegment(lost);
     }
-    cursor += batch.length;
-    if (cursor < remaining.length) acknowledgeRound(round);
-    round += 1;
+    returnAck(String(round), `round ${round}`);
   }
 
-  emit(
-    {
-      id: "cumulative-ack-created",
-      chapterId: "reliability",
-      kind: "state",
-      title: `The receiver acknowledges byte ${snapshot.receiverNextByte}`,
-      explanation:
-        "The ACK number names the next contiguous client byte the receiver expects.",
-      technical:
-        "A cumulative ACK confirms all earlier contiguous bytes, not only the most recent segment.",
-    },
-    (next) => {
-      next.packet = packet(
-        "data-ack",
-        `ACK ${next.receiverNextByte}`,
-        "ack",
-        "server-to-client",
-        "server-transport",
-        ["ACK"],
-        SERVER_ISN + 1,
-        next.receiverNextByte,
-        ["tcp"],
-      );
-    },
-  );
+  if (
+    snapshot.senderUnacked.length ||
+    snapshot.receiverNextByte !== CLIENT_ISN + 1 + config.payloadBytes
+  ) {
+    throw new Error("TCP model ended with unacknowledged or undelivered bytes.");
+  }
 
-  emit(
-    {
-      id: "cumulative-ack-route",
-      chapterId: "reliability",
-      kind: "transfer",
-      title: "The cumulative ACK returns",
-      explanation:
-        "The acknowledgment is wrapped in IP and link headers and routed back to the client.",
-      technical:
-        "ACK traffic is itself carried in IP packets and can also be delayed or lost.",
-      durationMs: transferDuration(config),
-    },
-    (next) => {
-      if (next.packet) {
-        next.packet.location = "internet";
-        next.packet.wrappers = ["tcp", "ip", "link"];
-      }
-    },
-  );
-
-  emit(
-    {
-      id: "cumulative-ack-client",
-      chapterId: "reliability",
-      kind: "state",
-      title: "The sender can release acknowledged bytes",
-      explanation:
-        "The client no longer needs to retain acknowledged bytes for retransmission.",
-      technical: `The effective send window is the smaller of congestion window (${snapshot.congestionWindowSegments}) and advertised receive window (${snapshot.receiveWindowSegments}).`,
-    },
-    (next) => {
-      if (next.packet) {
-        next.packet.location = "client-transport";
-        next.packet.wrappers = ["tcp"];
-      }
-      next.clientNextSeq = CLIENT_ISN + 1 + config.payloadBytes;
-      next.sendWindowSegments = Math.min(
-        next.congestionWindowSegments,
-        next.receiveWindowSegments,
-      );
-    },
-  );
-
-  emit(
-    {
-      id: "lesson-complete",
-      chapterId: "finish",
-      kind: "complete",
-      title: "One byte stream, several cooperating layers",
-      explanation:
-        "TCP ordered and acknowledged bytes, IP routed packets, and each link carried a local frame.",
-      technical:
-        "Reliability is an endpoint property built above IP's best-effort delivery model.",
-    },
-    (next) => {
-      next.packet = null;
-      next.completedBytes = config.payloadBytes;
-      next.segments.forEach((segment) => {
-        segment.status = "delivered";
-      });
-      next.receiverNextByte = CLIENT_ISN + 1 + config.payloadBytes;
-    },
-  );
+  emit({
+    id: "lesson-complete",
+    chapterId: "finish",
+    kind: "complete",
+    title: "One byte stream, several cooperating layers",
+    explanation:
+      "TCP ordered and acknowledged bytes, IP routed packets, and each link carried a local frame.",
+    technical:
+      "Reliability is an endpoint property built above IP's best-effort delivery model.",
+  }, (next) => {
+    next.packet = null;
+  });
 
   const timeline: TcpTimeline = {
     config: effectiveConfig,

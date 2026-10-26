@@ -70,6 +70,8 @@ export type DataStructureSimulation = {
   frames: SimulationFrame[];
   complexity: string;
   result: string;
+  /** Engine-computed facts about the result (for example shifts, status, dequeues). */
+  outcome?: Record<string, string | number | boolean>;
 };
 
 export const structureInfo: Record<
@@ -180,11 +182,14 @@ function items(values: number[], prefix = "item"): StructureItem[] {
   return values.map((value, index) => ({ id: `${prefix}-${index}`, value, address: address(index) }));
 }
 
+/** Array slots hold 4-byte integers: address(i) = 0x1000 + i × 4. */
+export const arrayAddress = (index: number) => `0x${(4096 + index * 4).toString(16).toUpperCase()}`;
+
 function arrayItems(values: number[]): StructureItem[] {
   return values.map((value, index) => ({
     id: `array-${index}`,
     value,
-    address: `0x${(4096 + index * 4).toString(16).toUpperCase()}`,
+    address: arrayAddress(index),
   }));
 }
 
@@ -242,11 +247,11 @@ function arraySimulation(config: SimulationConfig): DataStructureSimulation {
       metrics.comparisons += 1;
       current = snapshot(current, { focusIds: [`array-${index}`], visitedValues: values.slice(0, index + 1) });
       const match = values[index] === config.value;
-      makeFrame(frames, match ? "Target found" : `Compare index ${index}`, "READ + COMPARE", `Read ${values[index]} from ${address(index)} and compare it with ${config.value}.`, match ? `Found at index ${index}` : "Continue right", `array[${index}] === ${config.value}`, match ? "Search terminates" : "One more slot inspected", current, metrics);
+      makeFrame(frames, match ? "Target found" : `Compare index ${index}`, "READ + COMPARE", `Read ${values[index]} from ${arrayAddress(index)} and compare it with ${config.value}.`, match ? `Found at index ${index}` : "Continue right", `array[${index}] === ${config.value}`, match ? "Search terminates" : "One more slot inspected", current, metrics);
       if (match) { found = index; break; }
     }
     if (found < 0) makeFrame(frames, "Reach the end", "RETURN NOT FOUND", "Every live slot was inspected, so the target is not present.", "Not found", "return -1", "No memory changed", current, metrics);
-    return { config, frames, complexity: "O(n) worst-case", result: found < 0 ? `${config.value} is absent` : `${config.value} found at index ${found}` };
+    return { config, frames, complexity: "O(n) worst-case", result: found < 0 ? `${config.value} is absent` : `${config.value} found at index ${found}`, outcome: { status: found < 0 ? "absent" : "found", index: found } };
   }
 
   const safeIndex = Math.max(0, Math.min(values.length - (config.operation === "delete" ? 1 : 0), config.index));
@@ -263,7 +268,7 @@ function arraySimulation(config: SimulationConfig): DataStructureSimulation {
     metrics.writes += 1;
     current = { items: arrayItems(values), focusIds: [], visitedValues: [], frontierValues: [] };
     makeFrame(frames, "Reduce the logical length", "UPDATE LENGTH", "The unused final slot is excluded from the array's logical range.", `Length = ${values.length}`, "length -= 1", `Removed ${removed}`, current, metrics);
-    return { config, frames, complexity: "O(n) because later elements shift", result: `Removed ${removed} from index ${safeIndex}` };
+    return { config, frames, complexity: "O(n) because later elements shift", result: `Removed ${removed} from index ${safeIndex}`, outcome: { shifts: frames.length - 2 } };
   }
 
   values.push(0);
@@ -279,7 +284,7 @@ function arraySimulation(config: SimulationConfig): DataStructureSimulation {
   metrics.writes += 1;
   current = { items: arrayItems(values), focusIds: [`array-${safeIndex}`], visitedValues: [], frontierValues: [] };
   makeFrame(frames, `Write ${config.value}`, "WRITE", "Store the new value in the open slot and increase the logical length.", `Inserted at index ${safeIndex}`, `array[${safeIndex}] = ${config.value}`, `Length ${values.length - 1} → ${values.length}`, current, metrics);
-  return { config, frames, complexity: "O(n) because later elements shift", result: `Inserted ${config.value} at index ${safeIndex}` };
+  return { config, frames, complexity: "O(n) because later elements shift", result: `Inserted ${config.value} at index ${safeIndex}`, outcome: { shifts: frames.length - 2 } };
 }
 
 function linkedItems(values: number[]): StructureItem[] {
@@ -475,15 +480,21 @@ function treeSimulation(config: SimulationConfig): DataStructureSimulation {
   return { config, frames, complexity: "O(log n) balanced · O(n) skewed", result: found ? `${config.value} already exists` : `Inserted ${config.value} after ${path.length} comparisons` };
 }
 
-function graphSimulation(config: SimulationConfig): DataStructureSimulation {
-  const adjacency: Record<number, number[]> = {
-    1: [3, 8],
-    3: [1, 6],
-    8: [1, 10],
-    6: [3, 10],
-    10: [8, 6, 12],
-    12: [10],
-  };
+/** Undirected fixture with a cycle (1-3-6-10-8-1) and an isolated vertex 15. */
+export const graphFixture: Record<number, number[]> = {
+  1: [3, 8],
+  3: [1, 6],
+  8: [1, 10],
+  6: [3, 10],
+  10: [8, 6, 12],
+  12: [10],
+  15: [],
+};
+
+/** Safety budget for dequeues. It interrupts runaway input; it never decides reachability. */
+export const BFS_DEQUEUE_BUDGET = 64;
+
+function graphSimulation(config: SimulationConfig, adjacency = graphFixture, budget = BFS_DEQUEUE_BUDGET): DataStructureSimulation {
   const vertices = Object.keys(adjacency).map(Number);
   const edges = Object.entries(adjacency).flatMap(([from, targets]) =>
     targets.filter((to) => Number(from) < to).map((to) => ({ from: Number(from), to })),
@@ -495,8 +506,10 @@ function graphSimulation(config: SimulationConfig): DataStructureSimulation {
   let current: StructureSnapshot = { items: items(vertices, "vertex"), edges, focusIds: ["vertex-0"], visitedValues: [1], frontierValues: [1] };
   makeFrame(frames, "Seed the frontier", "ENQUEUE START", "Mark vertex 1 visited when it enters the queue. This prevents a cycle from enqueuing it again.", "Queue = [1]", "visited.add(1) · queue.enqueue(1)", "1 vertex discovered", current, metrics);
   let found = false;
-  while (queue.length && frames.length < 10) {
+  let dequeues = 0;
+  while (queue.length && dequeues < budget) {
     const value = queue.shift()!;
+    dequeues += 1;
     metrics.reads += 1;
     current = snapshot(current, { focusIds: [`vertex-${vertices.indexOf(value)}`], frontierValues: [...queue] });
     makeFrame(frames, `Visit vertex ${value}`, "DEQUEUE", `Remove ${value} from the frontier and inspect its adjacency list: [${adjacency[value].join(", ")}].`, value === config.value ? "Target found" : "Inspect neighbors", `current = queue.dequeue()`, "1 vertex read", current, metrics);
@@ -512,7 +525,37 @@ function graphSimulation(config: SimulationConfig): DataStructureSimulation {
     current = snapshot(current, { visitedValues: [...visited], frontierValues: [...queue], focusIds: queue.map((item) => `vertex-${vertices.indexOf(item)}`) });
     makeFrame(frames, `Expand neighbors of ${value}`, "DISCOVER + ENQUEUE", "Only unvisited neighbors join the rear of the queue, preserving increasing distance from the start.", `Queue = [${queue.join(", ")}]`, "for neighbor of adjacency[current]", `${visited.size} visited · ${queue.length} queued`, current, metrics);
   }
-  return { config, frames, complexity: "O(V + E)", result: found ? `${config.value} reached by breadth-first search` : `${config.value} is unreachable` };
+  const status = found ? "found" : queue.length ? "interrupted" : vertices.includes(config.value) ? "unreachable" : "absent";
+  if (!found) {
+    current = snapshot(current, { focusIds: [] });
+    makeFrame(
+      frames,
+      status === "interrupted" ? "Stop at the safety budget" : "The frontier is empty",
+      status === "interrupted" ? "INTERRUPTED" : "RETURN NOT FOUND",
+      status === "interrupted"
+        ? `The simulation stopped after ${budget} dequeues with ${queue.length} vertices still queued. This is not evidence that the target is unreachable.`
+        : status === "unreachable"
+          ? `Vertex ${config.value} exists, but no edge path connects it to vertex 1, so it never entered the queue.`
+          : `Every vertex reachable from 1 was visited and ${config.value} is not a vertex in this graph.`,
+      status === "interrupted" ? "Result unknown" : status === "unreachable" ? "Unreachable" : "Not in graph",
+      status === "interrupted" ? "break // budget exhausted" : "return NOT_FOUND",
+      "No vertex changed",
+      current,
+      metrics,
+    );
+  }
+  const result = status === "found"
+    ? `${config.value} reached by breadth-first search`
+    : status === "interrupted"
+      ? `Stopped after ${budget} dequeues before deciding whether ${config.value} is reachable`
+      : status === "unreachable"
+        ? `${config.value} is unreachable from 1`
+        : `${config.value} is not in the graph`;
+  return { config, frames, complexity: "O(V + E)", result, outcome: { status, dequeues, visited: visited.size } };
+}
+
+export function buildGraphSearch(config: SimulationConfig, adjacency: Record<number, number[]>, budget = BFS_DEQUEUE_BUDGET) {
+  return graphSimulation(config, adjacency, budget);
 }
 
 export function buildDataStructureSimulation(config: SimulationConfig): DataStructureSimulation {
