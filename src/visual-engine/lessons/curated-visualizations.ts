@@ -125,13 +125,13 @@ const blueprints: Record<string, Blueprint> = {
     engine: "execution",
     title: "Recursive calls and stack frames",
     actors: [
-      actor("caller", "main()", "Waits for factorial(3)", "code"),
+      actor("caller", "main()", "Waits for factorial(3), then holds result = 6", "code"),
       actor("f3", "factorial(3)", "Local n=3 · waits for factorial(2)", "frame"),
       actor("f2", "factorial(2)", "Local n=2 · waits for factorial(1)", "frame"),
       actor("f1", "factorial(1)", "Base case returns 1", "frame"),
-      actor("result", "result = 6", "Receives the unwound return value", "code"),
     ],
-    route: [["caller", "f3"], ["f3", "f2"], ["f2", "f1"], ["f1", "f1"], ["f1", "result"]],
+    // The last step returns to main(), so the computed stack unwinds to one frame.
+    route: [["caller", "f3"], ["f3", "f2"], ["f2", "f1"], ["f1", "f1"], ["f1", "caller"]],
   },
   "hash-tables": {
     engine: "memory",

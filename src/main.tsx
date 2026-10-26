@@ -1,27 +1,10 @@
-import React, { lazy, Suspense } from "react";
-import ReactDOM from "react-dom/client";
-import App from "./v2-app";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import { App } from "./app/App.tsx";
+import "./app/styles.css";
 
-const TcpReferenceLesson = lazy(
-  () => import("./visual-engine/tcp/TcpReferenceLesson"),
-);
-const DataStructuresLab = lazy(() =>
-  import("./visual-engine/data-structures/DataStructuresLab").then((module) => ({
-    default: module.DataStructuresLab,
-  })),
-);
-const isTcpLesson =
-  window.location.pathname.startsWith("/lesson/tcp") ||
-  window.location.pathname.startsWith("/visual-lab");
-const isDataStructuresLesson = window.location.pathname.startsWith("/lesson/data-structures");
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <Suspense fallback={<div style={{ padding: 32 }}>Opening lesson…</div>}>
-      {isTcpLesson
-        ? <TcpReferenceLesson />
-        : isDataStructuresLesson
-          ? <DataStructuresLab close={() => { window.location.href = "/"; }} />
-          : <App />}
-    </Suspense>
-  </React.StrictMode>,
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
 );

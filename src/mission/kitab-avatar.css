@@ -1,0 +1,75 @@
+.kitab-avatar { display: block; overflow: visible; flex: none; }
+.kitab-avatar .k-shadow { fill: rgb(22 24 29 / 0.10); transform-origin: 48px 90px; }
+.kitab-avatar .k-cover { fill: var(--primary); }
+.kitab-avatar .k-page { fill: #fff; stroke: var(--primary-strong); stroke-width: 1.6; stroke-linejoin: round; }
+.kitab-avatar .k-line { fill: none; stroke: var(--primary-soft-line); stroke-width: 1.6; stroke-linecap: round; }
+.kitab-avatar .k-spine { stroke: var(--primary-strong); stroke-width: 1.6; }
+.kitab-avatar .k-eye { fill: var(--ink); }
+.kitab-avatar .k-glint { fill: #fff; }
+.kitab-avatar .k-mouth { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; opacity: 0; }
+.kitab-avatar .k-o { fill: var(--ink); stroke: none; }
+.kitab-avatar .k-cheek { fill: var(--primary-soft-line); opacity: 0.55; }
+.kitab-avatar .k-ribbon path { fill: var(--warning); }
+.kitab-avatar .k-ribbon { transform-origin: 48px 31px; transition: transform 420ms cubic-bezier(.2,.7,.2,1); }
+.kitab-avatar .k-page-left { transform-origin: 48px 73px; transition: transform 420ms ease; }
+.kitab-avatar .k-page-right { transform-origin: 48px 73px; transition: transform 420ms ease; }
+.kitab-avatar .k-eyes { transform-origin: 48px 45px; transition: transform 300ms ease; }
+.kitab-avatar .k-dots, .kitab-avatar .k-sparkles, .kitab-avatar .k-alert { opacity: 0; transition: opacity 200ms ease; }
+.kitab-avatar .k-dots circle { fill: var(--primary); }
+.kitab-avatar .k-sparkles path { fill: var(--warning); }
+.kitab-avatar .k-alert circle { fill: var(--warning); }
+.kitab-avatar .k-alert path { stroke: #fff; stroke-width: 2.6; stroke-linecap: round; }
+
+/* Mood poses (static; these remain under reduced motion). */
+.kitab-avatar.mood-idle .k-smile,
+.kitab-avatar.mood-welcoming .k-smile,
+.kitab-avatar.mood-encouraging .k-smile,
+.kitab-avatar.mood-celebrating .k-smile,
+.kitab-avatar.mood-pointing .k-smile { opacity: 1; }
+.kitab-avatar.mood-thinking .k-o,
+.kitab-avatar.mood-explaining .k-o { opacity: 1; }
+.kitab-avatar.mood-unavailable .k-flat { opacity: 1; }
+.kitab-avatar.mood-thinking .k-dots { opacity: 1; }
+.kitab-avatar.mood-thinking .k-eyes { transform: translate(3px, -3px); }
+.kitab-avatar.mood-welcoming .k-page-left { transform: rotate(-6deg); }
+.kitab-avatar.mood-welcoming .k-page-right { transform: rotate(6deg); }
+.kitab-avatar.mood-pointing .k-ribbon { transform: rotate(-58deg) scaleY(1.25); }
+.kitab-avatar.mood-pointing .k-eyes { transform: translate(-3px, 0); }
+.kitab-avatar.mood-celebrating .k-sparkles { opacity: 1; }
+.kitab-avatar.mood-celebrating .k-eyes { transform: scaleY(0.45); }
+.kitab-avatar.mood-unavailable .k-cover { fill: var(--muted); }
+.kitab-avatar.mood-unavailable .k-page { stroke: var(--muted); }
+.kitab-avatar.mood-unavailable .k-alert { opacity: 1; }
+.kitab-avatar.mood-unavailable .k-eyes { transform: scaleY(0.25); }
+.kitab-avatar.mood-encouraging .k-ribbon { transform: rotate(14deg); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .kitab-avatar .k-body { animation: k-bob 3.6s ease-in-out infinite; transform-origin: 48px 80px; }
+  .kitab-avatar .k-shadow { animation: k-shadow 3.6s ease-in-out infinite; }
+  .kitab-avatar .k-eye, .kitab-avatar .k-glint { animation: k-blink 5.2s infinite; transform-box: fill-box; transform-origin: center; }
+  .kitab-avatar.mood-idle .k-ribbon { animation: k-sway 4s ease-in-out infinite; }
+  .kitab-avatar.mood-welcoming .k-ribbon { animation: k-wave 0.9s ease-in-out 2; }
+  .kitab-avatar.mood-thinking .k-dots circle { animation: k-dot 1.2s ease-in-out infinite; }
+  .kitab-avatar.mood-thinking .k-dots circle:nth-child(2) { animation-delay: 0.15s; }
+  .kitab-avatar.mood-thinking .k-dots circle:nth-child(3) { animation-delay: 0.3s; }
+  .kitab-avatar.mood-explaining .k-page-right { animation: k-turn 1.6s ease-in-out infinite; }
+  .kitab-avatar.mood-explaining .k-o { animation: k-talk 0.5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+  .kitab-avatar.mood-pointing .k-body { animation: k-lean 1.2s ease-in-out 2; }
+  .kitab-avatar.mood-encouraging .k-body { animation: k-nod 0.8s ease-in-out 2; }
+  .kitab-avatar.mood-celebrating .k-body { animation: k-hop 0.7s cubic-bezier(.3,1.6,.5,1) 3; }
+  .kitab-avatar.mood-celebrating .k-sparkles path { animation: k-twinkle 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .kitab-avatar.mood-unavailable .k-body { animation: none; }
+}
+
+@keyframes k-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes k-shadow { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.9); } }
+@keyframes k-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+@keyframes k-sway { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+@keyframes k-wave { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-22deg); } 70% { transform: rotate(18deg); } }
+@keyframes k-dot { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes k-turn { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(4deg); } }
+@keyframes k-talk { from { transform: scale(0.7); } to { transform: scale(1.15); } }
+@keyframes k-lean { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg) translateX(-2px); } }
+@keyframes k-nod { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(3px) rotate(2deg); } }
+@keyframes k-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-9px); } }
+@keyframes k-twinkle { 0%, 100% { transform: scale(0.6); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 1; } }

@@ -503,7 +503,7 @@ function graphSimulation(config: SimulationConfig, adjacency = graphFixture, bud
   const metrics = emptyMetrics();
   const queue = [1];
   const visited = new Set([1]);
-  let current: StructureSnapshot = { items: items(vertices, "vertex"), edges, focusIds: ["vertex-0"], visitedValues: [1], frontierValues: [1] };
+  let current: StructureSnapshot = { items: vertices.map((value, index) => ({ id: `vertex-${value}`, value, address: address(index) })), edges, focusIds: ["vertex-1"], visitedValues: [1], frontierValues: [1] };
   makeFrame(frames, "Seed the frontier", "ENQUEUE START", "Mark vertex 1 visited when it enters the queue. This prevents a cycle from enqueuing it again.", "Queue = [1]", "visited.add(1) · queue.enqueue(1)", "1 vertex discovered", current, metrics);
   let found = false;
   let dequeues = 0;
@@ -511,7 +511,7 @@ function graphSimulation(config: SimulationConfig, adjacency = graphFixture, bud
     const value = queue.shift()!;
     dequeues += 1;
     metrics.reads += 1;
-    current = snapshot(current, { focusIds: [`vertex-${vertices.indexOf(value)}`], frontierValues: [...queue] });
+    current = snapshot(current, { focusIds: [`vertex-${value}`], frontierValues: [...queue] });
     makeFrame(frames, `Visit vertex ${value}`, "DEQUEUE", `Remove ${value} from the frontier and inspect its adjacency list: [${adjacency[value].join(", ")}].`, value === config.value ? "Target found" : "Inspect neighbors", `current = queue.dequeue()`, "1 vertex read", current, metrics);
     if (value === config.value) { found = true; break; }
     for (const neighbor of adjacency[value]) {
@@ -522,7 +522,7 @@ function graphSimulation(config: SimulationConfig, adjacency = graphFixture, bud
         metrics.writes += 1;
       }
     }
-    current = snapshot(current, { visitedValues: [...visited], frontierValues: [...queue], focusIds: queue.map((item) => `vertex-${vertices.indexOf(item)}`) });
+    current = snapshot(current, { visitedValues: [...visited], frontierValues: [...queue], focusIds: queue.map((item) => `vertex-${item}`) });
     makeFrame(frames, `Expand neighbors of ${value}`, "DISCOVER + ENQUEUE", "Only unvisited neighbors join the rear of the queue, preserving increasing distance from the start.", `Queue = [${queue.join(", ")}]`, "for neighbor of adjacency[current]", `${visited.size} visited · ${queue.length} queued`, current, metrics);
   }
   const status = found ? "found" : queue.length ? "interrupted" : vertices.includes(config.value) ? "unreachable" : "absent";

@@ -216,7 +216,7 @@ export function selectEngineKind(input: {
 
 export function normalizeVisualization(
   raw: RawVisualization,
-  context: { title: string; category?: string },
+  context: { title: string; category?: string; trustedEngine?: EngineKind },
 ): VisualizationSpec {
   const sourceActors = raw.actors?.length
     ? raw.actors
@@ -276,7 +276,9 @@ export function normalizeVisualization(
   );
 
   return {
-    engine: selectEngineKind({
+    // The server's contract already chose the engine; re-deriving it here from
+    // different evidence is what made Worker and client disagree.
+    engine: context.trustedEngine ?? selectEngineKind({
       engine: raw.engine,
       type: raw.type,
       title: `${context.title} ${raw.title ?? ""}`,
@@ -300,6 +302,33 @@ export function assertVisualizationSpec(spec: VisualizationSpec) {
       throw new Error(`Event ${event.id} references an unknown actor.`);
     }
   });
+}
+
+/**
+ * Call-stack snapshot after `eventIndex` for an execution trace. A move to an
+ * actor that is not on the stack is a call (push); a move to an actor already
+ * on the stack is a return to that caller (pop everything above it); a
+ * self-event is an internal step and leaves the stack unchanged.
+ */
+export function executionStack(spec: VisualizationSpec, eventIndex: number): string[] {
+  const stack: string[] = [];
+  for (const event of spec.events.slice(0, Math.max(0, eventIndex) + 1)) {
+    if (event.from === event.to) {
+      if (!stack.length) stack.push(event.to);
+      continue;
+    }
+    const position = stack.lastIndexOf(event.to);
+    if (position >= 0) {
+      stack.splice(position + 1);
+      continue;
+    }
+    // A call made by a frame lower in the stack implies the frames above it returned.
+    const caller = stack.lastIndexOf(event.from);
+    if (caller >= 0) stack.splice(caller + 1);
+    else stack.push(event.from);
+    stack.push(event.to);
+  }
+  return stack;
 }
 
 export function buildGraphLevels(spec: VisualizationSpec): string[][] {
