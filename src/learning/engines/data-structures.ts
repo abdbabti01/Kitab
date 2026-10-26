@@ -80,7 +80,7 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
   version: "2.0.0",
   title: "Data structures",
   params: params as never,
-  vocabulary: ["array", "index", "slot", "shift", "address", "write", "read", "node", "pointer", "queue", "stack", "bucket", "hash", "vertex", "visit", "bfs", "frontier", "tree", "compare", "element", "neighbor", "edge", "path"],
+  vocabulary: ["array", "index", "slot", "shift", "address", "write", "read", "node", "pointer", "queue", "stack", "bucket", "hash", "vertex", "visit", "bfs", "frontier", "tree", "compare", "element", "neighbor", "edge", "path", "root", "subtree", "left", "right", "smaller", "larger", "key", "list", "insert", "delet", "search", "collision", "head", "front", "rear", "top", "memory"],
   build(input) {
     const kind = input.kind as StructureKind;
     const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index) });

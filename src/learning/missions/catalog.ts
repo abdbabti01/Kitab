@@ -443,7 +443,7 @@ const raw: unknown[] = [
       ],
     },
     hints: [
-      { text: "Each call pauses on line 3 while the call it makes runs.", beforePrediction: true },
+      { text: "Each call pauses on its return line while the call it makes runs.", beforePrediction: true },
       { text: "Count the calls from factorial({param.n}) down to the one where n <= 1.", beforePrediction: true },
       { text: "Step to the base case and count the frames above main().", beforePrediction: false },
     ],

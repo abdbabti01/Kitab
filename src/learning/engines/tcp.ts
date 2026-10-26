@@ -91,7 +91,7 @@ export const tcpAdapter: EngineAdapter<Record<string, string | number>, TcpFrame
   version: "2.0.0",
   title: "TCP transport",
   params: params as never,
-  vocabulary: ["tcp", "ack", "acknowledg", "segment", "sequence", "byte", "window", "sender", "receiver", "packet", "retransmi", "buffer", "loss", "lost"],
+  vocabulary: ["tcp", "ack", "acknowledg", "segment", "sequence", "byte", "window", "sender", "receiver", "packet", "retransmi", "buffer", "loss", "lost", "port", "connection", "handshake", "syn", "router", "layer", "frame", "network", "server", "client", "ip"],
   build(input) {
     const timeline = buildTcpTimeline(input as unknown as TcpConfig);
     const frames = timeline.events.map((event) => {
@@ -154,7 +154,7 @@ export const tcpAdapter: EngineAdapter<Record<string, string | number>, TcpFrame
       problems.push("Claims TCP resends everything; it retransmits only the missing range.");
     }
     if (/\brouters?\b[^.]{0,40}\bretransmit/i.test(text)) problems.push("Claims routers retransmit TCP data; recovery is end-to-end.");
-    if (/\backnowledg\w*\s+(?:counts?|the number of)\s+packets/i.test(text) || /\bACK\b[^.]{0,30}\bpackets? (?:arrived|received)\b/i.test(text)) {
+    if (/\b(?:ack|acknowledg\w*)\b[^.]{0,40}\b(?:counts?|number|tally)\b[^.]{0,20}\b(?:packets|segments)\b/i.test(text) || /\bACK\b[^.]{0,30}\bpackets? (?:arrived|received)\b/i.test(text)) {
       problems.push("Claims an ACK counts packets; it names the next expected byte.");
     }
     return problems;
