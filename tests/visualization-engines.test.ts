@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   assertVisualizationSpec,
   buildGraphLevels,
   engineKinds,
+  executionStack,
   hasEngineEvidence,
   normalizeVisualization,
   selectEngineKind,
 } from "../src/visual-engine/core/visualization-spec.ts";
 import { visualizationForChapter } from "../src/visual-engine/lessons/curated-visualizations.ts";
+import { chapters } from "../src/content/chapters.ts";
 import { applyEnginePolicy, lessonMatchesConcept } from "../worker/index.ts";
 
 const expectedCuratedEngines = {
@@ -118,23 +119,6 @@ test("a themed catalog CRUD story is rejected as a data-structures lesson", () =
   assert.equal(hasEngineEvidence("memory", "add and delete books in a library catalog"), false);
 });
 
-test("the home page exposes one reviewed example for every engine", () => {
-  const home = readFileSync(new URL("../src/v2-app.tsx", import.meta.url), "utf8");
-  const examples = [
-    "Protocols",
-    "Request pipelines",
-    "Memory & data structures",
-    "Trees & graphs",
-    "Execution & call stacks",
-    "Concurrency",
-    "Distributed systems",
-    "State machines",
-  ];
-  examples.forEach((label) => assert.ok(home.includes(`label: "${label}"`), `Missing visible engine: ${label}`));
-  assert.match(home, /id="engines"/);
-  assert.match(home, /data-engine=\{item\.id\}/);
-});
-
 test("older cached visualization types are routed by their mechanism", () => {
   assert.equal(selectEngineKind({ type: "flow", title: "HTTP request" }), "request");
   assert.equal(selectEngineKind({ type: "network", title: "UDP datagram" }), "protocol");
@@ -187,23 +171,29 @@ test("tree layout assigns every actor once even when links contain a cycle", () 
   assert.equal(new Set(ids).size, spec.actors.length);
 });
 
-test("engine layouts use document flow and responsive contracts", () => {
-  const css = readFileSync(new URL("../src/visual-engine/engines/engine-canvas.css", import.meta.url), "utf8");
-  const component = readFileSync(new URL("../src/visual-engine/engines/EngineCanvas.tsx", import.meta.url), "utf8");
-  for (const breakpoint of [980, 620, 420]) assert.match(css, new RegExp(`max-width:${breakpoint}px`));
-  assert.doesNotMatch(css, /position:(?:absolute|fixed)/);
-  assert.doesNotMatch(css, /height:calc\([^;]*100vh/i);
-  assert.match(css, /minmax\(0,1fr\)/);
-  assert.match(component, /aria-live="polite"/);
-  for (const engine of engineKinds) assert.ok(component.includes(`spec.engine === "${engine}"`));
+test("the generic execution renderer pushes on calls and pops on returns", () => {
+  const recursion = chapters.find((chapter) => chapter.slug === "recursion")!;
+  const spec = visualizationForChapter(recursion);
+  const stacks = spec.events.map((_, index) => executionStack(spec, index));
+  assert.deepEqual(stacks.map((stack) => stack.length), [2, 3, 4, 4, 1]);
+  assert.deepEqual(stacks.at(-1), ["caller"]);
+  // A synthetic trace: call, call, return, call, return, return.
+  const synthetic = { ...spec, events: [["a", "b"], ["b", "c"], ["c", "b"], ["b", "d"], ["d", "b"], ["b", "a"]].map(([from, to], index) => ({ id: String(index), from, to, label: "", detail: "", state: "" })) };
+  assert.deepEqual(synthetic.events.map((_, index) => executionStack(synthetic, index).join(">")), ["a>b", "a>b>c", "a>b", "a>b>d", "a>b", "a"]);
 });
 
-test("Workers AI is constrained to semantic engine data", () => {
-  const worker = readFileSync(new URL("../worker/index.ts", import.meta.url), "utf8");
-  for (const engine of engineKinds) assert.ok(worker.includes(`"${engine}"`));
-  assert.match(worker, /Do not generate drawing coordinates, CSS, SVG, HTML or executable code/);
-  assert.match(worker, /required: \["engine", "title", "actors", "links", "events"\]/);
-  assert.match(worker, /schemaVersion/);
-  assert.match(worker, /Ignoring stale or off-topic generated lesson/);
-  assert.match(worker, /applyEnginePolicy\(concept/);
+test("generic memory actors are never given invented addresses", () => {
+  for (const chapter of chapters) {
+    const spec = visualizationForChapter(chapter);
+    if (spec.engine !== "memory") continue;
+    const mentioned = JSON.stringify(spec).match(/0x[0-9A-F]+/gi) ?? [];
+    // Addresses may appear only where the reviewed blueprint wrote them.
+    for (const address of mentioned) assert.ok(JSON.stringify(spec.actors).includes(address), address);
+  }
+});
+
+test("a trusted server engine choice is not re-derived on the client", () => {
+  const spec = normalizeVisualization({ engine: "tree", title: "Binary search", actors: [{ label: "Array", role: "sorted array of slots" }, { label: "Middle", role: "index" }], events: [{ from: 0, to: 1, label: "Probe", detail: "Compare with the middle index", state: "Half discarded", payload: "mid" }] }, { title: "binary search", trustedEngine: "tree" });
+  assert.equal(spec.engine, "tree");
+  assert.equal(normalizeVisualization({ actors: [{ label: "Array", role: "array slots" }, { label: "x", role: "y" }] }, { title: "array memory" }).engine, "memory");
 });

@@ -12,6 +12,17 @@
   "ai": {
     "binding": "AI"
   },
+  "vars": {
+    // Verify the model and its price in the Workers AI catalog before changing it.
+    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
+    "DAILY_GENERATIONS_PER_IP": "20",
+    "DAILY_GENERATIONS_PER_SESSION": "20",
+    "DAILY_GENERATIONS_GLOBAL": "500",
+    "DAILY_TUTOR_PER_IP": "120",
+    "DAILY_TUTOR_PER_SESSION": "80",
+    "DAILY_TUTOR_GLOBAL": "5000",
+    "DAILY_TOKEN_BUDGET": "2000000"
+  },
   "d1_databases": [
     {
       "binding": "DB",

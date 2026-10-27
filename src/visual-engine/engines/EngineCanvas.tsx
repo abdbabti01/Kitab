@@ -19,14 +19,13 @@ import type {
   VisualActor,
   VisualEvent,
   VisualizationSpec,
-} from "../core/visualization-spec";
-import { buildGraphLevels } from "../core/visualization-spec";
+} from "../core/visualization-spec.ts";
+import { buildGraphLevels, executionStack } from "../core/visualization-spec.ts";
 import "./engine-canvas.css";
 
 export type EngineCanvasProps = {
   spec: VisualizationSpec;
   eventIndex: number;
-  changed?: boolean;
 };
 
 function activeClass(actor: VisualActor, event: VisualEvent) {
@@ -41,10 +40,10 @@ function actorById(spec: VisualizationSpec, id: string) {
   return spec.actors.find((actor) => actor.id === id) ?? spec.actors[0];
 }
 
-export function EngineCanvas({ spec, eventIndex, changed = false }: EngineCanvasProps) {
+export function EngineCanvas({ spec, eventIndex }: EngineCanvasProps) {
   const safeIndex = Math.max(0, Math.min(spec.events.length - 1, eventIndex));
   const event = spec.events[safeIndex];
-  const common = { spec, event, eventIndex: safeIndex, changed };
+  const common = { spec, event, eventIndex: safeIndex };
   return (
     <section
       className={`engine-canvas engine-${spec.engine}`}
@@ -84,7 +83,6 @@ type SceneProps = {
   spec: VisualizationSpec;
   event: VisualEvent;
   eventIndex: number;
-  changed: boolean;
 };
 
 const protocolLayers = [
@@ -112,7 +110,7 @@ function ProtocolEndpoint({ actor, side, active }: { actor: VisualActor; side: "
   );
 }
 
-function ProtocolScene({ spec, event, changed }: SceneProps) {
+function ProtocolScene({ spec, event }: SceneProps) {
   const from = actorById(spec, event.from);
   const to = actorById(spec, event.to);
   const first = spec.actors[0];
@@ -123,10 +121,10 @@ function ProtocolScene({ spec, event, changed }: SceneProps) {
       <div className="protocol-medium">
         <Globe2 aria-hidden="true" />
         <span>NETWORK PATH</span>
-        <div className={`protocol-message ${changed ? "is-changed" : ""}`}>
+        <div className="protocol-message">
           <small>{from.label} → {to.label}</small>
           <b>{event.payload || event.label}</b>
-          <em>{changed ? "Experiment active" : "In transit"}</em>
+          <em>In transit</em>
         </div>
         <div className="protocol-route"><i /><i /><i /></div>
         <p>Each hop may replace the link frame. The transported information continues toward the destination.</p>
@@ -136,7 +134,7 @@ function ProtocolScene({ spec, event, changed }: SceneProps) {
   );
 }
 
-function RequestScene({ spec, event, eventIndex, changed }: SceneProps) {
+function RequestScene({ spec, event, eventIndex }: SceneProps) {
   return (
     <div className="request-scene">
       <div className="request-track">
@@ -152,7 +150,7 @@ function RequestScene({ spec, event, eventIndex, changed }: SceneProps) {
         ))}
       </div>
       <div className="request-trace">
-        <header><Radio aria-hidden="true" /><b>LIVE REQUEST TRACE</b><span>{changed ? "degraded path" : "normal path"}</span></header>
+        <header><Radio aria-hidden="true" /><b>REQUEST TRACE</b></header>
         {spec.events.slice(0, eventIndex + 1).map((item, index) => (
           <div className={index === eventIndex ? "current" : "complete"} key={item.id}>
             <span>{index + 1}</span><b>{item.label}</b><small>{item.state}</small>
@@ -163,19 +161,13 @@ function RequestScene({ spec, event, eventIndex, changed }: SceneProps) {
   );
 }
 
-function MemoryScene({ spec, event, eventIndex, changed }: SceneProps) {
+function MemoryScene({ spec, event, eventIndex }: SceneProps) {
   return (
     <div className="memory-scene">
       <div className="memory-addresses">
         {spec.actors.map((actor, index) => (
           <article className={activeClass(actor, event)} key={actor.id}>
-            <span>{
-              actor.group === "reference"
-                ? "REF"
-                : actor.group === "model"
-                  ? "MODEL"
-                  : `0x${(4096 + index * 16).toString(16).toUpperCase()}`
-            }</span>
+            <span>{(actor.group ?? `component ${index + 1}`).toUpperCase()}</span>
             <Box aria-hidden="true" />
             <b>{actor.label}</b>
             <small>{actor.role}</small>
@@ -183,7 +175,7 @@ function MemoryScene({ spec, event, eventIndex, changed }: SceneProps) {
         ))}
       </div>
       <div className="memory-relations">
-        <header><Braces aria-hidden="true" /><b>{changed ? "Mutation path" : "Reference path"}</b></header>
+        <header><Braces aria-hidden="true" /><b>Reference path</b></header>
         <div>
           {spec.links.slice(0, 8).map((link, index) => (
             <span className={link.from === event.from && link.to === event.to ? "active" : ""} key={`${link.from}-${link.to}-${index}`}>
@@ -198,10 +190,10 @@ function MemoryScene({ spec, event, eventIndex, changed }: SceneProps) {
   );
 }
 
-function TreeScene({ spec, event, changed }: SceneProps) {
+function TreeScene({ spec, event }: SceneProps) {
   const levels = buildGraphLevels(spec);
   return (
-    <div className={`tree-scene ${changed ? "is-changed" : ""}`}>
+    <div className="tree-scene">
       {levels.map((level, levelIndex) => (
         <div className="tree-level-wrap" key={levelIndex}>
           <div className="tree-level">
@@ -218,8 +210,8 @@ function TreeScene({ spec, event, changed }: SceneProps) {
   );
 }
 
-function ExecutionScene({ spec, event, eventIndex, changed }: SceneProps) {
-  const frames = spec.events.slice(0, eventIndex + 1).map((item) => actorById(spec, item.to));
+function ExecutionScene({ spec, eventIndex }: SceneProps) {
+  const frames = executionStack(spec, eventIndex).map((id) => actorById(spec, id));
   return (
     <div className="execution-scene">
       <div className="execution-code">
@@ -230,7 +222,7 @@ function ExecutionScene({ spec, event, eventIndex, changed }: SceneProps) {
           </div>
         ))}
       </div>
-      <div className={`execution-stack ${changed ? "is-changed" : ""}`}>
+      <div className="execution-stack">
         <header><Layers3 aria-hidden="true" /><b>Runtime frames</b><small>top of stack</small></header>
         <div>
           {[...frames].reverse().slice(0, 6).map((frame, index) => (
@@ -244,7 +236,7 @@ function ExecutionScene({ spec, event, eventIndex, changed }: SceneProps) {
   );
 }
 
-function ConcurrencyScene({ spec, event, eventIndex, changed }: SceneProps) {
+function ConcurrencyScene({ spec, event, eventIndex }: SceneProps) {
   return (
     <div className="concurrency-scene">
       <div className="timeline-axis" style={{ gridTemplateColumns: `170px repeat(${spec.events.length}, minmax(72px, 1fr))` }}>
@@ -259,18 +251,18 @@ function ConcurrencyScene({ spec, event, eventIndex, changed }: SceneProps) {
           })}
         </div>
       ))}
-      <p className="timeline-note"><Clock3 aria-hidden="true" />{changed ? "Experiment: timing or ordering has changed." : `Now running: ${event.label}`}</p>
+      <p className="timeline-note"><Clock3 aria-hidden="true" />{`Now running: ${event.label}`}</p>
     </div>
   );
 }
 
-function DistributedScene({ spec, event, eventIndex, changed }: SceneProps) {
+function DistributedScene({ spec, event, eventIndex }: SceneProps) {
   return (
     <div className="distributed-scene">
       <div className="service-grid">
         {spec.actors.map((actor, index) => {
           const Icon = index % 3 === 0 ? Globe2 : index % 3 === 1 ? Server : Database;
-          return <article className={activeClass(actor, event)} key={actor.id}><Icon aria-hidden="true" /><span>{actor.group || "component"}</span><b>{actor.label}</b><small>{actor.role}</small><em>{actor.id === event.to ? (changed ? "changed" : "active") : "ready"}</em></article>;
+          return <article className={activeClass(actor, event)} key={actor.id}><Icon aria-hidden="true" /><span>{actor.group || "component"}</span><b>{actor.label}</b><small>{actor.role}</small><em>{actor.id === event.to ? "active" : "ready"}</em></article>;
         })}
       </div>
       <div className="distributed-ledger">

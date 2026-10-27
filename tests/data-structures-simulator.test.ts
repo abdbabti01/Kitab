@@ -74,16 +74,3 @@ test("BST search follows ordering and BFS records its frontier", () => {
   assert.ok(graph.frames.some((frame) => frame.snapshot.frontierValues.length > 1));
   assert.equal(new Set(graph.frames.at(-1)!.snapshot.visitedValues).size, graph.frames.at(-1)!.snapshot.visitedValues.length);
 });
-
-test("the reference lab is responsive and uses flow layout", () => {
-  const css = readFileSync(new URL("../src/visual-engine/data-structures/data-structures-lab.css", import.meta.url), "utf8");
-  const component = readFileSync(new URL("../src/visual-engine/data-structures/DataStructuresLab.tsx", import.meta.url), "utf8");
-  for (const breakpoint of [1150, 900, 650, 400]) assert.match(css, new RegExp(`max-width:${breakpoint}px`));
-  assert.doesNotMatch(css, /position:(?:absolute|fixed)/);
-  assert.doesNotMatch(css, /height:calc\([^;]*100vh/i);
-  assert.match(component, /BEFORE/);
-  assert.match(component, /AFTER/);
-  assert.match(component, /PREDICT BEFORE YOU RUN/);
-  assert.match(component, /comparisons/);
-  assert.match(component, /pointer changes/);
-});

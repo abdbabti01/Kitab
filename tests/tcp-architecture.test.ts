@@ -11,21 +11,16 @@ import {
   normalizeTcpConfig,
   type TcpConfig,
 } from "../src/visual-engine/engines/protocols/tcp-engine.ts";
-import { tcpLessonSpec } from "../src/visual-engine/lessons/tcp-spec.ts";
 
 function config(patch: Partial<TcpConfig>): TcpConfig {
   return { ...defaultTcpConfig, ...patch };
 }
 
-test("the verified lesson references real chapters and events", () => {
+test("every TCP event has a unique id and a known chapter", () => {
   const timeline = buildTcpTimeline(defaultTcpConfig);
-  const eventIds = new Set(timeline.events.map((event) => event.id));
-  const chapterIds = new Set(tcpLessonSpec.chapters.map((chapter) => chapter.id));
-  assert.equal(new Set(eventIds).size, timeline.events.length);
-  timeline.events.forEach((event) => assert.ok(chapterIds.has(event.chapterId)));
-  tcpLessonSpec.checkpoints.forEach((checkpoint) =>
-    assert.ok(eventIds.has(checkpoint.eventId)),
-  );
+  const chapters = new Set(["orient", "handshake", "encapsulate", "deliver", "reliability", "finish"]);
+  assert.equal(new Set(timeline.events.map((event) => event.id)).size, timeline.events.length);
+  timeline.events.forEach((event) => assert.ok(chapters.has(event.chapterId), event.id));
 });
 
 test("normal, loss and reorder timelines always reach the terminal event", () => {
