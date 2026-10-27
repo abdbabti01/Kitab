@@ -81,7 +81,7 @@ export function Inspector({
         ))}
       </div>
       <div role="tabpanel" id={`${base}-${tab}-panel`} aria-labelledby={`${base}-${tab}`} className="tab-panel" tabIndex={0}>
-        {tab === "state" && <FactList facts={frame.facts.filter((fact) => !fact.id.startsWith("segment-") && !fact.id.startsWith("slot-") && !fact.id.startsWith("node-") && !fact.id.startsWith("frame-"))} changed={changed} onSelect={onSelect} />}
+        {tab === "state" && <FactList facts={frame.facts.filter((fact) => !fact.id.startsWith("segment-") && !fact.id.startsWith("slot-") && !fact.id.startsWith("addr-") &&!fact.id.startsWith("node-") && !fact.id.startsWith("frame-"))} changed={changed} onSelect={onSelect} />}
         {tab === "selected" && (selected ? (
           <>
             <p className="inspector-heading">{selectedLabel ?? selected}</p>

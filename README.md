@@ -1,6 +1,9 @@
 # Kitab
 
-Learn how systems work by predicting, running and explaining them. Each
+Learn how systems work: first follow one concrete example from the basic parts
+upward (**learning journeys**, e.g. `/learn/hello-tcp`: how HELLO travels from one
+program to another, and `/learn/array-insert`), then practise by predicting,
+running and explaining. Each
 **mission** asks one practical question about a real mechanism — TCP loss and
 windows, array insertion, linked lists, hashing, BST search, breadth-first
 search, recursion — and checks your prediction against a deterministic engine.
@@ -28,6 +31,7 @@ npm run typecheck      # frontend, Worker + shared contracts, e2e
 npm run build          # tests + typecheck + production build
 npx playwright install chromium && npx playwright test     # browser journeys at 1440/1024/768/390
 KITAB_PERF=1 npx playwright test perf --workers=1          # optional frame-timing measurement
+KITAB_UI_PORT=5174 KITAB_API_PORT=5185 npx playwright test # if the default ports are taken
 ```
 
 ## Deploy (Cloudflare)

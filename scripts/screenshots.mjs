@@ -59,5 +59,39 @@ await shot("10-draft-1440", { width: 1440, height: 1000 }, async (p) => {
   await p.getByRole("button", { name: /Create a draft/ }).click(); await p.waitForURL(/drafts/);
 });
 await shot("11-concept-illustrative-1440", { width: 1440, height: 1000 }, (p) => p.goto(`${base}/concepts/message-queues`));
+
+// Learning journeys (dark "Inside the Layers" surface).
+const lesson = async (p, path, nexts) => {
+  await p.goto(`${base}${path}`); await p.evaluate(() => localStorage.clear()); await p.goto(`${base}${path}`);
+  await p.locator("#step-title").waitFor();
+  for (let i = 0; i < nexts; i += 1) await p.locator(".lesson-controls .next-button").click();
+};
+await shot("20-hello-start-1440", { width: 1440, height: 1000 }, (p) => lesson(p, "/learn/hello-tcp", 0));
+await shot("21-hello-bits-1440", { width: 1440, height: 1000 }, (p) => lesson(p, "/learn/hello-tcp", 4));
+await shot("22-hello-frame-1440", { width: 1440, height: 1000 }, (p) => lesson(p, "/learn/hello-tcp", 22));
+await shot("23-hello-router-1440", { width: 1440, height: 1000 }, async (p) => {
+  await lesson(p, "/learn/hello-tcp", 25); await p.locator('[data-entity="r1"]').click();
+});
+await shot("24-hello-level-1440", { width: 1440, height: 1000 }, async (p) => {
+  await lesson(p, "/learn/hello-tcp", 9); await p.locator(".level-button", { hasText: "Network" }).click();
+});
+await shot("25-hello-experiment-compare-1440", { width: 1440, height: 1000 }, async (p) => {
+  await lesson(p, "/learn/hello-tcp", 38); await p.getByRole("button", { name: /Experiment:/ }).click();
+  for (let i = 0; i < 19; i += 1) await p.locator(".lesson-controls .next-button").click();
+  await p.locator(".compare").scrollIntoViewIfNeeded();
+});
+await shot("26-hello-ai-followup-1440", { width: 1440, height: 1000 }, async (p) => {
+  await lesson(p, "/learn/hello-tcp", 25);
+  await p.getByLabel(/Ask a follow-up question/).fill("Why does R1 lower the TTL?");
+  await p.getByRole("button", { name: "Ask Kitab" }).click(); await p.locator(".tutor-answer").waitFor();
+  await p.locator(".tutor-answer").scrollIntoViewIfNeeded();
+});
+await shot("27-array-shift-1440", { width: 1440, height: 1000 }, (p) => lesson(p, "/learn/array-insert", 6));
+await shot("28-home-journeys-1440", { width: 1440, height: 1000 }, (p) => p.goto(`${base}/`));
+await shot("30-hello-bits-390", { width: 390, height: 844 }, (p) => lesson(p, "/learn/hello-tcp", 4));
+await shot("31-hello-frame-390", { width: 390, height: 844 }, (p) => lesson(p, "/learn/hello-tcp", 22));
+await shot("32-hello-router-390-full", { width: 390, height: 844 }, (p) => lesson(p, "/learn/hello-tcp", 25), true);
+await shot("33-array-390", { width: 390, height: 844 }, (p) => lesson(p, "/learn/array-insert", 6));
+await shot("34-home-390", { width: 390, height: 844 }, (p) => p.goto(`${base}/`));
 await browser.close();
 console.log("screenshots written to", out);

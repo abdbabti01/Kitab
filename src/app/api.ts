@@ -1,5 +1,6 @@
 import type { TutorRequest, TutorResponse } from "../learning/tutor.ts";
 import { tutorResponseSchema } from "../learning/tutor.ts";
+import type { LessonTutorRequest } from "../learning/lessons/tutor.ts";
 
 const SESSION_KEY = "kitab.session";
 
@@ -80,4 +81,10 @@ export function sendFeedback(target: FeedbackTarget, rating: number, comment: st
 /** Meaningful learning events only (prediction, mastery), never per-frame. Best effort. */
 export function sendLearningEvent(event: { type: "prediction-submitted" | "mission-mastered" | "attempt-finished"; missionId: string; missionVersion: string; engineVersion: string; scenarioKey: string; correct?: boolean }) {
   return api("/api/events", { method: "POST", body: JSON.stringify(event), timeoutMs: 8_000 }).catch(() => undefined);
+}
+
+/** Optional AI follow-up inside a lesson. The Worker rebuilds the step; failures fall back to reviewed text. */
+export async function askLessonTutor(request: LessonTutorRequest, signal?: AbortSignal): Promise<TutorReply> {
+  const data = await api<{ response: unknown; source: "ai" | "fallback"; reason?: string }>("/api/lesson-tutor", { method: "POST", body: JSON.stringify(request), signal, timeoutMs: 15_000 });
+  return { response: tutorResponseSchema.parse(data.response), source: data.source === "ai" ? "ai" : "fallback", reason: data.reason };
 }

@@ -72,7 +72,7 @@ button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 .field { display: grid; gap: 6px; margin: 12px 0 0; }
 .field > span { font-weight: 600; font-size: 0.92rem; }
-.field input:not([type="range"]), .field select, .field textarea {
+.field input:not([type="range"], [type="radio"], [type="checkbox"]), .field select, .field textarea {
   width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface);
 }
 .field textarea { resize: vertical; min-height: 64px; }
@@ -170,3 +170,19 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 @media (max-width: 480px) {
   .topbar .crumb { display: none; }
 }
+
+/* Learning journeys: the navy "Inside the Layers" surface, used as the home entry point. */
+.journey-hero { margin-top: 12px; padding: 28px; border-radius: 20px; background: radial-gradient(900px 380px at 20% -120px, #1b3166 0%, #0a1224 70%); color: #e9eefb; }
+.journey-hero .eyebrow { color: #9db8ff; }
+.journey-hero .lead { color: #c4cee6; }
+.journey-hero .button { background: #15233f; color: #e9eefb; border-color: #34497a; }
+.journey-hero .button.primary { background: #4d7cf5; border-color: #4d7cf5; color: #fff; }
+.journey-hero .button.primary:hover { background: #3c69de; }
+.journey-hero .loop li { color: #c4cee6; }
+.journey-hero .loop li span { background: #4d7cf5; color: #fff; }
+.journey-hero .hero-guide { background: #101b33; border-color: #22335a; color: #c4cee6; }
+.journey-hero :focus-visible { outline-color: #a9c2ff; }
+.journey-card b .inline-icon { color: var(--primary); }
+.status-chip.learning-learning { background: var(--primary-soft); color: var(--primary-strong); }
+.status-chip.learning-completed { background: var(--success-soft); color: var(--success); }
+@media (max-width: 760px) { .journey-hero { padding: 20px 16px; border-radius: 16px; } }

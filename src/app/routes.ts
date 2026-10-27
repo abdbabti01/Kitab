@@ -2,6 +2,7 @@
 export type Route =
   | { name: "home" }
   | { name: "mission"; id: string }
+  | { name: "lesson"; id: string }
   | { name: "concept"; slug: string }
   | { name: "draft"; slug: string }
   | { name: "not-found"; path: string };
@@ -29,6 +30,7 @@ export function parseRoute(pathname: string): Route {
   const clean = value ? segment(value) : null;
   if (!clean || extra !== undefined) return { name: "not-found", path };
   if (kind === "missions") return { name: "mission", id: clean };
+  if (kind === "learn") return { name: "lesson", id: clean };
   if (kind === "concepts") return { name: "concept", slug: clean };
   if (kind === "drafts") return { name: "draft", slug: clean };
   return { name: "not-found", path };

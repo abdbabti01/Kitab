@@ -96,7 +96,12 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
     );
   }
   s.items.forEach((item, index) => {
-    if (kind === "array") facts.push({ id: `slot-${index}`, label: `Index ${index} at ${item.address}`, value: item.value, entityId: item.id });
+    if (kind === "array") {
+      facts.push(
+        { id: `slot-${index}`, label: `Index ${index} at ${item.address}`, value: item.value, entityId: item.id },
+        { id: `addr-${index}`, label: `Address of index ${index}`, value: item.address, entityId: item.id },
+      );
+    }
     if (kind === "linked-list") facts.push({ id: `node-${item.address}`, label: `Node at ${item.address}`, value: `${item.value} → ${item.next ?? "NULL"}`, entityId: item.id });
   });
   return facts;

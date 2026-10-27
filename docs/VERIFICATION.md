@@ -3,6 +3,28 @@
 Environment: Windows 10, Node 22.14.0, npm 9.9.4, Playwright 1.64.1 with
 headless Chromium 156. Run on branch `feature/kitab-missions-guide`.
 
+## Learning journeys (branch `feature/kitab-learning-journeys`, 2026-10-27)
+
+| Check | Command | Result |
+|---|---|---|
+| Unit, engine, lesson runtime, tutor-eval, Worker integration | `npm test` | 137 passed, 0 failed |
+| Typecheck | `npm run typecheck` | clean |
+| Production build | `npm run build` | succeeds; main chunk 339 kB (106 kB gzip), was 306 kB (97 kB); LessonPage chunk 24 kB (7.6 kB gzip) |
+| Browser journeys, 4 widths + Worker integration | `KITAB_API_PORT=5185 npx playwright test` | 130 passed, 18 skipped (opt-in perf or width-specific) |
+
+New coverage:
+- `tests/message-journey.test.ts`: real UTF-8 (HELLO = 72 69 76 76 79; é and 👋 are multi-byte); segmentation via `createSegments`; handshake numbers cross-checked with the TCP engine; TTL 64→63→62; per-hop MACs; unchanged TCP/IP fields; Ethernet padding; loss recovery; adapter facts against snapshots; claim checks.
+- `tests/lessons.test.ts`: content validity for every reachable scenario; every number in step text is computed (or a stated constant); the array lesson runs on `data-structures` with computed shifts and fresh practice positions; navigation (clamping, rapid input, levels, experiments, parameter changes); safe restore; completion ≠ mastery; version change and corrupt storage; lesson-tutor grounding.
+- `tests/worker-lesson-tutor.test.ts`: grounded AI answer, invalid output, missing AI, budget 0, shared per-session allowance, stale/malformed requests (no inference).
+- `e2e/lessons.spec.ts`: walks all 39 HELLO steps checking the scene against engine snapshots (desktop); the full journey at 1440/1024/768/390; bytes and bits incl. multi-byte; level intro, explore and return; Back, Replay, rapid keys and refresh restore; experiment comparison; completion is not mastery on the home page; array lesson; missing-AI fallback; reduced motion (no animations); keyboard focus.
+- `e2e/lesson-stale-replies.spec.ts` (real Worker handler, scripted AI): labelled AI answer; a late answer after Next is discarded; changing the message cancels it.
+
+Performance (production build, `vite preview`, Chromium, Next click → painted, 38 transitions):
+desktop 1× median 30 ms, p95 49 ms (one 670 ms outlier); desktop 4× CPU throttle median 42 ms, p95 82 ms, 4 long tasks ≤ 93 ms;
+390 px 4× median 42 ms, p95 74 ms, 3 long tasks ≤ 98 ms. Measured with CDP CPU throttling in headless Chromium, not on a real device.
+
+No real Workers AI call was made; all AI is the scripted fake. Screenshots: `docs/screenshots/20-…34-…`.
+
 ## Commands and results (local run, learner-experience pass, 2026-10-26)
 
 | Check | Command | Result |

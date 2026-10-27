@@ -1,6 +1,8 @@
 # Kitab architecture
 
-Kitab is a learning platform built around **missions**: a reviewed question
+Kitab is a learning platform with two modes. **Learning journeys** (`/learn/:id`) follow one
+concrete example from the basic parts upward, without a quiz; see
+[docs/LEARNING-JOURNEYS.md](docs/LEARNING-JOURNEYS.md). **Missions** are the practice that follows: a reviewed question
 about a real mechanism, answered by running a deterministic engine. The loop is
 **inspect → predict → run → explain → retry**, with Kitab, an animated guide,
 beside the scene.
@@ -40,10 +42,13 @@ src/learning/guide.ts          topic-independent guide event → mood/message/ta
 src/learning/tutor.ts          tutor request/response contract, context builder,
                                fallback, validator, prompt (shared by client + Worker)
 src/learning/draft-contract.ts kitab.draft/3: the Worker → client draft contract
+src/learning/lessons/          lesson schema, runtime (steps bound to frames), navigation, learning
+                               progress (kitab.learning.v1), follow-up tutor contract, catalog
         ↓
 src/mission/MissionPage.tsx    generic shell (no topic branches)
 src/mission/scenes/            one scene module per engine id (+ optional Reference)
 src/mission/{PhasePanel,Playback,Inspector,KitabGuide,KitabAvatar,motion}.tsx
+src/lesson/LessonPage.tsx      generic walkthrough page (levels, chapters, scene, explanation, Kitab)
 src/app/                       router (History API, legacy redirects), home, concept, draft pages
 worker/                        index (routes) · generation · tutor · feedback · quota · ai · http · env
 ```
@@ -97,6 +102,7 @@ the ribbon bookmark is the pointer) animated with CSS keyframes.
 |---|---|---|
 | Concept drafts (`POST /api/concept`) | Write schema-bound explanatory content | Nothing is verified. Drafts are labelled “not reviewed”; walkthroughs are illustrative. The engine family is chosen once in the Worker (`applyEnginePolicy`). |
 | Tutor (`POST /api/tutor`) | After the prediction only: explain/hint using provided facts | The engine trace. **Before a prediction no model is called**: the Worker returns the reviewed, answer-safe hint or frame narration. Afterwards it rebuilds the trace from validated params and rejects output that fails schema, evidence-id, attention-id, misconception-code, numeric-grounding (number words normalized), topic or spoiler checks, or an adapter's engine-derived claim checks (e.g. TCP ACK numbers and recovery; recursion depth; how many array elements an insert/delete shifts and whether it overwrites a slot, compared with the computed `shifts`). These checks cover specific claim shapes. They do not verify arbitrary prose, and a valid citation does not make a sentence true. |
+| Lesson follow-up (`POST /api/lesson-tutor`) | Answer a question the learner typed about the current step, from the server-rebuilt step facts | Nothing: the walkthrough's explanations are reviewed content. Same schema, evidence, attention, numeric-grounding, topic and adapter claim checks as the tutor; same per-user scopes and shared token allowance; one call; reviewed step text on any failure. |
 | Scenario composition (`POST /api/scenario`, labs only) | Map a learner's description onto the mission's declared controls (JSON schema derived from them) | `validateComposedParams`: keys must be declared controls, values allowed options or on-range/step, the engine must build a complete trace without downgrading or normalizing anything. Only then is it saved (`composed_scenarios`) and applied. The mechanism's correctness still comes from the engine; no second model is asked. |
 
 Fallbacks (reviewed hints, frame narration, misconception messages) are
@@ -163,7 +169,7 @@ text) from 0003.
 
 ## Routes
 
-`/` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug`. Legacy
+`/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
 
