@@ -109,23 +109,30 @@ Fallbacks (reviewed hints, frame narration, misconception messages) are
 returned on timeout, invalid output, missing binding, D1 failure or quota
 exhaustion. No inference runs on playback, hover or idle.
 
-Model: `AI_MODEL` var, default `@cf/meta/llama-3.1-8b-instruct-fp8`
-($0.152 / $0.287 per M input/output tokens on Cloudflare's pricing page,
-checked 2026-10-25; the previous `-fast` id is no longer listed).
+Model: `AI_MODEL` var, default `@cf/meta/llama-3.3-70b-instruct-fp8-fast`, on the Workers AI JSON mode list
+of models that accept `response_format: { type: "json_schema", json_schema }` (checked 2026-10-27).
+`@cf/meta/llama-3.1-8b-instruct-fp8` is not on that list and fails with 5025. A model must also have a
+Neuron rate in `worker/quota.ts` (`MODEL_NEURONS`), or it is never called.
 
 ## Reliability and cost controls
 
 - **Call limits**: one conditional UPSERT per scope (`usage_counters`) per IP,
   per session and per endpoint (drafts; tutor; composition); partial
   reservations are released.
-- **Shared AI token allowance** (`DAILY_TOKEN_BUDGET`, row `ai-tokens`/`global`
+- **Shared AI Neuron allowance** (`DAILY_NEURON_BUDGET`, default 5,000; row `ai-neurons`/`global`
   per UTC day): every inference call — drafts, tutor, composition and every
   retry — goes through `runBudgeted`.
-  - *Measures*: model-reported prompt + completion tokens per call. Where
-    usage is not reported (timeout, transport error, missing `usage`), the
-    reservation stands. It does not measure Neurons or money.
+  - *Measures*: Workers AI Neurons, Cloudflare's billing unit, computed from the model-reported prompt and
+    completion tokens at the published per-model rates (verified against Cloudflare's analytics on
+    2026-10-27: 6,528 in + 3,119 out = 812.9 Neurons, exactly as billed). Where usage is not reported
+    (timeout, transport error, missing `usage`), the reservation stands.
+  - *Scope of the guarantee*: this bounds Kitab's own usage. Cloudflare's 10,000 free daily Neurons are
+    shared by every Worker and dashboard use on the account. On Workers Free, Cloudflare stops Workers AI
+    at the allowance (no charge). On Workers Paid there is no provider-side cap, so other usage on the
+    account can push the total into paid overage regardless of Kitab's budget.
   - *Admission*: before each call one statement reserves an upper-bound
-    estimate (input characters ÷ 3 + the full `max_tokens`). The insert and
+    estimate (input characters ÷ 3, including the response schema, + the full `max_tokens`, at the model's
+    Neuron rates). The insert and
     update paths share the same condition, `reserved + estimate ≤ budget`, so
     a budget of 0 admits nothing, even on a fresh database, and concurrent
     requests cannot jointly over-reserve.
