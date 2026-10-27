@@ -166,3 +166,32 @@ test("lesson tutor context is rebuilt from validated input; grounded answers pas
   assert.throws(() => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: "0.0.0", params: {}, track: JOURNEY, stepId: "syn", level: null, question: "why?" }), /changed/);
   assert.throws(() => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId: "nope", level: null, question: "why?" }), /not part/);
 });
+
+test("a message that looks like a template token is shown verbatim, never re-read as content", () => {
+  for (const message of ["{value}", "{fact:tcp-seq}", "{frame.title}", "{param.message}", "a{b}c"]) {
+    const params = safeParams(hello, { message });
+    assert.equal(params.message, message);
+    const track = resolveTrack(hello, params);
+    assert.equal(track.steps.find((step) => step.id === "b-reads")!.title, `Program B reads “${message}”`);
+    assert.match(track.steps.find((step) => step.id === "done")!.what, new RegExp(`“${message.replace(/[{}]/g, "\$&")}” arrived`));
+  }
+});
+
+test("lesson tutor ACK and TTL claims must match the current step, not a value from elsewhere in the run", () => {
+  const ask = (stepId: string) => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: { message: "HELLO" }, track: JOURNEY, stepId, level: null, question: "why?" });
+  const answer = (explanation: string, evidence: string) => ({ explanation, evidence: [evidence], misconception: null, attention: null, action: "none" });
+  const r1 = ask("r1-forwards");
+  assert.ok(validateLessonTutorOutput(answer("The router lowers the TTL from 64 to 63, so the TTL is now 63.", "ip-ttl"), r1).ok);
+  // 64 and 62 both occur in this run (at A and at R2) but are wrong at R1.
+  for (const wrong of ["After R1 the TTL is now 64.", "R1 forwards the packet with TTL 62."]) {
+    const result = validateLessonTutorOutput(answer(wrong, "ip-ttl"), r1);
+    assert.equal(result.ok, false, wrong);
+    assert.ok(!result.ok && result.problems.some((problem) => /TTL .* not the TTL at this step/.test(problem)), wrong);
+  }
+  const synAck = ask("syn-ack");
+  assert.equal(synAck.facts.find((fact) => fact.id === "tcp-ack")?.value, 1001);
+  assert.ok(validateLessonTutorOutput(answer("B sends ACK 1001 to confirm A's SYN.", "tcp-ack"), synAck).ok);
+  // 1006 is B's final acknowledgment later in the run, not this step's.
+  const lateAck = validateLessonTutorOutput(answer("B sends ACK 1006 to confirm A's SYN.", "tcp-ack"), synAck);
+  assert.ok(!lateAck.ok && lateAck.problems.some((problem) => /ACK 1006 is not an acknowledgment at this step/.test(problem)));
+});

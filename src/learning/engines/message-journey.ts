@@ -214,20 +214,19 @@ const ACK_CLAIM = /\bACK(?:\s+(?:number|of|=|is))?\s*(\d{2,6})\b/gi;
 /** "TTL 61", "TTL is now 61", "TTL = 61", "TTL drops to 61"; not "lowers the TTL by one". */
 const TTL_CLAIM = /\bTTL\b(?:\s*(?:=|:|\bis\b|\bwas\b|\bof\b|\bnow\b|\bbecomes\b|\bdrops to\b|\bfalls to\b|\bto\b|\bat\b))*\s*(\d{1,3})\b/gi;
 
-/** Supported claim shapes only: ACK numbers, TTL values, per-letter packets, router retransmission, routers reading TCP. */
-function journeyClaims(text: string, trace: Trace<MessageJourneyData>): string[] {
+/**
+ * Supported claim shapes only: ACK numbers, TTL values, per-letter packets, router retransmission, routers reading TCP.
+ * ACK and TTL values are checked against the facts of the current (and previous) step, not the whole run:
+ * "TTL is now 64" is wrong at R1 even though 64 appears earlier in the trip.
+ */
+function journeyClaims(text: string, facts: Fact[], trace: Trace<MessageJourneyData>): string[] {
   const problems: string[] = [];
   const plain = normalizeNumberWords(text);
-  const acks = new Set<string>();
-  const ttls = new Set<string>();
-  for (const frame of trace.frames) {
-    const unit = frame.data.event.snapshot.unit;
-    if (unit?.tcp?.ack) acks.add(String(unit.tcp.ack));
-    if (unit?.ip) ttls.add(String(unit.ip.ttl));
-    for (const fact of frame.facts) if (/rcv-nxt|snd-nxt/.test(fact.id)) acks.add(String(fact.value));
-  }
-  for (const match of plain.matchAll(ACK_CLAIM)) if (!acks.has(match[1])) problems.push(`ACK ${match[1]} never appears in this run.`);
-  for (const match of plain.matchAll(TTL_CLAIM)) if (!ttls.has(match[1])) problems.push(`TTL ${match[1]} never appears in this run.`);
+  const values = (id: RegExp) => new Set(facts.filter((fact) => id.test(fact.id)).map((fact) => String(fact.value)));
+  const acks = values(/^tcp-ack$|-rcv-nxt$/);
+  const ttls = values(/^ip-ttl$/);
+  for (const match of plain.matchAll(ACK_CLAIM)) if (!acks.has(match[1])) problems.push(`ACK ${match[1]} is not an acknowledgment at this step.`);
+  for (const match of plain.matchAll(TTL_CLAIM)) if (!ttls.has(match[1])) problems.push(`TTL ${match[1]} is not the TTL at this step.`);
   if (/\b(?:each|every)\s+(?:letter|character)\b[^.]{0,40}\b(?:own|separate|its own)\s+(?:packet|segment|frame)/i.test(text) || /\b(?:\d+|one)\s+(?:packets|segments)\s*,?\s+one\s+(?:per|for each)\s+(?:letter|character)/i.test(plain)) {
     problems.push(`Claims each letter travels separately; the engine made ${trace.outcome.segments} segment.`);
   }
@@ -244,7 +243,7 @@ export const messageJourneyAdapter: EngineAdapter<Record<string, string>, Messag
   title: "A message across a network",
   params: params as never,
   vocabulary: ["byte", "bit", "utf-8", "encod", "character", "letter", "tcp", "segment", "sequence", "ack", "acknowledg", "port", "connection", "handshake", "syn", "ip", "address", "packet", "router", "forward", "hop", "ttl", "link", "frame", "mac", "checksum", "program", "message", "network", "layer", "level", "header", "timer", "retransmi"],
-  checkClaims: (text, _facts, trace) => journeyClaims(text, trace as Trace<MessageJourneyData>),
+  checkClaims: (text, facts, trace) => journeyClaims(text, facts, trace as Trace<MessageJourneyData>),
   build(input) {
     const timeline: JourneyTimeline = buildMessageJourney(input);
     const { encoding } = timeline;

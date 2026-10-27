@@ -74,15 +74,19 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
   useEffect(() => setSelected(null), [track.trace.scenarioKey]);
 
   // ---------------------------------------------------------------- replay: show the previous step's state, then move to this one
-  const [replayFrame, setReplayFrame] = useState<number | null>(null);
+  // The replayed index belongs to one track, scenario and step: after any change it is ignored in the
+  // same render, so it can never index a different (possibly shorter) trace.
+  const replayKey = `${track.id}:${track.trace.scenarioKey}:${step.id}`;
+  const [replay, setReplay] = useState<{ key: string; frameIndex: number } | null>(null);
+  const replayFrame = replay?.key === replayKey ? replay.frameIndex : null;
   const replayable = Boolean(previous && previous.frameIndex !== step.frameIndex);
   useEffect(() => {
     if (!nav.replay || !previous || previous.frameIndex === step.frameIndex) return;
-    setReplayFrame(previous.frameIndex);
-    const timer = window.setTimeout(() => setReplayFrame(null), reduced ? 1100 : 600);
+    setReplay({ key: replayKey, frameIndex: previous.frameIndex });
+    const timer = window.setTimeout(() => setReplay(null), reduced ? 1100 : 600);
     return () => window.clearTimeout(timer);
   }, [nav.replay]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => setReplayFrame(null), [step.id, track.trace.scenarioKey]);
+  useEffect(() => setReplay(null), [replayKey]);
 
   const shownIndex = replayFrame ?? step.frameIndex;
   const baseFrame = track.trace.frames[shownIndex];

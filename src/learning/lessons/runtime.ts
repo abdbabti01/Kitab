@@ -36,10 +36,14 @@ const formatValue = (value: FactValue) => (typeof value === "boolean" ? (value ?
  * Fills step text from the frame and the trace: {frame.title|narration} first, then {param.x}/{outcome.x}
  * (so they can build a fact id, as in {fact:slot-{param.index}}), then {fact:id} from the frame's computed
  * facts. Unknown tokens are content errors, never blanks.
+ * One pass over the template only: substituted values (such as a learner's message containing "{value}")
+ * are never scanned again as tokens.
  */
 export function fillStepText(template: string, trace: Trace, frame: LearningFrame) {
-  const framed = template.replace(/\{frame\.(title|narration)\}/g, (_, key: "title" | "narration") => frame[key]);
-  return fillTemplate(framed, trace).replace(/\{fact:([a-z0-9-]+)\}/g, (_, id: string) => {
+  return template.replace(/\{fact:((?:[a-z0-9-]|\{[a-zA-Z.]+\})+)\}|\{frame\.(title|narration)\}|\{[a-zA-Z.]+\}/g, (token, factId?: string, key?: "title" | "narration") => {
+    if (key) return frame[key];
+    if (factId === undefined) return fillTemplate(token, trace);
+    const id = fillTemplate(factId, trace);
     const fact = frame.facts.find((item) => item.id === id);
     if (!fact) throw new LessonContentError(`Fact ${id} is not present in frame ${frame.id}.`);
     return formatValue(fact.value);

@@ -53,7 +53,7 @@
 .prediction { border: 0; padding: 0; margin: 12px 0 0; min-width: 0; }
 .prediction legend { font-weight: 650; margin-bottom: 10px; padding: 0; }
 .choices { display: grid; gap: 8px; }
-.choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); }
+.choice { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); }
 .choice:hover { border-color: var(--ink-2); }
 .choice.is-chosen { border-color: var(--primary); background: var(--primary-soft); }
 .choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }

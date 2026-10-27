@@ -148,6 +148,39 @@ test("the array walkthrough uses the same runtime and recomputes the shifts for 
   await expect(page.locator(".step-what")).toContainText("8, 3, 12, 9, 1, 6");
 });
 
+test("changing the example during a replay shows the new example's step, not a frame of the old trace", async ({ page }) => {
+  // Reduced motion keeps the replay on screen long enough to change the example mid-replay.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await open(page, "/learn/array-insert");
+  await page.locator(".example-controls summary").click();
+  while (!/now holds 9/.test(await page.locator(".step-what").innerText())) await next(page).click();
+  await page.getByRole("button", { name: "Replay" }).click();
+  await expect(page.locator(".replay-tag")).toBeVisible();
+  await page.getByText("Index 3", { exact: true }).click();
+  await expect(page.locator(".replay-tag")).toHaveCount(0);
+  await expect(title(page)).toHaveText("The request: insert 9 at index 3");
+  await expect(page.locator(".stage-scene")).toBeVisible();
+});
+
+test("the example controls never widen the page: hidden radio buttons stay 1 px", async ({ page }) => {
+  await open(page, "/learn/array-insert");
+  await page.locator(".example-controls summary").click();
+  const sizes = await page.locator('.example-controls input[type="radio"]').evaluateAll((inputs) => inputs.map((input) => input.getBoundingClientRect().width));
+  expect(sizes.length).toBeGreaterThan(0);
+  for (const width of sizes) expect(width).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+});
+
+test("a message containing template-like braces is shown verbatim and does not crash the lesson", async ({ page }) => {
+  await open(page);
+  await page.locator(".example-controls summary").click();
+  await page.getByLabel("Your message").fill("{value}");
+  await page.getByRole("button", { name: "Use it" }).click();
+  await page.locator(".chapter-pill", { hasText: "Receiving the message" }).click();
+  while (!/Program B reads/.test(await title(page).innerText())) await next(page).click();
+  await expect(title(page)).toContainText("“{value}”");
+});
+
 test("without AI the follow-up question returns Kitab's reviewed explanation, clearly labelled", async ({ page }) => {
   await open(page);
   await page.getByLabel(/Ask a follow-up question/).fill("What is a program?");

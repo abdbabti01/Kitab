@@ -107,7 +107,8 @@ export function validateLessonTutorOutput(raw: unknown, context: LessonTutorCont
     groundedSources,
     withheld: [],
     trace: track.trace,
-    facts: [...context.facts, ...context.previousFacts],
+    // Claim checks (ACK, TTL) compare with the current step only; previous values stay grounded for "from 64 to 63".
+    facts: context.facts,
   });
 }
 

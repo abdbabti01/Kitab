@@ -111,10 +111,13 @@ test("adapter facts agree with the snapshot, and claim checks catch supported co
   }
   assert.equal(trace.outcome.finalAck, 1006);
   assert.equal(trace.outcome.bytes, 5);
-  const check = (text: string) => messageJourneyAdapter.checkClaims!(text, [], trace as never);
+  // Claims are checked against one step's facts: here, the frame where B sends its final ACK.
+  const ackFrame = trace.frames.find((frame) => frame.facts.some((item) => item.id === "tcp-ack" && item.value === 1006))!;
+  const check = (text: string) => messageJourneyAdapter.checkClaims!(text, ackFrame.facts, trace as never);
   assert.deepEqual(check("B sends ACK 1006 because it has every byte before it."), []);
   assert.equal(check("B sends ACK 1007.").length, 1);
   assert.equal(check("The TTL is now 61 at B.").length, 1);
+  assert.equal(check("B sends ACK 1001.").length, 1, "1001 was the SYN-ACK's ACK, not this step's");
   assert.equal(check("Each letter is sent in its own packet.").length, 1);
   assert.equal(check("The router retransmits the lost frame.").length, 1);
   assert.equal(check("The router reads the sequence number to decide.").length, 1);
