@@ -6,6 +6,7 @@ import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.t
 import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionAction, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
 import type { Mission } from "../learning/mission-schema.ts";
 import { missions } from "../learning/missions/catalog.ts";
+import { lessonsForMission } from "../learning/lessons/catalog.ts";
 import { loadProgress, recordState, recordVisit, restoreState, safeStorage, saveProgress } from "../learning/progress.ts";
 import { fallbackTutor, buildTutorContext, tutorRequestSchema } from "../learning/tutor.ts";
 import type { FactValue } from "../learning/types.ts";
@@ -269,6 +270,9 @@ export function MissionPage({ mission }: { mission: Mission }) {
             <p className="eyebrow">Mission {state.attempt.number > 1 ? `· attempt ${state.attempt.number}` : ""}</p>
             <h1>{mission.title}</h1>
             <p className="objective">{mission.objective}</p>
+            {lessonsForMission(mission.id).map((lesson) => (
+              <p className="learn-first" key={lesson.id}>New to this? <a {...linkProps(`/learn/${lesson.id}`)}>Follow the walkthrough first: {lesson.title}</a></p>
+            ))}
           </div>
           <section className="scene card" aria-label="Interactive scene">
             <div className="scene-head">

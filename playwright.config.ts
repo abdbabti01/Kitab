@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const ui = 5174;
-const api = 5175;
+const ui = Number(process.env.KITAB_UI_PORT ?? 5174);
+const api = Number(process.env.KITAB_API_PORT ?? 5175);
 /** Specs that need the real Worker handler with fake bindings (vite.e2e.config.ts). */
 const workerSpecs = /(api|stale-replies)\.spec/;
 const desktop ={ ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } };

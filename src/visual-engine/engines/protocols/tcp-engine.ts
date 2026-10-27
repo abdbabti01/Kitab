@@ -119,8 +119,9 @@ export type TcpTimeline = SimulationTimeline<TcpTimelineEvent> & {
   config: TcpConfig;
 };
 
-const CLIENT_ISN = 1000;
-const SERVER_ISN = 5000;
+/** Fixed, readable initial sequence numbers (real stacks choose them unpredictably). Shared with message-journey. */
+export const CLIENT_ISN = 1000;
+export const SERVER_ISN = 5000;
 
 export const defaultTcpConfig: TcpConfig = {
   payloadBytes: 3500,

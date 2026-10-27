@@ -19,6 +19,13 @@ const ai = new FakeAi(async (input) => {
     if (/slow/i.test(description)) await sleep(2000);
     return { response: { params: /reorder/i.test(description) ? { scenario: "reorder", payloadBytes: 4000, mssBytes: 1200 } : { scenario: "loss", payloadBytes: 1500, mssBytes: 536 } } };
   }
+  if (user.includes("UNTRUSTED LEARNER QUESTION")) {
+    // Lesson follow-up: cite the first fact of the rebuilt step. A question containing "slow" answers after 2 s.
+    const question = /<<<([\s\S]*?)>>>/.exec(user)?.[1] ?? "";
+    if (/slow/i.test(question)) await sleep(2000);
+    const fact = /Facts at this step[^\n]*\n- \[([^\]]+)\]/.exec(user)?.[1] ?? "tcp-service";
+    return { response: { explanation: "Each level reads only its own header and passes the rest of the bytes along, so every device knows what to do next.", evidence: [fact], misconception: null, attention: null, action: "none" } };
+  }
   if (user.includes("TRUSTED CONTEXT")) {
     // A grounded, number-free tutor reply that passes validation for TCP missions.
     return { response: { explanation: "A cumulative TCP acknowledgment names the next byte the receiver expects, so it cannot move past a missing segment.", evidence: ["tcp-cumulative-ack"], misconception: null, attention: null, action: "inspect" } };

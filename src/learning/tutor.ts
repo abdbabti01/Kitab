@@ -196,17 +196,6 @@ export type TutorValidation = { ok: true; response: TutorResponse } | { ok: fals
  * not reveal withheld outcomes.
  */
 export function validateTutorOutput(raw: unknown, context: TutorContext): TutorValidation {
-  const parsed = tutorResponseSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, problems: parsed.error.issues.map((issue) => `schema: ${issue.path.join(".")} ${issue.message}`) };
-  const response = parsed.data;
-  const problems: string[] = [];
-
-  for (const id of response.evidence) if (!context.allowedEvidence.includes(id)) problems.push(`evidence: unknown id ${id}`);
-  if (response.attention && !context.allowedEntities.includes(response.attention)) problems.push(`attention: ${response.attention} is not in this frame`);
-  if (response.misconception && !context.misconceptionCodes.includes(response.misconception)) problems.push(`misconception: unknown code ${response.misconception}`);
-  if (response.misconception && !context.revealed) problems.push("misconception: cannot diagnose before the run");
-
-  const text = response.explanation;
   const groundedSources = [
     ...context.facts.flatMap((fact) => [stringify(fact.value), fact.label]),
     ...context.previousFacts.map((fact) => stringify(fact.value)),
@@ -221,23 +210,62 @@ export function validateTutorOutput(raw: unknown, context: TutorContext): TutorV
     context.curatedHint.text,
     ...(context.prediction ? [context.prediction.text] : []),
   ].join(" ");
-  const grounded = new Set(numbersIn(groundedSources));
+  return checkTutorResponse(raw, {
+    allowedEvidence: context.allowedEvidence,
+    allowedEntities: context.allowedEntities,
+    misconceptionCodes: context.misconceptionCodes,
+    revealed: context.revealed,
+    groundedSources,
+    withheld: context.withheld,
+    trace: context.trace,
+    facts: [...context.facts, ...context.previousFacts, ...context.outcomeFacts],
+  });
+}
+
+export type TutorChecks = {
+  allowedEvidence: string[];
+  allowedEntities: string[];
+  misconceptionCodes: string[];
+  /** Whether a misconception may be diagnosed (the run is over). */
+  revealed: boolean;
+  /** Trusted text whose numbers the response may use. */
+  groundedSources: string;
+  withheld: string[];
+  trace: Trace;
+  /** Facts handed to the adapter's claim checks. */
+  facts: Fact[];
+};
+
+/** The bounded checks shared by every tutor surface (missions and lessons). */
+export function checkTutorResponse(raw: unknown, checks: TutorChecks): TutorValidation {
+  const parsed = tutorResponseSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, problems: parsed.error.issues.map((issue) => `schema: ${issue.path.join(".")} ${issue.message}`) };
+  const response = parsed.data;
+  const problems: string[] = [];
+
+  for (const id of response.evidence) if (!checks.allowedEvidence.includes(id)) problems.push(`evidence: unknown id ${id}`);
+  if (response.attention && !checks.allowedEntities.includes(response.attention)) problems.push(`attention: ${response.attention} is not in this frame`);
+  if (response.misconception && !checks.misconceptionCodes.includes(response.misconception)) problems.push(`misconception: unknown code ${response.misconception}`);
+  if (response.misconception && !checks.revealed) problems.push("misconception: cannot diagnose before the run");
+
+  const text = response.explanation;
+  const grounded = new Set(numbersIn(checks.groundedSources));
   // 0 and 1 are exempt here because number words ("one slot", "one at a time") are now normalized to digits.
   for (const number of numbersIn(text)) if (!grounded.has(number) && number !== "0" && number !== "1") problems.push(`grounding: ${number} is not a value in the trace`);
 
   // Conservative: before the run, any mention of the answer value counts as a spoiler,
   // even when that number is also visible elsewhere in the scene.
-  for (const value of context.withheld) {
+  for (const value of checks.withheld) {
     const leaked = /^-?\d+(?:\.\d+)?$/.test(value) ? numbersIn(text).includes(value.replace(/^-/, "")) : normalizeNumberWords(text).toLowerCase().includes(normalizeNumberWords(value).toLowerCase());
     if (leaked) problems.push("spoiler: reveals the answer before the prediction");
   }
 
-  const adapter = getEngine(context.trace.engine.id);
+  const adapter = getEngine(checks.trace.engine.id);
   const lower = text.toLowerCase();
   if (adapter && !adapter.vocabulary.some((term) => new RegExp(`\\b${term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(lower))) problems.push("topic: explanation does not discuss this mechanism");
   // Engine-derived claim checks: the adapter compares the claim shapes it supports with the trace itself
   // (including outcomes the learner has not seen yet), not with the model's own citations.
-  if (adapter?.checkClaims) problems.push(...adapter.checkClaims(text, [...context.facts, ...context.previousFacts, ...context.outcomeFacts], context.trace).map((problem) => `contradiction: ${problem}`));
+  if (adapter?.checkClaims) problems.push(...adapter.checkClaims(text, checks.facts, checks.trace).map((problem) => `contradiction: ${problem}`));
 
   return problems.length ? { ok: false, problems } : { ok: true, response };
 }

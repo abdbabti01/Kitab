@@ -12,7 +12,13 @@ export type Fact = {
 };
 
 /** A selectable or pointable object present in a frame, identified stably across frames. */
-export type Entity = { id: string; label: string; kind: string };
+export type Entity = {
+  id: string;
+  label: string;
+  kind: string;
+  /** Where this object came from, computed by the engine (e.g. "Added by A's IP layer"). */
+  origin?: string;
+};
 
 export type LearningFrame<TData = unknown> = {
   id: string;
@@ -21,6 +27,10 @@ export type LearningFrame<TData = unknown> = {
   narration: string;
   technical?: string;
   chapter?: string;
+  /** Engine-declared level (a lesson's configurable level id) at which this frame's action happens. */
+  level?: string;
+  /** Who acts in this frame, in plain words. */
+  actor?: string;
   facts: Fact[];
   /** Human-readable fact changes from the previous frame. Computed, never authored. */
   delta: string[];

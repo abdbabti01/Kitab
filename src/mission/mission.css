@@ -296,3 +296,4 @@
 }
 .scene { scroll-margin-top: 76px; }
 @media (max-width: 760px) { .scene { scroll-margin-top: 8px; } }
+.learn-first { margin: 6px 0 0; font-size: 0.92rem; color: var(--muted); }

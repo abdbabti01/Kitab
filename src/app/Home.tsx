@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowRight, BookOpen, Loader2, Search, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide-react";
 import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
+import { lessons } from "../learning/lessons/catalog.ts";
+import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
@@ -10,9 +12,11 @@ import { linkProps, navigate } from "./router.ts";
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
 
 const statusLabel = { new: "New", visited: "Opened", practiced: "Practiced", mastered: "Mastered" } as const;
+const learningLabel = { new: "Not started", visited: "Opened", learning: "In progress", completed: "Walkthrough complete" } as const;
 
 export function Home() {
   const progress = useMemo(() => loadProgress(safeStorage()).progress, []);
+  const learning = useMemo(() => loadLearning(safeStorage()).learning, []);
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<SavedConcept[]>([]);
   const [searching, setSearching] = useState(false);
@@ -21,7 +25,7 @@ export function Home() {
   const clean = query.trim().toLowerCase();
 
   useEffect(() => {
-    document.title = "Kitab — learn by predicting, running and explaining";
+    document.title = "Kitab — see how systems work, then practise";
   }, []);
 
   useEffect(() => {
@@ -41,7 +45,8 @@ export function Home() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [clean]);
 
-  const featured = missions.find((mission) => missionStatus(progress, mission.id, mission.version) !== "mastered") ?? missions[0];
+  const flagship = lessons[0];
+  const flagshipStatus = lessonStatus(learning, flagship);
   const matchedMissions = missions.filter((mission) => !clean || `${mission.title} ${mission.topic} ${mission.summary} ${mission.concept}`.toLowerCase().includes(clean));
   const matchedChapters = chapters.filter((chapter) => !clean || `${chapter.title} ${chapter.family} ${chapter.summary}`.toLowerCase().includes(clean));
   const topics = [...new Set(matchedMissions.map((mission) => mission.topic))];
@@ -65,26 +70,49 @@ export function Home() {
     <div className="home">
       <header className="topbar">
         <a className="brand" {...linkProps("/")}><KitabAvatar mood="idle" size={34} /><b>Kitab</b><span lang="ar">كتاب</span></a>
-        <nav aria-label="Sections"><a href="#missions">Missions</a><a href="#concepts">Concepts</a></nav>
+        <nav aria-label="Sections"><a href="#journeys">Learn</a><a href="#missions">Practice</a><a href="#concepts">Concepts</a></nav>
       </header>
       <main id="main">
-        <section className="hero" aria-labelledby="hero-title">
+        <section className="hero journey-hero" aria-labelledby="hero-title">
           <div className="hero-copy">
-            <p className="eyebrow">Next mission · {featured.topic}</p>
-            <h1 id="hero-title">{featured.title}</h1>
-            <p className="lead">{featured.objective}</p>
+            <p className="eyebrow">Start here · guided walkthrough</p>
+            <h1 id="hero-title">{flagship.question}</h1>
+            <p className="lead">{flagship.summary}</p>
             <div className="actions">
-              <a className="button primary" {...linkProps(`/missions/${featured.id}`)}>Start mission <ArrowRight aria-hidden="true" /></a>
-              <a className="button" href="#missions">Browse all missions</a>
+              <a className="button primary" {...linkProps(`/learn/${flagship.id}`)}>{flagshipStatus.state === "new" ? "Begin the journey" : flagshipStatus.state === "completed" ? "Revisit the journey" : "Continue the journey"} <ArrowRight aria-hidden="true" /></a>
+              <a className="button" href="#missions">Practice missions</a>
             </div>
-            <ol className="loop" aria-label="How a mission works">
-              {["Inspect", "Predict", "Run", "Explain", "Retry"].map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}
+            <ol className="loop" aria-label="How Kitab teaches">
+              {["Follow one example", "Explore each level", "Practise with a new scenario"].map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}
             </ol>
           </div>
           <div className="hero-guide" aria-hidden="true">
             <KitabAvatar mood="welcoming" size={128} />
-            <p>“Make a call before you watch. I'll show you exactly where the system agrees or disagrees with you.”</p>
+            <p>“We'll follow one message from your keyboard to another computer, one small step at a time. No quiz first.”</p>
           </div>
+        </section>
+
+        <section id="journeys" className="section" aria-labelledby="journeys-title">
+          <h2 id="journeys-title">Learning journeys</h2>
+          <p className="section-lead">Start from the basic parts and follow one concrete example. Every value is computed by Kitab's engines. Walkthroughs track what you've seen; mastery is earned in practice.</p>
+          <ul className="mission-grid journey-grid">
+            {lessons.map((lesson) => {
+              const status = lessonStatus(learning, lesson);
+              const practice = lesson.practice.map((item) => missions.find((mission) => mission.id === item.missionId)).filter((mission) => mission !== undefined);
+              const practiceStates = practice.map((mission) => missionStatus(progress, mission.id, mission.version));
+              const practiceLabel = practiceStates.includes("mastered") ? "Practice: mastered" : practiceStates.includes("practiced") ? "Practice: attempted" : "Practice: not started";
+              return (
+                <li key={lesson.id}>
+                  <a className="mission-card journey-card" {...linkProps(`/learn/${lesson.id}`)}>
+                    <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span>
+                    <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.question}</b>
+                    <span>{lesson.summary}</span>
+                    <small>{lesson.topic} · {lesson.chapters.length} chapters · {practiceLabel}</small>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
         </section>
 
         <form className="search" role="search" onSubmit={(event) => event.preventDefault()}>
@@ -95,8 +123,8 @@ export function Home() {
         </form>
 
         <section id="missions" className="section" aria-labelledby="missions-title">
-          <h2 id="missions-title">Missions</h2>
-          <p className="section-lead">Reviewed scenarios. Every number is computed by a deterministic engine; your prediction is checked against it.</p>
+          <h2 id="missions-title">Practice missions</h2>
+          <p className="section-lead">Predict, run and explain. Reviewed scenarios with a fresh setup each try; every number is computed by a deterministic engine and your prediction is checked against it.</p>
           {topics.length === 0 && <p className="muted">No mission matches “{query}”.</p>}
           {topics.map((topic) => (
             <div className="topic" key={topic}>
