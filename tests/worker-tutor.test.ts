@@ -88,8 +88,8 @@ test("tutor: timeouts, AI errors, missing bindings and exhausted quota all degra
   assert.equal(capped.calls.length, 0);
 
   const budget = new FakeD1();
-  budget.sqlite.prepare("INSERT INTO usage_counters (scope, subject, day, count, tokens) VALUES ('ai-tokens', 'global', ?, 1, 2000000)").run(today());
-  assert.equal((await ask(envWith({ DB: budget, AI: capped }))).data.reason, "QUOTA_EXHAUSTED", "global token budget enforced");
+  budget.sqlite.prepare("INSERT INTO usage_counters (scope, subject, day, count, tokens) VALUES ('ai-neurons', 'global', ?, 1, 5000)").run(today());
+  assert.equal((await ask(envWith({ DB: budget, AI: capped }))).data.reason, "QUOTA_EXHAUSTED", "global Neuron budget enforced");
 });
 
 test("tutor: malformed requests, unknown missions, bad params and stale versions are rejected", async () => {

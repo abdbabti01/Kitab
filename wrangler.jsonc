@@ -13,15 +13,17 @@
     "binding": "AI"
   },
   "vars": {
-    // Verify the model and its price in the Workers AI catalog before changing it.
-    "AI_MODEL": "@cf/meta/llama-3.1-8b-instruct-fp8",
+    // The model must accept response_format json_schema and have a rate in worker/quota.ts MODEL_NEURONS.
+    "AI_MODEL": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     "DAILY_GENERATIONS_PER_IP": "20",
     "DAILY_GENERATIONS_PER_SESSION": "20",
     "DAILY_GENERATIONS_GLOBAL": "500",
     "DAILY_TUTOR_PER_IP": "120",
     "DAILY_TUTOR_PER_SESSION": "80",
     "DAILY_TUTOR_GLOBAL": "5000",
-    "DAILY_TOKEN_BUDGET": "2000000"
+    // Real AI is off ("0") until the account is confirmed to be on the Workers Free plan, where Cloudflare itself
+    // stops Workers AI at 10,000 Neurons a day. On Free, set "5000": half the allowance, leaving margin.
+    "DAILY_NEURON_BUDGET": "0"
   },
   "d1_databases": [
     {

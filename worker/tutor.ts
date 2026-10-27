@@ -3,11 +3,11 @@ import { findMission } from "../src/learning/missions/catalog.ts";
 import { buildTutorContext, buildTutorMessages, fallbackTutor, tutorJsonSchema, tutorRequestSchema, TutorRequestError, validateTutorOutput, type TutorContext } from "../src/learning/tutor.ts";
 import { EngineError } from "../src/learning/registry.ts";
 import { AiError, runBudgeted } from "./ai.ts";
-import { limit, modelFor, type Env, type WorkerContext } from "./env.ts";
+import { limit, modelFor, neuronBudget, type Env, type WorkerContext } from "./env.ts";
 import { failure, json, readJson, requester } from "./http.ts";
 import { reserve } from "./quota.ts";
 
-const TUTOR_TIMEOUT_MS = 8_000;
+const TUTOR_TIMEOUT_MS = 12_000;
 
 function audit(env: Env, ctx: WorkerContext, context: TutorContext, source: "ai" | "fallback", reason: string | null, extra: { model?: string; latencyMs?: number; inputTokens?: number | null; outputTokens?: number | null } = {}) {
   if (!env.DB) return;
@@ -60,7 +60,7 @@ export async function handleTutor(request: Request, env: Env, ctx: WorkerContext
 
   const model = modelFor(env);
   try {
-    const result = await runBudgeted(env.DB, limit(env.DAILY_TOKEN_BUDGET, 2_000_000), env.AI, model, { messages: buildTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
+    const result = await runBudgeted(env.DB, neuronBudget(env), env.AI, model, { messages: buildTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
     const extra = { model, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens };
     const checked = validateTutorOutput(result.value, context);
     if (!checked.ok) {

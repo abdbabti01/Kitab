@@ -50,7 +50,8 @@ function fakeWorker(): Plugin {
         // Slow network for TCP-lab tutor replies, so a reply can arrive after the learner changed the scenario.
         if (req.url === "/api/tutor" && body.includes('"missionId":"tcp-lab"')) await sleep(1500);
         const request = new Request(`http://localhost${req.url}`, { method: req.method, headers, body: ["GET", "HEAD"].includes(req.method ?? "GET") ? undefined : body });
-        const response = await handle(request, { DB: db, AI: ai, AI_TIMEOUT_MS: "5000" }, { waitUntil: () => undefined });
+        // The scripted fake costs nothing, so its Neuron budget never limits a long test run.
+        const response = await handle(request, { DB: db, AI: ai, AI_TIMEOUT_MS: "5000", DAILY_NEURON_BUDGET: "100000000" }, { waitUntil: () => undefined });
         res.statusCode = response.status;
         response.headers.forEach((value, key) => res.setHeader(key, value));
         res.end(Buffer.from(await response.arrayBuffer()));

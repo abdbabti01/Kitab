@@ -1,5 +1,5 @@
 import type { AiBinding, D1Database } from "./env.ts";
-import { estimateTokens, reserveTokens } from "./quota.ts";
+import { estimateNeurons, neuronsFor, reserveNeurons } from "./quota.ts";
 
 export type AiUsage = { inputTokens: number | null; outputTokens: number | null };
 
@@ -48,14 +48,17 @@ export async function runModel(ai: AiBinding, model: string, input: Record<strin
 }
 
 /**
- * Every inference goes through here: reserve an upper-bound estimate from the shared daily allowance, call
- * the model, then settle to the reported prompt + completion tokens. Unreported usage keeps the reservation.
+ * Every inference goes through here: reserve an upper-bound Neuron estimate from the shared daily allowance,
+ * call the model, then settle to the Neurons of the reported prompt + completion tokens. Unreported usage keeps
+ * the reservation. An unpriced model or a zero budget is never called.
  */
 export async function runBudgeted(db: D1Database, budget: number, ai: AiBinding, model: string, input: Record<string, unknown>, timeoutMs: number): Promise<AiResult> {
-  const reservation = await reserveTokens(db, estimateTokens(input), budget);
+  const estimate = estimateNeurons(model, input);
+  if (estimate === null) throw new AiError("AI_BUDGET_EXHAUSTED", `No Neuron rate is known for ${model}, so it is not called.`);
+  const reservation = await reserveNeurons(db, estimate, budget);
   if (!reservation.ok) throw new AiError("AI_BUDGET_EXHAUSTED", "The daily AI allowance is used up.");
   const settle = (usage: AiUsage | null) =>
-    reservation.settle(usage && usage.inputTokens !== null && usage.outputTokens !== null ? usage.inputTokens + usage.outputTokens : null).catch((error) => console.error("Token reconciliation failed.", error));
+    reservation.settle(usage && usage.inputTokens !== null && usage.outputTokens !== null ? neuronsFor(model, usage.inputTokens, usage.outputTokens) : null).catch((error) => console.error("Neuron reconciliation failed.", error));
   try {
     const result = await runModel(ai, model, input, timeoutMs);
     await settle(result);
