@@ -88,13 +88,13 @@ export function Home() {
           </div>
           <div className="hero-guide" aria-hidden="true">
             <KitabAvatar mood="welcoming" size={128} />
-            <p>“We'll follow one message from your keyboard to another computer, one small step at a time. No quiz first.”</p>
+            <p>“We'll follow an HTTP request from your browser to a server and see how the reply gets back.”</p>
           </div>
         </section>
 
         <section id="journeys" className="section" aria-labelledby="journeys-title">
           <h2 id="journeys-title">Learning journeys</h2>
-          <p className="section-lead">Start from the basic parts and follow one concrete example. Every value is computed by Kitab's engines. Walkthroughs track what you've seen; mastery is earned in practice.</p>
+          <p className="section-lead">Start from the basic parts and follow one concrete example. Walkthroughs track what you've seen. Practice missions let you test what you've learned.</p>
           <ul className="mission-grid journey-grid">
             {lessons.map((lesson) => {
               const status = lessonStatus(learning, lesson);

@@ -197,85 +197,6 @@
 .lesson-page .ds-cell small, .lesson-page .ds-cell-index { color: var(--muted); }
 .lesson-page .scene-caption code { color: var(--ink-2); }
 
-/* ------------------------------------------------------------- HELLO scene */
-.mj-scene { display: grid; gap: 14px; }
-.mj-message { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 12px; }
-.mj-program { display: grid; gap: 8px; align-content: start; padding: 10px; border-radius: var(--radius-sm); background: rgb(143 176 255 / 0.06); border: 1px solid rgb(143 176 255 / 0.18); min-width: 0; }
-.mj-program-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 10px; text-align: left; }
-.mj-program-head span { font-weight: 700; }
-.mj-program-head small { color: var(--muted); font-size: 0.78rem; }
-.mj-chars, .mj-bytes { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; flex-wrap: nowrap; min-width: 0; }
-.mj-chars li, .mj-bytes li { flex: 1 1 0; min-width: 0; display: flex; }
-.mj-char, .mj-byte { flex: 1; min-width: 0; display: grid; place-items: center; gap: 0; padding: 4px 2px; }
-.mj-char b { font-size: 1.25rem; line-height: 1.2; }
-.mj-char small, .mj-byte small { font-size: 0.68rem; color: var(--muted); }
-.mj-byte b { font-variant-numeric: tabular-nums; font-size: 0.95rem; }
-.mj-byte.role-lead, .mj-byte.role-continuation { border-style: dashed; }
-.mj-byte.is-shown { border-color: var(--level-application); }
-.mj-bits { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; font-size: 0.88rem; color: var(--ink-2); }
-.mj-bit-row { display: inline-flex; gap: 2px; }
-.mj-bit-row i { font-style: normal; display: inline-grid; place-items: center; width: 22px; height: 26px; border-radius: 4px; font-family: var(--mono); font-weight: 700; background: var(--surface-3); color: var(--muted); }
-.mj-bit-row i[data-bit="1"] { background: var(--primary); color: #fff; }
-.mj-inbox { margin: 0; min-height: 44px; display: grid; place-items: center; border-radius: var(--radius-sm); border: 1px dashed var(--line-strong); color: var(--muted); font-size: 1.05rem; padding: 4px 8px; overflow-wrap: anywhere; text-align: center; }
-.mj-inbox.has-text { border-style: solid; border-color: var(--success); color: var(--ink); font-weight: 700; font-size: 1.3rem; }
-
-.mj-map { display: grid; grid-template-columns: 92px minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr) 26px minmax(0, 1fr); row-gap: 4px; align-items: stretch; }
-.mj-row { display: contents; }
-.mj-corner { min-height: 1px; }
-.mj-col-head { display: grid; justify-items: center; padding: 4px 2px 6px; text-align: center; min-width: 0; }
-.mj-col-head b { font-size: 0.86rem; }
-.mj-col-head small { font-size: 0.7rem; color: var(--muted); overflow-wrap: anywhere; }
-.mj-col-head.is-acting b { color: var(--primary-strong); }
-.mj-link-head { display: grid; place-items: end center; }
-.lesson-page .scene-body .mj-link-name { min-height: 30px; min-width: 26px; padding: 0; font-size: 0.72rem; font-weight: 700; border-radius: 6px; }
-.mj-row-name { display: flex; align-items: center; padding: 0 8px; border-radius: 8px 0 0 8px; font-size: 0.84rem; color: var(--muted); border-left: 3px solid var(--line-strong); }
-.mj-row-name .mj-short { display: none; }
-.mj-row[data-level="application"] .mj-row-name { border-left-color: var(--level-application); }
-.mj-row[data-level="transport"] .mj-row-name { border-left-color: var(--level-transport); }
-.mj-row[data-level="network"] .mj-row-name { border-left-color: var(--level-network); }
-.mj-row[data-level="link"] .mj-row-name { border-left-color: var(--level-link); }
-.mj-row.is-current > * { background: rgb(77 124 245 / 0.13); }
-.mj-row.is-current .mj-row-name { color: var(--ink); font-weight: 700; }
-.mj-cell { display: grid; gap: 4px; align-content: center; justify-items: stretch; min-height: 58px; padding: 6px; min-width: 0; border-radius: 6px; background: rgb(255 255 255 / 0.025); }
-.mj-cell.is-absent { background: repeating-linear-gradient(135deg, transparent 0 6px, rgb(255 255 255 / 0.03) 6px 12px); }
-.mj-none { justify-self: center; font-size: 0.7rem; color: #6f7c9d; }
-.mj-cell.is-acting { outline: 1px solid var(--primary-strong); outline-offset: -1px; }
-.mj-wire { position: relative; min-height: 58px; }
-.mj-wire.is-cable::before { content: ""; position: absolute; left: -4px; right: -4px; top: 50%; border-top: 3px solid var(--line-strong); }
-.mj-wire.is-busy::before { border-top-color: var(--level-link); }
-.mj-wire .mj-unit { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 2; width: max-content; }
-.mj-endpoint, .mj-router { display: grid; gap: 0; padding: 4px 6px; text-align: center; min-width: 0; }
-.mj-endpoint span, .mj-router small { font-size: 0.68rem; color: var(--muted); }
-.mj-endpoint b { font-size: 0.78rem; letter-spacing: 0.02em; }
-.mj-endpoint small { font-size: 0.68rem; color: var(--ink-2); }
-.mj-router span { font-weight: 700; font-size: 0.86rem; }
-.lesson-page .scene-body .mj-unit { display: grid; gap: 2px; justify-items: center; padding: 4px 6px; border-color: var(--level-application); background: #1f3368; min-height: 44px; }
-.mj-unit b { font-size: 0.78rem; white-space: nowrap; }
-.mj-unit.dir-b-to-a { border-style: dashed; }
-.lesson-page .scene-body .mj-unit.is-corrupt { border-color: var(--danger); background: var(--danger-soft); }
-.lesson-page .scene-body .mj-unit.is-dropped { opacity: 0.55; border-color: var(--danger); text-decoration: line-through; }
-.mj-wrappers { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; }
-.mj-wrappers i { font-style: normal; font-size: 0.6rem; font-weight: 800; padding: 1px 4px; border-radius: 4px; color: #0a1224; }
-.mj-wrappers [data-wrapper="link"] { background: var(--level-link); }
-.mj-wrappers [data-wrapper="ip"] { background: var(--level-network); }
-.mj-wrappers [data-wrapper="tcp"] { background: var(--level-transport); }
-.mj-wrappers [data-wrapper="data"] { background: var(--level-application); }
-.mj-path { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 52px; padding: 6px 10px; border-radius: var(--radius-sm); border: 1px dashed var(--line-strong); color: var(--muted); font-size: 0.82rem; text-align: center; }
-.mj-path.is-busy { border-color: var(--level-network); color: var(--ink-2); }
-.mj-detail { display: grid; gap: 8px; }
-.mj-detail-empty { margin: 0; color: var(--muted); font-size: 0.9rem; }
-.mj-layers-strip { display: flex; gap: 4px; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
-.mj-layers-strip li { display: flex; flex: 1 1 140px; min-width: 0; }
-.mj-hdr { flex: 1; display: grid; gap: 2px; text-align: left; padding: 8px 10px; min-width: 0; }
-.mj-hdr small, .mj-data small, .mj-trailer small { font-size: 0.74rem; color: var(--ink-2); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.lesson-page .scene-body .mj-hdr.hdr-link { border-left: 4px solid var(--level-link); }
-.lesson-page .scene-body .mj-hdr.hdr-ip { border-left: 4px solid var(--level-network); }
-.lesson-page .scene-body .mj-hdr.hdr-tcp { border-left: 4px solid var(--level-transport); }
-.mj-data, .mj-trailer { flex: 1; display: grid; gap: 2px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); border-left: 4px solid var(--level-application); min-width: 0; }
-.mj-trailer { border-left-color: var(--level-link); flex-basis: 110px; }
-.mj-data b, .mj-trailer b, .mj-hdr b { font-size: 0.82rem; }
-.mj-layers-strip.is-dropped { opacity: 0.6; }
-
 /* ------------------------------------------------------------- responsive */
 @media (max-width: 1180px) {
   .lesson-grid { grid-template-columns: minmax(0, 1fr) minmax(300px, 360px); }
@@ -289,17 +210,11 @@
   .level-rail li:nth-child(4) .level-button { border-top-color: var(--level-link); }
   .level-button.is-now { box-shadow: inset 0 3px 0 0 currentColor; }
 }
-.mobile-what, .mj-compact-text { display: none; }
+.mobile-what { display: none; }
 @media (max-width: 860px) {
   .mobile-what { display: block; margin: 0; font-size: 1rem; color: var(--ink); }
   .step-card .step-what { display: none; }
   .step-card .step-what + .card-label { margin-top: 0; }
-  .is-compact-message .mj-message { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .is-compact-message .mj-chars, .is-compact-message .mj-bytes, .is-compact-message .mj-bits { display: none; }
-  .is-compact-message .mj-program { padding: 6px; }
-  .is-compact-message .mj-program-head small { display: none; }
-  .is-compact-message .mj-compact-text { display: grid; place-items: center; margin: 0; min-height: 36px; font-weight: 700; overflow-wrap: anywhere; }
-  .is-compact-message .mj-inbox { min-height: 36px; font-size: 0.95rem; }
   .lesson-grid { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 104px; gap: 14px; }
   .explain { position: static; max-height: none; overflow: visible; }
   .lesson-top { padding: 8px 16px; gap: 10px; }
@@ -308,27 +223,12 @@
   .lesson-controls { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; border-radius: 0; border-width: 1px 0 0; padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 20px rgb(0 0 0 / 0.35); gap: 6px; }
   .lesson-controls .button { padding: 0 12px; }
   .lesson-controls .step-position { display: none; }
-  .mj-message { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
   .level-rail ol { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
   .level-button small { display: none; }
   .level-button { padding: 8px 10px; }
   .stage-scene .scene-body { padding: 10px 8px; }
-  .mj-map { grid-template-columns: 38px minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr) 12px minmax(0, 1fr); }
-  .mj-row-name { padding: 0 4px; font-size: 0.7rem; }
-  .mj-row-name b:first-child { display: none; }
-  .mj-row-name .mj-short { display: inline; }
-  .mj-col-head b { font-size: 0.72rem; }
-  .mj-col-head small { display: none; }
-  .mj-cell { min-height: 54px; padding: 3px; }
-  .mj-wire { min-height: 54px; }
-  .mj-endpoint span { display: none; }
-  .mj-endpoint b { font-size: 0.54rem; letter-spacing: 0; }
-  .mj-endpoint { padding: 3px 1px; }
-  .mj-unit b { font-size: 0.66rem; }
-  .mj-wrappers i { font-size: 0.52rem; padding: 1px 2px; }
-  .lesson-page .scene-body .mj-link-name { min-width: 20px; }
   .lesson-controls .button.next-button { min-width: 0; }
   .lesson-controls .autoplay select { display: none; }
   .lesson-controls .replay-button { width: 44px; padding: 0; }

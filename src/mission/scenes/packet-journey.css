@@ -1,0 +1,29 @@
+.packet-journey { display: grid; gap: 8px; min-width: 0; }
+.packet-devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+.packet-journey .packet-device { display: flex; justify-content: center; align-items: center; gap: 5px; padding: 4px; min-width: 0; font-size: .78rem; }
+.packet-device svg { flex: none; }
+.packet-journey .packet-device[data-active="true"] { border-color: var(--level-application); color: var(--ink); background: var(--surface-2); }
+.packet-closeup { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); padding: 8px; }
+.packet-place { display: flex; align-items: center; gap: 8px; }
+.packet-place h3, .packet-shape h3 { margin: 0; font-size: .83rem; }
+.packet-place b { font-size: .8rem; color: var(--level-application); }
+.packet-levels { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.packet-levels li { border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; font-size: .72rem; }
+.packet-levels [aria-current="true"] { border-color: var(--level-application); font-weight: 700; }
+.packet-hop { margin: 0; font-size: .8rem; }
+.packet-shape h3 { margin: 0 0 4px; }
+.packet-wrap-ip, .packet-wrap-tcp, .packet-wrap-data { display: grid; gap: 3px; border: 1px solid; border-radius: 6px; padding: 4px; min-width: 0; }
+.packet-wrap-ip { border-color: var(--level-network); }
+.packet-wrap-tcp { border-color: var(--level-transport); }
+.packet-wrap-data { border-color: var(--level-application); }
+.packet-journey .packet-header { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; text-align: left; padding: 3px 6px; min-width: 0; font-size: .78rem; }
+.packet-header span { font-family: var(--mono); font-size: .7rem; overflow-wrap: anywhere; }
+.packet-wrap-data pre, .packet-source pre { overflow: auto; margin: 0; padding: 3px 5px; font: .73rem/1.4 var(--mono); }
+.packet-wrap-data pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 76px; }
+.packet-source { min-width: 0; font-size: .78rem; }
+.packet-source summary { cursor: pointer; }
+.packet-source pre { background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; }
+.packet-source p { overflow-wrap: anywhere; }
+.packet-source-current { background: var(--primary-soft); }
+.packet-source small { display: inline-block; min-width: 2.5ch; margin-inline-end: 4px; color: var(--muted); }
+.packet-result { margin: 0; font-weight: 700; color: var(--success); }
