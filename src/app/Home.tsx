@@ -8,6 +8,7 @@ import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
+import { HTTP_WALKTHROUGH_PATH } from "./routes.ts";
 
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
 
@@ -46,7 +47,6 @@ export function Home() {
   }, [clean]);
 
   const flagship = lessons[0];
-  const flagshipStatus = lessonStatus(learning, flagship);
   const matchedMissions = missions.filter((mission) => !clean || `${mission.title} ${mission.topic} ${mission.summary} ${mission.concept}`.toLowerCase().includes(clean));
   const matchedChapters = chapters.filter((chapter) => !clean || `${chapter.title} ${chapter.family} ${chapter.summary}`.toLowerCase().includes(clean));
   const topics = [...new Set(matchedMissions.map((mission) => mission.topic))];
@@ -79,7 +79,7 @@ export function Home() {
             <h1 id="hero-title">{flagship.question}</h1>
             <p className="lead">{flagship.summary}</p>
             <div className="actions">
-              <a className="button primary" {...linkProps(`/learn/${flagship.id}`)}>{flagshipStatus.state === "new" ? "Begin the journey" : flagshipStatus.state === "completed" ? "Revisit the journey" : "Continue the journey"} <ArrowRight aria-hidden="true" /></a>
+              <a className="button primary" {...linkProps(HTTP_WALKTHROUGH_PATH)}>Open Packet Journey <ArrowRight aria-hidden="true" /></a>
               <a className="button" href="#missions">Practice missions</a>
             </div>
             <ol className="loop" aria-label="How Kitab teaches">
@@ -94,17 +94,18 @@ export function Home() {
 
         <section id="journeys" className="section" aria-labelledby="journeys-title">
           <h2 id="journeys-title">Learning journeys</h2>
-          <p className="section-lead">Start from the basic parts and follow one concrete example. Walkthroughs track what you've seen. Practice missions let you test what you've learned.</p>
+          <p className="section-lead">Start from the basic parts and follow one concrete example. Practice missions let you test what you've learned.</p>
           <ul className="mission-grid journey-grid">
             {lessons.map((lesson) => {
-              const status = lessonStatus(learning, lesson);
+              const path = `/learn/${lesson.id}`;
+              const status = path === HTTP_WALKTHROUGH_PATH ? null : lessonStatus(learning, lesson);
               const practice = lesson.practice.map((item) => missions.find((mission) => mission.id === item.missionId)).filter((mission) => mission !== undefined);
               const practiceStates = practice.map((mission) => missionStatus(progress, mission.id, mission.version));
               const practiceLabel = practiceStates.includes("mastered") ? "Practice: mastered" : practiceStates.includes("practiced") ? "Practice: attempted" : "Practice: not started";
               return (
                 <li key={lesson.id}>
-                  <a className="mission-card journey-card" {...linkProps(`/learn/${lesson.id}`)}>
-                    <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span>
+                  <a className="mission-card journey-card" {...linkProps(path)}>
+                    {status && <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span>}
                     <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.question}</b>
                     <span>{lesson.summary}</span>
                     <small>{lesson.topic} · {lesson.chapters.length} chapters · {practiceLabel}</small>
