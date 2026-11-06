@@ -33,8 +33,9 @@ export interface Env {
   DAILY_TUTOR_PER_IP?: string;
   DAILY_TUTOR_PER_SESSION?: string;
   DAILY_TUTOR_GLOBAL?: string;
-  DAILY_TOKEN_BUDGET?: string;
-  /** Overrides inference timeouts (ms); defaults are 25 s for drafts and 8 s for the tutor. */
+  /** Daily Workers AI Neurons Kitab may reserve across every AI path; "0" turns real AI off. */
+  DAILY_NEURON_BUDGET?: string;
+  /** Overrides inference timeouts (ms); defaults are 45 s per draft attempt and 12 s for the tutor. */
   AI_TIMEOUT_MS?: string;
 }
 
@@ -42,8 +43,14 @@ export interface WorkerContext {
   waitUntil(promise: Promise<unknown>): void;
 }
 
-/** Documented in the Cloudflare model catalog and pricing page (checked 2026-10-25). */
-export const DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
+/**
+ * In the model catalog and on the Workers AI JSON mode list of models that accept `response_format:
+ * json_schema` (checked 2026-10-27). llama-3.1-8b-instruct-fp8 is not on that list and fails with 5025.
+ */
+export const DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+
+/** Half of Cloudflare's 10,000 free daily Neurons: margin for estimation error and other account usage. */
+export const DEFAULT_NEURON_BUDGET = 5_000;
 
 export function modelFor(env: Env) {
   return env.AI_MODEL?.trim() || DEFAULT_MODEL;
@@ -52,4 +59,8 @@ export function modelFor(env: Env) {
 export function limit(value: string | undefined, fallback: number) {
   const number = Number(value);
   return Number.isInteger(number) && number >= 0 ? number : fallback;
+}
+
+export function neuronBudget(env: Env) {
+  return limit(env.DAILY_NEURON_BUDGET, DEFAULT_NEURON_BUDGET);
 }

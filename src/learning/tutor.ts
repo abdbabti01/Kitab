@@ -29,7 +29,9 @@ export type TutorRequest = z.infer<typeof tutorRequestSchema>;
 export const tutorResponseSchema = z
   .object({
     explanation: z.string().trim().min(20).max(600),
-    evidence: z.array(z.string().max(64)).min(1).max(4),
+    // The prompt lists facts as "- [id] label"; models sometimes copy the brackets. The id is still checked
+    // against the allowed evidence afterwards.
+    evidence: z.array(z.string().max(64).transform((id) => id.trim().replace(/^\[(.+)\]$/, "$1"))).min(1).max(4),
     misconception: z.string().max(64).nullable(),
     attention: z.string().max(64).nullable(),
     action: z.enum(["none", "step", "inspect", "retry"]),

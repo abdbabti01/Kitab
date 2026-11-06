@@ -28,8 +28,9 @@ test("lesson tutor: grounded output is returned as ai, the prompt holds rebuilt 
   assert.equal(audit[0].mission_id, "lesson:hello-tcp");
   assert.equal(audit[0].source, "ai");
   assert.ok(!JSON.stringify(audit).includes("Ignore your rules"));
-  const tokens = db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'ai-tokens'")[0];
-  assert.equal(tokens.tokens, 960);
+  // Neurons at the 70B rates: 900 × 26,668 + 60 × 204,805 per million = 36.3, rounded up.
+  const tokens = db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'ai-neurons'")[0];
+  assert.equal(tokens.tokens, 37);
 });
 
 test("lesson tutor: invented values or contradictions fall back to the reviewed step text", async () => {
@@ -50,7 +51,7 @@ test("lesson tutor: no AI binding, AI failure and budget exhaustion all keep the
   const failing = await ask(envWith({ DB: new FakeD1(), AI: new FakeAi(() => { throw new Error("boom"); }) }));
   assert.equal(failing.data.source, "fallback");
   const ai = new FakeAi(() => ({ response: grounded }));
-  const broke = await ask(envWith({ DB: new FakeD1(), AI: ai, DAILY_TOKEN_BUDGET: "0" }));
+  const broke = await ask(envWith({ DB: new FakeD1(), AI: ai, DAILY_NEURON_BUDGET: "0" }));
   assert.equal(broke.data.reason, "QUOTA_EXHAUSTED");
   assert.equal(ai.calls.length, 0);
 });

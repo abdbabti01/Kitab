@@ -4,11 +4,11 @@ import { EngineError } from "../src/learning/registry.ts";
 import { LessonContentError } from "../src/learning/lessons/runtime.ts";
 import { buildLessonTutorContext, buildLessonTutorMessages, fallbackLessonTutor, LessonTutorError, lessonTutorRequestSchema, validateLessonTutorOutput, type LessonTutorContext } from "../src/learning/lessons/tutor.ts";
 import { AiError, runBudgeted } from "./ai.ts";
-import { limit, modelFor, type Env, type WorkerContext } from "./env.ts";
+import { limit, modelFor, neuronBudget, type Env, type WorkerContext } from "./env.ts";
 import { failure, json, readJson, requester } from "./http.ts";
 import { reserve } from "./quota.ts";
 
-const TUTOR_TIMEOUT_MS = 8_000;
+const TUTOR_TIMEOUT_MS = 12_000;
 
 function audit(env: Env, ctx: WorkerContext, context: LessonTutorContext, source: "ai" | "fallback", reason: string | null, extra: { model?: string; latencyMs?: number; inputTokens?: number | null; outputTokens?: number | null } = {}) {
   if (!env.DB) return;
@@ -59,7 +59,7 @@ export async function handleLessonTutor(request: Request, env: Env, ctx: WorkerC
   const model = modelFor(env);
   try {
     // One call, no retry; every call draws on the shared daily token allowance.
-    const result = await runBudgeted(env.DB, limit(env.DAILY_TOKEN_BUDGET, 2_000_000), env.AI, model, { messages: buildLessonTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
+    const result = await runBudgeted(env.DB, neuronBudget(env), env.AI, model, { messages: buildLessonTutorMessages(context), response_format: { type: "json_schema", json_schema: tutorJsonSchema }, max_tokens: 400, temperature: 0.2 }, limit(env.AI_TIMEOUT_MS, TUTOR_TIMEOUT_MS));
     const extra = { model, latencyMs: result.latencyMs, inputTokens: result.inputTokens, outputTokens: result.outputTokens };
     const checked = validateLessonTutorOutput(result.value, context);
     if (!checked.ok) {

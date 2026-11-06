@@ -1,7 +1,7 @@
 import { engineKinds, hasEngineEvidence, selectEngineKind, type EngineKind } from "../src/visual-engine/core/visualization-spec.ts";
 import { DRAFT_CONTRACT, draftContractSchema, type DraftContract } from "../src/learning/draft-contract.ts";
 import { AiError, runBudgeted } from "./ai.ts";
-import { limit, modelFor, type D1Database, type Env, type WorkerContext } from "./env.ts";
+import { limit, modelFor, neuronBudget, type D1Database, type Env, type WorkerContext } from "./env.ts";
 import { failure, HttpError, json, readJson, requester, sha256 } from "./http.ts";
 import { reserve } from "./quota.ts";
 
@@ -188,8 +188,9 @@ Actors must be real components. Links describe stable structural relationships. 
 
 type Usage = { calls: number; inputTokens: number; outputTokens: number; latencyMs: number };
 
-const MAX_INFERENCE_CALLS = 3;
-const GENERATION_TIMEOUT_MS = 25_000;
+// 70B drafts take 18–30 s per call (measured 2026-10-27): two attempts fit the client's 100 s wait and bound Neurons per draft.
+const MAX_INFERENCE_CALLS = 2;
+const GENERATION_TIMEOUT_MS = 45_000;
 
 async function generate(env: Env, concept: string, usage: Usage): Promise<GeneratedLesson> {
   const model = modelFor(env);
@@ -200,13 +201,12 @@ async function generate(env: Env, concept: string, usage: Usage): Promise<Genera
   const attempts = [
     { messages: base, response_format: { type: "json_schema", json_schema: generatedLessonJsonSchema }, temperature: 0.2 },
     { messages: [...base, { role: "user", content: `Return one valid JSON object only, matching this schema: ${JSON.stringify(generatedLessonJsonSchema)}` }], response_format: { type: "json_object" }, temperature: 0.1 },
-    { messages: [...base, { role: "user", content: `The previous answer was rejected as off-topic or vague. Regenerate the lesson about exactly "${concept.replace(/"/g, "'")}" using its real components, operations and state changes. No themed CRUD story.` }], response_format: { type: "json_schema", json_schema: generatedLessonJsonSchema }, temperature: 0.2 },
   ];
   let lastError: unknown = new Error("No attempt ran.");
   for (const attempt of attempts.slice(0, MAX_INFERENCE_CALLS)) {
     try {
-      // Every attempt, including retries, reserves from the shared daily token allowance first.
-      const result = await runBudgeted(env.DB!, limit(env.DAILY_TOKEN_BUDGET, 2_000_000), env.AI!, model, { ...attempt, max_tokens: 2400 }, limit(env.AI_TIMEOUT_MS, GENERATION_TIMEOUT_MS));
+      // Every attempt, including retries, reserves from the shared daily Neuron allowance first.
+      const result = await runBudgeted(env.DB!, neuronBudget(env), env.AI!, model, { ...attempt, max_tokens: 2400 }, limit(env.AI_TIMEOUT_MS, GENERATION_TIMEOUT_MS));
       usage.calls += 1;
       usage.inputTokens += result.inputTokens ?? 0;
       usage.outputTokens += result.outputTokens ?? 0;
@@ -214,12 +214,16 @@ async function generate(env: Env, concept: string, usage: Usage): Promise<Genera
       const lesson = applyEnginePolicy(concept, validateLesson(result.value));
       if (lessonMatchesConcept(concept, lesson)) return lesson;
       lastError = new Error("Generated lesson failed concept relevance validation.");
+      console.warn("Generated draft rejected: not about the requested concept.", lesson.title);
     } catch (error) {
       lastError = error;
       if (error instanceof AiError && error.code === "AI_BUDGET_EXHAUSTED") throw error; // no reservation, no call
-      usage.calls += 1;
-      usage.inputTokens += (error instanceof AiError ? error.usage?.inputTokens : null) ?? 0;
-      usage.outputTokens += (error instanceof AiError ? error.usage?.outputTokens : null) ?? 0;
+      // A failed call (AiError) is counted here; a call whose output failed validation was counted above.
+      if (error instanceof AiError) {
+        usage.calls += 1;
+        usage.inputTokens += error.usage?.inputTokens ?? 0;
+        usage.outputTokens += error.usage?.outputTokens ?? 0;
+      } else console.warn("Generated draft rejected.", error instanceof Error ? error.message.slice(0, 500) : error);
       if (error instanceof AiError && error.code === "AI_TIMEOUT") break; // don't stack timeouts
     }
   }
@@ -422,7 +426,7 @@ async function leaderOrFollower(request: Request, env: Env, key: string, concept
       // Nothing was inferred: give the per-IP/session call back.
       exhausted && usage.calls === 0 ? reservation.release() : Promise.resolve(),
     ]);
-    if (exhausted) return failure(429, "QUOTA_EXHAUSTED", "Today's AI allowance is used up. Saved drafts and reviewed missions remain available.", { scope: "ai-tokens" });
+    if (exhausted) return failure(429, "QUOTA_EXHAUSTED", "Today's AI allowance is used up. Saved drafts and reviewed missions remain available.", { scope: "ai-neurons" });
     return failure(code === "AI_TIMEOUT" ? 504 : 502, code, "Workers AI could not produce a valid draft. Please try again later.");
   }
 

@@ -99,7 +99,7 @@ test("generation: success associates content, immutable version, audit row and j
   assert.equal(audit.input_tokens, 900);
   assert.equal(audit.prompt_version, "draft-prompt/3");
   assert.equal(db.rows<{ status: string }>("SELECT status FROM generation_jobs WHERE cache_key = ?", cacheKey("linked list"))[0].status, "completed");
-  assert.equal(db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'ai-tokens'")[0].tokens, 1600, "shared allowance reconciled to reported usage");
+  assert.equal(db.rows<{ tokens: number }>("SELECT tokens FROM usage_counters WHERE scope = 'ai-neurons'")[0].tokens, 168, "shared allowance reconciled to the Neurons of the reported usage (900 in, 700 out)");
 
   // A cached read returns the same version without inference.
   const again = await handle(post("/api/concept", { concept: "linked list" }), envWith({ DB: db, AI: ai }), context());
@@ -118,6 +118,18 @@ test("generation: a failed batch commits nothing and reports the save failure", 
   assert.equal(db.rows<{ status: string }>("SELECT status FROM generation_jobs")[0].status, "failed");
 });
 
+test("generation: a call whose JSON fails lesson validation is counted once, not twice", async () => {
+  const db = new FakeD1();
+  // Call 1 returns well-formed JSON that is not a lesson; call 2 returns a valid one: two calls in total.
+  const ai = new FakeAi((_, call) => (call === 1 ? { response: { title: "not a lesson" }, usage: { prompt_tokens: 10, completion_tokens: 5 } } : { response: lessonFor("linked list"), usage: { prompt_tokens: 10, completion_tokens: 5 } }));
+  const ok = await handle(post("/api/concept", { concept: "linked list" }), envWith({ DB: db, AI: ai }), context());
+  assert.equal(ok.status, 200);
+  assert.equal(ai.calls.length, 2);
+  const audit = db.rows<{ inference_calls: number; input_tokens: number }>("SELECT inference_calls, input_tokens FROM generation_requests")[0];
+  assert.equal(audit.inference_calls, 2);
+  assert.equal(audit.input_tokens, 20);
+});
+
 test("generation: invalid output retries within a bound; off-topic output is rejected", async () => {
   const db = new FakeD1();
   const flaky = new FakeAi((_, call) => (call === 1 ? { response: "not json at all" } : { response: lessonFor("linked list") }));
@@ -128,7 +140,7 @@ test("generation: invalid output retries within a bound; off-topic output is rej
   const offTopic = new FakeAi(() => ({ response: { ...lessonFor("photosynthesis"), title: "Photosynthesis", summary: "Plants turn light into sugar." } }));
   const rejected = await handle(post("/api/concept", { concept: "binary heap" }), envWith({ DB: new FakeD1(), AI: offTopic }), context());
   assert.equal(rejected.status, 502);
-  assert.equal(offTopic.calls.length, 3, "retries are bounded");
+  assert.equal(offTopic.calls.length, 2, "retries are bounded");
 });
 
 test("generation: timeouts, AI errors and missing bindings fail cleanly", async () => {

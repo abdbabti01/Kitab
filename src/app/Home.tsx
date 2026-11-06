@@ -57,7 +57,7 @@ export function Home() {
     setCreating(true);
     setError("");
     try {
-      const draft = await api<{ slug: string }>("/api/concept", { method: "POST", body: JSON.stringify({ concept: query.trim() }), timeoutMs: 60_000 });
+      const draft = await api<{ slug: string }>("/api/concept", { method: "POST", body: JSON.stringify({ concept: query.trim() }), timeoutMs: 100_000 });
       navigate(`/drafts/${encodeURIComponent(draft.slug)}`, { draft });
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.message : "The draft could not be created.");
