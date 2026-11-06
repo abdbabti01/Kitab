@@ -1,4 +1,6 @@
 // Pure route parsing (no DOM), shared by the router and tests.
+export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
+
 export type Route =
   | { name: "home" }
   | { name: "mission"; id: string }

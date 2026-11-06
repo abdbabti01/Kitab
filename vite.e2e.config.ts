@@ -2,8 +2,8 @@
  * E2E-only dev server: the real Worker `handle()` serves /api/* with the
  * SQLite-backed fake D1 and a scripted fake Workers AI. Never used in production.
  */
-import { defineConfig, type Plugin } from "vite";
-import react from "@vitejs/plugin-react";
+import { mergeConfig, type Plugin } from "vite";
+import base from "./vite.config.ts";
 import { handle } from "./worker/index.ts";
 import { FakeAi, FakeD1, lessonFor } from "./tests/support/fakes.ts";
 
@@ -23,8 +23,8 @@ const ai = new FakeAi(async (input) => {
     // Lesson follow-up: cite the first fact of the rebuilt step. A question containing "slow" answers after 2 s.
     const question = /<<<([\s\S]*?)>>>/.exec(user)?.[1] ?? "";
     if (/slow/i.test(question)) await sleep(2000);
-    const fact = /Facts at this step[^\n]*\n- \[([^\]]+)\]/.exec(user)?.[1] ?? "tcp-service";
-    return { response: { explanation: "Each level reads only its own header and passes the rest of the bytes along, so every device knows what to do next.", evidence: [fact], misconception: null, attention: null, action: "none" } };
+    const fact = /Facts at this step[^\n]*\n- \[([^\]]+)\]/.exec(user)?.[1] ?? "array-contiguous";
+    return { response: { explanation: "An array holds values in adjacent slots. The index tells the program which slot to read.", evidence: [fact], misconception: null, attention: null, action: "none" } };
   }
   if (user.includes("TRUSTED CONTEXT")) {
     // A grounded, number-free tutor reply that passes validation for TCP missions.
@@ -68,4 +68,4 @@ function fakeWorker(): Plugin {
   };
 }
 
-export default defineConfig({ plugins: [react(), fakeWorker()] });
+export default mergeConfig(base, { plugins: [fakeWorker()] });

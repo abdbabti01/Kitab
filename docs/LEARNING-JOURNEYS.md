@@ -49,7 +49,8 @@ It confirms that every template resolves, every focus target exists, levels are 
 - **Recorded Packet Journey.**
   The lesson replays 130 events from the C# simulation, including its source lines. The Kitab runtime resolves each event into a step, layer and inspectable facts.
   The example uses plain HTTP/1.1, one simulated IPv4 router and a pre-resolved server address. The TCP practice missions use separate interactive simulations.
-  The existing `hello-tcp` route now opens Packet Journey. The new lesson version starts learners at the beginning of the new trace.
+  `/learn/hello-tcp` serves the original standalone `HttpWalkthrough.html` from `public/learn/hello-tcp.html`. Keep this file byte-for-byte when updating it from the C# walkthrough export. Cloudflare serves the extensionless asset URL, and Vite matches that URL in development and preview.
+  The standalone page owns playback. Kitab's lesson progress and follow-up tutor UI apply to the native array walkthrough.
 - **Learning ≠ mastery.**
   Learning progress lives under `kitab.learning.v1`: visits, steps seen, chapters seen, completion and experiments.
   It never writes `kitab.progress.v1`.

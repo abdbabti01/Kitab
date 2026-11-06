@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 
 export type { Route } from "./routes.ts";
-import { parseRoute, redirectFor, type Route } from "./routes.ts";
+import { HTTP_WALKTHROUGH_PATH, parseRoute, redirectFor, type Route } from "./routes.ts";
 
 export function navigate(path: string, state?: unknown) {
   if (path === window.location.pathname + window.location.search) return;
@@ -27,6 +27,7 @@ export function useRoute() {
 
 /** Same-origin link that uses client navigation but stays a real anchor for keyboard and new tabs. */
 export function linkProps(path: string) {
+  if (path === HTTP_WALKTHROUGH_PATH) return { href: path };
   return {
     href: path,
     onClick: (event: MouseEvent<HTMLAnchorElement>) => {
