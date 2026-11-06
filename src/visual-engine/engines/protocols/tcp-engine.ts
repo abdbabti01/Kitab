@@ -119,7 +119,7 @@ export type TcpTimeline = SimulationTimeline<TcpTimelineEvent> & {
   config: TcpConfig;
 };
 
-/** Fixed, readable initial sequence numbers (real stacks choose them unpredictably). Shared with message-journey. */
+/** Fixed, readable initial sequence numbers (real stacks choose them unpredictably). */
 export const CLIENT_ISN = 1000;
 export const SERVER_ISN = 5000;
 

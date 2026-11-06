@@ -1,8 +1,8 @@
 # Kitab
 
 Learn how systems work: first follow one concrete example from the basic parts
-upward (**learning journeys**, e.g. `/learn/hello-tcp`: how HELLO travels from one
-program to another, and `/learn/array-insert`), then practise by predicting,
+upward (**learning journeys**, e.g. `/learn/hello-tcp`: Packet Journey follows an HTTP request and response
+through TCP, IPv4 and a router, and `/learn/array-insert`), then practise by predicting,
 running and explaining. Each
 **mission** asks one practical question about a real mechanism — TCP loss and
 windows, array insertion, linked lists, hashing, BST search, breadth-first

@@ -5,7 +5,7 @@ It explains before it assesses: missions remain the practice that follows.
 
 ## Plan (as implemented)
 
-1. **Engine.** `message-journey` follows one chat message from program A to program B.
+1. **Engine.** `packet-journey` replays a recorded C# simulation of a browser request and server reply.
 2. **Runtime.** A lesson runtime: validated content, step resolution against engine frames, navigation and learning progress.
 3. **Page.** `/learn/:id` in the dark "Inside the Layers" direction.
 4. **Reuse.** A second lesson (array insertion) on the existing `data-structures` engine, built from content only.
@@ -26,8 +26,8 @@ It explains before it assesses: missions remain the practice that follows.
 ## Layers
 
 ```text
-src/visual-engine/engines/protocols/message-journey.ts   pure engine (reuses tcp-engine's createSegments, ISNs, state names)
-src/learning/engines/message-journey.ts                  adapter: facts, entities (with origin), level/actor per frame, claim checks
+src/content/packet-journey/…                             recorded C# events and source snapshots
+src/learning/engines/packet-journey.ts                  adapter: facts, entities (with origin), level/actor per frame, claim checks
 src/learning/lessons/schema.ts                           lesson content contract (levels, glossary, kinds, chapters, steps, experiments, controls)
 src/learning/lessons/runtime.ts                          resolveTrack, fillStepText, safeParams, stepDelta, validateLessonContent
 src/learning/lessons/navigation.ts                       pure navigation reducer (Next/Back/level/experiment/params/replay) + restore
@@ -35,7 +35,7 @@ src/learning/lessons/progress.ts                         learning progress (kita
 src/learning/lessons/tutor.ts                            follow-up contract, context, fallback, validation (shares checkTutorResponse)
 src/learning/lessons/catalog.ts                          reviewed lessons: hello-tcp, array-insert
 src/lesson/LessonPage.tsx + lesson.css                   generic page; scenes come from the existing scene registry
-src/mission/scenes/MessageJourneyScene.tsx               domain scene for message-journey
+src/mission/scenes/PacketJourneyScene.tsx                device close-ups, nested headers and source
 worker/lesson-tutor.ts                                   POST /api/lesson-tutor
 ```
 
@@ -46,18 +46,10 @@ It confirms that every template resolves, every focus target exists, levels are 
 
 ## Decisions
 
-- **One engine per mechanism, sharing TCP's rules.**
-  The windowed-transfer engine (`tcp`) clamps payloads to 500–8000 bytes and has no addresses, ports or hops.
-  Rather than overlay HELLO on it, `message-journey` reuses `createSegments` (5 bytes → 1 segment, 1001–1005), the same ISNs and the same state names.
-  It adds UTF-8, a topology, longest-prefix forwarding, TTL, per-hop frames and Ethernet padding.
-  A test cross-checks the handshake numbers against `tcp`.
-- **Concrete, declared simplifications.**
-  All links are Ethernet, ARP is already resolved, there are no options, and sequence numbers are readable.
-  The handshake crosses the network in one compressed step; the data trip is shown hop by hop.
-  Addresses come from the documentation ranges (192.0.2.0/24, 203.0.113.0/24, 198.51.100.0/24), so NAT never arises.
-- **Message editing is real UTF-8.**
-  Text is NFC-normalized, control and format characters and lone surrogates are removed, and it is capped at 16 code points.
-  Each character shows its own byte count, and multi-byte bytes are marked as lead or continuation.
+- **Recorded Packet Journey.**
+  The lesson replays 130 events from the C# simulation, including its source lines. The Kitab runtime resolves each event into a step, layer and inspectable facts.
+  The example uses plain HTTP/1.1, one simulated IPv4 router and a pre-resolved server address. The TCP practice missions use separate interactive simulations.
+  The existing `hello-tcp` route now opens Packet Journey. The new lesson version starts learners at the beginning of the new trace.
 - **Learning ≠ mastery.**
   Learning progress lives under `kitab.learning.v1`: visits, steps seen, chapters seen, completion and experiments.
   It never writes `kitab.progress.v1`.
@@ -65,7 +57,7 @@ It confirms that every template resolves, every focus target exists, levels are 
   The completion card shows the five states separately.
 - **Fresh practice.**
   The array walkthrough offers insert positions 1 and 3; the practice mission's variants are 2, 0 and 4. A test enforces this.
-  HELLO's practice is the 3,500-byte loss and window missions.
+  Packet Journey's practice is the 3,500-byte loss and window missions.
 - **AI only when asked.**
   The step explanation, Kitab's line, terms and "Show me where" all use reviewed content.
   A typed follow-up calls `/api/lesson-tutor`.

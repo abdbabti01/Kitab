@@ -28,6 +28,7 @@ versions, quotas, feedback, audit).
 
 ```text
 src/visual-engine/…            pure engines (TCP, data structures, recursion)
+src/content/packet-journey/…    recorded C# events and source snapshots
         ↓
 src/learning/engines/*.ts      adapters: zod params → frames, facts, entities, outcome, claim checks
 src/learning/registry.ts       registerEngine / buildTrace (validated, frozen, cached, fact deltas)
