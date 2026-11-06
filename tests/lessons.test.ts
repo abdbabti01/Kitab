@@ -165,8 +165,8 @@ test("lesson tutor ACK and TTL claims must match the current step, not a value f
 
 test("tutor evidence ids copied with the prompt's brackets are read as ids, and unknown ids still fail", () => {
   // Observed from the real model: evidence ["[packet-seq]"] for the fact listed as "- [packet-seq] …".
-  const context = buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: { message: "HELLO" }, track: JOURNEY, stepId: "r1-forwards", level: null, question: "why?" });
-  const answer = (evidence: string[]) => ({ explanation: "Each router lowers the TTL so a packet cannot loop forever, then forwards it toward B.", evidence, misconception: null, attention: null, action: "none" });
+  const context = buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId: "handshake~event-014", level: null, question: "Why does TTL go down?" });
+  const answer = (evidence: string[]) => ({ explanation: "The router lowers the TTL to limit how many hops a packet can make.", evidence, misconception: null, attention: null, action: "none" });
   const bracketed = validateLessonTutorOutput(answer(["[ip-ttl]"]), context);
   assert.ok(bracketed.ok);
   assert.deepEqual(bracketed.ok && bracketed.response.evidence, ["ip-ttl"]);
