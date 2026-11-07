@@ -38,8 +38,20 @@ test("the IP lesson resolves every prefix and destination and leads to Packet Jo
   for (const prefix of [24, 25]) {
     for (const target of ["phone", "printer", "web"]) {
       const { steps } = resolveTrack(lesson, { prefix, target });
-      assert.equal(steps.length, 10);
+      assert.equal(steps.length, 11);
+      assert.ok(steps.findIndex((step) => step.id === "meet-subnet") < steps.findIndex((step) => step.id === "apply-mask"));
       assert.ok(steps.some((step) => step.what.includes("192.168.1.10")));
     }
   }
+});
+
+test("the networking glossary gives a definition, purpose and example for each term", () => {
+  const { glossary } = findLesson("ip-addressing")!;
+  for (const term of glossary) {
+    assert.ok(term.definition && term.purpose && term.example, term.term);
+  }
+  const subnet = glossary.find((term) => term.id === "subnet")!;
+  assert.match(subnet.definition, /block of IP addresses/);
+  assert.match(subnet.purpose!, /directly/);
+  assert.match(subnet.example!, /192\.168\.1\.0\/24/);
 });

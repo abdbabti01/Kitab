@@ -1,0 +1,142 @@
+import type { Lesson } from "./schema.ts";
+
+export const ipTerms: Lesson["glossary"] = [
+  {
+    id: "lan", term: "LAN",
+    definition: "The local network your devices join through Wi-Fi or Ethernet. LAN stands for Local Area Network.",
+    purpose: "It lets nearby devices exchange data, such as a PC sending a document to a printer at home.",
+    example: "Your PC, phone and router are all connected to your home LAN.",
+  },
+  {
+    id: "ip-address", term: "IP address",
+    definition: "A number assigned to a network connection, such as your PC's Wi-Fi adapter.",
+    purpose: "It lets the sender say where a packet came from and where it should go.",
+    example: "The PC sends from 192.168.1.10. A phone can send a packet back to that address.",
+  },
+  {
+    id: "subnet", term: "Subnet",
+    definition: "A subnet is a block of IP addresses that belong to the same IP network.",
+    purpose: "It tells your PC when it can send directly and when it needs a router.",
+    example: "192.168.1.0/24 covers 192.168.1.0 through 192.168.1.255. Your PC at 192.168.1.10 and phone at 192.168.1.25 are both in that block.",
+  },
+  {
+    id: "interface", term: "Network interface",
+    definition: "The part of a device that connects it to a network, such as a Wi-Fi adapter or an Ethernet port.",
+    purpose: "It gives a device a way to send and receive data on that network. A router uses interfaces to connect separate networks.",
+    example: "Your router has one interface on the home LAN and another facing the internet provider.",
+  },
+  {
+    id: "wan", term: "WAN",
+    definition: "A network that links places across a wider area. WAN stands for Wide Area Network.",
+    purpose: "It connects your local network to other networks. On a home router, WAN usually labels the side facing your internet provider.",
+    example: "Traffic to a website leaves your home router through its WAN interface.",
+  },
+  {
+    id: "dhcp", term: "DHCP",
+    definition: "The protocol a device can use to ask for network settings when it connects. DHCP stands for Dynamic Host Configuration Protocol.",
+    purpose: "It saves you from manually choosing an IP address and entering the subnet mask, gateway and other settings.",
+    example: "When your phone joins your home Wi-Fi, the router can assign it 192.168.1.25.",
+  },
+  {
+    id: "octet", term: "Octet",
+    definition: "A group of eight bits. Each of the four numbers in an IPv4 address is one octet.",
+    purpose: "Writing the bits as four numbers makes an IPv4 address easier to read and type.",
+    example: "The last octet in 192.168.1.10 is 10. Its bits are 00001010.",
+  },
+  {
+    id: "prefix", term: "Prefix length",
+    definition: "The number of starting bits that identify the subnet. It is the number after the slash.",
+    purpose: "It tells you where the network part of the IP address ends and how large the subnet is.",
+    example: "/24 means the first 24 of the 32 IPv4 bits describe the network. The last eight bits vary inside that subnet.",
+  },
+  {
+    id: "mask", term: "Subnet mask",
+    definition: "A pattern that marks which bits of an IP address describe its subnet.",
+    purpose: "The PC applies the mask to its own address and to the destination. It compares the results to check if the destination is in its subnet.",
+    example: "With a /24 mask of 255.255.255.0, 192.168.1.10 and 192.168.1.25 both give 192.168.1.0.",
+  },
+  {
+    id: "subnetting", term: "Subnetting",
+    definition: "Splitting one block of IP addresses into smaller subnets.",
+    purpose: "It lets you give different groups of devices their own IP networks and route traffic between them.",
+    example: "Split 192.168.1.0/24 into 192.168.1.0/25 and 192.168.1.128/25. Each has 128 addresses.",
+  },
+  {
+    id: "broadcast", term: "Broadcast address",
+    definition: "An address that targets all devices on an IPv4 subnet that supports broadcast.",
+    purpose: "It lets one device send a message to the local group when it needs to reach everyone.",
+    example: "For 192.168.1.0/24, the broadcast address is 192.168.1.255.",
+  },
+  {
+    id: "router", term: "Router",
+    definition: "A device that passes packets between IP networks.",
+    purpose: "It reads the destination IP and chooses where to send the packet next.",
+    example: "Your home router forwards a web request from the home network toward your internet provider.",
+  },
+  {
+    id: "default", term: "Default gateway",
+    definition: "The router your device sends to when it has no more specific route to the destination.",
+    purpose: "It gives your device a path to other networks without having to store a separate route for every destination.",
+    example: "For a web server outside the LAN, the PC hands the packet to its gateway at 192.168.1.1.",
+  },
+  {
+    id: "route-table", term: "Routing table",
+    definition: "A list of destination address blocks and directions for sending packets to them.",
+    purpose: "It lets the PC or router choose where to send a packet based on the destination IP.",
+    example: "The PC has one route for its own subnet and a default route via its gateway.",
+  },
+  {
+    id: "hop", term: "Next hop",
+    definition: "The device that receives the packet next.",
+    purpose: "It tells the sender who to hand the packet to on this link, even if the final destination is farther away.",
+    example: "For a web request, the next hop is the home router. The packet's destination IP is the web server's.",
+  },
+  {
+    id: "mac", term: "MAC address",
+    definition: "An address used to deliver a frame on a local network.",
+    purpose: "It lets Wi-Fi or Ethernet deliver the frame to the next device on that local network.",
+    example: "A frame can use the router's MAC address while carrying an IP packet addressed to a website.",
+  },
+  {
+    id: "packet", term: "IP packet",
+    definition: "A piece of data with an IP header that holds a source and destination address.",
+    purpose: "It gives routers the destination they need to pass the data between networks.",
+    example: "A packet can be addressed to a web server even while the PC is handing it to the home router.",
+  },
+  {
+    id: "frame", term: "Frame",
+    definition: "The envelope used to carry a packet across one local link, such as Wi-Fi or Ethernet.",
+    purpose: "It carries the packet to the next device, where a router can put the packet in a new frame for the following link.",
+    example: "On your home LAN, the frame goes to the router's MAC address. The enclosed packet still lists the web server's IP as its destination.",
+  },
+  {
+    id: "arp", term: "ARP",
+    definition: "The protocol that finds the MAC address for an IPv4 address on the local network. ARP stands for Address Resolution Protocol.",
+    purpose: "It gives a device the local address it needs before it can send a frame to a next hop.",
+    example: "The PC can ask who has 192.168.1.1. The router replies with its local MAC address.",
+  },
+  {
+    id: "private", term: "Private IPv4 address",
+    definition: "An IP address from a range reserved for use inside private networks.",
+    purpose: "Different homes can reuse the same addresses for their own devices.",
+    example: "Your PC and a PC in another home can both use 192.168.1.10 on their separate LANs.",
+  },
+  {
+    id: "public", term: "Public IPv4 address",
+    definition: "An IPv4 address that can be routed on the public internet.",
+    purpose: "It gives traffic an address it can reach across the internet.",
+    example: "In the NAT demo, 203.0.113.8 stands in for the router's public address.",
+  },
+  {
+    id: "nat", term: "NAT",
+    definition: "Network Address Translation. A router changes an IP address as a packet passes through. Home routers commonly change a port too.",
+    purpose: "It lets devices with private addresses share one public IP address and still receive the correct replies.",
+    example: "The router rewrites the PC's source from 192.168.1.10:51514 to 203.0.113.8:62001. The web server still receives the request at its own IP and port.",
+  },
+  {
+    id: "mapping", term: "NAT mapping",
+    definition: "A saved pairing between the private address and port and the outside address and port.",
+    purpose: "It tells the router which device and connection should receive a returning packet.",
+    example: "A reply to 203.0.113.8:62001 is sent back to the PC at 192.168.1.10:51514.",
+  },
+];
