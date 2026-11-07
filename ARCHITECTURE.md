@@ -51,8 +51,15 @@ src/mission/scenes/            one scene module per engine id (+ optional Refere
 src/mission/{PhasePanel,Playback,Inspector,KitabGuide,KitabAvatar,motion}.tsx
 src/lesson/LessonPage.tsx      generic walkthrough page (levels, chapters, scene, explanation, Kitab)
 src/app/                       router (History API, legacy redirects), home, concept, draft pages
+src/ui/                        shared tokens, learning controls and reading walkthrough
 worker/                        index (routes) · generation · tutor · feedback · quota · ai · http · env
 ```
+
+The React routes share `SiteHeader`, the palette in `src/ui/tokens.css`, and
+learning UI in `src/ui/learning.css`. The scene registry loads scene styles for
+both missions and lessons. Concepts and AI drafts use the same reading
+walkthrough controls. `/learn/hello-tcp` serves the original standalone C#
+walkthrough HTML as a static asset.
 
 ### Adding content
 

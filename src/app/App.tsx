@@ -5,6 +5,7 @@ import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
+import { SiteHeader } from "./SiteHeader.tsx";
 import { linkProps, useRoute } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
 
@@ -43,6 +44,7 @@ export function App() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
+      <SiteHeader route={route} />
       <ErrorBoundary
         resetKey={key}
         onReset={() => {

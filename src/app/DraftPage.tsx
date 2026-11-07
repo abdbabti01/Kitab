@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { parseDraftContract, type DraftContract } from "../learning/draft-contract.ts";
 import { normalizeVisualization } from "../visual-engine/core/visualization-spec.ts";
-import { EngineCanvas } from "../visual-engine/engines/EngineCanvas.tsx";
+import { LearningHeading } from "../ui/LearningHeading.tsx";
+import { ReadingWalkthrough } from "../ui/ReadingWalkthrough.tsx";
 import { FeedbackForm } from "../mission/FeedbackForm.tsx";
 import { api, ApiError } from "./api.ts";
 import { linkProps } from "./router.ts";
@@ -42,12 +43,7 @@ export function DraftPage({ slug }: { slug: string }) {
 
   return (
     <div className="concept-page">
-      <header className="topbar">
-        <a className="back" {...linkProps("/")}><ArrowLeft aria-hidden="true" /> <span>Kitab</span></a>
-        <p className="crumb">AI draft</p>
-        <p className="review-chip draft"><AlertTriangle aria-hidden="true" /> Draft — not reviewed</p>
-      </header>
-      <main id="main" className="page">
+      <main id="main" className="page reading-page">
         {load.status === "loading" && <p role="status"><Loader2 className="spin inline-icon" aria-hidden="true" /> Loading draft…</p>}
         {load.status === "error" && (
           <div role="alert">
@@ -59,22 +55,12 @@ export function DraftPage({ slug }: { slug: string }) {
         )}
         {draft && spec && (
           <>
-            <p className="eyebrow">{draft.category}</p>
-            <h1>{draft.title}</h1>
+            <LearningHeading eyebrow={`${draft.category} · AI draft`} title={draft.title} description={draft.summary} review="draft" />
             <p className="notice warning"><AlertTriangle aria-hidden="true" /> Written by AI and checked only for structure and topic. Not reviewed by a person, and the walkthrough is illustrative — no engine computed it.</p>
-            <p className="lead">{draft.summary}</p>
             <p className="analogy"><b>Mental model.</b> {draft.analogy}</p>
             <section className="section" aria-labelledby="draft-walkthrough">
               <h2 id="draft-walkthrough">Illustrative walkthrough</h2>
-              <div className="card walkthrough">
-                <p className="scene-step">Step {index + 1} of {spec.events.length}</p>
-                <EngineCanvas spec={spec} eventIndex={index} />
-                <div className="playback-row">
-                  <button type="button" className="icon-button" onClick={() => setIndex((value) => Math.max(0, value - 1))} disabled={index === 0} aria-label="Previous step"><ChevronLeft aria-hidden="true" /></button>
-                  <label className="scrubber"><span className="sr-only">Walkthrough step</span><input type="range" min={0} max={spec.events.length - 1} value={index} onChange={(event) => setIndex(Number(event.target.value))} /></label>
-                  <button type="button" className="icon-button" onClick={() => setIndex((value) => Math.min(spec.events.length - 1, value + 1))} disabled={index === spec.events.length - 1} aria-label="Next step"><ChevronRight aria-hidden="true" /></button>
-                </div>
-              </div>
+              <ReadingWalkthrough spec={spec} index={index} onChange={setIndex} />
               {draft.meta.versionId && <FeedbackForm target={{ kind: "draft", versionId: draft.meta.versionId, frameId: spec.events[index].id }} frameTitle={spec.events[index].label} />}
             </section>
             <section className="section reading">

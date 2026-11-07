@@ -5,10 +5,10 @@ import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
 import { lessons } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
-import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
 import { HTTP_WALKTHROUGH_PATH } from "./routes.ts";
+import { LibraryHero } from "./LibraryHero.tsx";
 
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
 
@@ -27,6 +27,8 @@ export function Home() {
 
   useEffect(() => {
     document.title = "Kitab — see how systems work, then practise";
+    const section = window.location.hash.slice(1);
+    if (["journeys", "missions", "concepts"].includes(section)) document.getElementById(section)?.scrollIntoView();
   }, []);
 
   useEffect(() => {
@@ -68,30 +70,8 @@ export function Home() {
 
   return (
     <div className="home">
-      <header className="topbar">
-        <a className="brand" {...linkProps("/")}><KitabAvatar mood="idle" size={34} /><b>Kitab</b><span lang="ar">كتاب</span></a>
-        <nav aria-label="Sections"><a href="#journeys">Learn</a><a href="#missions">Practice</a><a href="#concepts">Concepts</a></nav>
-      </header>
       <main id="main">
-        <section className="hero journey-hero" aria-labelledby="hero-title">
-          <div className="hero-copy">
-            <p className="eyebrow">Start here · guided walkthrough</p>
-            <h1 id="hero-title">{flagship.question}</h1>
-            <p className="lead">{flagship.summary}</p>
-            <div className="actions">
-              <a className="button primary" {...linkProps(`/learn/${flagship.id}`)}>Start {flagship.title} <ArrowRight aria-hidden="true" /></a>
-              <a className="button" {...linkProps(HTTP_WALKTHROUGH_PATH)}>Open Packet Journey</a>
-              <a className="button" href="#missions">Practice missions</a>
-            </div>
-            <ol className="loop" aria-label="How Kitab teaches">
-              {["Follow one example", "Explore each level", "Practise with a new scenario"].map((step, index) => <li key={step}><span>{index + 1}</span>{step}</li>)}
-            </ol>
-          </div>
-          <div className="hero-guide" aria-hidden="true">
-            <KitabAvatar mood="welcoming" size={128} />
-            <p>“First, see how your PC decides where to send a packet. Then follow an HTTP request through that network code.”</p>
-          </div>
-        </section>
+        <LibraryHero firstLesson={flagship} />
 
         <section id="journeys" className="section" aria-labelledby="journeys-title">
           <h2 id="journeys-title">Learning journeys</h2>
@@ -106,8 +86,8 @@ export function Home() {
               return (
                 <li key={lesson.id}>
                   <a className="mission-card journey-card" {...linkProps(path)}>
-                    {status && <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span>}
-                    <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.question}</b>
+                    {status ? <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span> : <span className="status-chip">C# walkthrough</span>}
+                    <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.title}</b>
                     <span>{lesson.summary}</span>
                     <small>{lesson.topic} · {lesson.chapters.length} chapters{practice.length > 0 && ` · ${practiceLabel}`}</small>
                   </a>

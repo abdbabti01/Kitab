@@ -1,0 +1,101 @@
+/* TCP scene */
+.tcp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 1fr); gap: 12px; }
+.tcp-endpoint { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.tcp-endpoint-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; text-align: left; width: 100%; }
+.tcp-endpoint-head svg { width: 18px; flex: none; color: var(--primary); }
+.tcp-endpoint-head span { display: grid; min-width: 0; flex: 1; }
+.tcp-endpoint-head small { color: var(--muted); font-size: 0.78rem; overflow-wrap: anywhere; }
+.tcp-endpoint-head em { font-style: normal; font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; background: var(--surface-2); }
+.tcp-layers, .tcp-hops { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.tcp-layer, .tcp-hop { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; align-items: center; padding: 8px; border-radius: var(--radius-sm); background: var(--surface-2); min-height: 56px; position: relative; }
+.tcp-layer.is-active, .tcp-hop.is-active { background: var(--primary-soft); }
+.tcp-layer-num { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+.tcp-layer-name, .tcp-hop-name { display: grid; min-width: 0; }
+.tcp-layer-name small, .tcp-hop-name small { color: var(--muted); font-size: 0.76rem; }
+.tcp-hop { grid-template-columns: minmax(0, 1fr); }
+.tcp-hop-arrow { display: none; }
+.tcp-slot { grid-column: 1 / -1; display: grid; }
+.tcp-slot:empty { display: none; }
+.tcp-packet { display: grid; gap: 2px; padding: 6px 8px; text-align: left; border-color: var(--primary) !important; background: var(--surface) !important; }
+.tcp-packet strong { font-size: 0.86rem; }
+.tcp-packet small { font-family: var(--mono); font-size: 0.74rem; color: var(--ink-2); }
+.tcp-packet.kind-ack { border-color: var(--success) !important; }
+.tcp-packet.is-lost { border-color: var(--danger) !important; border-style: dashed; opacity: 0.7; }
+.tcp-wrappers { display: flex; flex-wrap: wrap; gap: 3px; }
+.tcp-wrappers i { font-style: normal; font-size: 0.64rem; font-weight: 700; padding: 1px 4px; border-radius: 4px; background: var(--surface-2); }
+.tcp-wrappers [data-wrapper="tcp"] { background: var(--primary-soft); color: var(--primary-strong); }
+.tcp-wrappers [data-wrapper="ip"] { background: var(--success-soft); color: var(--success); }
+.tcp-wrappers [data-wrapper="link"] { background: var(--warning-soft); color: var(--warning); }
+.tcp-segments { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 6px; }
+.tcp-segment { width: 100%; display: grid; gap: 2px; padding: 6px 8px; text-align: left; }
+.tcp-segment span { display: flex; justify-content: space-between; gap: 6px; font-size: 0.82rem; }
+.tcp-segment em { font-style: normal; color: var(--muted); }
+.tcp-segment small { font-family: var(--mono); font-size: 0.74rem; }
+.tcp-segment i { font-style: normal; font-size: 0.66rem; font-weight: 700; color: var(--muted); min-height: 1em; }
+.tcp-segment.status-delivered { background: var(--success-soft); }
+.tcp-segment.status-buffered { background: var(--warning-soft); }
+.tcp-segment.status-lost { background: var(--danger-soft); border-style: dashed; }
+.tcp-segment.is-unacked i { color: var(--warning); }
+.tcp-segment.is-acked i { color: var(--success); }
+
+/* Data-structure scene */
+.ds-model { color: var(--muted); }
+.ds-row { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ds-cell, .ds-node { display: grid; justify-items: center; gap: 2px; min-width: 64px; padding: 6px 8px; }
+.ds-cell b, .ds-node b { font-size: 1.25rem; font-variant-numeric: tabular-nums; display: inline-block; }
+.ds-cell small, .ds-node small, .ds-node code { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+.ds-cell-index { font-size: 0.72rem; font-weight: 700; color: var(--muted); min-height: 1em; }
+.ds-cell.is-visited, .ds-node.is-visited, .ds-chip.is-visited { background: var(--surface-2); }
+.ds-list li { display: flex; align-items: center; gap: 4px; }
+.ds-list li svg { width: 16px; color: var(--muted); }
+.ds-null { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; padding: 6px; }
+.ds-stack { flex-direction: column; align-items: stretch; max-width: 220px; }
+.ds-stack .ds-cell { width: 100%; }
+.ds-buckets { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.ds-buckets li { display: flex; align-items: center; gap: 10px; }
+.ds-bucket-index { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 8px; background: var(--surface-2); font-weight: 700; }
+.ds-chain { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-chain em { color: var(--muted); font-size: 0.86rem; }
+.ds-chip { min-width: 48px; padding: 0 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ds-chip.is-frontier { border-style: dashed; border-color: var(--warning); }
+.ds-tree { display: grid; gap: 10px; }
+.ds-tree-level { display: grid; gap: 6px; justify-items: center; }
+.ds-graph { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; }
+.ds-adjacency { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.ds-adjacency li { display: flex; align-items: center; gap: 8px; }
+.ds-adjacency li svg { width: 14px; color: var(--muted); }
+.ds-adjacency li span { font-family: var(--mono); font-size: 0.86rem; color: var(--ink-2); }
+.ds-token { display: grid; place-items: center; min-width: 40px; min-height: 40px; border-radius: 8px; background: var(--warning-soft); font-weight: 700; }
+
+/* Recursion scene */
+.rec-scene { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.rec-lines { list-style: none; padding: 8px 0; margin: 0; background: var(--feature); color: var(--feature-text); border-radius: var(--radius-sm); overflow-x: auto; }
+.rec-lines li { display: flex; gap: 12px; padding: 3px 12px; border-left: 3px solid transparent; }
+.rec-lines .rec-line-no { color: var(--feature-muted); min-width: 1.5ch; text-align: right; }
+.rec-lines code { white-space: pre; font-size: 0.9rem; }
+.rec-lines .is-current { background: rgb(191 212 197 / 0.16); border-left-color: var(--feature-muted); }
+.rec-lines .is-comment code { color: #f0b35a; text-decoration: line-through; }
+.rec-meter { position: relative; height: 26px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.rec-meter span { position: absolute; inset: 0 auto 0 0; background: var(--primary-soft-line); transition: width 300ms ease; }
+.rec-meter.is-overflow span { background: var(--danger); }
+.rec-meter small { position: relative; display: grid; place-items: center; height: 100%; font-weight: 700; font-size: 0.8rem; }
+.rec-frames { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.rec-frame { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 8px; padding: 8px 10px; text-align: left; }
+.rec-frame small { color: var(--muted); grid-column: 1; }
+.rec-frame em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-style: normal; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.rec-frame.status-running { border-color: var(--primary); }
+.rec-frame.status-returning { background: var(--success-soft); }
+.rec-frame.is-main { background: var(--surface-2); }
+
+/* TCP: denser layer rows so the stacks and the path fit beside the byte stream. */
+.tcp-layer, .tcp-hop { min-height: 46px; padding: 6px 8px; }
+.tcp-endpoint-head { min-height: 52px; }
+
+.tcp-scene { display: grid; gap: 14px; }
+
+@media (max-width: 760px) {
+  .tcp-grid { grid-template-columns: minmax(0, 1fr); }
+  .tcp-hops { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rec-scene, .ds-graph { grid-template-columns: minmax(0, 1fr); }
+  .rec-stack { order: -1; }
+}
