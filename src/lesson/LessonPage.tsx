@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, BadgeCheck, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
+import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
 import "../learning/engines/index.ts";
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
@@ -15,7 +15,7 @@ import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { useFlip, useReducedMotion } from "../mission/motion.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
 import type { GuideMood } from "../learning/guide.ts";
-import "../mission/mission.css";
+import { LearningHeading } from "../ui/LearningHeading.tsx";
 import "./lesson.css";
 
 const storage = safeStorage();
@@ -183,14 +183,9 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
 
   return (
     <div className="lesson-page">
-      <header className="lesson-top">
-        <a className="back" {...linkProps("/")}><ArrowLeft aria-hidden="true" /> <span>Kitab</span></a>
-        <div className="lesson-heading">
-          <p className="eyebrow">{lesson.topic} · Guided walkthrough{isJourney ? "" : ` · Experiment`}</p>
-          <p className="lesson-question">{isJourney ? lesson.question : track.title}</p>
-        </div>
-        <p className={`review-chip ${lesson.review.status}`}><BadgeCheck aria-hidden="true" /> {lesson.review.status === "reviewed" ? "Reviewed · computed by Kitab" : "Draft — not reviewed"}</p>
-      </header>
+      <div className="lesson-top">
+        <LearningHeading eyebrow={`${lesson.topic} · ${isJourney ? "Guided walkthrough" : "Experiment"}`} title={isJourney ? lesson.title : track.title} titleAs="p" review={lesson.review.status} reviewDetail="computed by Kitab" />
+      </div>
 
       <nav className="chapter-strip" aria-label={isJourney ? "Chapters" : "Experiment"}>
         <ol>
@@ -240,14 +235,14 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
             <h1 id="step-title" className="step-title">{step.title}</h1>
             <p className="step-who"><span className={`level-badge level-${step.level}`}>{levelOf(step.level).name} level</span> <span>Who acts: <b>{step.actor}</b></span></p>
           </div>
-          <p className="mobile-what">{step.what}</p>
-          {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
           <div className={`stage-scene ${replayFrame !== null ? "is-replaying" : ""}`}>
             {replayFrame !== null && <p className="replay-tag" role="status">Before: {previous?.title}</p>}
             <div className="scene-body" ref={sceneRef}>
               {Scene ? <Scene frame={sceneFrame} trace={track.trace} selected={selected} attention={attention} onSelect={(id: string) => { setSelected(id); setAttention(null); }} /> : <p className="error-text">No scene is registered for “{track.trace.engine.id}”.</p>}
             </div>
           </div>
+          <p className="mobile-what">{step.what}</p>
+          {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
           <Controls
             onBack={() => manual({ type: "BACK" })}
             onNext={() => manual({ type: "NEXT" })}

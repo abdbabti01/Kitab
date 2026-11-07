@@ -4,7 +4,7 @@ export type { Route } from "./routes.ts";
 import { HTTP_WALKTHROUGH_PATH, parseRoute, redirectFor, type Route } from "./routes.ts";
 
 export function navigate(path: string, state?: unknown) {
-  if (path === window.location.pathname + window.location.search) return;
+  if (path === window.location.pathname + window.location.search + window.location.hash) return;
   window.history.pushState(state ?? null, "", path);
   window.dispatchEvent(new PopStateEvent("popstate", { state: state ?? null }));
   window.scrollTo({ top: 0 });

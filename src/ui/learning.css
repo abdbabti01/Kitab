@@ -1,0 +1,68 @@
+/* Shared by the lesson player, missions, and reading pages. */
+/* Scene */
+.scene { overflow: clip; }
+.scene-head { padding: 16px 18px 6px; }
+.scene-step { margin: 0 0 2px; font-size: 0.8rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.scene-title { font-size: 1.12rem; margin: 0 0 4px; }
+.scene-narration { color: var(--ink-2); margin: 0; min-height: 3em; }
+.scene-body { padding: 14px 18px 18px; display: grid; gap: 14px; }
+.scene-section { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.scene-label { margin: 0; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.scene-caption { margin: 0; color: var(--ink-2); font-size: 0.92rem; }
+.scene-caption svg { width: 16px; vertical-align: -3px; }
+.scene-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.scene-chips > div { display: flex; gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 999px; background: var(--surface-2); font-size: 0.86rem; }
+.scene-chips dt { color: var(--muted); }
+.scene-chips dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.scene-chips .is-full { background: var(--warning-soft); }
+
+/* Shared entity states: focus (engine), selected (learner), attention (guide). */
+.scene-body [data-entity] { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius-sm); transition: border-color 200ms, background-color 200ms, box-shadow 200ms; min-height: 44px; }
+.scene-body [data-entity]:hover { border-color: var(--line-strong); }
+.scene-body [data-entity].is-focus { border-color: var(--primary); background: var(--primary-soft); }
+.scene-body [data-entity].is-selected { box-shadow: 0 0 0 3px var(--ink); }
+.scene-body [data-entity].is-attention { box-shadow: 0 0 0 3px var(--warning), 0 0 0 7px color-mix(in srgb, var(--warning) 18%, transparent); }
+@media (prefers-reduced-motion: no-preference) {
+  .scene-body [data-entity].is-attention { animation: attention 1.4s ease-in-out 2; }
+}
+@keyframes attention { 50% { box-shadow: 0 0 0 3px var(--warning), 0 0 0 11px color-mix(in srgb, var(--warning) 8%, transparent); } }
+
+.choice { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; min-height: 48px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); cursor: pointer; background: var(--surface); }
+.choice:hover { border-color: var(--ink-2); }
+.choice.is-chosen { border-color: var(--primary); background: var(--primary-soft); }
+.choice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.choice:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* Guide */
+.guide, .lesson-guide { padding: 16px; background: linear-gradient(155deg, var(--primary-soft), var(--surface) 72%); border: 1px solid var(--primary-soft-line); border-radius: var(--radius); }
+.guide-head { display: flex; align-items: center; gap: 12px; }
+.guide-title { display: grid; flex: 1; }
+.guide-title small { color: var(--muted); }
+.guide-message { margin: 12px 0 8px; font-size: 1rem; color: var(--ink); }
+.guide-detail summary { cursor: pointer; color: var(--primary-strong); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.guide-detail p { margin: 6px 0 0; color: var(--ink-2); }
+.guide-source { font-size: 0.8rem; color: var(--muted); margin: 8px 0; }
+.guide-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.guide-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+.guide-actions button:hover:not(:disabled) { border-color: var(--primary-soft-line); background: var(--primary-soft); }
+.guide-actions svg { width: 16px; color: var(--primary); }
+.guide.is-collapsed { padding: 8px 12px; }
+
+.facts { display: grid; gap: 0; margin: 0; }
+.facts > div { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--surface-2); font-size: 0.9rem; }
+.facts dt { color: var(--ink-2); }
+.facts dt .text-button { min-height: 0; padding: 0; text-align: left; font-weight: 500; }
+.facts dd { margin: 0; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.facts .is-changed { background: var(--primary-soft); border-radius: 6px; }
+.feedback { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; }
+.feedback summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; color: var(--ink-2); }
+.feedback fieldset { border: 0; padding: 0; margin: 0; }
+.feedback legend { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; }
+.rating { display: flex; gap: 6px; }
+.rating label { position: relative; }
+.rating input { position: absolute; opacity: 0; }
+.rating span { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; font-weight: 700; }
+.rating input:checked + span { background: var(--primary); color: #fff; border-color: var(--primary); }
+.rating input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.facts dt .text-button { text-decoration: none; color: var(--ink-2); }
+.facts dt .text-button:hover { text-decoration: underline; color: var(--primary-strong); }
+.choice > span:last-child, .facts dd, .guide-message { min-width: 0; overflow-wrap: anywhere; }

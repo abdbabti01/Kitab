@@ -1,4 +1,5 @@
 import type { SceneModule } from "./common.tsx";
+import "./scenes.css";
 import { dataStructureScene } from "./DataStructureScene.tsx";
 import { ipAddressingScene } from "./IpAddressingScene.tsx";
 import { packetJourneyScene } from "./PacketJourneyScene.tsx";

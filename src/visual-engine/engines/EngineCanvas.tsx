@@ -52,7 +52,7 @@ export function EngineCanvas({ spec, eventIndex }: EngineCanvasProps) {
     >
       <header className="engine-canvas-head">
         <div>
-          <span>{spec.engine.replace("-", " ").toUpperCase()} ENGINE</span>
+          <span>{spec.engine.replace("-", " ").toUpperCase()} · ILLUSTRATION</span>
           <b>{spec.title}</b>
         </div>
         <div className="engine-state">

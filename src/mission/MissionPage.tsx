@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import { ArrowLeft, BadgeCheck } from "lucide-react";
 import "../learning/engines/index.ts";
 import { assessExplanation, assessPrediction, evidenceFrameIndex, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.ts";
@@ -13,6 +12,7 @@ import type { FactValue } from "../learning/types.ts";
 import { frameAt } from "../learning/registry.ts";
 import { askTutor, sendLearningEvent } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
+import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { KitabGuide, type GuideAction } from "./KitabGuide.tsx";
 import { useFlip, useReducedMotion } from "./motion.ts";
@@ -257,19 +257,10 @@ export function MissionPage({ mission }: { mission: Mission }) {
 
   return (
     <div className="mission-page">
-      <header className="topbar">
-        <a className="back" {...linkProps("/")}><ArrowLeft aria-hidden="true" /> <span>Kitab</span></a>
-        <p className="crumb"><span>{mission.topic}</span> · Mission</p>
-        <p className={`review-chip ${mission.review.status}`}>
-          <BadgeCheck aria-hidden="true" /> {mission.review.status === "reviewed" ? <>Reviewed<span className="chip-detail"> · computed by Kitab</span></> : "Draft — not reviewed"}
-        </p>
-      </header>
       <main id="main" className="mission-layout">
         <div className="mission-main">
           <div className="mission-head">
-            <p className="eyebrow">Mission {state.attempt.number > 1 ? `· attempt ${state.attempt.number}` : ""}</p>
-            <h1>{mission.title}</h1>
-            <p className="objective">{mission.objective}</p>
+            <LearningHeading eyebrow={`${mission.topic} · Mission${state.attempt.number > 1 ? ` · Attempt ${state.attempt.number}` : ""}`} title={mission.title} description={mission.objective} review={mission.review.status} reviewDetail="computed by Kitab" />
             {lessonsForMission(mission.id).map((lesson) => (
               <p className="learn-first" key={lesson.id}>New to this? <a {...linkProps(`/learn/${lesson.id}`)}>Follow the walkthrough first: {lesson.title}</a></p>
             ))}
