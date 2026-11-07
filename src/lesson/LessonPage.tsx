@@ -43,6 +43,10 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
 
   const track = useMemo(() => trackFor(nav.params, nav.track), [trackFor, nav.params, nav.track]);
   const step = currentStep(nav, track);
+  const featuredTerm = step.terms.find((term) => term.purpose);
+  const relatedTerms = step.terms.filter((term) => term !== featuredTerm);
+  const hasTermReference = lesson.glossary.some((term) => term.purpose);
+  const termReference = useRef<HTMLDetailsElement>(null);
   const stepIndex = track.steps.indexOf(step);
   const list = visibleSteps(nav, track);
   const listIndex = list.indexOf(step);
@@ -179,7 +183,7 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
   const focusLabels = step.focus.map((id) => entities.get(id)?.label).filter(Boolean);
   // Reviewed content only: the step's own line, else the first new term, else where the evidence is.
   const guideLine = step.kitab
-    ?? (step.terms[0] ? `New term: ${step.terms[0].term}. ${step.terms[0].definition}` : focusLabels.length ? `Look at the highlighted ${focusLabels.slice(0, 2).join(" and ")}. Select it to see its exact values.` : "Select anything in the picture to see what it is.");
+    ?? (relatedTerms[0] ? `New term: ${relatedTerms[0].term}. ${relatedTerms[0].definition}` : focusLabels.length ? `Look at the highlighted ${focusLabels.slice(0, 2).join(" and ")}. Select it to see its exact values.` : "Select anything in the picture to see what it is.");
 
   return (
     <div className="lesson-page">
@@ -235,6 +239,15 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
             <h1 id="step-title" className="step-title">{step.title}</h1>
             <p className="step-who"><span className={`level-badge level-${step.level}`}>{levelOf(step.level).name} level</span> <span>Who acts: <b>{step.actor}</b></span></p>
           </div>
+          {featuredTerm && (
+            <section className="key-concept card" aria-labelledby="key-concept-title">
+              <div className="key-concept-heading">
+                <h2 id="key-concept-title">{featuredTerm.term}</h2>
+                <a href="#lesson-terms" onClick={() => { if (termReference.current) termReference.current.open = true; }}>See all terms</a>
+              </div>
+              <TermFields term={featuredTerm} />
+            </section>
+          )}
           <div className={`stage-scene ${replayFrame !== null ? "is-replaying" : ""}`}>
             {replayFrame !== null && <p className="replay-tag" role="status">Before: {previous?.title}</p>}
             <div className="scene-body" ref={sceneRef}>
@@ -257,6 +270,14 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
           />
           <p className="sr-only" aria-live="polite">{auto.playing ? "" : `${step.title}. ${levelOf(step.level).name} level.`}</p>
           <ExampleControls lesson={lesson} params={track.trace.params} onApply={(params) => manual({ type: "SET_PARAMS", params: safeParams(lesson, { ...nav.params, ...params }) })} />
+          {hasTermReference && (
+            <details className="lesson-term-reference card" ref={termReference}>
+              <summary id="lesson-terms">All lesson terms</summary>
+              <div className="term-reference-list">
+                {lesson.glossary.map((term) => <section key={term.id}><h3>{term.term}</h3><TermFields term={term} /></section>)}
+              </div>
+            </details>
+          )}
           {stepIndex === 0 && isJourney && (
             <details className="scope card" open>
               <summary>About this example</summary>
@@ -281,12 +302,12 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
                 <ul className="delta">{delta.map((line) => <li key={line}>{line}</li>)}</ul>
               </>
             )}
-            {step.terms.length > 0 && (
+            {relatedTerms.length > 0 && (
               <div className="terms" aria-label="New terms">
-                {step.terms.map((term) => (
+                {relatedTerms.map((term) => (
                   <details className="term" key={term.id}>
                     <summary>{term.term}</summary>
-                    <p>{term.definition}</p>
+                    {term.purpose ? <TermFields term={term} /> : <p>{term.definition}</p>}
                   </details>
                 ))}
               </div>
@@ -334,6 +355,16 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
         </aside>
       </main>
     </div>
+  );
+}
+
+function TermFields({ term }: { term: Lesson["glossary"][number] }) {
+  return (
+    <dl className="term-fields">
+      <div><dt>What it is</dt><dd>{term.definition}</dd></div>
+      {term.purpose && <div><dt>Why we use it</dt><dd>{term.purpose}</dd></div>}
+      {term.example && <div><dt>Example</dt><dd>{term.example}</dd></div>}
+    </dl>
   );
 }
 

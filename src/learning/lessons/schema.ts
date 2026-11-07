@@ -53,7 +53,7 @@ export const lessonSchema = z
     scope: z.array(text(220)).min(1).max(6),
     prerequisites: text(200),
     levels: z.array(z.object({ id, name: text(30), short: text(70), intro: text(500) }).strict()).min(2).max(6),
-    glossary: z.array(z.object({ id, term: text(40), definition: text(320) }).strict()).max(40),
+    glossary: z.array(z.object({ id, term: text(40), definition: text(320), purpose: text(320).optional(), example: text(320).optional() }).strict()).max(40),
     /** What each kind of selectable object represents and why it matters, keyed by entity kind. */
     kinds: z.record(z.string(), z.object({ represents: text(240), matters: text(240) }).strict()),
     controls: z.array(control).max(3).default([]),

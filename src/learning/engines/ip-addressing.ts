@@ -48,15 +48,16 @@ const serverEndpoint = `${targets.web.address}:80`;
 function example({ prefix, target }: z.infer<typeof params>) {
   const mask = maskFor(prefix);
   const destination = targets[target];
-  const clientNetwork = networkOf(client, mask);
+  const connectedSubnet = subnetBlock(client, prefix);
+  const clientNetwork = connectedSubnet.network;
   const destinationNetwork = networkOf(destination.address, mask);
   const direct = clientNetwork === destinationNetwork;
   const nextHop = direct ? destination.address : gateway;
   const nextHopMac = (direct && destination.mac) || "02:00:00:00:00:01";
-  return { prefix, client, gateway, phone: targets.phone.address, destination, mask: dotted(mask), clientNetwork, destinationNetwork, direct, nextHop, nextHopMac, original, split, natEntries, natPublic };
+  return { prefix, client, gateway, phone: targets.phone.address, destination, mask: dotted(mask), connectedSubnet, clientNetwork, destinationNetwork, direct, nextHop, nextHopMac, original, split, natEntries, natPublic };
 }
 
-type View = "lan" | "interfaces" | "address" | "mask" | "ranges" | "routes" | "link" | "nat-out" | "nat-in" | "handoff";
+type View = "lan" | "interfaces" | "subnet" | "address" | "mask" | "ranges" | "routes" | "link" | "nat-out" | "nat-in" | "handoff";
 export type IpAddressingData = ReturnType<typeof example> & {
   view: View;
   packet?: { before: [string, string]; after: [string, string] };
@@ -67,6 +68,7 @@ const entities: Record<string, Entity> = {
   phone: { id: "phone", label: "Phone", kind: "interface" },
   gateway: { id: "gateway", label: "Home router", kind: "interface" },
   mask: { id: "mask", label: "Subnet mask", kind: "mask" },
+  subnet: { id: "subnet", label: "PC's subnet", kind: "subnet" },
   ranges: { id: "ranges", label: "Subnet ranges", kind: "subnet" },
   route: { id: "route", label: "Chosen route", kind: "route" },
   nat: { id: "nat", label: "NAT translation", kind: "translation" },
@@ -108,6 +110,13 @@ export const ipAddressingAdapter: EngineAdapter<z.infer<typeof params>, IpAddres
     add("lan", "Meet your local network", "local", "PC, phone and home router", ["client", "phone", "gateway"], [clientFact, phoneFact, gatewayFact]);
     add("interfaces", "An address belongs to an interface", "local", "Home router", ["gateway", "client", "phone"], [
       gatewayFact, clientFact, phoneFact, { id: "router-wan", label: "Router WAN IP", value: natPublic, entityId: "gateway" },
+    ]);
+    add("subnet", "Which addresses count as local?", "addressing", "PC network settings", ["subnet"], [
+      { id: "connected-subnet", label: "PC's subnet", value: data.connectedSubnet.cidr, entityId: "subnet" },
+      { id: "block-first", label: "Start of address block", value: data.connectedSubnet.network, entityId: "subnet" },
+      { id: "block-last", label: "End of address block", value: data.connectedSubnet.broadcast, entityId: "subnet" },
+      { id: "destination-ip", label: "Destination IP", value: destination.address, entityId: "subnet" },
+      { id: "in-subnet", label: "Destination in this subnet", value: direct, entityId: "subnet" },
     ]);
     add("address", "Four numbers, 32 bits", "addressing", "PC network settings", ["client", "mask"], [clientFact, ...maskFacts]);
     add("mask", "Apply the subnet mask", "addressing", "PC operating system", ["mask", "client", "route"], [clientFact, destinationFact, ...maskFacts, ...networkFacts]);

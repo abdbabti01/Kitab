@@ -40,6 +40,23 @@ function BitRow({ label, address, prefix }: { label: string; address: string; pr
   );
 }
 
+function ConnectedSubnet({ props }: { props: Props }) {
+  const { client, connectedSubnet, destination, direct } = props.frame.data;
+  return (
+    <SceneSection label="Which addresses belong to the PC’s subnet?" className="ip-scene">
+      <div className="ip-parent-range">
+        <button {...entity("subnet", props, "Inspect the PC's subnet", "ip-inspect")}><code>{connectedSubnet.cidr}</code></button>
+        <span>{connectedSubnet.total} addresses</span>
+        <small>{connectedSubnet.network} – {connectedSubnet.broadcast}</small>
+      </div>
+      <div className="ip-results">
+        <div><span>PC address</span><code>{client}</code><small>Inside this subnet</small></div>
+        <div><span>{destination.label} address</span><code>{destination.address}</code><small>{direct ? "Inside this subnet" : "Outside this subnet"}</small></div>
+      </div>
+    </SceneSection>
+  );
+}
+
 function Address({ props }: { props: Props }) {
   const data = props.frame.data;
   const compare = data.view === "mask";
@@ -140,6 +157,7 @@ function Scene(props: Props) {
   switch (props.frame.data.view) {
     case "lan":
     case "interfaces": return <Lan props={props} />;
+    case "subnet": return <ConnectedSubnet props={props} />;
     case "address":
     case "mask": return <Address props={props} />;
     case "ranges": return <Ranges props={props} />;
