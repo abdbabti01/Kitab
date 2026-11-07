@@ -1,5 +1,6 @@
 import type { SceneModule } from "./common.tsx";
 import { dataStructureScene } from "./DataStructureScene.tsx";
+import { ipAddressingScene } from "./IpAddressingScene.tsx";
 import { packetJourneyScene } from "./PacketJourneyScene.tsx";
 import { recursionScene } from "./RecursionScene.tsx";
 import { tcpScene } from "./TcpScene.tsx";
@@ -10,6 +11,7 @@ const scenes: Record<string, SceneModule<any>> = {
   "data-structures": dataStructureScene,
   recursion: recursionScene,
   "packet-journey": packetJourneyScene,
+  "ip-addressing": ipAddressingScene,
 };
 
 export function sceneFor(engineId: string): SceneModule<any> | undefined {

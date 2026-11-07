@@ -33,7 +33,7 @@ src/learning/lessons/runtime.ts                          resolveTrack, fillStepT
 src/learning/lessons/navigation.ts                       pure navigation reducer (Next/Back/level/experiment/params/replay) + restore
 src/learning/lessons/progress.ts                         learning progress (kitab.learning.v1), separate from mission progress
 src/learning/lessons/tutor.ts                            follow-up contract, context, fallback, validation (shares checkTutorResponse)
-src/learning/lessons/catalog.ts                          reviewed lessons: hello-tcp, array-insert
+src/learning/lessons/catalog.ts                          reviewed lessons: ip-addressing, hello-tcp, array-insert
 src/lesson/LessonPage.tsx + lesson.css                   generic page; scenes come from the existing scene registry
 src/mission/scenes/PacketJourneyScene.tsx                device close-ups, nested headers and source
 worker/lesson-tutor.ts                                   POST /api/lesson-tutor
@@ -46,11 +46,14 @@ It confirms that every template resolves, every focus target exists, levels are 
 
 ## Decisions
 
+- **IP fundamentals before the HTTP trace.**
+  `/learn/ip-addressing` uses the native lesson player for a home-LAN example, computed subnet masks and routing decisions, and a separate outbound and return NAT example.
+  Its final step links to Packet Journey and names the exact route lookup to find in the C# trace.
 - **Recorded Packet Journey.**
   The lesson replays 130 events from the C# simulation, including its source lines. The Kitab runtime resolves each event into a step, layer and inspectable facts.
   The example uses plain HTTP/1.1, one simulated IPv4 router and a pre-resolved server address. The TCP practice missions use separate interactive simulations.
   `/learn/hello-tcp` serves the original standalone `HttpWalkthrough.html` from `public/learn/hello-tcp.html`. Keep this file byte-for-byte when updating it from the C# walkthrough export. Cloudflare serves the extensionless asset URL, and Vite matches that URL in development and preview.
-  The standalone page owns playback. Kitab's lesson progress and follow-up tutor UI apply to the native array walkthrough.
+  The standalone page owns playback. Kitab's lesson progress and follow-up tutor UI apply to native lessons.
 - **Learning ≠ mastery.**
   Learning progress lives under `kitab.learning.v1`: visits, steps seen, chapters seen, completion and experiments.
   It never writes `kitab.progress.v1`.

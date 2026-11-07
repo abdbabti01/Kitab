@@ -1,0 +1,46 @@
+.ip-scene { display: grid; gap: 12px; min-width: 0; }
+.ip-scene code { font-size: 0.88em; overflow-wrap: anywhere; }
+.ip-scene .scene-label { margin: 0; }
+.ip-caption { margin: 0; color: var(--muted); font-size: 0.86rem; }
+.ip-tag { display: inline-flex; width: fit-content; padding: 3px 8px; border-radius: 6px; background: var(--primary-soft); color: var(--level-application); font-size: 0.75rem; font-weight: 650; }
+.ip-tag-muted { background: var(--surface-2); color: var(--ink-2); }
+.ip-lan, .ip-wan { border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px; display: grid; gap: 10px; background: var(--surface-2); }
+.ip-devices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ip-node { display: grid; justify-items: center; gap: 5px; padding: 9px 3px; min-width: 0; text-align: center; font-size: 0.86rem; }
+.ip-node svg, .ip-wan svg { width: 20px; height: 20px; color: var(--level-application); }
+.ip-wan { display: flex; align-items: center; flex-wrap: wrap; font-size: 0.85rem; }
+.ip-legend { display: flex; flex-wrap: wrap; gap: 7px; }
+.ip-bit-row { display: grid; gap: 5px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
+.ip-bit-row > div:first-child { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 0.82rem; }
+.ip-bits { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; font: 0.72rem var(--mono); }
+.ip-octet { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); padding: 2px; text-align: center; border: 1px solid var(--line); border-radius: 4px; }
+.ip-octet span { padding: 2px 0; }
+.ip-prefix-bit { background: var(--primary-soft); color: var(--level-application); font-weight: 700; }
+.ip-host-bit { color: var(--muted); }
+.ip-inspect { justify-self: start; display: flex; align-items: center; gap: 8px; text-align: left; padding: 7px 10px; }
+.ip-results, .ip-split, .ip-handoff { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ip-results > div, .ip-split > div, .ip-handoff > div, .ip-parent-range { display: grid; align-content: start; gap: 4px; padding: 10px; min-width: 0; border: 1px solid var(--line-strong); border-radius: 9px; background: var(--surface-2); }
+.ip-results span, .ip-split small, .ip-handoff dt, .ip-parent-range small { color: var(--ink-2); font-size: 0.79rem; }
+.ip-parent-range { grid-template-columns: 1fr auto; }
+.ip-parent-range small { grid-column: 1 / -1; }
+.ip-split > div:first-child { border-top: 3px solid var(--level-application); }
+.ip-split > div:last-child { border-top: 3px solid var(--level-transport); }
+.ip-down { justify-self: center; color: var(--muted); width: 18px; height: 18px; }
+.ip-result { margin: 0; color: var(--level-transport); font-size: 0.88rem; font-weight: 700; }
+.ip-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 0.81rem; }
+.ip-table :is(th, td) { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; overflow-wrap: anywhere; }
+.ip-table thead { color: var(--muted); }
+.ip-table th[scope="row"] { font-weight: 650; }
+.ip-packet th:first-child { width: 22%; }
+.ip-chosen { background: var(--primary-soft); color: var(--level-application); font-weight: 650; }
+.ip-handoff { margin: 0; }
+.ip-handoff dd { margin: 0; }
+@media (max-width: 480px) {
+  .ip-lan { padding: 8px; }
+  .ip-devices { gap: 5px; }
+  .ip-node { font-size: 0.75rem; }
+  .ip-bits { font-size: 0.63rem; gap: 3px; }
+  .ip-octet { padding: 1px; }
+  .ip-table { font-size: 0.73rem; }
+  .ip-table :is(th, td) { padding: 7px 4px; }
+}

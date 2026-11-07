@@ -79,7 +79,8 @@ export function Home() {
             <h1 id="hero-title">{flagship.question}</h1>
             <p className="lead">{flagship.summary}</p>
             <div className="actions">
-              <a className="button primary" {...linkProps(HTTP_WALKTHROUGH_PATH)}>Open Packet Journey <ArrowRight aria-hidden="true" /></a>
+              <a className="button primary" {...linkProps(`/learn/${flagship.id}`)}>Start {flagship.title} <ArrowRight aria-hidden="true" /></a>
+              <a className="button" {...linkProps(HTTP_WALKTHROUGH_PATH)}>Open Packet Journey</a>
               <a className="button" href="#missions">Practice missions</a>
             </div>
             <ol className="loop" aria-label="How Kitab teaches">
@@ -88,7 +89,7 @@ export function Home() {
           </div>
           <div className="hero-guide" aria-hidden="true">
             <KitabAvatar mood="welcoming" size={128} />
-            <p>“We'll follow an HTTP request from your browser to a server and see how the reply gets back.”</p>
+            <p>“First, see how your PC decides where to send a packet. Then follow an HTTP request through that network code.”</p>
           </div>
         </section>
 
@@ -108,7 +109,7 @@ export function Home() {
                     {status && <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span>}
                     <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.question}</b>
                     <span>{lesson.summary}</span>
-                    <small>{lesson.topic} · {lesson.chapters.length} chapters · {practiceLabel}</small>
+                    <small>{lesson.topic} · {lesson.chapters.length} chapters{practice.length > 0 && ` · ${practiceLabel}`}</small>
                   </a>
                 </li>
               );
