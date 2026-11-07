@@ -1,4 +1,5 @@
 import { packetChapters } from "../engines/packet-journey.ts";
+import { ipAddressing } from "./ip-addressing.ts";
 import { parseLesson, type Lesson } from "./schema.ts";
 
 /**
@@ -143,7 +144,7 @@ const arrayInsert = {
   ],
 };
 
-export const lessons: Lesson[] = [packetJourney, arrayInsert].map((item) => parseLesson(item));
+export const lessons: Lesson[] = [ipAddressing, packetJourney, arrayInsert].map((item) => parseLesson(item));
 
 export function findLesson(id: string) {
   return lessons.find((lesson) => lesson.id === id);

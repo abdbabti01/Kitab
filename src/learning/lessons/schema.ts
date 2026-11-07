@@ -76,6 +76,7 @@ export const lessonSchema = z
       .max(3)
       .default([]),
     practice: z.array(z.object({ missionId: id, why: text(200) }).strict()).max(4).default([]),
+    nextLessonId: id.optional(),
     sources: z.array(z.object({ id, text: text(600) }).strict()).min(1).max(8),
   })
   .strict()

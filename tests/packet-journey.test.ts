@@ -10,7 +10,7 @@ test("Packet Journey replaces the HELLO walkthrough at the existing lesson ID", 
   const lesson = findLesson("hello-tcp")!;
   assert.equal(lesson.title, "Packet Journey");
   assert.equal(lesson.version, "2.0.0");
-  assert.deepEqual(lessons.map(({ id }) => id), ["hello-tcp", "array-insert"]);
+  assert.deepEqual(lessons.filter(({ engine }) => engine.id === "packet-journey").map(({ id }) => id), ["hello-tcp"]);
   const track = resolveTrack(lesson, {});
   assert.equal(track.trace.engine.id, "packet-journey");
   assert.equal(track.steps.length, 130);

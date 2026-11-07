@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, BadgeCheck, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
 import "../learning/engines/index.ts";
+import { findLesson } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
 import { createNav, currentStep, navReducer, restoreNav, visibleSteps, type NavAction, type NavState } from "../learning/lessons/navigation.ts";
@@ -458,6 +459,7 @@ function ObjectPanel({ lesson, entity, selected, facts, onClear }: { lesson: Les
 }
 
 function Completion({ lesson, status, completed, progress, onExperiment }: { lesson: Lesson; status: ReturnType<typeof lessonStatus>; completed: boolean; progress: ReturnType<typeof loadProgress>["progress"]; onExperiment: (id: string) => void }) {
+  const nextLesson = lesson.nextLessonId ? findLesson(lesson.nextLessonId) : undefined;
   const practice = lesson.practice.map((item) => ({ ...item, mission: findMission(item.missionId)! })).filter((item) => item.mission);
   const states = practice.map((item) => missionStatus(progress, item.mission.id, item.mission.version));
   const attempted = states.some((state) => state === "practiced" || state === "mastered");
@@ -469,9 +471,10 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
         <li className="is-yes">Visited</li>
         <li className={status.seen >= status.total ? "is-yes" : ""}>Learning progress: {status.seen} of {status.total} steps seen</li>
         <li className={completed ? "is-yes" : ""}>{completed ? "Walkthrough completed" : "Walkthrough not complete yet: visit every chapter"}</li>
-        <li className={attempted ? "is-yes" : ""}>{attempted ? "Practice attempted" : "Practice not attempted"}</li>
-        <li className={mastered ? "is-yes" : ""}>{mastered ? "Mastery demonstrated in practice" : "Mastery not shown yet: it's earned by predicting in practice"}</li>
+        {practice.length > 0 && <li className={attempted ? "is-yes" : ""}>{attempted ? "Practice attempted" : "Practice not attempted"}</li>}
+        {practice.length > 0 && <li className={mastered ? "is-yes" : ""}>{mastered ? "Mastery demonstrated in practice" : "Mastery not shown yet: it's earned by predicting in practice"}</li>}
       </ul>
+      {nextLesson && <a className="button primary" {...linkProps(`/learn/${nextLesson.id}`)}>Next lesson: {nextLesson.title} <ChevronRight aria-hidden="true" /></a>}
       {lesson.experiments.map((experiment) => (
         <button type="button" className="button primary" key={experiment.id} onClick={() => onExperiment(experiment.id)}><FlaskConical aria-hidden="true" /> Experiment: {experiment.title}</button>
       ))}
