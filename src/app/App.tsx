@@ -9,6 +9,8 @@ import { SiteHeader } from "./SiteHeader.tsx";
 import { linkProps, useRoute } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
 
+const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
+
 const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
 const LessonPage = lazy(() => import("../lesson/LessonPage.tsx").then((module) => ({ default: module.LessonPage })));
 const ConceptPage = lazy(() => import("./ConceptPage.tsx").then((module) => ({ default: module.ConceptPage })));
@@ -29,6 +31,7 @@ export function App() {
   const key = JSON.stringify(route);
   let view;
   if (route.name === "home") view = <Home />;
+  else if (route.name === "network-practice") view = <NetworkPlayground />;
   else if (route.name === "mission") {
     const mission = findMission(route.id);
     view = mission ? <MissionPage key={mission.id} mission={mission} /> : <NotFound what="that mission" />;

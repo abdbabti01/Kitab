@@ -106,6 +106,7 @@ export function Home() {
 
         <section id="missions" className="section" aria-labelledby="missions-title">
           <h2 id="missions-title">Practice missions</h2>
+          <a className="network-entry" {...linkProps("/practice/network")}><div><strong>Build your own network.</strong><p>Arrange devices, connect your LAN, and follow a packet all the way to its destination. Free building and six guided challenges.</p></div><span>Open network playground →</span></a>
           <p className="section-lead">Predict, run and explain. Reviewed scenarios with a fresh setup each try; every number is computed by a deterministic engine and your prediction is checked against it.</p>
           {topics.length === 0 && <p className="muted">No mission matches “{query}”.</p>}
           {topics.map((topic) => (

@@ -174,3 +174,5 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 
 .status-chip.learning-learning { background: var(--primary-soft); color: var(--primary-strong); }
 .status-chip.learning-completed { background: var(--success-soft); color: var(--success); }
+
+.network-entry{display:flex;justify-content:space-between;gap:20px;align-items:center;background:var(--feature);color:var(--feature-text);border:1px solid var(--feature-line);border-radius:14px;padding:25px;margin:22px 0;text-decoration:none}.network-entry strong{display:block;font:26px var(--display);margin-bottom:8px}.network-entry p{color:var(--feature-muted);font-size:14px;margin:0;line-height:1.7}.network-entry>span{border:1px solid var(--feature-line);padding:10px 15px;border-radius:8px;white-space:nowrap;font-size:13px}@media(max-width:700px){.network-entry{flex-direction:column;align-items:start}}
