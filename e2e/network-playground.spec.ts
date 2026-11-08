@@ -100,3 +100,45 @@ test("undoing a move keeps the DHCP lease and replay", async ({ page }) => {
   );
   await expect(phone).toContainText("192.168.1.100");
 });
+
+test("step explanations pause playback and explain DHCP recipients", async ({
+  page,
+}) => {
+  await page.goto("/practice/network");
+  await page.getByLabel("Source device").selectOption("phone");
+  await page.getByLabel("Traffic type").selectOption("dhcp");
+  await page
+    .getByRole("button", { name: "Configure automatically", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "DHCP Discover", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Play journey", exact: true }).click();
+  await page
+    .getByText("Who receives it, and what happens next?", { exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Play journey", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Show event list", exact: true })
+    .click();
+  await page
+    .locator(".event-list")
+    .getByRole("button", { name: /Receive frame Your PC$/ })
+    .first()
+    .click();
+  await expect(page.locator(".step-guide")).toContainText("does not answer");
+  await expect(page.locator(".step-guide")).toContainText("port 68 → 67");
+  await page.getByRole("button", { name: "DHCP Offer", exact: true }).click();
+  await expect(page.locator(".step-guide")).toContainText(
+    "not simply because it is a router",
+  );
+  await expect(page.locator(".step-guide details")).toHaveAttribute("open", "");
+  await expect(page.locator(".step-guide")).toContainText("port 67 → 68");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
