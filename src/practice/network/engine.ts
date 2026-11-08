@@ -80,6 +80,7 @@ export function simulate(
   let actor = action.source,
     location = "Application",
     current: Layer[] = [];
+  let dhcpContext: TraceEvent["dhcpContext"];
   const dev = (id: string) => {
     const d = n.devices.find((d) => d.id === id);
     if (!d) throw new Error("Choose a device in this network.");
@@ -126,6 +127,9 @@ export function simulate(
       snapshot: structuredClone(s),
       hop,
       error,
+      dhcpContext: layers.some((layer) => layer.name.startsWith("DHCP "))
+        ? dhcpContext && { ...dhcpContext }
+        : undefined,
     });
   };
   const at = (d: Device, where: string) => {
@@ -263,9 +267,11 @@ export function simulate(
           at(from, "Bridge / link layer");
         }
         emit(
-          learned
-            ? "Forward using MAC table"
-            : "Unknown MAC: flood eligible ports",
+          destinationMac === "ff:ff:ff:ff:ff:ff"
+            ? "Forward broadcast on LAN"
+            : learned
+              ? "Forward using MAC table"
+              : "Unknown MAC: flood eligible ports",
           learned
             ? `${from.name} learned ${destinationMac} on ${learned}.`
             : `${from.name} forwards this frame through its active ports except the arrival port. Other devices discard frames not addressed to them.`,
@@ -686,6 +692,7 @@ export function simulate(
         );
       const server = dev(serverEntry.end.device),
         sp = iface(server, serverEntry.end.port);
+      dhcpContext = { client: client.id, server: server.id };
       const dhcpLayers = (name: string, data: string): Layer[] => [
         {
           name: `DHCP ${name}`,

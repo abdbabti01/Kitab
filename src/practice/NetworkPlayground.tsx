@@ -1,3 +1,4 @@
+import { StepExplanation } from "./StepExplanation.tsx";
 import { sameConfiguration } from "./network/editing.ts";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -67,6 +68,10 @@ const deviceTypes = [
 const challengeList = challenges();
 const stageTitles = [
   "DHCP Discover",
+  "DHCP Offer",
+  "DHCP Request",
+  "DHCP ACK",
+  "Configuration complete",
   "Prepare HTTP request",
   "DNS query",
   "Create socket and connect",
@@ -906,6 +911,13 @@ export function NetworkPlayground() {
                     {event?.explanation ??
                       "Send a request to see how your application’s data gets wrapped, routed, delivered and unwrapped at its destination."}
                   </p>
+                  {event && (
+                    <StepExplanation
+                      event={event}
+                      network={network}
+                      onReadDetails={() => setPlaying(false)}
+                    />
+                  )}
                 </div>
               </div>
               {trace && (

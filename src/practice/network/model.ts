@@ -107,6 +107,8 @@ export type TraceEvent = {
   snapshot: Session;
   hop?: { from: string; to: string; link: string };
   error?: boolean;
+  // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
+  dhcpContext?: { client: string; server: string };
 };
 export type Action = {
   kind: "dhcp" | "ping" | "http";
