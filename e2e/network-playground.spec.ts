@@ -123,6 +123,8 @@ test("step explanations pause playback and explain DHCP recipients", async ({
   await page
     .getByRole("button", { name: "Show event list", exact: true })
     .click();
+  // Device names distinguish repeated receive events and must remain visible on phones.
+  await expect(page.locator(".event-list small").filter({ hasText: "Your PC" }).first()).toBeVisible();
   await page
     .locator(".event-list")
     .getByRole("button", { name: /Receive frame Your PC$/ })

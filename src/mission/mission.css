@@ -13,6 +13,7 @@
 /* Phase panel */
 .phase { padding: 16px; }
 .phase-title { font-size: 1.1rem; outline: none; }
+.phase .actions > button { max-width: 100%; overflow-wrap: anywhere; }
 .stepper { display: flex; gap: 6px; list-style: none; padding: 0; margin: 0 0 14px; font-size: 0.82rem; color: var(--muted); flex-wrap: wrap; }
 .stepper li { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 4px; border-radius: 999px; }
 .stepper li > span { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); font-weight: 700; font-size: 0.72rem; }
