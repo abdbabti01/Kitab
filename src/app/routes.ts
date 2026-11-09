@@ -4,6 +4,7 @@ export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
 export type Route =
   | { name: "home" }
   | { name: "network-practice" }
+  | { name: "access-explorer" }
   | { name: "mission"; id: string }
   | { name: "lesson"; id: string }
   | { name: "concept"; slug: string }
@@ -29,6 +30,7 @@ function segment(value: string) {
 export function parseRoute(pathname: string): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return { name: "home" };
+  if (path === "/practice/connections") return { name: "access-explorer" };
   if (path === "/practice/network") return { name: "network-practice" };
   const [, kind, value, extra] = path.split("/");
   const clean = value ? segment(value) : null;

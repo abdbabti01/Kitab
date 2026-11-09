@@ -1,3 +1,4 @@
+import { linkProps } from "../app/router.ts";
 import { StepExplanation } from "./StepExplanation.tsx";
 import { sameConfiguration } from "./network/editing.ts";
 import { useEffect, useRef, useState } from "react";
@@ -309,6 +310,7 @@ export function NetworkPlayground() {
       <header className="playground-heading">
         <div>
           <span className="eyebrow">PRACTICE / NETWORK LAB</span>
+          <a style={{display:"block",fontSize:12,marginTop:8}} {...linkProps("/practice/connections")}>Wi-Fi, Ethernet, DSL, cable or fiber? Explore how your home connects →</a>
           <h1>
             Network playground<span className="heading-dot">.</span>
           </h1>
