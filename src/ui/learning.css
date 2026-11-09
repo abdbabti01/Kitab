@@ -35,7 +35,8 @@
 /* Guide */
 .guide, .lesson-guide { padding: 16px; background: linear-gradient(155deg, var(--primary-soft), var(--surface) 72%); border: 1px solid var(--primary-soft-line); border-radius: var(--radius); }
 .guide-head { display: flex; align-items: center; gap: 12px; }
-.guide-title { display: grid; flex: 1; }
+.guide-title { display: grid; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.guide-head > .icon-button { flex: none; }
 .guide-title small { color: var(--muted); }
 .guide-message { margin: 12px 0 8px; font-size: 1rem; color: var(--ink); }
 .guide-detail summary { cursor: pointer; color: var(--primary-strong); font-weight: 600; min-height: 32px; display: flex; align-items: center; }

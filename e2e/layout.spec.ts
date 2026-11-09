@@ -27,6 +27,10 @@ test("200% text size keeps the mission readable without horizontal scrolling", a
   await page.waitForTimeout(200);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(0);
+  const overflowingControls = await page.locator(".guide-head, .phase .actions").evaluateAll(elements =>
+    elements.filter(element => element.scrollWidth > element.clientWidth).map(element => element.className),
+  );
+  expect(overflowingControls).toEqual([]);
   await expect(page.getByRole("button", { name: "Test prediction" })).toBeVisible();
   await page.screenshot({ path: `test-results/screens/${info.project.name}_text-200.png`, fullPage: true });
 });
