@@ -18,7 +18,7 @@ test("changing the printer’s subnet changes the hop and preserves the packet d
   await expect(scene.locator(".ip-chosen")).toContainText("192.168.1.1");
   await expect(scene).toContainText("192.168.1.130");
   // A real split: the router has an interface in the printer's half and delivers from there.
-  await expect(scene).toContainText("The router has an interface in printer's subnet, 192.168.1.129/25");
+  await expect(scene).toContainText("The router has an interface in the printer's subnet, 192.168.1.129/25");
   await page.reload();
   await expect(scene).toContainText("Via the default gateway");
 

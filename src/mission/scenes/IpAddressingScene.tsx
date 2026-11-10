@@ -125,7 +125,7 @@ function Route({ props }: { props: Props }) {
         <div><span>Next hop on this link</span><code>{nextHop}</code><small>{hopLabel}</small></div>
       </div>
       <button {...entity("route", props, "Inspect the chosen route", "ip-inspect")}>{direct ? "Direct on the LAN" : "Via the default gateway"}</button>
-      {otherHalf && <p className="ip-caption">The router has an interface in {destination.label.toLowerCase()}'s subnet, <code>{otherHalf.address}/{prefix}</code>, and delivers the packet from there.</p>}
+      {otherHalf && <p className="ip-caption">The router has an interface in the {destination.label.toLowerCase()}'s subnet, <code>{otherHalf.address}/{prefix}</code>, and delivers the packet from there.</p>}
       {view === "link" && <p className="ip-caption">Local frame destination MAC <code>{nextHopMac}</code>. Inside the frame, the packet still targets <code>{destination.address}</code>.</p>}
     </SceneSection>
   );
