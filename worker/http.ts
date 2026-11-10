@@ -61,6 +61,8 @@ export async function sha256(value: string) {
 
 /** IPv4 as is; IPv6 by its /64, the block one subscriber usually controls, so rotating within it shares a limit. */
 export function network(ip: string) {
+  // Plain IPv4, or IPv4 written inside IPv6 (::ffff:203.0.113.5): the IPv4 address is the client.
+  if (ip.includes(".")) return ip.slice(ip.lastIndexOf(":") + 1);
   if (!ip.includes(":")) return ip;
   const [head, tail] = ip.split("::");
   const left = head ? head.split(":") : [];

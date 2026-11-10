@@ -170,3 +170,121 @@ test("a classroom of 30 learners behind one NAT works through every mission with
   assert.equal(rows(db, "learning_events"), 30 * missions.length * 3);
   assert.equal(rows(db, "mission_feedback"), 30);
 });
+
+const counters = (db: FakeD1, scope: string) => db.rows<{ n: number }>("SELECT COALESCE(SUM(count), 0) AS n FROM usage_counters WHERE scope = ?", scope)[0].n;
+
+test("concurrency: the global cap's last slot goes to exactly one of ten networks; losers' network slots are released", async (t) => {
+  quiet(t);
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  await fill(db, "events-global", "global", DAILY_LIMITS.events.global - 1);
+  const statuses = await Promise.all(Array.from({ length: 10 }, (_, index) => handle(post("/api/events", event, from(`192.0.2.${index + 1}`)), env, context()).then((response) => response.status)));
+  assert.deepEqual(statuses.sort(), [201, ...Array(9).fill(429)]);
+  assert.equal(counters(db, "events-global"), DAILY_LIMITS.events.global);
+  assert.equal(counters(db, "events-network"), 1, "only the admitted request keeps a network slot");
+  assert.equal(rows(db, "learning_events"), 1);
+});
+
+test("concurrency: with both caps one slot from full, one request is admitted and neither cap is exceeded", async (t) => {
+  quiet(t);
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  await fill(db, "events-network", await net("203.0.113.5"), DAILY_LIMITS.events.network - 1);
+  await fill(db, "events-global", "global", DAILY_LIMITS.events.global - 1);
+  const ips = [...Array<string>(5).fill("203.0.113.5"), ...Array.from({ length: 5 }, (_, index) => `192.0.2.${index + 1}`)];
+  const statuses = await Promise.all(ips.map((ip) => handle(post("/api/events", event, from(ip)), env, context()).then((response) => response.status)));
+  assert.equal(statuses.filter((status) => status === 201).length, 1);
+  assert.equal(statuses.filter((status) => status === 429).length, 9);
+  assert.equal(counters(db, "events-global"), DAILY_LIMITS.events.global);
+  assert.ok(db.rows<{ count: number }>("SELECT count FROM usage_counters WHERE scope = 'events-network'").every((row) => row.count <= DAILY_LIMITS.events.network));
+  assert.equal(counters(db, "events-network"), DAILY_LIMITS.events.network, "exactly one network slot was kept");
+  assert.equal(rows(db, "learning_events"), 1);
+});
+
+test("a D1 failure after the network counter was taken releases it and stores nothing", async (t) => {
+  t.mock.method(console, "error", () => undefined);
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  let upserts = 0;
+  db.failWhen = (sql) => sql.includes("INSERT INTO usage_counters") && ++upserts === 2; // the global counter
+  const response = await handle(post("/api/events", event, from("203.0.113.5")), env, context());
+  assert.equal(response.status, 202);
+  assert.deepEqual(await response.json(), { ok: false, stored: false });
+  assert.equal(counters(db, "events-network"), 0);
+  assert.equal(rows(db, "learning_events"), 0);
+
+  upserts = 0;
+  assert.equal((await handle(post("/api/feedback", { target, rating: 4 }, from("203.0.113.5")), env, context())).status, 503);
+  assert.equal(counters(db, "feedback-network"), 0);
+  assert.equal(rows(db, "mission_feedback"), 0);
+});
+
+test("a failed record insert releases both counters, so a learner's retry is not charged twice", async (t) => {
+  t.mock.method(console, "error", () => undefined);
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  db.failWhen = (sql) => sql.startsWith("INSERT INTO mission_feedback") || sql.startsWith("INSERT INTO learning_events");
+  assert.equal((await handle(post("/api/feedback", { target, rating: 4 }, from("203.0.113.5")), env, context())).status, 503);
+  assert.equal((await handle(post("/api/events", event, from("203.0.113.5")), env, context())).status, 202);
+  for (const scope of ["feedback-network", "feedback-global", "events-network", "events-global"]) assert.equal(counters(db, scope), 0, scope);
+  db.failWhen = null;
+  assert.equal((await handle(post("/api/feedback", { target, rating: 4 }, from("203.0.113.5")), env, context())).status, 201);
+  assert.equal(counters(db, "feedback-network"), 1);
+  assert.equal(rows(db, "mission_feedback"), 1);
+});
+
+test("missing or malformed client IPs cannot get around the global cap", async (t) => {
+  quiet(t);
+  assert.equal(network("::ffff:203.0.113.5"), "203.0.113.5");
+  assert.equal(network("::FFFF:198.51.100.7"), "198.51.100.7");
+  assert.equal(network("unknown"), "unknown");
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  const noIp = () => new Request("https://kitab.test/api/events", { method: "POST", body: JSON.stringify(event), headers: { "content-type": "application/json" } });
+  assert.equal((await handle(noIp(), env, context())).status, 201);
+  assert.equal(db.rows<{ subject: string }>("SELECT subject FROM usage_counters WHERE scope = 'events-network'")[0].subject, await net("unknown"), "no IP shares one 'unknown' bucket");
+  db.sqlite.prepare("UPDATE usage_counters SET count = ? WHERE scope = 'events-global'").run(DAILY_LIMITS.events.global);
+  for (const request of [noIp(), post("/api/events", event, from("not-an-ip")), post("/api/events", event, from(":::::")), post("/api/events", event, from("1".repeat(500)))]) {
+    assert.equal((await handle(request, env, context())).status, 429);
+  }
+  assert.equal(rows(db, "learning_events"), 1);
+});
+
+test("error responses carry only a message and a code", async (t) => {
+  quiet(t);
+  t.mock.method(console, "error", () => undefined);
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  await fill(db, "feedback-network", await net("203.0.113.5"), DAILY_LIMITS.feedback.network);
+  const failing = new FakeD1();
+  failing.failWhen = (sql) => sql.startsWith("INSERT INTO mission_feedback");
+  const responses = [
+    await handle(post("/api/feedback", "{broken"), env, context()),
+    await handle(post("/api/feedback", { target, rating: 4 }, { "content-type": "text/plain" }), env, context()),
+    await handle(post("/api/feedback", { target, rating: 4, comment: "x".repeat(5_000) }), env, context()),
+    await handle(post("/api/feedback", { target, rating: 0 }), env, context()),
+    await handle(post("/api/feedback", { target, rating: 4 }, from("203.0.113.5")), env, context()),
+    await handle(post("/api/feedback", { target, rating: 4 }, from("203.0.113.6")), envWith({ DB: failing }), context()),
+  ];
+  assert.deepEqual(responses.map((response) => response.status), [400, 415, 413, 400, 429, 503]);
+  for (const response of responses) {
+    const text = await response.text();
+    assert.deepEqual(Object.keys(JSON.parse(text)).sort(), ["code", "error"]);
+    assert.doesNotMatch(text, /D1_ERROR|INSERT|SELECT|usage_counters|[a-f0-9]{64}|at \w+ \(/);
+  }
+});
+
+test("events and feedback from a listed retired mission version are kept under that version; unlisted versions are not", async () => {
+  const db = new FakeD1();
+  const env = envWith({ DB: db });
+  const old = { ...event, missionVersion: "1.0.0" };
+  assert.notEqual(mission.version, "1.0.0", "tcp-lost-segment has moved on from 1.0.0");
+  assert.equal((await handle(post("/api/events", old, from("203.0.113.5")), env, context())).status, 201);
+  assert.equal((await handle(post("/api/feedback", { target: { ...target, missionVersion: "1.0.0" }, rating: 4 }, from("203.0.113.5")), env, context())).status, 201);
+  assert.deepEqual(db.rows<{ mission_version: string }>("SELECT mission_version FROM learning_events").map((row) => row.mission_version), ["1.0.0"]);
+  assert.equal((await handle(post("/api/events", { ...event, missionVersion: "0.9.0" }), env, context())).status, 400);
+  const other = findMission("array-insert-shift")!;
+  const otherTrace = traceFor(other, other.variants[0].params);
+  assert.equal((await handle(post("/api/events", { ...event, missionId: other.id, missionVersion: "0.9.0", engineVersion: otherTrace.engine.version, scenarioKey: otherTrace.scenarioKey }), env, context())).status, 400);
+  assert.equal((await handle(post("/api/events", { ...old, engineVersion: "1.0.0", scenarioKey: trace.scenarioKey.replace(trace.engine.version, "1.0.0") }), env, context())).status, 400, "the engine version is never relaxed");
+});
