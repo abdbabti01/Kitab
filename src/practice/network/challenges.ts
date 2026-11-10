@@ -209,7 +209,12 @@ export function assessChallenge(
       status: "failed",
       message: `Not yet: ${trace.summary} Step to the red event in the timeline to see why.`,
     };
-  const missing = c.check({ action, trace, network });
+  // A ping challenge names an address; re-addressing the server and pinging somewhere else does not count.
+  const missing =
+    c.check({ action, trace, network }) ??
+    (c.action.kind === "ping" && action.target.trim() !== c.action.target
+      ? `That reply came from ${action.target.trim()}. This challenge needs a ping to ${c.action.target}.`
+      : null);
   return missing
     ? { status: "incomplete", message: missing }
     : { status: "passed", message: c.proved };

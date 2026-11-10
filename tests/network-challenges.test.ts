@@ -97,6 +97,20 @@ test("the loss challenge needs an actual lost segment", () => {
   assert.match(v.message, /no segment was lost/);
 });
 
+test("re-addressing the server and pinging a different address does not pass a ping challenge", () => {
+  const c = get("subnet");
+  for (const id of ["pc", "server"]) dev(c.network, id).interfaces[0].prefix = 25;
+  dev(c.network, "server").interfaces[0].ip = "192.168.1.20";
+  const v = judge(c, c.network, { ...c.action, target: "192.168.1.20" });
+  assert.equal(v.status, "incomplete");
+  assert.match(v.message, /needs a ping to 192\.168\.1\.130/);
+  // A consistent /25 that still reaches .130 is a legitimate single subnet.
+  const ok = get("subnet");
+  dev(ok.network, "server").interfaces[0].prefix = 25;
+  dev(ok.network, "pc").interfaces[0].ip = "192.168.1.140";
+  assert.equal(judge(ok, ok.network).status, "passed");
+});
+
 test("a reply from the wrong device is named", () => {
   const c = get("cable");
   const v = judge(c, c.network, { ...c.action, target: "192.168.1.10" }); // the PC itself
