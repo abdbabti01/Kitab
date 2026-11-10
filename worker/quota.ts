@@ -27,18 +27,39 @@ async function releaseOne(db: D1Database, item: Reservation, day: string) {
   await db.prepare("UPDATE usage_counters SET count = count - 1 WHERE scope = ? AND subject = ? AND day = ? AND count > 0").bind(item.scope, item.subject, day).run();
 }
 
-/** Per-IP / per-session / per-endpoint call limits: every scope or none; a failed later scope releases the earlier ones. */
+/** Per-IP / per-session / per-endpoint call limits: every scope or none; a full or failing later scope releases the earlier ones. */
 export async function reserve(db: D1Database, items: Reservation[], day = today()) {
   const taken: Reservation[] = [];
+  const undo = () => Promise.all(taken.map((done) => releaseOne(db, done, day).catch(() => undefined)));
   for (const item of items) {
-    const ok = await reserveOne(db, item, day);
+    let ok: boolean;
+    try {
+      ok = await reserveOne(db, item, day);
+    } catch (error) {
+      await undo();
+      throw error;
+    }
     if (!ok) {
-      await Promise.all(taken.map((done) => releaseOne(db, done, day).catch(() => undefined)));
+      await undo();
       return { ok: false as const, exhausted: item.scope };
     }
     taken.push(item);
   }
   return { ok: true as const, release: () => Promise.all(taken.map((done) => releaseOne(db, done, day))) };
+}
+
+/**
+ * reserve() behind one read: when any counter is already full the request is rejected without a D1 write, so a
+ * client hammering a closed limit costs reads, not writes. Requests racing past the read are still settled
+ * exactly by reserve().
+ */
+export async function admit(db: D1Database, items: Reservation[], day = today()) {
+  const full = await db
+    .prepare(`SELECT scope FROM usage_counters WHERE day = ? AND (${items.map(() => "(scope = ? AND subject = ? AND count >= ?)").join(" OR ")}) LIMIT 1`)
+    .bind(day, ...items.flatMap((item) => [item.scope, item.subject, item.limit]))
+    .first<{ scope: string }>();
+  if (full) return { ok: false as const, exhausted: full.scope };
+  return reserve(db, items, day);
 }
 
 // ---------------------------------------------------------------- shared AI Neuron allowance
