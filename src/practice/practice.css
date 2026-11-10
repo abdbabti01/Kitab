@@ -2154,15 +2154,21 @@
 .journey-stage {
   scroll-margin-top: 76px;
 }
-/* Before the first run: the one action that starts the journey, on the diagram itself. */
+/* Before the first run: the one action that starts the journey, at the top of the diagram, where it is seen first. */
 .network-canvas .journey-start {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  top: 14px;
   transform: translateX(-50%);
   z-index: 2;
   min-height: 40px;
   padding: 9px 18px;
   box-shadow: 0 6px 18px #193a2d33;
   white-space: nowrap;
+}
+@container journey (max-width: 760px) {
+  /* Below the caption and the Internet toggle on narrow canvases. */
+  .network-canvas .journey-start {
+    top: 96px;
+  }
 }
