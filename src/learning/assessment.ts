@@ -87,6 +87,16 @@ export function evidenceFrameIndex(mission: Mission, trace: Trace) {
   return index < 0 ? trace.frames.length - 1 : index;
 }
 
+/** Whether a frame is one the mission accepts as evidence (ids may end in "*"). */
+export function evidenceMatches(mission: Mission, trace: Trace, index: number) {
+  const id = trace.frames[index]?.id;
+  if (!id || !mission.evidence) return false;
+  return mission.evidence.frames.some((pattern) => {
+    const p = fillTemplate(pattern, trace);
+    return p.endsWith("*") ? id.startsWith(p.slice(0, -1)) : id === p;
+  });
+}
+
 /**
  * Content check used by tests and the dev build: every variant must build,
  * every template must resolve, and exactly one option must match the computed answer.
@@ -117,6 +127,7 @@ export function validateMissionContent(mission: Mission) {
         if (matches.length !== 1) problems.push(`${where}: ${matches.length} options match answer ${expected}`);
         if (new Set(options.map((option) => String(option.value))).size !== options.length) problems.push(`${where}: duplicate option values`);
       }
+      if (mission.evidence && !trace.frames.some((_, i) => evidenceMatches(mission, trace, i))) problems.push(`${where}: no frame matches the evidence step`);
       const evidenceId = fillTemplate(mission.prediction.evidenceFrame, trace);
       if (!trace.frames.some((frame) => frame.id === evidenceId)) problems.push(`${where}: evidence frame ${evidenceId} missing`);
       mission.explanation.options.forEach((option) => fillTemplate(option.text, trace));

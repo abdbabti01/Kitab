@@ -351,3 +351,72 @@ export function accessJourney(
   );
   return stages;
 }
+
+export type BoxRole = { name: string; what: string; does: string[]; not: string; standard?: string };
+const terminalWork: Record<AccessTechnology, { what: string; line: string; standard: string }> = {
+  dsl: {
+    what: "A DSL modem turns the router's data into electrical signals on the copper telephone pair, and turns signals from the line back into data. It works with the DSLAM at the other end of the line, in the provider's exchange or street cabinet.",
+    line: "Each home has its own copper pair to the DSLAM. The longer the pair, the weaker the signal, so distance limits the speed.",
+    standard: "ITU-T G.992 (ADSL) and G.993 (VDSL2)",
+  },
+  cable: {
+    what: "A cable modem carries data as radio-frequency signals on the coaxial cable network. Homes on the same cable segment share it; the provider's CMTS (or CCAP) decides when each modem may send upstream.",
+    line: "The cable segment is shared by the homes connected to it, so busy neighbours share its capacity.",
+    standard: "DOCSIS (CableLabs)",
+  },
+  fiber: {
+    what: "An ONT (optical network terminal) converts between light on the fiber and electrical Ethernet signals. In a passive optical network, splitters share one provider fiber among many homes: the OLT sends to all of them, each ONT keeps only its own data, and the OLT tells each ONT when it may send.",
+    line: "A passive splitter shares the fiber between homes without power or routing; the OLT schedules who sends when.",
+    standard: "ITU-T G.984 (GPON) and G.9807 (XGS-PON)",
+  },
+};
+
+/** What each box in the connection diagram does, for this technology and home-box layout. */
+export function boxRoles(technology: AccessTechnology, combined: boolean): BoxRole[] {
+  const t = technologies[technology], work = terminalWork[technology];
+  return [
+    {
+      name: "Your laptop",
+      what: "Your device runs the browser and its own TCP/IP software. Its Wi-Fi or Ethernet interface sends every frame to the home router's LAN side.",
+      does: ["Gets its private address, gateway and DNS server from the home router's DHCP service.", "Builds the HTTP request, TCP segments and IP packets."],
+      not: `It never talks to the ${t.terminal} directly; all of its traffic goes through the home router.`,
+    },
+    {
+      name: "Home router",
+      what: combined
+        ? `One box with several jobs: a Wi-Fi access point, an Ethernet switch, the router, a DHCP server, NAT, and here also the ${t.terminal}. They are separate functions even when they share a box.`
+        : `One box with several jobs: a Wi-Fi access point, an Ethernet switch, the router, a DHCP server and NAT. Its WAN port connects by an Ethernet cable to the separate ${t.terminal}.`,
+      does: [
+        "Routes packets between your home network and the provider's network.",
+        "Gives home devices private addresses (DHCP) and shares one public address among them (NAT).",
+        "Joins Wi-Fi and wired devices into one home LAN (access point and switch).",
+      ],
+      not: `It does not turn data into the ${t.wire.toLowerCase()} signal; that is the ${t.terminal}'s job${combined ? ", even inside the same box" : ""}.`,
+    },
+    {
+      name: t.terminal,
+      what: work.what,
+      does: [
+        work.line,
+        `It is the provider's end of the access line in your home; the provider often supplies and manages it.`,
+        combined
+          ? "Here it is built into the home gateway and receives the router's data internally."
+          : "Here it is a separate box: the router's WAN port sends it Ethernet frames over a cable.",
+      ],
+      not: "It does not route, hand out addresses or translate them with NAT; it changes how the bits travel on the access line. The router does those other jobs.",
+      standard: work.standard,
+    },
+    {
+      name: "Your provider",
+      what: `The provider's access equipment (${t.provider}) receives the lines from many homes and passes their data into the provider's IP network, whose routers forward it toward the Internet.`,
+      does: ["Gives your home router its public address.", "Routes traffic between your home and the rest of the Internet."],
+      not: "It never sees your laptop's private address: the home router's NAT replaced it with the public address.",
+    },
+    {
+      name: "Web server",
+      what: "The server runs the web service that answers the request.",
+      does: ["Receives the request from your home router's public address.", "Sends its reply to that public address; the home router's NAT passes it to your laptop."],
+      not: "It does not know your laptop's private address or which box carried the signal.",
+    },
+  ];
+}

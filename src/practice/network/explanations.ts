@@ -1,5 +1,6 @@
 import {
   isBridge,
+  type Failure,
   type FailureReason,
   type Network,
   type TraceEvent,
@@ -13,6 +14,8 @@ export type StepExplanation = {
   message: string;
   /** A modeling simplification the learner must not mistake for how real networks behave. */
   note?: { text: string; href: string; label: string };
+  /** For a stopped delivery: the explained reason and the chain of failures that caused it. */
+  failure?: FailureInfo & { chain: ReturnType<typeof failureChain> };
 };
 type Lesson = Pick<StepExplanation, "why" | "outcome" | "detail">;
 const lesson = (why: string, outcome: string, detail: string): Lesson => ({
@@ -71,7 +74,7 @@ const lessons: Record<string, Lesson> = {
   "Translate source with NAT": lesson(
     "This router is sending LAN traffic through its outside interface. NAT replaces the internal source address and port with an outside mapping.",
     "The packet’s source fields change, and the NAT table records how a matching reply can find the internal device.",
-    "NAT is enabled on this router; it is not a step every router must perform. It does not change the HTTP content.",
+    "NAT is enabled on this router; it is not a step every router must perform. It changes addresses and ports in the headers, not the application data inside.",
   ),
   "Restore reply destination": lesson(
     "A reply arrived at the router’s outside address. Its NAT table identifies the internal device that started this exchange.",
@@ -248,39 +251,314 @@ const dhcpLessons: Record<string, Lesson> = {
   ),
 };
 
-// Why each deterministic failure happens and which rule caused it. The event's own message names the devices.
-const failureLessons: Record<FailureReason, Lesson> = {
-  DNS_SERVER_ADDRESS: lesson(
+/** How a failure is explained: what failed, why, the rule, where the rule comes from, and where to look. */
+export type FailureInfo = {
+  title: string;
+  why: string;
+  rule: string;
+  /** The standard and section that states the rule, checked against its text. */
+  source?: string;
+  /** Where to investigate. Points at devices and settings; it does not hand over a challenge's answer. */
+  check: string;
+  /** How real networks differ from this lab here. */
+  real?: string;
+};
+const failure = (
+  title: string,
+  why: string,
+  rule: string,
+  source: string | undefined,
+  check: string,
+  real?: string,
+): FailureInfo => ({ title, why, rule, source, check, real });
+const noIcmpUnreachable =
+  "A real router would also send an ICMP Destination Unreachable message back to the sender (RFC 1812 §5.2.7.1). This lab does not model ICMP errors.";
+
+// One entry per reason. The event's own message names the devices and values involved.
+export const failures: Record<FailureReason, FailureInfo> = {
+  INPUT_SOURCE: failure(
+    "Choose a sending device",
+    "Only a PC, phone, router or server can start traffic here. Switches and access points pass frames along; in this lab they never start a conversation.",
+    "Traffic starts at a device with an IP address of its own.",
+    undefined,
+    "Choose a different device in the From menu.",
+  ),
+  INPUT_URL: failure(
+    "Not a web address",
+    "The destination could not be read as an http:// URL or an IPv4 address.",
+    "An HTTP URL names a host and an optional path, such as http://kitab.test/.",
+    "RFC 9110 §4.2.1",
+    "Correct the address in the To field.",
+  ),
+  INPUT_PORT: failure(
+    "Only http:// on port 80",
+    "This lab models plain HTTP on TCP port 80. https:// would need TLS encryption, which is not modeled, and another port would need a server listening on it.",
+    "An http URL without a port uses TCP port 80.",
+    "RFC 9110 §4.2.1",
+    "Use an http:// address without a port number.",
+  ),
+  INVALID_NETWORK: failure(
+    "A device setting is invalid",
+    "The network breaks a rule the simulator checks before sending anything, such as an address that cannot be used by a host.",
+    "Each interface needs a valid host address for its subnet.",
+    undefined,
+    "Correct the device setting named above.",
+  ),
+  SIMULATION_LIMIT: failure(
+    "Too many steps",
+    "The simulation stops after 10,000 events so the page stays responsive.",
+    "This is a limit of the lab, not of networks.",
+    undefined,
+    "Use a shorter page body or a simpler network.",
+  ),
+  WIFI_NOT_JOINED: failure(
+    "Not connected to Wi-Fi",
+    "The phone has no Wi-Fi link to an access point, so it cannot send any frame.",
+    "A wireless device must join an access point before it can exchange data on that network.",
+    "IEEE 802.11 (association)",
+    "Select the phone and look at its connections.",
+  ),
+  WIFI_SSID_NOT_FOUND: failure(
+    "Wrong Wi-Fi network name",
+    "The phone is set to join a network name (SSID) that the access point it is linked to does not offer.",
+    "A device joins the network whose name it is configured for.",
+    "IEEE 802.11 (SSID)",
+    "Compare the network name on the phone with the one on the access point.",
+    "A real phone scans and lists every network in range. Here each Wi-Fi link leads to exactly one access point.",
+  ),
+  WIFI_WRONG_PASSPHRASE: failure(
+    "Wrong Wi-Fi passphrase",
+    "The network name matches, but the phone's passphrase is not the access point's, so the phone is not allowed to join.",
+    "With WPA2 or WPA3 Personal, both sides must hold the same passphrase; otherwise the key handshake fails and no data can be exchanged.",
+    "IEEE 802.11 (RSNA 4-way handshake)",
+    "Compare the passphrase on the phone with the one on the access point.",
+    "This lab compares the two passphrases directly. It does not model the key handshake or encryption.",
+  ),
+  NO_ADDRESS: failure(
+    "No IP address",
+    "The sending interface has no IPv4 address, so there is no source address to put in the packet.",
+    "Every IPv4 packet a host sends carries one of the host's own addresses as its source.",
+    "RFC 1122 §3.2.1.3",
+    "Select the sender and look at its IP settings, or at its DHCP lease in the Tables tab.",
+  ),
+  DUPLICATE_IP: failure(
+    "Two devices share one IP address",
+    "Two interfaces on the same LAN use the same IPv4 address, so an ARP question for it has two possible owners.",
+    "An IPv4 address must identify one interface on its network; ARP maps it to exactly one MAC address.",
+    "RFC 826; RFC 5227",
+    "Compare the IP addresses of the devices on this LAN.",
+    "Real hosts detect conflicts by probing with ARP (RFC 5227) and stop using the address. This lab stops before sending.",
+  ),
+  ARP_NO_OWNER: failure(
+    "Nobody uses the next-hop address",
+    "The sender broadcast an ARP request asking who uses the next-hop address. No device in this network uses it, so no reply came back.",
+    "ARP only finds the MAC address of a device on the same LAN that owns the requested IP address.",
+    "RFC 826",
+    "Look at the setting that chose this next hop on the sending device: its default gateway or a static route.",
+    `A real sender retries ARP a few times before giving up. ${noIcmpUnreachable}`,
+  ),
+  ARP_NO_PATH: failure(
+    "The next hop cannot be reached on this LAN",
+    "A device does use the next-hop address, but the ARP broadcast cannot reach it at the link layer, so it never hears the question.",
+    "An ARP broadcast stays on one LAN: it crosses cables, switches and joined Wi-Fi, but not routers.",
+    "RFC 826",
+    "Follow the cables and Wi-Fi links between the two devices, and check whether a router separates them.",
+    `A real sender retries ARP a few times before giving up. ${noIcmpUnreachable}`,
+  ),
+  SWITCH_STALE_MAC: failure(
+    "A switch remembers the wrong port",
+    "The switch's MAC table says the destination is behind a port that no longer leads to it, so the frame goes the wrong way.",
+    "A switch sends a frame for a known MAC address only out of the port where it learned that address. It floods only unknown addresses.",
+    "IEEE 802.1Q (learning process and filtering database)",
+    "Restart the simulation to clear the learned tables.",
+    "Real switches forget entries after an ageing time (300 seconds by default) and relearn when the device sends again. This lab keeps entries for the session.",
+  ),
+  NO_GATEWAY: failure(
+    "Destination outside the subnet, and no gateway",
+    "The destination is outside the sender's subnet, so it is not local. A host sends non-local packets to its default gateway, and none is set.",
+    "A host compares the destination with its own address and mask. If the destination is not on a connected network, the packet must go to a gateway.",
+    "RFC 1122 §3.3.1.1",
+    "Compare the destination with the sender's address and prefix. Should the destination be local, or does the sender need a gateway?",
+  ),
+  GATEWAY_NOT_LOCAL: failure(
+    "Gateway not on the local network",
+    "The default gateway address is outside the sender's own subnet, so the sender cannot hand the packet to it directly.",
+    "A host sends a non-local packet to a gateway on one of its connected networks.",
+    "RFC 1122 §3.3.1",
+    "Compare the gateway address with the sender's address and prefix.",
+  ),
+  ROUTER_NO_ROUTE: failure(
+    "The router has no route",
+    "No entry in the router's routing table matches the destination: no connected network, static route or default route.",
+    "A router forwards a packet using the longest matching prefix in its routing table. With no match it discards the packet.",
+    "RFC 1812 §5.2.4.3",
+    "Open the router's routing table in the Tables tab.",
+    noIcmpUnreachable,
+  ),
+  NO_ROUTE_PRIVATE: failure(
+    "No route to a private address",
+    "A router outside the home network received a packet for a private address (such as 192.168.x.x) and has no route to it. Private addresses are reused in many homes, so the Internet cannot route to them.",
+    "Private addresses are not routed on the Internet. A home router uses NAT to send traffic from its public address, so replies come back to that address. A static route on the ISP to your private network would hide the problem, not fix it.",
+    "RFC 1918 §3",
+    "Follow the reply back toward the home network: which address does it need to reach?",
+    noIcmpUnreachable,
+  ),
+  NOT_A_ROUTER: failure(
+    "A host was asked to forward",
+    "A route sent the packet to a host as if it were a router. The packet is not addressed to that host, and hosts do not forward other devices' packets.",
+    "A host must silently discard a datagram that is not addressed to it.",
+    "RFC 1122 §3.2.1.3",
+    "Find the route whose next hop is this device.",
+  ),
+  TTL_EXPIRED: failure(
+    "Hop limit reached",
+    "Each router lowers the TTL by one before forwarding. It reached zero before the packet arrived, so the router discarded it.",
+    "A router decreases the TTL of every packet it forwards and must discard a packet whose TTL reaches zero, so packets cannot circulate forever.",
+    "RFC 791 §3.2; RFC 1812 §5.3.1",
+    "Count the routers on the path and compare that with the starting TTL.",
+    "A real router also sends an ICMP Time Exceeded message to the sender (RFC 1812 §5.3.1); traceroute relies on it. This lab does not model ICMP errors.",
+  ),
+  ROUTING_LOOP: failure(
+    "Routing loop",
+    "Routers kept passing the packet between them, each one sending it toward the other, until the TTL ran out.",
+    "Each router's route for a destination must lead closer to it. TTL stops a looping packet but does not fix the loop.",
+    "RFC 1812 §5.3.1",
+    "Read the routing tables of the routers in the loop.",
+    "A real router also sends an ICMP Time Exceeded message to the sender. This lab does not model ICMP errors.",
+  ),
+  NAT_NO_MAPPING: failure(
+    "No NAT mapping for an incoming packet",
+    "A packet arrived at the router's public address, but it does not belong to any connection started from inside, so NAT has no inside device to send it to.",
+    "Traditional NAT creates a mapping when an inside device sends out, and admits only packets that match a mapping. New incoming connections need a static mapping (port forwarding).",
+    "RFC 3022 §2; RFC 4787 §5",
+    "Who started this connection: a device inside the home network, or one outside?",
+    "Port forwarding is not modeled in this lab.",
+  ),
+  DHCP_CLIENT_STATIC: failure(
+    "Interface not set to DHCP",
+    "DHCP configures an interface that is set to obtain its settings automatically. This interface uses static settings.",
+    "A DHCP client asks for its address; a statically configured interface does not.",
+    "RFC 2131 §3.1",
+    "Select the device and look at its addressing mode.",
+  ),
+  DHCP_NO_SERVER: failure(
+    "No DHCP server on this LAN",
+    "A DHCP Discover is a broadcast on the client's own LAN, and no device on that LAN has a DHCP server enabled on the interface it would arrive at.",
+    "The client broadcasts DHCPDISCOVER on its local network. Without a relay agent, it does not reach servers on other networks.",
+    "RFC 2131 §3.1",
+    "Which device should run DHCP on this LAN, and is it enabled on the right interface?",
+    "This lab stops before sending the Discover. A real client would broadcast it, retry, and eventually give up. DHCP relays are not modeled.",
+  ),
+  DHCP_POOL_INVALID: failure(
+    "DHCP pool range is invalid",
+    "The pool's last address comes before its first, or the range is larger than this lab allows.",
+    "A DHCP server lends addresses from a configured range.",
+    undefined,
+    "Look at the DHCP pool settings on the server.",
+  ),
+  DHCP_POOL_EMPTY: failure(
+    "DHCP pool has no free address",
+    "Every address in the pool is outside the server's subnet or already used on this LAN, so there is nothing to offer.",
+    "A server offers an unused address from its pool that belongs to the client's subnet.",
+    "RFC 2131 §4.3.1",
+    "Compare the pool range with the server's subnet and with the addresses already in use.",
+    "A real server simply does not answer; the client does not learn why.",
+  ),
+  DHCP_LEASE_EXPIRED: failure(
+    "DHCP lease expired",
+    "The sender's address was leased for a limited time, and the lease ended during this transfer, so it may no longer use that address.",
+    "When a lease expires without renewal, the client must immediately stop using the address and start DHCP again.",
+    "RFC 2131 §4.4.5",
+    "Look at the lease time on the DHCP server and the length of the transfer.",
+    "A real client tries to renew at half the lease time. This lab renews only when you run DHCP.",
+  ),
+  DNS_NOT_CONFIGURED: failure(
+    "No DNS server set",
+    "The destination is a name, so the client must ask a DNS server for its address, but it has no DNS server address.",
+    "A host's resolver turns names into addresses by asking the name servers it is configured with.",
+    "RFC 1034 §5",
+    "Look at the sender's DNS setting, or the DNS server its DHCP lease provides.",
+  ),
+  DNS_SERVER_ADDRESS: failure(
+    "Nobody has the DNS server address",
     "The client sent its DNS question to the DNS server address in its settings, but no device in this network has that address.",
-    "Nothing can answer, so the name is never turned into an IP address and the request cannot start.",
-    "Rule: a client only asks the DNS server it is configured with. Fix the client's DNS server setting (or the DHCP server's advertised DNS), not the DNS records.",
+    "A client only asks the DNS server it is configured with. Fix the client's DNS server setting (or the DHCP server's advertised DNS), not the DNS records.",
+    "RFC 1034 §5",
+    "Compare the client's DNS server setting with the addresses of the devices in this network.",
   ),
-  DNS_UNREACHABLE: lesson(
+  DNS_UNREACHABLE: failure(
+    "The DNS server cannot be reached",
     "The DNS server exists, but the query could not be delivered to it. The problem is the path, not DNS.",
-    "The lookup stops before any DNS server sees the question.",
-    "Rule: DNS travels in ordinary IP packets, so it needs the same cables, routes, gateway and ARP as any other traffic. Fix the connectivity problem named above.",
+    "DNS travels in ordinary IP packets, so it needs the same cables, routes, gateway and ARP as any other traffic.",
+    "RFC 1035 §4.2.1",
+    "The cause listed under “Caused by” names the device and the step where the path broke.",
   ),
-  DNS_NO_SERVICE: lesson(
+  DNS_NO_SERVICE: failure(
+    "That address does not run DNS",
     "The query reached the device at the configured DNS address, but that device does not run a DNS service.",
-    "No program is listening on UDP port 53, so the question goes unanswered. Adding records to the wrong device would not fix the client's setting.",
-    "Rule: an address only identifies an interface; a service must be running there to answer. In this lab a device runs DNS when it has at least one DNS record. Real hosts usually send an ICMP “port unreachable” error, which is not modeled.",
+    "An address only identifies an interface; a service must be running there to answer. DNS queries go to UDP port 53. In this lab a device runs DNS when it has at least one DNS record.",
+    "RFC 1035 §4.2.1",
+    "Is the client's DNS server setting the address of a DNS server?",
+    "A real host usually answers with an ICMP Port Unreachable error, which is not modeled.",
   ),
-  DNS_NO_RECORD: lesson(
-    "A working DNS server received the question and answered: it has no A record for this name.",
-    "The client now knows the name does not exist (NXDOMAIN), so it cannot find an IP address to connect to.",
-    "Rule: reaching a DNS server is not enough; it must have a record for the exact name. Check the spelling or add the A record on that DNS server.",
+  DNS_NO_RECORD: failure(
+    "The name does not exist",
+    "A working DNS server received the question and answered: it has no A record for this name (NXDOMAIN).",
+    "Reaching a DNS server is not enough; it must have a record for the exact name. NXDOMAIN is the Name Error response code.",
+    "RFC 1035 §4.1.1",
+    "Check the spelling of the name, and the records on that DNS server.",
   ),
-  DNS_REPLY_UNREACHABLE: lesson(
+  DNS_REPLY_UNREACHABLE: failure(
+    "The DNS answer could not come back",
     "The DNS server received the question and replied, but the reply could not travel back to the client.",
-    "The client never receives the answer. Both directions must work, and the reply makes its own routing decisions.",
-    "Rule: every reply is a new packet addressed to the original sender. If the sender's address cannot be reached from the server's side, for example a private address without NAT, the reply is lost.",
+    "Every reply is a new packet addressed to the original sender. If the sender's address cannot be reached from the server's side, for example a private address without NAT, the reply is lost.",
+    "RFC 1122 §3.3.1",
+    "The cause listed under “Caused by” names where the reply stopped.",
   ),
-  NO_ROUTE_PRIVATE: lesson(
-    "A router outside the home network received a packet for a private address (such as 192.168.x.x) and has no route to it.",
-    "The router discards the packet. Private addresses are reused in many homes, so the Internet cannot route to them.",
-    "Rule (RFC 1918): private addresses are not routed on the Internet. A home router uses NAT to send traffic from its public address, so replies come back to that address. Adding a static route on the ISP to your private network would hide the problem, not fix it.",
+  REPLY_NO_PATH: failure(
+    "The request arrived, but the reply could not return",
+    "The destination received the request and answered. The answer is a new packet addressed back to the sender, and its own routing failed on the way back.",
+    "Each direction is routed independently: the destination chooses its own gateway and routes for the reply, so both paths must work.",
+    "RFC 1122 §3.3.1",
+    "Follow the reply from the destination: its gateway, the routers' routes and any NAT on the way.",
+  ),
+  REPLY_MISDELIVERED: failure(
+    "The reply reached the wrong device",
+    "The reply was delivered to another device that uses the sender's address.",
+    "An address must identify one interface wherever packets for it are routed.",
+    undefined,
+    "Look for another device using the sender's address.",
+  ),
+  HTTP_NO_LISTENER: failure(
+    "No web server on port 80",
+    "The TCP SYN reached the server, but no application listens on port 80, so a connection cannot be opened.",
+    "TCP opens a connection only to a port where an application is listening.",
+    "RFC 9293 §3.10.7.1",
+    "Select the server and look at its web service setting.",
+    "A real host answers a SYN to a closed port with a TCP reset (RST) straight away. This lab stops at the server instead.",
   ),
 };
+/**
+ * What a failed step says. The event's explanation is only what was observed; with coaching (the
+ * playground) the simulator's diagnosis follows it. Missions leave the diagnosis to the learner.
+ */
+export function failureText(event: TraceEvent, coaching: boolean) {
+  const detail = coaching ? event.failure?.detail : undefined;
+  return detail ? `${event.explanation} ${detail}` : event.explanation;
+}
+
+/** The failure and every failure that caused it, outermost first. */
+export function failureChain(f: Failure | undefined, network: Network) {
+  const chain: { reason: FailureReason; title: string; device: string; message: string }[] = [];
+  for (let at = f; at; at = at.cause)
+    chain.push({
+      reason: at.reason,
+      title: failures[at.reason].title,
+      device: network.devices.find((d) => d.id === at!.device)?.name ?? at.device,
+      message: at.message,
+    });
+  return chain;
+}
 
 // The playground's TCP is stop-and-wait; the send-window mission teaches the real behavior.
 const stopAndWait = {
@@ -335,9 +613,16 @@ export function explainStep(
       .join(" · ") ||
     "No new packet fields at this step. The description above shows the local operation.";
   if (event.error) {
-    const failure = event.reason && failureLessons[event.reason];
-    return failure
-      ? { ...failure, audience, outcome: `${event.explanation} ${failure.outcome}`, message }
+    const info = event.reason && failures[event.reason];
+    return info
+      ? {
+          why: info.why,
+          audience,
+          outcome: `Delivery stops here. ${info.check}`,
+          detail: `Rule: ${info.rule}${info.real ? ` ${info.real}` : ""}`,
+          message,
+          failure: { ...info, chain: failureChain(event.failure, network) },
+        }
       : {
           why: "A required condition for delivery is missing, so the simulator stops here.",
           audience,
@@ -411,7 +696,7 @@ export function explainStep(
         `${deviceName(event.hop.to)} will receive this copy. Receiving it does not automatically mean answering it.`,
         "The animation shows one link at a time. The broadcast also travels on other eligible links in the same LAN.",
       );
-    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended)}.`;
+    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended) || "none on this LAN"}.`;
     return {
       ...explanation,
       audience,

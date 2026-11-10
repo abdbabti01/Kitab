@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PracticeState } from "./practice-state.ts";
 import type { MissionState } from "./mission-controller.ts";
 
 const factValue = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
@@ -17,6 +18,8 @@ const attempt = z
     explanation: z.object({ choiceId: z.string().max(64), correct: z.boolean(), misconception: z.string().max(64).optional() }).strict().nullable(),
     reflection: z.string().max(600),
     mastered: z.boolean(),
+    needsEvidence: z.boolean().optional(),
+    evidence: z.object({ index: z.number().int(), correct: z.boolean(), revealed: z.boolean() }).strict().nullable().optional(),
   })
   .strict();
 
@@ -120,13 +123,29 @@ export function recordVisit(progress: Progress, missionId: string, missionVersio
   return { ...progress, missions: { ...progress.missions, [missionId]: { ...item, visits: item.visits + 1, lastVisitedAt: now } } };
 }
 
-export function restoreState(progress: Progress, missionId: string, missionVersion: string): MissionState | null {
+/**
+ * The saved attempt, if it belongs to this mission version. The evidence-step fields are not stored
+ * (see recordState), so they are rebuilt here: a mastered attempt had found the evidence; an open one
+ * asks for it again.
+ */
+export function restoreState(progress: Progress, missionId: string, missionVersion: string, needsEvidence = false): MissionState | null {
   const item = progress.missions[missionId];
   if (!item || item.missionVersion !== missionVersion || !item.current) return null;
-  return item.current.missionId === missionId && item.current.missionVersion === missionVersion ? (item.current as MissionState) : null;
+  if (item.current.missionId !== missionId || item.current.missionVersion !== missionVersion) return null;
+  const state = item.current as MissionState;
+  if (!needsEvidence) return state;
+  const evidence = state.attempt.mastered ? { index: -1, correct: true, revealed: false } : null;
+  return { ...state, attempt: { ...state.attempt, needsEvidence: true, evidence } };
 }
 
-export function recordState(progress: Progress, state: MissionState, scenarioKey: string, status: string, now = new Date().toISOString()): Progress {
+/** Distinct versions mastered so far, counting the current attempt. */
+export function masteredVersions(progress: Progress, missionId: string, current?: MissionState) {
+  const ids = new Set((progress.missions[missionId]?.attempts ?? []).filter((a) => a.status === "mastered").map((a) => a.variantId));
+  if (current?.attempt.mastered) ids.add(current.attempt.variantId);
+  return ids.size;
+}
+
+export function recordState(progress: Progress, state: MissionState, scenarioKey: string, status: string, now = new Date().toISOString(), requiredVersions = 1): Progress {
   const item = base(progress, state.missionId, state.missionVersion);
   const { attempt } = state;
   let attempts = item.attempts;
@@ -144,8 +163,21 @@ export function recordState(progress: Progress, state: MissionState, scenarioKey
     };
     attempts = [...attempts.filter((existing) => existing.attemptId !== attempt.id), entry].slice(-30);
   }
-  const masteredAt = item.masteredAt ?? (attempt.mastered ? now : null);
-  return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: state } } };
+  const versions = new Set([...attempts.filter((a) => a.status === "mastered").map((a) => a.variantId), ...(attempt.mastered ? [attempt.variantId] : [])]);
+  const masteredAt = item.masteredAt ?? (attempt.mastered && versions.size >= requiredVersions ? now : null);
+  // The evidence-step fields stay in memory only. Earlier releases read progress with a strict schema and would
+  // discard all of it on an unknown key, so leaving them out keeps a rollback from wiping learners' progress.
+  const { needsEvidence: _needs, evidence: _evidence, ...stored } = attempt;
+  return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: { ...state, attempt: stored } } } };
+}
+
+/** The shared four-state view of a framework mission: a finished run counts as completed. */
+export function practiceState(progress: Progress, missionId: string, missionVersion: string): PracticeState {
+  const item = progress.missions[missionId];
+  if (!item) return "not-started";
+  if (item.missionVersion === missionVersion && item.masteredAt) return "mastered";
+  if (item.attempts.some((a) => a.explanationCorrect !== null)) return "completed";
+  return "in-progress";
 }
 
 export function missionStatus(progress: Progress, missionId: string, missionVersion: string) {

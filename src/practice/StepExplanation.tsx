@@ -1,25 +1,70 @@
 import type { Network, TraceEvent } from "./network/model.ts";
-import { explainStep } from "./network/explanations.ts";
+import { narrate } from "./network/narration.ts";
+import { failureText } from "./network/explanations.ts";
 import { linkProps } from "../app/router.ts";
 
+/** One event explained at three depths: what and why, the cause and rule, then the protocol detail. */
 export function StepExplanation({
-  event,
+  events,
+  index,
   network,
   onReadDetails,
+  onGoto,
+  embedded = false,
+  advice = true,
 }: {
-  event: TraceEvent;
+  /** False in missions: the learner works out the fix, so the simulator's diagnosis, "Where to look" and repair advice are left out. */
+  advice?: boolean;
+  events: TraceEvent[];
+  index: number;
   network: Network;
   onReadDetails: () => void;
+  onGoto: (index: number) => void;
+  /** Inside the journey card, which already shows the title and summary. */
+  embedded?: boolean;
 }) {
-  const explanation = explainStep(event, network);
+  const n = narrate(events, index, network);
+  const failure = n.failure;
   return (
     <section className="step-guide" aria-label="Understand this step">
-      <h4>Why this happens</h4>
-      <p>{explanation.why}</p>
-      {explanation.note && (
+      {!embedded && failure && <h4 className="failure-title">{failure.title}</h4>}
+      {!embedded && <p className="step-summary">{failure ? failureText(events[index], advice) : n.summary}</p>}
+      <h4>{failure ? "Why it stopped" : "Why this happens"}</h4>
+      {n.cause && (
+        <p className="step-cause">
+          {n.cause.text}{" "}
+          <button className="text-button" onClick={() => onGoto(n.cause!.index)}>
+            Go to step {n.cause.index + 1}: {events[n.cause.index].title}
+          </button>
+        </p>
+      )}
+      <p>{n.why}</p>
+      {failure && failure.chain.length > 1 && (
+        <>
+          <h4>Caused by</h4>
+          <ol className="failure-chain" aria-label="What caused it">
+            {failure.chain.slice(1).map((link, i) => (
+              <li key={i}>
+                <b>{link.title}</b> <span>at {link.device}</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {failure && advice && (
+        <p className="failure-check">
+          <b>Where to look:</b> {failure.check}
+          {events[index].failure?.advice && (
+            <>
+              <br />
+              <b>What to try:</b> {events[index].failure!.advice}
+            </>
+          )}
+        </p>
+      )}
+      {n.note && (
         <p className="step-note">
-          {explanation.note.text}{" "}
-          <a {...linkProps(explanation.note.href)}>{explanation.note.label}</a>
+          {n.note.text} <a {...linkProps(n.note.href)}>{n.note.label}</a>
         </p>
       )}
       <details
@@ -30,13 +75,29 @@ export function StepExplanation({
         <summary>Who receives it, and what happens next?</summary>
         <dl>
           <dt>Who is involved?</dt>
-          <dd>{explanation.audience}</dd>
+          <dd>{n.audience}</dd>
           <dt>Inside the message</dt>
-          <dd className="step-message">{explanation.message}</dd>
+          <dd className="step-message">{n.message}</dd>
           <dt>What happens next?</dt>
-          <dd>{explanation.outcome}</dd>
+          <dd>{n.outcome}</dd>
           <dt>A little more detail</dt>
-          <dd>{explanation.detail}</dd>
+          <dd>{n.detail}</dd>
+          {n.rule && (
+            <>
+              <dt>The rule</dt>
+              <dd>
+                {n.rule.text} <cite>{n.rule.source}</cite>
+              </dd>
+            </>
+          )}
+          {n.real && (
+            <>
+              <dt>In real networks</dt>
+              <dd>{n.real}</dd>
+            </>
+          )}
+          <dt>Simulator log</dt>
+          <dd className="step-message">{events[index].explanation}</dd>
         </dl>
       </details>
     </section>

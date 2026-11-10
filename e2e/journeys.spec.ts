@@ -27,7 +27,17 @@ async function runToEnd(page: Page) {
   await page.keyboard.press("End");
 }
 
-test("wrong prediction → run → evidence → explanation → retry on a new scenario → mastery", async ({ page }) => {
+/** Steps through the run from the start until the step title matches, as a learner would. */
+async function stepTo(page: Page, title: RegExp) {
+  // Each press goes to the slider itself: when the run ends, the page moves focus to the explain heading,
+  // and on a slow machine that can land after the first key.
+  const slider = page.getByRole("slider", { name: "Step" });
+  await slider.press("Home");
+  for (let i = 0; i < 80 && !title.test((await page.locator(".scene-title").textContent()) ?? ""); i++) await slider.press("ArrowRight");
+  await expect(page.locator(".scene-title")).toHaveText(title);
+}
+
+test("wrong prediction → run → evidence → explanation → retry on new scenarios → mastery", async ({ page }) => {
   await page.goto("/missions/tcp-lost-segment");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("The ACK that wouldn't move");
   // Before predicting, the run is locked and only the starting state shows.
@@ -43,22 +53,45 @@ test("wrong prediction → run → evidence → explanation → retry on a new s
 
   await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeVisible();
   await expect(page.getByRole("status").filter({ hasText: "The engine computed" })).toContainText("ACK 2461");
+  // The evidence step is the learner's to find: the last step doesn't prove it.
+  // The choice sits with the playback controls; the prompt sits under the step title.
+  const evidence = page.locator(".scene-footer");
+  await expect(page.locator(".scene-head .evidence-prompt")).toContainText("repeats an ACK");
+  await evidence.getByRole("button", { name: "This step proves it" }).click();
+  await expect(evidence.getByRole("status")).toContainText("doesn't show it");
   await page.getByRole("button", { name: "Show me the evidence" }).click();
   await expect(page.locator(".scene-title")).toHaveText("The receiver repeats ACK 2461");
   await expect(page.locator(".guide-message")).toContainText("can't skip the gap");
   await expect(page.locator('[data-entity="segment-2"]')).toHaveClass(/is-attention/);
 
+  // Choosing the step after it was revealed is right but doesn't count.
+  await evidence.getByRole("button", { name: "This step proves it" }).click();
+  await expect(evidence.getByRole("status")).toContainText("already been revealed");
   await choose(page, /stays at 2461/);
   await page.getByRole("button", { name: "Check explanation" }).click();
   await expect(page.getByRole("heading", { name: "Not mastered yet" })).toBeVisible();
+  await expect(page.getByText("Evidence step was revealed")).toBeVisible();
 
-  await page.getByRole("button", { name: "Retry with a new scenario" }).click();
-  await expect(page.getByText(/MSS of 1200 B/)).toBeVisible();
-  await choose(page, "ACK 2201");
-  await page.getByRole("button", { name: "Test prediction" }).click();
-  await runToEnd(page);
-  await choose(page, /stays at 2201/);
-  await page.getByRole("button", { name: "Check explanation" }).click();
+  // Two different versions, each with the learner's own evidence, master the mission.
+  for (const [mss, ack, last] of [["1200", "2201", false], ["536", "1537", true]] as const) {
+    // Once a version is mastered, retrying stays the main action until the mission is.
+    await page.getByRole("button", { name: last ? "Try another scenario" : "Retry with a new scenario" }).click();
+    await expect(page.getByText(new RegExp(`MSS of ${mss} B`))).toBeVisible();
+    await choose(page, `ACK ${ack}`);
+    await page.getByRole("button", { name: "Test prediction" }).click();
+    await runToEnd(page);
+    await stepTo(page, new RegExp(`The receiver repeats ACK ${ack}`));
+    // Stepping and choosing happen without scrolling, on every width.
+    await expect(evidence.getByRole("button", { name: "This step proves it" })).toBeInViewport();
+    await evidence.getByRole("button", { name: "This step proves it" }).click();
+    await expect(evidence.getByRole("status")).toHaveText(/^Yes: step \d+ shows it\.$/);
+    await choose(page, new RegExp(`stays at ${ack}`));
+    await page.getByRole("button", { name: "Check explanation" }).click();
+    if (!last) {
+      await expect(page.getByRole("heading", { name: "This version mastered" })).toBeVisible();
+      await expect(page.getByText(/Master 1 more version/)).toBeVisible();
+    }
+  }
   await expect(page.getByRole("heading", { name: "Mission mastered" })).toBeVisible();
   await expect(page.locator(".kitab-avatar.mood-celebrating").first()).toBeVisible();
 

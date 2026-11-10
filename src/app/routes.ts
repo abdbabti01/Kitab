@@ -4,6 +4,8 @@ export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
 export type Route =
   | { name: "home" }
   | { name: "network-practice" }
+  | { name: "network-missions" }
+  | { name: "network-mission"; id: string }
   | { name: "access-explorer" }
   | { name: "mission"; id: string }
   | { name: "lesson"; id: string }
@@ -32,6 +34,12 @@ export function parseRoute(pathname: string): Route {
   if (path === "/") return { name: "home" };
   if (path === "/practice/connections") return { name: "access-explorer" };
   if (path === "/practice/network") return { name: "network-practice" };
+  if (path === "/practice/missions") return { name: "network-missions" };
+  const practice = /^\/practice\/missions\/([^/]+)$/.exec(path);
+  if (practice) {
+    const id = segment(practice[1]);
+    return id ? { name: "network-mission", id } : { name: "not-found", path };
+  }
   const [, kind, value, extra] = path.split("/");
   const clean = value ? segment(value) : null;
   if (!clean || extra !== undefined) return { name: "not-found", path };

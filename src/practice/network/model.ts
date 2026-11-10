@@ -98,12 +98,65 @@ export type Layer = {
 };
 /** Deterministic cause of a stopped simulation, for explanations and challenge feedback. */
 export type FailureReason =
+  // What the learner typed, not the network: shown next to the form.
+  | "INPUT_SOURCE" // the source is missing or is a switch / access point
+  | "INPUT_URL" // not a valid URL or IPv4 address
+  | "INPUT_PORT" // not http:// on port 80
+  | "INVALID_NETWORK" // the network file breaks a model rule (e.g. an invalid address)
+  | "SIMULATION_LIMIT" // the 10,000-event safety limit
+  // Wi-Fi
+  | "WIFI_NOT_JOINED" // the phone has no Wi-Fi link to an access point
+  | "WIFI_SSID_NOT_FOUND" // the phone looks for a different network name
+  | "WIFI_WRONG_PASSPHRASE" // the network name matches, the passphrase does not
+  // Addressing, ARP and switching
+  | "NO_ADDRESS" // the source has no usable IP address
+  | "DUPLICATE_IP" // two interfaces on one LAN use the same address
+  | "ARP_NO_OWNER" // no device uses the next-hop address
+  | "ARP_NO_PATH" // a device uses it, but no link-layer path reaches it
+  | "SWITCH_STALE_MAC" // a switch's MAC table points to a port that no longer leads there
+  // Routing
+  | "NO_GATEWAY" // a host's destination is outside its subnets and it has no gateway
+  | "GATEWAY_NOT_LOCAL" // a host's gateway is outside its own subnet
+  | "ROUTER_NO_ROUTE" // a router has no matching route
+  | "NO_ROUTE_PRIVATE" // a router outside a private network has no route to a private address
+  | "NOT_A_ROUTER" // a host received a packet for another address
+  | "TTL_EXPIRED" // the hop limit reached zero
+  | "ROUTING_LOOP" // the hop limit reached zero because routers sent the packet in a loop
+  // NAT
+  | "NAT_NO_MAPPING" // a packet arrived at the public address with no matching mapping
+  // DHCP
+  | "DHCP_CLIENT_STATIC" // the client's interface is not set to DHCP
+  | "DHCP_NO_SERVER" // no DHCP server on the client's LAN
+  | "DHCP_POOL_INVALID" // the pool range is empty or too large
+  | "DHCP_POOL_EMPTY" // every pool address is in use or outside the subnet
+  | "DHCP_LEASE_EXPIRED" // the source's lease ended during the transfer
+  // DNS
+  | "DNS_NOT_CONFIGURED" // the client has no DNS server address
   | "DNS_SERVER_ADDRESS" // no device has the configured DNS server address
   | "DNS_UNREACHABLE" // the DNS server exists but the query could not reach it
   | "DNS_NO_SERVICE" // the query arrived at a device that does not run DNS
   | "DNS_NO_RECORD" // a DNS server answered that the name does not exist
   | "DNS_REPLY_UNREACHABLE" // the DNS server answered but the reply could not return
-  | "NO_ROUTE_PRIVATE"; // a router outside a private network has no route to a private address
+  // Replies, TCP and HTTP
+  | "REPLY_NO_PATH" // the request arrived; the reply could not get back
+  | "REPLY_MISDELIVERED" // a reply reached a different device than the one that asked
+  | "HTTP_NO_LISTENER"; // nothing listens on TCP port 80
+/** A failure, the device where it was detected, and the failure that caused it, if any. */
+/**
+ * Why delivery stopped, in three parts so a view can choose how much to tell:
+ * - message: what was observed (the event's explanation and the trace summary); safe to show in missions.
+ * - detail: what the simulator can see but a participant couldn't, often naming the device or setting at fault.
+ * - advice: a repair suggestion.
+ * Missions show only the message; the playground shows all three.
+ */
+export type Failure = {
+  reason: FailureReason;
+  device: string;
+  message: string;
+  detail?: string;
+  advice?: string;
+  cause?: Failure;
+};
 export type TraceEvent = {
   id: number;
   time: number;
@@ -116,6 +169,17 @@ export type TraceEvent = {
   hop?: { from: string; to: string; link: string };
   error?: boolean;
   reason?: FailureReason;
+  failure?: Failure;
+  /** The decision this event made, with its actual values (route chosen, next-hop MAC, NAT mapping…). */
+  facts?: Record<string, string | number>;
+  /**
+   * Which message this event belongs to. One IP packet keeps its id from creation to delivery,
+   * including across NAT rewrites; a retransmission is a new packet. "arp-N" is an ARP request and
+   * "arp-N-reply" its reply; "dhcp-N" is one DHCP message.
+   */
+  packet?: string;
+  /** Which link-layer frame: a new number for every transmission on every link, so broadcast copies differ. */
+  frame?: number;
   // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
   dhcpContext?: { client: string; server: string };
 };
@@ -133,6 +197,7 @@ export type Trace = {
   success: boolean;
   summary: string;
   reason?: FailureReason;
+  failure?: Failure;
 };
 export const keyOf = (device: string, port: string) => `${device}/${port}`;
 export function createDevice(
