@@ -48,3 +48,21 @@ test("the original packet, diagram and source controls work", async ({ page }) =
   await expect(page.locator("#trace-line")).toHaveText("Hello Babti");
   expect(errors).toEqual([]);
 });
+
+test("the walkthrough links back into Kitab and on to practice, and missions link back to it", async ({ page }) => {
+  await page.goto(path);
+  const nav = page.getByRole("navigation", { name: "Kitab" });
+  await expect(nav).toBeVisible();
+  await nav.getByRole("link", { name: "The ACK that wouldn't move" }).click();
+  await expect(page).toHaveURL(/\/missions\/tcp-lost-segment$/);
+  await page.getByRole("link", { name: /Follow the walkthrough first: Packet Journey/ }).click();
+  await expect(page).toHaveURL(new RegExp(path + "$"));
+  await expect(page.locator("#step-number")).toHaveText("1 / 130");
+  await nav.getByRole("link", { name: "IP Addresses & Subnets" }).click();
+  await expect(page).toHaveURL(/\/learn\/ip-addressing$/);
+  await page.goto(path);
+  await nav.getByRole("link", { name: "← Kitab" }).click();
+  await expect(page.locator(".journey-hero")).toBeVisible();
+  await expect(page.locator(".journey-card", { hasText: "Packet Journey" })).toContainText("130 recorded steps");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});

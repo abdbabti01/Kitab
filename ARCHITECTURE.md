@@ -28,7 +28,6 @@ versions, quotas, feedback, audit).
 
 ```text
 src/visual-engine/…            pure engines (TCP, data structures, recursion)
-src/content/packet-journey/…    recorded C# events and source snapshots
         ↓
 src/learning/engines/*.ts      adapters: zod params → frames, facts, entities, outcome, claim checks
 src/learning/registry.ts       registerEngine / buildTrace (validated, frozen, cached, fact deltas)
@@ -59,7 +58,7 @@ The React routes share `SiteHeader`, the palette in `src/ui/tokens.css`, and
 learning UI in `src/ui/learning.css`. The scene registry loads scene styles for
 both missions and lessons. Concepts and AI drafts use the same reading
 walkthrough controls. `/learn/hello-tcp` serves the original standalone C#
-walkthrough HTML as a static asset.
+walkthrough HTML as a static asset, with a delimited Kitab navigation block.
 
 ### Adding content
 

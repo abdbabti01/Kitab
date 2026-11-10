@@ -3,11 +3,10 @@ import { ArrowRight, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide
 import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
-import { lessons } from "../learning/lessons/catalog.ts";
+import { journeys, lessons } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
-import { HTTP_WALKTHROUGH_PATH } from "./routes.ts";
 import { LibraryHero } from "./LibraryHero.tsx";
 
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
@@ -77,9 +76,10 @@ export function Home() {
           <h2 id="journeys-title">Learning journeys</h2>
           <p className="section-lead">Start from the basic parts and follow one concrete example. Practice missions let you test what you've learned.</p>
           <ul className="mission-grid journey-grid">
-            {lessons.map((lesson) => {
+            {journeys.map((lesson) => {
               const path = `/learn/${lesson.id}`;
-              const status = path === HTTP_WALKTHROUGH_PATH ? null : lessonStatus(learning, lesson);
+              const walkthrough = "kind" in lesson;
+              const status = walkthrough ? null : lessonStatus(learning, lesson);
               const practice = lesson.practice.map((item) => missions.find((mission) => mission.id === item.missionId)).filter((mission) => mission !== undefined);
               const practiceStates = practice.map((mission) => missionStatus(progress, mission.id, mission.version));
               const practiceLabel = practiceStates.includes("mastered") ? "Practice: mastered" : practiceStates.includes("practiced") ? "Practice: attempted" : "Practice: not started";
@@ -89,7 +89,7 @@ export function Home() {
                     {status ? <span className={`status-chip learning-${status.state}`}>{learningLabel[status.state]}{status.state === "learning" && status.total ? ` · ${status.seen}/${status.total}` : ""}</span> : <span className="status-chip">C# walkthrough</span>}
                     <b><Compass aria-hidden="true" className="inline-icon" /> {lesson.title}</b>
                     <span>{lesson.summary}</span>
-                    <small>{lesson.topic} · {lesson.chapters.length} chapters{practice.length > 0 && ` · ${practiceLabel}`}</small>
+                    <small>{lesson.topic} · {walkthrough ? `${lesson.steps} recorded steps` : `${lesson.chapters.length} chapters`}{practice.length > 0 && ` · ${practiceLabel}`}</small>
                   </a>
                 </li>
               );

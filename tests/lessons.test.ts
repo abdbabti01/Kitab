@@ -11,10 +11,11 @@ import { findMission } from "../src/learning/missions/catalog.ts";
 import { loadProgress, missionStatus, PROGRESS_KEY } from "../src/learning/progress.ts";
 import type { FactValue } from "../src/learning/types.ts";
 
-const hello = findLesson("hello-tcp")!;
+// The generic lesson runtime is exercised on the IP lesson (Packet Journey is a standalone page).
+const ip = findLesson("ip-addressing")!;
 const array = findLesson("array-insert")!;
-const trackFor = (lesson = hello) => (params: Record<string, FactValue>, id: string) => resolveTrack(lesson, params, id);
-const run = (state: NavState, actions: NavAction[], lesson = hello) => actions.reduce((current, action) => navReducer(current, action, trackFor(lesson)), state);
+const trackFor = (lesson = ip) => (params: Record<string, FactValue>, id: string) => resolveTrack(lesson, params, id);
+const run = (state: NavState, actions: NavAction[], lesson = ip) => actions.reduce((current, action) => navReducer(current, action, trackFor(lesson)), state);
 
 function memory(initial: Record<string, string> = {}) {
   const data = new Map(Object.entries(initial));
@@ -26,12 +27,12 @@ test("every lesson validates for every reachable scenario, including multi-byte 
 });
 
 test("validation catches content that would show something the engine did not compute", () => {
-  const broken = structuredClone(hello) as typeof hello;
+  const broken = structuredClone(ip) as typeof ip;
   broken.chapters[0].steps[0].what = "The message has {fact:no-such-fact} bytes.";
   assert.ok(validateLessonContent(parseLesson(broken)).some((problem) => problem.includes("no-such-fact")));
-  const skipping = structuredClone(hello) as typeof hello;
-  skipping.chapters.splice(0, 1); // drop the server setup
-  assert.ok(validateLessonContent(parseLesson(skipping)).some((problem) => problem.includes("event-001 is never shown")));
+  const skipping = structuredClone(ip) as typeof ip;
+  skipping.chapters.splice(0, 1); // drop the LAN chapter
+  assert.ok(validateLessonContent(parseLesson(skipping)).some((problem) => problem.includes("frame lan is never shown")));
 });
 
 test("the array walkthrough runs on the existing data-structures engine through the same runtime", () => {
@@ -49,8 +50,8 @@ test("the array walkthrough runs on the existing data-structures engine through 
 });
 
 test("Back, Next and rapid input stay inside the track", () => {
-  const start = createNav(hello, resolveTrack(hello, {}));
-  const track = resolveTrack(hello, {});
+  const start = createNav(ip, resolveTrack(ip, {}));
+  const track = resolveTrack(ip, {});
   assert.equal(run(start, [{ type: "BACK" }]).stepId, track.steps[0].id);
   const end = run(start, Array.from({ length: 200 }, () => ({ type: "NEXT" }) as const));
   assert.equal(end.stepId, track.steps.at(-1)!.id);
@@ -61,13 +62,13 @@ test("Back, Next and rapid input stay inside the track", () => {
 });
 
 test("opening a level keeps the place, exploring stays on that level, and returning restores the journey step", () => {
-  const start = run(createNav(hello, resolveTrack(hello, {})), Array.from({ length: 4 }, () => ({ type: "NEXT" }) as const));
-  const opened = run(start, [{ type: "OPEN_LEVEL", levelId: "network" }]);
+  const start = run(createNav(ip, resolveTrack(ip, {})), Array.from({ length: 4 }, () => ({ type: "NEXT" }) as const));
+  const opened = run(start, [{ type: "OPEN_LEVEL", levelId: "forwarding" }]);
   assert.equal(opened.stepId, start.stepId);
   assert.equal(opened.level?.stage, "intro");
   const exploring = run(opened, [{ type: "EXPLORE_LEVEL" }, { type: "NEXT" }, { type: "NEXT" }]);
-  const track = resolveTrack(hello, {});
-  assert.equal(currentStep(exploring, track).level, "network");
+  const track = resolveTrack(ip, {});
+  assert.equal(currentStep(exploring, track).level, "forwarding");
   const back = run(exploring, [{ type: "CLOSE_LEVEL", resume: "return" }]);
   assert.equal(back.stepId, start.stepId);
   assert.equal(back.level, null);
@@ -84,39 +85,39 @@ test("changing an array scenario keeps a valid step", () => {
 });
 
 test("saved positions restore safely; unknown steps, tracks or parameters start cleanly", () => {
-  const safe = (raw: unknown) => safeParams(hello, raw);
-  const stepId = resolveTrack(hello, {}).steps[12].id;
-  const restored = restoreNav(hello, { lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId, journeyStepId: stepId }, trackFor(), safe)!;
+  const safe = (raw: unknown) => safeParams(ip, raw);
+  const stepId = resolveTrack(ip, {}).steps[8].id;
+  const restored = restoreNav(ip, { lessonId: ip.id, lessonVersion: ip.version, params: {}, track: JOURNEY, stepId, journeyStepId: stepId }, trackFor(), safe)!;
   assert.equal(restored.stepId, stepId);
   assert.deepEqual(restored.params, {});
-  const junk = restoreNav(hello, { lessonId: hello.id, lessonVersion: hello.version, params: { message: 42, evil: "x" } as never, track: "hack", stepId: "gone", journeyStepId: "gone" }, trackFor(), safe)!;
+  const junk = restoreNav(ip, { lessonId: ip.id, lessonVersion: ip.version, params: { message: 42, evil: "x" } as never, track: "hack", stepId: "gone", journeyStepId: "gone" }, trackFor(), safe)!;
   assert.equal(junk.track, JOURNEY);
-  assert.equal(junk.stepId, resolveTrack(hello, {}).steps[0].id);
+  assert.equal(junk.stepId, resolveTrack(ip, {}).steps[0].id);
   assert.deepEqual(junk.params, {});
-  assert.equal(restoreNav(hello, { lessonId: hello.id, lessonVersion: "0.0.1" }, trackFor(), safe), null);
+  assert.equal(restoreNav(ip, { lessonId: ip.id, lessonVersion: "0.0.1" }, trackFor(), safe), null);
 });
 
 test("learning progress: completion needs every chapter, changed content resets, corrupt data recovers, mastery is untouched", () => {
   const storage = memory();
-  const track = resolveTrack(hello, {});
-  let learning = recordLessonVisit(loadLearning(storage).learning, hello);
+  const track = resolveTrack(ip, {});
+  let learning = recordLessonVisit(loadLearning(storage).learning, ip);
   // Jumping straight to the last step is not completing the walkthrough.
-  const last = { ...createNav(hello, track), stepId: track.steps.at(-1)!.id };
-  learning = recordStep(learning, hello, last, track);
-  assert.equal(learning.lessons[hello.id].completedAt, null);
-  for (const step of track.steps) learning = recordStep(learning, hello, { ...last, stepId: step.id }, track);
-  assert.ok(learning.lessons[hello.id].completedAt);
-  assert.deepEqual(lessonStatus(learning, hello), { state: "completed", seen: track.steps.length, total: track.steps.length });
+  const last = { ...createNav(ip, track), stepId: track.steps.at(-1)!.id };
+  learning = recordStep(learning, ip, last, track);
+  assert.equal(learning.lessons[ip.id].completedAt, null);
+  for (const step of track.steps) learning = recordStep(learning, ip, { ...last, stepId: step.id }, track);
+  assert.ok(learning.lessons[ip.id].completedAt);
+  assert.deepEqual(lessonStatus(learning, ip), { state: "completed", seen: track.steps.length, total: track.steps.length });
   saveLearning(storage, learning);
   // Learning lives under its own key: no mission attempt or mastery was written.
   assert.equal(storage.getItem(PROGRESS_KEY), null);
   assert.equal(missionStatus(loadProgress(storage).progress, "tcp-lost-segment", findMission("tcp-lost-segment")!.version), "new");
 
-  const changed = { ...hello, version: "9.9.9" };
+  const changed = { ...ip, version: "9.9.9" };
   const after = recordLessonVisit(loadLearning(storage).learning, changed);
-  assert.equal(after.lessons[hello.id].completedAt, null);
-  assert.equal(after.lessons[hello.id].position, null);
-  assert.equal(after.lessons[hello.id].updated, true);
+  assert.equal(after.lessons[ip.id].completedAt, null);
+  assert.equal(after.lessons[ip.id].position, null);
+  assert.equal(after.lessons[ip.id].updated, true);
   assert.equal(lessonStatus(loadLearning(storage).learning, changed).state, "visited");
 
   const corrupt = memory({ [LEARNING_KEY]: "{not json" });
@@ -126,49 +127,34 @@ test("learning progress: completion needs every chapter, changed content resets,
   assert.ok(corrupt.getItem(`${LEARNING_KEY}.corrupt`));
 });
 
+const split = { prefix: 25, target: "printer" };
+const askAbout = (patch: Record<string, unknown> = {}) =>
+  buildLessonTutorContext({ lessonId: ip.id, lessonVersion: ip.version, params: split, track: JOURNEY, stepId: "choose-hop", level: null, question: "Why does it go to the router?", ...patch } as never);
+
 test("lesson tutor context is rebuilt from validated input; grounded answers pass and invented numbers fail", () => {
-  const context = buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId: "handshake~event-014", level: null, question: "Why does TTL go down?" });
-  assert.equal(context.facts.find((fact) => fact.id === "ip-ttl")?.value, 63);
+  const context = askAbout();
+  assert.equal(context.facts.find((fact) => fact.id === "next-hop")?.value, "192.168.1.1");
   const fallback = fallbackLessonTutor(context);
-  assert.match(fallback.explanation, /lowers TTL to 63/);
+  assert.match(fallback.explanation, /The next hop is 192\.168\.1\.1/);
   assert.ok(validateLessonTutorOutput(fallback, context).ok);
-  const good = { explanation: "Each router lowers the TTL by one, so after forwarding it is 63. That stops a packet from looping forever if routes are wrong.", evidence: ["ip-ttl", "ip-forwarding"], misconception: null, attention: "ip-header", action: "none" };
+  const good = { explanation: "The printer at 192.168.1.130 is outside the PC's /25 subnet, so the PC sends the packet to its gateway 192.168.1.1, the next hop.", evidence: ["next-hop", "destination-ip"], misconception: null, attention: "route", action: "none" };
   assert.ok(validateLessonTutorOutput(good, context).ok);
   for (const bad of [
-    { ...good, explanation: "Each router lowers the TTL by one, so after forwarding it is 60 and the packet is resent." },
-    { ...good, explanation: "Routers retransmit the packet if the TTL reaches zero, so delivery is guaranteed by the network." },
+    { ...good, explanation: "The printer is outside the PC's /23 subnet, so the PC sends the packet to its gateway." },
+    { ...good, explanation: "Photosynthesis converts light energy into chemical energy." },
     { ...good, attention: "r9" },
     { ...good, misconception: "made-up" },
   ]) assert.equal(validateLessonTutorOutput(bad, context).ok, false);
-  assert.throws(() => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: "0.0.0", params: {}, track: JOURNEY, stepId: "syn", level: null, question: "why?" }), /changed/);
-  assert.throws(() => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId: "nope", level: null, question: "why?" }), /not part/);
-});
-
-test("lesson tutor ACK and TTL claims must match the current step, not a value from elsewhere in the run", () => {
-  const ask = (stepId: string) => buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId, level: null, question: "why?" });
-  const answer = (explanation: string, evidence: string) => ({ explanation, evidence: [evidence], misconception: null, attention: null, action: "none" });
-  const r1 = ask("handshake~event-014");
-  assert.ok(validateLessonTutorOutput(answer("The router lowers the TTL from 64 to 63, so the TTL is now 63.", "ip-ttl"), r1).ok);
-  // A number from elsewhere in the trace and an invented value are both rejected.
-  for (const wrong of ["After forwarding the TTL is now 64.", "The router forwards the packet with TTL 62."]) {
-    const result = validateLessonTutorOutput(answer(wrong, "ip-ttl"), r1);
-    assert.equal(result.ok, false, wrong);
-    assert.ok(!result.ok && result.problems.some((problem) => /TTL .* does not match this step/.test(problem)), wrong);
-  }
-  const synAck = ask("handshake~event-019");
-  assert.equal(synAck.facts.find((fact) => fact.id === "tcp-ack")?.value, 1001);
-  assert.ok(validateLessonTutorOutput(answer("B sends ACK 1001 to confirm A's SYN.", "tcp-ack"), synAck).ok);
-  // 1050 acknowledges the full request later in the run, not this step's.
-  const lateAck = validateLessonTutorOutput(answer("B sends ACK 1050 to confirm A's SYN.", "tcp-ack"), synAck);
-  assert.ok(!lateAck.ok && lateAck.problems.some((problem) => /ACK 1050 does not match this step/.test(problem)));
+  assert.throws(() => askAbout({ lessonVersion: "0.0.0" }), /changed/);
+  assert.throws(() => askAbout({ stepId: "nope" }), /not part/);
 });
 
 test("tutor evidence ids copied with the prompt's brackets are read as ids, and unknown ids still fail", () => {
   // Observed from the real model: evidence ["[packet-seq]"] for the fact listed as "- [packet-seq] …".
-  const context = buildLessonTutorContext({ lessonId: hello.id, lessonVersion: hello.version, params: {}, track: JOURNEY, stepId: "handshake~event-014", level: null, question: "Why does TTL go down?" });
-  const answer = (evidence: string[]) => ({ explanation: "The router lowers the TTL to limit how many hops a packet can make.", evidence, misconception: null, attention: null, action: "none" });
-  const bracketed = validateLessonTutorOutput(answer(["[ip-ttl]"]), context);
+  const context = askAbout();
+  const answer = (evidence: string[]) => ({ explanation: "The PC sends the packet to its gateway because the printer is in another subnet.", evidence, misconception: null, attention: null, action: "none" });
+  const bracketed = validateLessonTutorOutput(answer(["[next-hop]"]), context);
   assert.ok(bracketed.ok);
-  assert.deepEqual(bracketed.ok && bracketed.response.evidence, ["ip-ttl"]);
+  assert.deepEqual(bracketed.ok && bracketed.response.evidence, ["next-hop"]);
   assert.equal(validateLessonTutorOutput(answer(["[no-such-fact]"]), context).ok, false);
 });

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import "../src/learning/engines/index.ts";
 import { buildTrace } from "../src/learning/registry.ts";
-import { findLesson } from "../src/learning/lessons/catalog.ts";
+import { findJourney, findLesson } from "../src/learning/lessons/catalog.ts";
 import { resolveTrack, validateLessonContent } from "../src/learning/lessons/runtime.ts";
 
 test("the subnet mask changes the route to the same printer", () => {
@@ -33,7 +33,7 @@ test("the IP lesson resolves every prefix and destination and leads to Packet Jo
   const lesson = findLesson("ip-addressing");
   assert.ok(lesson);
   assert.equal(lesson.nextLessonId, "hello-tcp");
-  assert.ok(findLesson(lesson.nextLessonId));
+  assert.equal(findJourney(lesson.nextLessonId)?.title, "Packet Journey");
   assert.deepEqual(validateLessonContent(lesson), []);
   for (const prefix of [24, 25]) {
     for (const target of ["phone", "printer", "web"]) {
