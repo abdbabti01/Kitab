@@ -316,6 +316,13 @@ export function NetworkPlayground() {
     setChallengeOpen(true);
     setVerdict(null);
   }
+  // The failing step holds the full explanation; status lines only point to it.
+  const stoppedAt = trace && !trace.success ? trace.events.length - 1 : -1,
+    stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name : "";
+  const showStop = () => {
+    step(stoppedAt);
+    setTab("packet");
+  };
   const nextChallenge =
     challenge &&
     challengeList[challengeList.findIndex((c) => c.id === challenge.id) + 1];
@@ -438,7 +445,16 @@ export function NetworkPlayground() {
                         ? "It ran, but the challenge is not complete yet."
                         : "The network stopped the delivery."}
                   </b>
-                  <p>{verdict.message}</p>
+                  {verdict.status === "failed" ? (
+                    <p>
+                      The delivery stopped{stoppedBy ? ` at ${stoppedBy}` : ""} before the goal was reached.{" "}
+                      <button className="text-button stop-link" onClick={showStop}>
+                        Show where and why
+                      </button>
+                    </p>
+                  ) : (
+                    <p>{verdict.message}</p>
+                  )}
                   {verdict.status === "passed" && nextChallenge && (
                     <button
                       className="small-button"
@@ -967,7 +983,18 @@ export function NetworkPlayground() {
                     role="status"
                   >
                     {trace.success ? <Check size={15} /> : <span>!</span>}
-                    <span>{trace.summary}</span>
+                    {trace.success ? (
+                      <span>{trace.summary}</span>
+                    ) : (
+                      <span>
+                        <b>Delivery stopped{stoppedBy ? ` at ${stoppedBy}` : ""}.</b>{" "}
+                        {index !== stoppedAt && (
+                          <button className="text-button stop-link" onClick={showStop}>
+                            Show where and why
+                          </button>
+                        )}
+                      </span>
+                    )}
                     <button
                       className="text-button"
                       onClick={() => setShowEvents((v) => !v)}

@@ -37,7 +37,9 @@ test("device settings affect delivery and designs survive reload", async ({
     .getByRole("button", { name: "Apply settings", exact: true })
     .click();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(page.locator(".run-status")).toContainText("ARP");
+  await expect(page.locator(".run-status")).toContainText("Delivery stopped");
+  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  await expect(page.locator(".event-explanation")).toContainText("ARP");
   await page.reload();
   await page
     .getByRole("button", { name: "Select Your PC", exact: true })
@@ -153,7 +155,10 @@ test("challenge feedback explains unfinished runs and what a pass proved", async
   await page.getByLabel("Choose a challenge").selectOption("nat");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(verdict).toContainText("The network stopped the delivery.");
-  await expect(verdict).toContainText("private address (RFC 1918)");
+  // The reason is explained once, at the failing step; the verdict and status only point to it.
+  await verdict.getByRole("button", { name: "Show where and why" }).click();
+  await expect(page.locator(".event-explanation")).toContainText("private address (RFC 1918)");
+  expect(await page.evaluate(() => document.body.innerText.split("Internet routers do not route to private home networks").length - 1)).toBe(1);
 
   await page.getByLabel("Choose a challenge").selectOption("loss");
   await expect(verdict).toHaveCount(0);
@@ -177,4 +182,28 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
   await note.getByRole("link").click();
   await expect(page).toHaveURL(/\/missions\/tcp-send-window$/);
   await expect(page.getByRole("heading", { name: "How full can the pipe get?" })).toBeVisible();
+});
+test("no playground control is clipped or pushed off screen", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "Show event list", exact: true }).click();
+  // Checks real clipping: a control wider than the viewport or than its nearest overflow-clipping ancestor.
+  const clipped = await page.evaluate(() => {
+    const out: string[] = [];
+    const vw = document.documentElement.clientWidth;
+    for (const el of document.querySelectorAll(".network-playground :is(button, select, input, a, label)")) {
+      const r = el.getBoundingClientRect();
+      if (!r.width) continue;
+      let box = { left: 0, right: vw };
+      for (let p = el.parentElement; p && p !== document.body; p = p.parentElement)
+        if (/hidden|auto|scroll|clip/.test(getComputedStyle(p).overflowX)) {
+          box = p.getBoundingClientRect();
+          break;
+        }
+      if (r.right > Math.min(vw, box.right) + 1 || r.left < Math.max(0, box.left) - 1)
+        out.push(el.getAttribute("aria-label") ?? el.textContent!.trim().slice(0, 30));
+    }
+    return out;
+  });
+  expect(clipped).toEqual([]);
 });

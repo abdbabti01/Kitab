@@ -337,7 +337,7 @@ export function explainStep(
   if (event.error) {
     const failure = event.reason && failureLessons[event.reason];
     return failure
-      ? { ...failure, audience, outcome: `${event.explanation} ${failure.outcome}`, message }
+      ? { ...failure, audience, message }
       : {
           why: "A required condition for delivery is missing, so the simulator stops here.",
           audience,

@@ -543,6 +543,11 @@
   font-size: 10px;
   color: var(--muted);
 }
+/* A select is as wide as its longest option unless it may shrink with its label. */
+.send-fields select {
+  width: 100%;
+  min-width: 0;
+}
 .send-fields input {
   min-width: 0;
   width: 100%;
@@ -1711,4 +1716,16 @@
   background: rgba(255, 255, 255, 0.6);
   border-radius: 6px;
   padding: 10px 12px;
+}
+/* Points from a status line to the failing step, where the reason is explained once. */
+.network-playground .stop-link {
+  display: inline;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.run-status > span {
+  flex: 1;
 }
