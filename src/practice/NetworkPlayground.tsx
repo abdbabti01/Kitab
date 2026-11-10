@@ -90,10 +90,18 @@ export function NetworkPlayground() {
     [index, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [speed, setSpeed] = useState(1),
-    [follow, setFollow] = useState(false),
+    // On narrow screens the whole network is too small to read, so the camera follows the journey.
+    [follow, setFollow] = useState(() => {
+      try {
+        return matchMedia("(max-width: 760px)").matches;
+      } catch {
+        return false;
+      }
+    }),
     [inside, setInside] = useState(false),
     [cardOpen, setCardOpen] = useState(true),
     [positions, setPositions] = useState<Record<string, Point>>({}),
+    [scale, setScale] = useState(1),
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
       try {
@@ -135,6 +143,7 @@ export function NetworkPlayground() {
   });
   const fileRef = useRef<HTMLInputElement>(null);
   const inspectorRef = useRef<HTMLElement>(null);
+  const journeyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (inspectorRef.current) inspectorRef.current.scrollTop = 0;
   }, [tab, selected]);
@@ -244,6 +253,15 @@ export function NetworkPlayground() {
       return;
     }
     setInputError(null);
+    // Bring the diagram into view if the learner pressed Send from further down the page.
+    requestAnimationFrame(() => {
+      const box = journeyRef.current?.getBoundingClientRect();
+      if (box && (box.top < 0 || box.top > innerHeight * 0.4))
+        journeyRef.current!.scrollIntoView({
+          block: "start",
+          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+        });
+    });
     setSession(result.session);
     setTrace(result);
     setIndex(0);
@@ -685,13 +703,16 @@ export function NetworkPlayground() {
         )}
         <div className="workspace-grid">
           <div className="workspace-stage">
-            <div className="journey-stage">
+            <div className="journey-stage" ref={journeyRef}>
             <NetworkCanvas
               network={network}
               session={shownSession}
               event={event}
               focus={stage}
-              onPositions={setPositions}
+              onPositions={(p, s) => {
+                setPositions(p);
+                setScale(s);
+              }}
               selected={selected}
               onSelect={(id) => {
                 setSelected(id);
@@ -710,7 +731,13 @@ export function NetworkPlayground() {
               }
               onAdd={add}
               follow={follow}
-            />
+            >
+              {!trace && (
+                <button className="button primary journey-start" disabled={!action.source} onClick={run}>
+                  {action.kind === "dhcp" ? "Configure automatically" : "Send request"} and follow it
+                </button>
+              )}
+            </NetworkCanvas>
             <JourneyControls
               trace={trace}
               stages={stages}
@@ -737,6 +764,12 @@ export function NetworkPlayground() {
                 network={network}
                 playing={playing}
                 positions={positions}
+                scale={scale}
+                onAbout={(id) => {
+                  setPlaying(false);
+                  setSelected(id);
+                  setTab("device");
+                }}
                 open={cardOpen}
                 onOpen={setCardOpen}
                 onStep={step}
@@ -755,7 +788,7 @@ export function NetworkPlayground() {
                   checked={follow}
                   onChange={(e) => setFollow(e.target.checked)}
                 />{" "}
-                Follow active device
+                Zoom to the current stage
               </label>
               <label className="network-check">
                 <input

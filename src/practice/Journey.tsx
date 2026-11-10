@@ -141,10 +141,12 @@ export function JourneyCard({
   network,
   playing,
   positions,
+  scale,
   open,
   onOpen,
   onStep,
   onInspect,
+  onAbout,
   onReadDetails,
 }: {
   trace: Trace;
@@ -154,15 +156,20 @@ export function JourneyCard({
   network: Network;
   playing: boolean;
   positions: Record<string, Point>;
+  scale: number;
   open: boolean;
   onOpen: (open: boolean) => void;
   onStep: (i: number) => void;
   onInspect: () => void;
+  onAbout: (device: string) => void;
   onReadDetails: () => void;
 }) {
   const card = useRef<HTMLElement>(null);
   const [spot, setSpot] = useState<Point | null>(null);
   const [details, setDetails] = useState(false);
+  // A shorter card when no clear spot exists for the full one; tried again at every step.
+  const [compact, setCompact] = useState(false);
+  useLayoutEffect(() => setCompact(false), [index]);
   const event = trace.events[index];
   const k = stageAt(stages, index);
   const stage = stages[k];
@@ -182,7 +189,8 @@ export function JourneyCard({
       return { x: r.left - origin!.left, y: r.top - origin!.top, w: r.width, h: r.height };
     });
     const anchor = positions[anchorId];
-    if (!el || !area || !anchor) return setSpot(null);
+    // A docked card (narrow canvases) sits under the diagram; there is nothing to place.
+    if (!el || !area || !anchor || getComputedStyle(el).position === "static") return setSpot(null);
     const next = place(
       anchor,
       { w: el.offsetWidth, h: el.offsetHeight },
@@ -190,8 +198,10 @@ export function JourneyCard({
       avoidIds.filter((id) => id !== anchorId).flatMap((id) => (positions[id] ? [positions[id]] : [])),
       controls,
       Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
+      scale,
     );
-    setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : next));
+    if (next.score >= 10 && !compact && !details) return setCompact(true);
+    setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : { x: next.x, y: next.y }));
   });
   const [room, setRoom] = useState(0);
   useLayoutEffect(() => {
@@ -214,12 +224,13 @@ export function JourneyCard({
   return (
     <section
       ref={card}
-      className={`journey-card ${event.error ? "is-error" : ""} ${spot ? "is-placed" : ""} ${details ? "has-details" : ""}`}
+      className={`journey-card ${event.error ? "is-error" : ""} ${spot ? "is-placed" : ""} ${details ? "has-details" : ""} ${compact ? "is-compact" : ""}`}
       style={style}
       aria-label="Explanation of the current step"
     >
       <header>
         <span className="eyebrow">
+          {mode === "summary" ? "Now at " : ""}
           {name(event.actor)} · {event.location}
         </span>
         <button className="icon-button" aria-label="Hide the explanation" onClick={() => onOpen(false)}>
@@ -253,6 +264,9 @@ export function JourneyCard({
           }}
         >
           {details ? "Less detail" : event.error ? "Why it stopped" : "Why and how"}
+        </button>
+        <button className="text-button journey-about" onClick={() => onAbout(event.actor)}>
+          About {name(event.actor)}
         </button>
         {event.layers.length > 0 && (
           <button className="text-button" onClick={onInspect}>

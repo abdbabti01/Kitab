@@ -15,7 +15,7 @@ test("practice workspace runs and rewinds a real HTTP journey", async ({
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   const card = page.locator(".journey-card");
   await page.getByRole("button", { name: "Last event", exact: true }).click();
-  await expect(card).toContainText("Close the connection");
+  await expect(card).toContainText("Page delivered");
   await expect(card).toContainText("The page arrived, and both sides closed the connection");
   await expect(page.locator(".packet-inspector")).toContainText(
     "Hello from your network",
@@ -258,7 +258,7 @@ test("Follow the journey: the card explains each stage beside the diagram and bo
   await expect(page.getByRole("radio", { name: "Summary" })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("button", { name: "Next stage", exact: true }).click();
   await page.getByRole("button", { name: "Next stage", exact: true }).click();
-  await expect(position).toContainText("Stage 3 of 30");
+  await expect(position).toContainText("Stage 3 of 27");
   await expect(card.locator("h3")).toHaveText("ARP · Your PC looks for 192.168.1.1");
   await expect(card).toContainText("Home router answered with its MAC");
   // The stage's devices stay prominent; unrelated ones are dimmed but still there.
@@ -340,4 +340,19 @@ test("selecting a device during a run explains its part in that run", async ({ p
   await expect(role).toContainText("Here it also runs a DHCP server and NAT");
   await expect(role).toContainText(/Translated \d+ outgoing packets to its public address \(NAT\)/);
   await expect(role).toContainText("does not pass local broadcasts");
+});
+test("the first run starts from the diagram, and sending brings the journey into view", async ({ page }, info) => {
+  await page.goto("/practice/network");
+  const start = page.locator(".network-canvas").getByRole("button", { name: "Send request and follow it" });
+  await expect(start).toBeInViewport();
+  await start.click();
+  await expect(page.locator(".journey-card")).toBeVisible();
+  await expect(start).toHaveCount(0);
+  // Sending again from the form further down the page scrolls back to the diagram.
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect.poll(() => page.locator(".journey-stage").evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBeLessThan(200);
+  // Narrow screens follow the journey by zooming to the current stage.
+  const zoom = page.getByLabel("Zoom to the current stage");
+  if (info.project.name === "phone-390") await expect(zoom).toBeChecked();
+  else await expect(zoom).not.toBeChecked();
 });

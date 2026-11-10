@@ -1920,7 +1920,22 @@
     padding: 10px 12px;
   }
   .journey-position {
+    order: 2;
     flex: 1 1 160px;
+  }
+  .journey-mode {
+    order: 3;
+  }
+  /* Speed shares the first row with the playback buttons. */
+  .journey-controls > select {
+    order: 1;
+    margin-left: auto;
+  }
+  .journey-controls .timeline-slider {
+    order: 4;
+  }
+  .journey-controls .run-status {
+    order: 5;
   }
   .journey-controls .timeline-slider,
   .journey-controls .run-status {
@@ -2106,4 +2121,48 @@
 .device-role-not {
   margin-top: 10px !important;
   color: var(--muted);
+}
+
+/* No clear spot for the full card: a shorter one, with the cause one click away in "Why and how". */
+.journey-card.is-compact {
+  width: min(300px, calc(100% - 32px));
+}
+.journey-card.is-compact h3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 17px;
+}
+.journey-card.is-compact .journey-about {
+  display: none;
+}
+.journey-card.is-compact .journey-why {
+  display: none;
+}
+.journey-card.is-compact .journey-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.journey-card footer {
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.journey-stage {
+  scroll-margin-top: 76px;
+}
+/* Before the first run: the one action that starts the journey, on the diagram itself. */
+.network-canvas .journey-start {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 2;
+  min-height: 40px;
+  padding: 9px 18px;
+  box-shadow: 0 6px 18px #193a2d33;
+  white-space: nowrap;
 }

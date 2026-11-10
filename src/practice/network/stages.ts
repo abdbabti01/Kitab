@@ -54,22 +54,27 @@ const creates = new Set([
 ]);
 // The message an exchange stage is about; ARP's reply stays with its request.
 const exchange = (e: TraceEvent) => e.packet?.replace(/-reply$/, "");
+const flagsOf = (e: TraceEvent) => String(e.layers.find((l) => l.name === "TCP segment")?.fields.Flags ?? "");
 
 /** Splits a trace into stages. */
 export function stagesOf(events: TraceEvent[], network: Network): Stage[] {
   const bounds: [number, number][] = [];
   let start = 0,
-    current = exchange(events[0]);
+    current = exchange(events[0]),
+    // The FIN/ACK segments that close a connection read best as one stage.
+    closing = false;
   for (let i = 1; i < events.length; i++) {
     const e = events[i],
       id = exchange(e);
     // A packet created by the step that began this stage stays with it (e.g. "DNS query" and its trip).
     const adopts = !current && id && creates.has(events[start].title) && !events.slice(start, i).some((x) => x.packet);
-    const split = e.error || begins.has(e.title) || e.title.startsWith("DHCP ") || (id && id !== current && !adopts);
+    const split =
+      e.error || begins.has(e.title) || e.title.startsWith("DHCP ") || (id && id !== current && !adopts && !closing);
     if (split) {
       bounds.push([start, i - 1]);
       start = i;
       current = id;
+      closing = !!id && flagsOf(e).includes("FIN");
     } else if (id) current = id;
   }
   bounds.push([start, events.length - 1]);
@@ -115,6 +120,18 @@ function describe(events: TraceEvent[], start: number, end: number, network: Net
       summary: reply
         ? `${name(arpRequest.actor)} broadcast “Who has ${asked}?”. ${name(reply.actor)} answered with its MAC ${reply.layers[0]?.fields["Sender MAC"]}${saved ? `, and ${name(saved.actor)} saved it` : ""}.`
         : `${name(arpRequest.actor)} broadcast “Who has ${asked}?” on its LAN.`,
+    };
+  }
+  const segments = [...new Set(list.map((e) => e.packet).filter((p) => p?.startsWith("ip-")))];
+  if (segments.length > 1 && list.some((e) => flagsOf(e).includes("FIN"))) {
+    const legs = segments.map((p) => {
+      const trip = list.filter((e) => e.packet === p && e.hop);
+      return { from: name(trip[0]?.hop!.from ?? ""), to: name(trip.at(-1)?.hop!.to ?? ""), flags: flagsOf(trip[0] ?? list[0]) };
+    });
+    return {
+      ...base,
+      title: `Close the connection · ${legs[0].from} ↔ ${legs[0].to}`,
+      summary: `The connection closes in ${legs.length} segments: ${legs.map((l) => `${l.from} → ${l.to} ${l.flags}`).join("; ")}. Each FIN says “I have finished sending”, and each is acknowledged.`,
     };
   }
   const label = packetLabel(list);
@@ -176,7 +193,7 @@ const titles: Record<string, string> = {
   "Acknowledge received bytes": "Acknowledge data",
   "Server reads HTTP request": "Server reads the request and builds a response",
   "Read reassembled response": "Browser reads the response",
-  "HTTP journey complete": "Close the connection",
+  "HTTP journey complete": "Page delivered",
   "DHCP lease expired": "Lease expired",
 };
 const title = (e: TraceEvent, name: (id: string) => string) => `${titles[e.title] ?? e.title}${["Associate with Wi-Fi", "Prepare HTTP request", "Create socket and connect"].includes(e.title) ? ` · ${name(e.actor)}` : ""}`;
@@ -207,7 +224,12 @@ function packetLabel(list: TraceEvent[]) {
   const icmp = layers.find((l) => l.name === "ICMP message");
   if (icmp) return String(icmp.fields.Type).toLowerCase();
   if (tcp && app) return app;
-  if (tcp) return `TCP ${tcp.fields.Flags}`;
+  if (tcp)
+    return (
+      ({ SYN: "TCP handshake: SYN", "SYN, ACK": "TCP handshake: SYN-ACK", ACK: "TCP acknowledgement" } as Record<string, string>)[
+        String(tcp.fields.Flags)
+      ] ?? `TCP ${tcp.fields.Flags}`
+    );
   return app ?? "packet";
 }
 const list_ = (items: string[]) =>

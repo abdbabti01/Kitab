@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useLayoutEffect, type PointerEvent } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, type PointerEvent, type ReactNode } from "react";
 import { Maximize, Minus, Plus, Move, MousePointer2 } from "lucide-react";
 import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
@@ -19,7 +19,10 @@ export function NetworkCanvas({
   follow,
   focus,
   onPositions,
+  children,
 }: {
+  /** Overlays drawn on the canvas, such as the first-run start button. */
+  children?: ReactNode;
   network: Network;
   session: Session;
   event?: TraceEvent;
@@ -31,7 +34,7 @@ export function NetworkCanvas({
   /** The current stage: its devices stay prominent and its links show their direction. */
   focus?: { devices: string[]; hops: { from: string; to: string; link: string }[] };
   /** Device centres in pixels inside the canvas, for anchoring the journey card. */
-  onPositions?: (positions: Record<string, { x: number; y: number }>) => void;
+  onPositions?: (positions: Record<string, { x: number; y: number }>, scale: number) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1),
@@ -64,16 +67,27 @@ export function NetworkCanvas({
     setPan({ x: 0, y: 0 });
   }, [network.name, network.devices.length]);
   const cameraZoom = follow ? Math.max(1.7, zoom) : zoom;
-  const width = extent.width / cameraZoom,
+  let width = extent.width / cameraZoom,
     height = extent.height / cameraZoom;
   const center =
     follow && event
       ? network.devices.find((d) => d.id === event.actor)
       : undefined;
-  const view = {
+  let view = {
     x: center ? Math.max(0, center.x - width / 2) : pan.x,
     y: center ? Math.max(0, center.y - height / 2) : pan.y,
   };
+  // Following the journey frames the current stage's devices, so they stay legible on small screens.
+  const framed = follow && focus
+    ? network.devices.filter((d) => focus.devices.includes(d.id) || focus.hops.some((h) => h.from === d.id || h.to === d.id))
+    : [];
+  if (framed.length) {
+    let [x0, x1] = [Math.min(...framed.map((d) => d.x)) - 110, Math.max(...framed.map((d) => d.x)) + 110],
+      [y0, y1] = [Math.min(...framed.map((d) => d.y)) - 110, Math.max(...framed.map((d) => d.y)) + 140];
+    if (x1 - x0 < 420) [x0, x1] = [(x0 + x1) / 2 - 210, (x0 + x1) / 2 + 210];
+    if (y1 - y0 < 300) [y0, y1] = [(y0 + y1) / 2 - 150, (y0 + y1) / 2 + 150];
+    [width, height, view] = [x1 - x0, y1 - y0, { x: x0, y: y0 }];
+  }
   function point(clientX: number, clientY: number) {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
@@ -142,10 +156,10 @@ export function NetworkCanvas({
         const p = new DOMPoint(displayPosition(d).x, displayPosition(d).y).matrixTransform(m);
         out[d.id] = { x: Math.round(p.x - box.left), y: Math.round(p.y - box.top) };
       }
-      const key = JSON.stringify(out);
+      const key = JSON.stringify([out, m.a]);
       if (key !== reported.current) {
         reported.current = key;
-        onPositions(out);
+        onPositions(out, m.a);
       }
     };
     report();
@@ -479,6 +493,7 @@ export function NetworkCanvas({
           {collapsedInternet ? "Expand Internet" : "Collapse Internet"}
         </button>
       )}
+      {children}
       <span className="canvas-mode">
         <MousePointer2 size={13} /> Select & move
       </span>

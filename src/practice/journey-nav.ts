@@ -30,7 +30,9 @@ export function place(
   controls: Rect[],
   /** Devices outside the stage: covering them is allowed, but they must stay clickable when possible. */
   others: Point[] = [],
-) {
+  /** Pixels per diagram unit: device tiles shrink and grow with the canvas. */
+  scale = 1,
+): Point & { score: number } {
   const gap = 66;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const right = area.w - box.w - 8,
@@ -43,8 +45,9 @@ export function place(
     { x: anchor.x - box.w / 2, y: anchor.y - gap - box.h },
     ...grid,
   ].map((c) => ({ x: clamp(c.x, 8, right), y: clamp(c.y, 8, bottom) }));
-  // A device tile is about 110 × 140 px around its centre, including its name.
-  const covers = (c: Point, p: Point) => p.x > c.x - 55 && p.x < c.x + box.w + 55 && p.y > c.y - 50 && p.y < c.y + box.h + 90;
+  // A device tile spans 60 units either side of its centre, 50 above it and 97 below (its name and address).
+  const covers = (c: Point, p: Point) =>
+    p.x + 60 * scale > c.x && p.x - 60 * scale < c.x + box.w && p.y + 97 * scale > c.y && p.y - 50 * scale < c.y + box.h;
   const overlaps = (c: Point, r: Rect) => c.x < r.x + r.w && c.x + box.w > r.x && c.y < r.y + r.h && c.y + box.h > r.y;
   // Beside the device wins whenever it is clear; grid spots are fallbacks, nearest first.
   const score = (c: Point, i: number) =>
@@ -58,5 +61,5 @@ export function place(
   candidates.forEach((c, i) => {
     if (score(c, i) < score(candidates[best], best)) best = i;
   });
-  return candidates[best];
+  return { ...candidates[best], score: score(candidates[best], best) };
 }

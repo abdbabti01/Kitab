@@ -29,14 +29,21 @@ test("stages partition every trace: each event in exactly one stage, in the orig
 test("a long HTTP journey reads as named stages", () => {
   const { s, stages } = stagesFor("internet: HTTP by name");
   assert.equal(s.trace.events.length, 489);
-  assert.equal(stages.length, 30);
+  assert.equal(stages.length, 27);
   assert.deepEqual(
     stages.filter((x) => x.title.startsWith("ARP")).map((x) => x.title),
     ["ARP · Your PC looks for 192.168.1.1", "ARP · Home router looks for 203.0.113.1", "ARP · ISP router looks for 198.51.100.53", "ARP · ISP router looks for 198.51.100.20"],
   );
   const answer = stages.find((x) => x.title === "DNS answer · DNS server → Your PC")!;
   assert.match(answer.summary, /forwarded by ISP router and Home router; Home router restored its destination to 192\.168\.1\.10:53000; it was delivered to Your PC/);
-  assert.ok(stages.some((x) => x.title === "TCP FIN, ACK · Your PC → kitab.test"), "the connection close is visible, not folded into another stage");
+  // The four segments that close the connection read as one stage, listed in the order they were sent.
+  const close = stages.find((x) => x.title === "Close the connection · Your PC ↔ kitab.test")!;
+  assert.match(close.summary, /4 segments: Your PC → kitab.test FIN, ACK; kitab.test → Your PC ACK; kitab.test → Your PC FIN, ACK; Your PC → kitab.test ACK/);
+  // TCP-only stages use plain names.
+  assert.deepEqual(
+    stages.filter((x) => x.title.startsWith("TCP")).map((x) => x.title.split(" · ")[0]),
+    ["TCP handshake: SYN", "TCP handshake: SYN", "TCP handshake: SYN-ACK", "TCP acknowledgement", "TCP acknowledgement", "TCP acknowledgement", "TCP acknowledgement"],
+  );
 });
 
 test("DHCP, loss and failures get their own accurate stages", () => {
