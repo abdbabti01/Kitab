@@ -19,13 +19,14 @@ test("networking journey: home → lesson → explorer → playground → missio
   await expect(page).toHaveURL(/\/$/);
 
   // Explorer.
-  await page.getByRole("link", { name: /Explore connections/ }).click();
+  await page.locator(".path-stages summary", { hasText: "Your home connection" }).click();
+  await page.locator(".path-activity", { hasText: "How your home connects" }).click();
   await expect(page).toHaveURL(/\/practice\/connections$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("One message.");
   await page.goBack();
 
   // Playground: the learner's own design is saved and survives a reload.
-  await page.getByRole("link", { name: /Open network playground/ }).click();
+  await page.getByRole("link", { name: "Build freely in the playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
   await page.getByLabel("Network name").fill("My home lab");
   await page.getByLabel("Network name").press("Tab");
@@ -69,8 +70,8 @@ test("networking journey: home → lesson → explorer → playground → missio
   await expect(page.getByRole("link", { name: /The ACK that wouldn't move/ }).locator(".state-pill")).toHaveText("Completed");
   await page.goto("/");
   await page.reload();
-  await expect(page.locator(".mission-card", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Completed");
-  await expect(page.locator(".mission-card", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("Not started");
+  await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Completed");
+  await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("Not started");
   await page.goto("/practice/network");
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 

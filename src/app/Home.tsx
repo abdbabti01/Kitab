@@ -4,11 +4,14 @@ import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
 import { practiceLabels, type PracticeState } from "../learning/practice-state.ts";
-import { journeys, lessons } from "../learning/lessons/catalog.ts";
+import { journeys } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
+import { findActivity, recommend } from "../learning/networking-path.ts";
+import { loadMissionStore } from "../practice/network/mission-progress.ts";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
 import { LibraryHero } from "./LibraryHero.tsx";
+import { NetworkingPath, recommendationLink } from "./NetworkingPath.tsx";
 
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
 
@@ -17,6 +20,8 @@ const learningLabel = { new: "Not started", visited: "Opened", learning: "In pro
 export function Home() {
   const progress = useMemo(() => loadProgress(safeStorage()).progress, []);
   const learning = useMemo(() => loadLearning(safeStorage()).learning, []);
+  const evidence = useMemo(() => ({ learning, progress, network: loadMissionStore(safeStorage()) }), [learning, progress]);
+  const recommendation = useMemo(() => recommend(evidence), [evidence]);
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<SavedConcept[]>([]);
   const [searching, setSearching] = useState(false);
@@ -27,7 +32,7 @@ export function Home() {
   useEffect(() => {
     document.title = "Kitab — see how systems work, then practise";
     const section = window.location.hash.slice(1);
-    if (["journeys", "missions", "concepts"].includes(section)) document.getElementById(section)?.scrollIntoView();
+    if (["path", "journeys", "missions", "concepts"].includes(section)) document.getElementById(section)?.scrollIntoView();
   }, []);
 
   useEffect(() => {
@@ -47,8 +52,9 @@ export function Home() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [clean]);
 
-  const flagship = lessons[0];
-  const matchedMissions = missions.filter((mission) => !clean || `${mission.title} ${mission.topic} ${mission.summary} ${mission.concept}`.toLowerCase().includes(clean));
+  // Networking content lives in the path; search still finds every mission.
+  const matchedMissions = missions.filter((mission) => (clean ? `${mission.title} ${mission.topic} ${mission.summary} ${mission.concept}`.toLowerCase().includes(clean) : !findActivity(mission.id)));
+  const otherJourneys = journeys.filter((journey) => !findActivity(journey.id));
   const matchedChapters = chapters.filter((chapter) => !clean || `${chapter.title} ${chapter.family} ${chapter.summary}`.toLowerCase().includes(clean));
   const topics = [...new Set(matchedMissions.map((mission) => mission.topic))];
 
@@ -70,13 +76,15 @@ export function Home() {
   return (
     <div className="home">
       <main id="main">
-        <LibraryHero firstLesson={flagship} />
+        <LibraryHero next={recommendationLink(recommendation)} />
+
+        <NetworkingPath evidence={evidence} recommendation={recommendation} />
 
         <section id="journeys" className="section" aria-labelledby="journeys-title">
-          <h2 id="journeys-title">Learning journeys</h2>
-          <p className="section-lead">Start from the basic parts and follow one concrete example. Practice missions let you test what you've learned.</p>
+          <h2 id="journeys-title">More learning journeys</h2>
+          <p className="section-lead">Beyond networking: start from the basic parts and follow one concrete example, then practise.</p>
           <ul className="mission-grid journey-grid">
-            {journeys.map((lesson) => {
+            {otherJourneys.map((lesson) => {
               const path = `/learn/${lesson.id}`;
               const walkthrough = "kind" in lesson;
               const status = walkthrough ? null : lessonStatus(learning, lesson);
@@ -108,9 +116,7 @@ export function Home() {
 
         <section id="missions" className="section" aria-labelledby="missions-title">
           <h2 id="missions-title">Practice missions</h2>
-          <a className="network-entry" {...linkProps("/practice/connections")}><div><strong>How does your home connect?</strong><p>Choose DSL, cable or fiber. Follow data through Wi-Fi, Ethernet, your router and modem or ONT.</p></div><span>Explore connections →</span></a>
-          <a className="network-entry" {...linkProps("/practice/missions")}><div><strong>Fix real network problems.</strong><p>Six networking missions: investigate with the journey, find the cause, fix the configuration and prove it with evidence. Each has several versions with different causes.</p></div><span>Open networking missions →</span></a>
-          <a className="network-entry" {...linkProps("/practice/network")}><div><strong>Build your own network.</strong><p>Arrange devices, connect your LAN, and follow a packet all the way to its destination. Build freely and experiment.</p></div><span>Open network playground →</span></a>
+          <p className="section-lead">Networking and TCP missions are in the <a href="#path">networking path</a> above, or <a {...linkProps("/practice/missions")}>all in one list</a>.</p>
           <p className="section-lead">Predict, run and explain. Reviewed scenarios with a fresh setup each try; every number is computed by a deterministic engine and your prediction is checked against it.</p>
           {topics.length === 0 && <p className="muted">No mission matches “{query}”.</p>}
           {topics.map((topic) => (
