@@ -74,7 +74,7 @@ const lessons: Record<string, Lesson> = {
   "Translate source with NAT": lesson(
     "This router is sending LAN traffic through its outside interface. NAT replaces the internal source address and port with an outside mapping.",
     "The packet’s source fields change, and the NAT table records how a matching reply can find the internal device.",
-    "NAT is enabled on this router; it is not a step every router must perform. It does not change the HTTP content.",
+    "NAT is enabled on this router; it is not a step every router must perform. It changes addresses and ports in the headers, not the application data inside.",
   ),
   "Restore reply destination": lesson(
     "A reply arrived at the router’s outside address. Its NAT table identifies the internal device that started this exchange.",

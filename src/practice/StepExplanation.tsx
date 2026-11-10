@@ -1,23 +1,37 @@
 import type { Network, TraceEvent } from "./network/model.ts";
-import { explainStep } from "./network/explanations.ts";
+import { narrate } from "./network/narration.ts";
 import { linkProps } from "../app/router.ts";
 
+/** One event explained at three depths: what and why, the cause and rule, then the protocol detail. */
 export function StepExplanation({
-  event,
+  events,
+  index,
   network,
   onReadDetails,
+  onGoto,
 }: {
-  event: TraceEvent;
+  events: TraceEvent[];
+  index: number;
   network: Network;
   onReadDetails: () => void;
+  onGoto: (index: number) => void;
 }) {
-  const explanation = explainStep(event, network);
-  const failure = explanation.failure;
+  const n = narrate(events, index, network);
+  const failure = n.failure;
   return (
     <section className="step-guide" aria-label="Understand this step">
       {failure && <h4 className="failure-title">{failure.title}</h4>}
+      <p className="step-summary">{failure ? events[index].explanation : n.summary}</p>
       <h4>{failure ? "Why it stopped" : "Why this happens"}</h4>
-      <p>{explanation.why}</p>
+      {n.cause && (
+        <p className="step-cause">
+          {n.cause.text}{" "}
+          <button className="text-button" onClick={() => onGoto(n.cause!.index)}>
+            Go to step {n.cause.index + 1}: {events[n.cause.index].title}
+          </button>
+        </p>
+      )}
+      <p>{n.why}</p>
       {failure && failure.chain.length > 1 && (
         <>
           <h4>Caused by</h4>
@@ -35,10 +49,9 @@ export function StepExplanation({
           <b>Where to look:</b> {failure.check}
         </p>
       )}
-      {explanation.note && (
+      {n.note && (
         <p className="step-note">
-          {explanation.note.text}{" "}
-          <a {...linkProps(explanation.note.href)}>{explanation.note.label}</a>
+          {n.note.text} <a {...linkProps(n.note.href)}>{n.note.label}</a>
         </p>
       )}
       <details
@@ -49,19 +62,29 @@ export function StepExplanation({
         <summary>Who receives it, and what happens next?</summary>
         <dl>
           <dt>Who is involved?</dt>
-          <dd>{explanation.audience}</dd>
+          <dd>{n.audience}</dd>
           <dt>Inside the message</dt>
-          <dd className="step-message">{explanation.message}</dd>
+          <dd className="step-message">{n.message}</dd>
           <dt>What happens next?</dt>
-          <dd>{explanation.outcome}</dd>
+          <dd>{n.outcome}</dd>
           <dt>A little more detail</dt>
-          <dd>{explanation.detail}</dd>
-          {failure?.source && (
+          <dd>{n.detail}</dd>
+          {n.rule && (
             <>
-              <dt>Standard</dt>
-              <dd>{failure.source}</dd>
+              <dt>The rule</dt>
+              <dd>
+                {n.rule.text} <cite>{n.rule.source}</cite>
+              </dd>
             </>
           )}
+          {n.real && (
+            <>
+              <dt>In real networks</dt>
+              <dd>{n.real}</dd>
+            </>
+          )}
+          <dt>Simulator log</dt>
+          <dd className="step-message">{events[index].explanation}</dd>
         </dl>
       </details>
     </section>

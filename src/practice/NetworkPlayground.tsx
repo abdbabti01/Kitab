@@ -981,15 +981,18 @@ export function NetworkPlayground() {
                   <h3>
                     {event?.title ?? "A message is more than its payload."}
                   </h3>
-                  <p>
-                    {event?.explanation ??
-                      "Send a request to see how your application’s data gets wrapped, routed, delivered and unwrapped at its destination."}
-                  </p>
-                  {event && (
+                  {!event && (
+                    <p>
+                      Send a request to see how your application’s data gets wrapped, routed, delivered and unwrapped at its destination.
+                    </p>
+                  )}
+                  {event && trace && (
                     <StepExplanation
-                      event={event}
+                      events={trace.events}
+                      index={index}
                       network={network}
                       onReadDetails={() => setPlaying(false)}
+                      onGoto={step}
                     />
                   )}
                 </div>

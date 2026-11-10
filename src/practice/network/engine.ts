@@ -168,6 +168,10 @@ export function simulate(
         : undefined,
     });
   };
+  /** Records the values behind the decision the last event made, for explanations. */
+  const facts = (values: Record<string, string | number>) => {
+    events[events.length - 1].facts = values;
+  };
   const at = (d: Device, where: string) => {
     actor = d.id;
     location = where;
@@ -315,6 +319,7 @@ export function simulate(
             : `${from.name} forwards this frame through its active ports except the arrival port. Other devices discard frames not addressed to them.`,
           upper,
         );
+        facts({ MAC: destinationMac, ...(learned ? { Port: learned } : {}) });
       }
       const layers = frameLayers(h, sourceMac, destinationMac, upper, protocol);
       emit(
@@ -331,6 +336,7 @@ export function simulate(
           `${to.name} records that ${sourceMac} is reachable through ${h.to.port}.`,
           layers,
         );
+        facts({ MAC: sourceMac, Port: h.to.port });
       }
       if (
         !isBridge(to) &&
@@ -420,6 +426,7 @@ export function simulate(
         `${nextHop} → ${cached}. A cache entry does not create a physical connection.`,
         upper,
       );
+    if (cached) facts({ IP: nextHop, MAC: cached });
     const owner = owners[0];
     if (!owner) {
       // The device that asked is the one left without an answer.
@@ -476,6 +483,7 @@ export function simulate(
         `${d.name} remembers ${nextHop} → ${rp.mac}.`,
         reply,
       );
+      facts({ IP: nextHop, MAC: rp.mac });
     }
     return { ...owner, mac: rp.mac };
   }
@@ -631,6 +639,7 @@ export function simulate(
             `NAT maps ${map.external}:${map.externalPort} back to ${map.internal}:${map.internalPort}.`,
             layers(m),
           );
+          facts({ Outside: `${map.external}:${map.externalPort}`, Inside: `${map.internal}:${map.internalPort}` });
         } else if (
           m.protocol !== "ICMP" &&
           active(d).some((p) => p.id === d.outside && p.ip === m.dst)
@@ -682,6 +691,7 @@ export function simulate(
         `${r.label} is the longest matching prefix. Use ${r.p.id} and next hop ${r.next}. Destination IP remains ${m.dst}.`,
         layers(m),
       );
+      facts({ Destination: m.dst, Route: r.label, Interface: r.p.id, "Next hop": r.next });
       if (
         d.kind === "router" &&
         d.nat &&
@@ -716,6 +726,7 @@ export function simulate(
           `${map.internal}:${map.internalPort} → ${map.external}:${map.externalPort}. The mapping lets a response find the internal device.`,
           layers(m),
         );
+        facts({ Inside: `${map.internal}:${map.internalPort}`, Outside: `${map.external}:${map.externalPort}` });
       }
       const found = arp(d, r.p, r.next, layers(m));
       at(d, "Network interface");
@@ -724,6 +735,7 @@ export function simulate(
         `IPv4 supplies the packet. The ${r.p.medium === "wifi" ? "wireless" : "Ethernet"} interface addresses the next hop using ${found.mac}.`,
         layers(m),
       );
+      facts({ "Next hop": r.next, "Next-hop MAC": found.mac, Destination: m.dst });
       if (lose) {
         const h = found.path[0];
         emit(
@@ -797,6 +809,7 @@ export function simulate(
       `${d.name} joins “${ap.ssid}”. This models association and a passphrase check, not radio encryption.`,
       [],
     );
+    facts({ SSID: ap.ssid, "Access point": ap.name });
   }
   try {
     const validation = validateNetwork(n);
@@ -1013,6 +1026,7 @@ export function simulate(
       if (cached) {
         at(client, "OS · DNS resolver");
         emit("DNS cache hit", `${destination} → ${cached}`, []);
+        facts({ Name: destination, Address: cached });
         destination = cached;
       } else {
         if (!cp.dns)
@@ -1026,6 +1040,7 @@ export function simulate(
           `Ask ${cp.dns} for the IPv4 address of ${destination}. Typical lookups use UDP port 53.`,
           [],
         );
+        facts({ Name: destination, Server: cp.dns });
         const query: IpMessage = {
           src: route(client, cp.dns).p.ip,
           dst: cp.dns,
@@ -1103,6 +1118,7 @@ export function simulate(
         s.dns[`${client.id}/${destination}`] = answer;
         at(client, "OS · DNS resolver");
         emit("DNS answer", `${destination} → ${answer}`, []);
+        facts({ Name: destination, Address: answer });
         destination = answer;
       }
     }
@@ -1128,6 +1144,7 @@ export function simulate(
         "Ping asks an IP endpoint to echo a message. ICMP sits directly inside IP; it has no TCP segment.",
         [],
       );
+      facts({ Destination: destination });
       const request: IpMessage = {
         src,
         dst: destination,
@@ -1187,6 +1204,7 @@ export function simulate(
       "The app receives a socket reference. The OS owns its buffers and TCP connection state. The socket is an interface to networking, not another protocol.",
       [],
     );
+    facts({ Remote: `${destination}:80` });
     let clientSeq = 1000,
       serverSeq = 7000;
     const base: IpMessage = {

@@ -231,3 +231,17 @@ test("a failure names its cause chain and where to look", async ({ page }) => {
   await expect(guide.getByRole("list", { name: "What caused it" })).toContainText("No route to a private address");
   await expect(guide).toContainText("Where to look:");
 });
+test("a step links to the earlier step that caused it and cites its rule", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByLabel("Source device").selectOption("phone");
+  await page.getByLabel("Traffic type").selectOption("dhcp");
+  await page.getByRole("button", { name: "Configure automatically", exact: true }).click();
+  await page.getByRole("button", { name: "Apply DHCP lease", exact: true }).click();
+  const guide = page.locator(".step-guide");
+  await expect(guide.locator(".step-summary")).toContainText("now uses 192.168.1.100/24, gateway 192.168.1.1");
+  await guide.getByRole("button", { name: /^Go to step \d+: DHCP ACK$/ }).click();
+  await expect(page.locator(".event-explanation h3")).toHaveText("DHCP ACK");
+  await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
+  await expect(guide.locator("cite")).toHaveText("RFC 2131 §3.1");
+  await expect(guide).toContainText("unicast unless the client sets the broadcast flag");
+});

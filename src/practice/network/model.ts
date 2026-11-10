@@ -161,6 +161,8 @@ export type TraceEvent = {
   error?: boolean;
   reason?: FailureReason;
   failure?: Failure;
+  /** The decision this event made, with its actual values (route chosen, next-hop MAC, NAT mapping…). */
+  facts?: Record<string, string | number>;
   // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
   dhcpContext?: { client: string; server: string };
 };
