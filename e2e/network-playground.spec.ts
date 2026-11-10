@@ -144,3 +144,24 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     ),
   ).toBe(true);
 });
+test("challenge feedback explains unfinished runs and what a pass proved", async ({
+  page,
+}) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: /Challenges/ }).click();
+  const verdict = page.locator(".challenge-verdict");
+  await page.getByLabel("Choose a challenge").selectOption("nat");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(verdict).toContainText("The network stopped the delivery.");
+  await expect(verdict).toContainText("private address (RFC 1918)");
+
+  await page.getByLabel("Choose a challenge").selectOption("loss");
+  await expect(verdict).toHaveCount(0);
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(verdict).toContainText("no segment was lost");
+  await page.getByLabel("Drop one data segment").check();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(verdict).toContainText("Challenge complete. What you proved:");
+  await expect(page.locator(".challenge-goal")).toContainText("Completed");
+  await expect(page.getByRole("button", { name: /Challenges/ })).toContainText("1/6");
+});

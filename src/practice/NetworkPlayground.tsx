@@ -49,7 +49,11 @@ import {
 import { starter, starterOptions } from "./network/starters.ts";
 import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
 import { newSession, simulate } from "./network/engine.ts";
-import { challenges, challengePassed } from "./network/challenges.ts";
+import {
+  challenges,
+  assessChallenge,
+  type ChallengeVerdict,
+} from "./network/challenges.ts";
 import {
   loadWorkspace,
   saveNamed,
@@ -135,6 +139,7 @@ export function NetworkPlayground() {
     [challengeId, setChallengeId] = useState(""),
     [hints, setHints] = useState(0),
     [challengeOpen, setChallengeOpen] = useState(false),
+    [verdict, setVerdict] = useState<ChallengeVerdict | null>(null),
     [help, setHelp] = useState(false),
     [saveList, setSaveList] = useState(false);
   const [completed, setCompleted] = useState<string[]>(() => {
@@ -189,6 +194,7 @@ export function NetworkPlayground() {
     setIndex(0);
     setPlaying(false);
     setNotice(message);
+    setVerdict(null);
   }
   function edit(next: Network, positionsOnly = false) {
     setPast((p) => [...p.slice(-49), network]);
@@ -251,9 +257,12 @@ export function NetworkPlayground() {
     setTrace(result);
     setIndex(0);
     setTab("packet");
+    const assessed =
+      challenge && assessChallenge(challenge, action, result, network);
+    setVerdict(assessed || null);
     if (
       challenge &&
-      challengePassed(challenge, action, result, network) &&
+      assessed?.status === "passed" &&
       !completed.includes(challenge.id)
     ) {
       const next = [...completed, challenge.id];
@@ -305,7 +314,11 @@ export function NetworkPlayground() {
     setChallengeId(id);
     setHints(0);
     setChallengeOpen(true);
+    setVerdict(null);
   }
+  const nextChallenge =
+    challenge &&
+    challengeList[challengeList.findIndex((c) => c.id === challenge.id) + 1];
   return (
     <main id="main" className="network-playground">
       <header className="playground-heading">
@@ -413,6 +426,30 @@ export function NetworkPlayground() {
                   </span>
                 )}
               </div>
+              {verdict && (
+                <div
+                  className={`challenge-verdict is-${verdict.status}`}
+                  role="status"
+                >
+                  <b>
+                    {verdict.status === "passed"
+                      ? "Challenge complete. What you proved:"
+                      : verdict.status === "incomplete"
+                        ? "It ran, but the challenge is not complete yet."
+                        : "The network stopped the delivery."}
+                  </b>
+                  <p>{verdict.message}</p>
+                  {verdict.status === "passed" && nextChallenge && (
+                    <button
+                      className="small-button"
+                      onClick={() => loadChallenge(nextChallenge.id)}
+                    >
+                      Next challenge: {nextChallenge.title}{" "}
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
+                </div>
+              )}
               {challenge.hints.slice(0, hints).map((h) => (
                 <p className="challenge-hint" key={h}>
                   {h}
