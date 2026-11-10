@@ -165,3 +165,16 @@ test("challenge feedback explains unfinished runs and what a pass proved", async
   await expect(page.locator(".challenge-goal")).toContainText("Completed");
   await expect(page.getByRole("button", { name: /Challenges/ })).toContainText("1/6");
 });
+test("TCP steps disclose stop-and-wait and link to the send-window mission", async ({
+  page,
+}) => {
+  await page.goto("/practice/network");
+  await page.getByLabel("Starter network").selectOption("lan");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "TCP wrapping", exact: true }).click();
+  const note = page.locator(".step-note");
+  await expect(note).toContainText("Real TCP keeps several segments in flight");
+  await note.getByRole("link").click();
+  await expect(page).toHaveURL(/\/missions\/tcp-send-window$/);
+  await expect(page.getByRole("heading", { name: "How full can the pipe get?" })).toBeVisible();
+});

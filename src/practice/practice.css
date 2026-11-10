@@ -1668,6 +1668,17 @@
   max-width: 76ch;
   overflow-wrap: anywhere;
 }
+.event-explanation .step-guide p.step-note {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+  font-size: 12px;
+}
+.step-note a {
+  color: var(--primary);
+  font-weight: 600;
+}
 .step-guide summary {
   margin-top: 10px;
   cursor: pointer;

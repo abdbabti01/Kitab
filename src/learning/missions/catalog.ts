@@ -116,7 +116,7 @@ const raw: unknown[] = [
       { text: "Step to the first ACK reaching the sender and count the unacknowledged segments just before it.", beforePrediction: false, target: "client" },
     ],
     misconceptions: {
-      "stop-and-wait": { label: "Always one at a time", message: "TCP isn't limited to one segment: with a window of {param.receiveWindowSegments}, the sender kept {outcome.maxUnacked} unacknowledged at once." },
+      "stop-and-wait": { label: "Always one at a time", message: "TCP isn't limited to one segment: with a window of {param.receiveWindowSegments}, the sender kept {outcome.maxUnacked} unacknowledged at once. (The network playground sends one at a time only to keep its timeline readable.)" },
       "receipt-frees-window": { label: "Arrival frees the window", message: "The receiver having the bytes isn't enough. A slot frees only when the ACK reaches the sender, so the peak was {outcome.maxUnacked}.", target: "client" },
       "ignores-window": { label: "Window ignored", message: "The advertised window caps unacknowledged data. The sender never exceeded {outcome.maxUnacked} even though {outcome.segmentCount} segments were waiting.", target: "client" },
     },

@@ -1,5 +1,6 @@
 import type { Network, TraceEvent } from "./network/model.ts";
 import { explainStep } from "./network/explanations.ts";
+import { linkProps } from "../app/router.ts";
 
 export function StepExplanation({
   event,
@@ -15,6 +16,12 @@ export function StepExplanation({
     <section className="step-guide" aria-label="Understand this step">
       <h4>Why this happens</h4>
       <p>{explanation.why}</p>
+      {explanation.note && (
+        <p className="step-note">
+          {explanation.note.text}{" "}
+          <a {...linkProps(explanation.note.href)}>{explanation.note.label}</a>
+        </p>
+      )}
       <details
         onToggle={(e) => {
           if (e.currentTarget.open) onReadDetails();

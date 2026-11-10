@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { parseRoute } from "../src/app/routes.ts";
+import { findMission } from "../src/learning/missions/catalog.ts";
 import { explainStep } from "../src/practice/network/explanations.ts";
 import { newSession, simulate } from "../src/practice/network/engine.ts";
 import { starter } from "../src/practice/network/starters.ts";
@@ -158,4 +160,27 @@ test("a separate DHCP server is explained by service role, not router hardware",
   const explanation = explainStep(event, network);
   assert.match(explanation.why, /Office DHCP server.*runs the DHCP service/);
   assert.match(explanation.detail, /router or a separate server/);
+});
+test("the playground's stop-and-wait TCP is labelled and points to the send-window mission", () => {
+  const network = starter("lan");
+  const trace = simulate(network, newSession(), {
+    kind: "http",
+    source: "pc",
+    target: "http://192.168.1.20/",
+  });
+  // The note must describe what the engine actually does: one data segment awaiting an ACK at a time.
+  let inFlight = 0;
+  for (const e of trace.events) {
+    if (e.title === "Create TCP segment") assert.equal(++inFlight, 1);
+    if (e.title === "Acknowledge received bytes") inFlight = 0;
+  }
+  for (const title of ["Create TCP segment", "Acknowledge received bytes"]) {
+    const note = explainStep(trace.events.find((e) => e.title === title)!, network).note!;
+    assert.match(note.text, /one data segment.*Real TCP keeps several segments in flight/);
+    const route = parseRoute(note.href);
+    assert.equal(route.name, "mission");
+    const mission = findMission(route.name === "mission" ? route.id : "")!;
+    assert.ok(mission.misconceptions["stop-and-wait"], "the mission corrects this very misconception");
+  }
+  assert.equal(explainStep(trace.events.find((e) => e.title === "TCP SYN")!, network).note, undefined);
 });

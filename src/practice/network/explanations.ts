@@ -11,6 +11,8 @@ export type StepExplanation = {
   outcome: string;
   detail: string;
   message: string;
+  /** A modeling simplification the learner must not mistake for how real networks behave. */
+  note?: { text: string; href: string; label: string };
 };
 type Lesson = Pick<StepExplanation, "why" | "outcome" | "detail">;
 const lesson = (why: string, outcome: string, detail: string): Lesson => ({
@@ -280,6 +282,18 @@ const failureLessons: Record<FailureReason, Lesson> = {
   ),
 };
 
+// The playground's TCP is stop-and-wait; the send-window mission teaches the real behavior.
+const stopAndWait = {
+  text: "Simplification: this lab sends one data segment and waits for its ACK before sending the next, so the timeline stays readable. Real TCP keeps several segments in flight at once, up to the receive and congestion windows.",
+  href: "/missions/tcp-send-window",
+  label: "Practice: how many segments can real TCP have in flight?",
+};
+const tcpNotes: Record<string, StepExplanation["note"]> = {
+  "Create TCP segment": stopAndWait,
+  "Acknowledge received bytes": stopAndWait,
+  "Retransmit TCP segment": stopAndWait,
+};
+
 export function explainStep(
   event: TraceEvent,
   network: Network,
@@ -456,5 +470,6 @@ export function explainStep(
     audience:
       audience + (isBroadcast ? " This frame is a local broadcast." : ""),
     message,
+    note: tcpNotes[event.title],
   };
 }
