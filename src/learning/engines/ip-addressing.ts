@@ -45,8 +45,18 @@ const natEntries = [
 ];
 const serverEndpoint = `${targets.web.address}:80`;
 
+/**
+ * /24 is one subnet. /25 is the whole LAN split in two: every device uses /25 and the router has an
+ * interface in each half (.1 and .129), so it can route between them. That differs from a mask
+ * mismatch, where one device alone uses a different prefix (playground challenge 02).
+ */
+function routerLanFor(prefix: number) {
+  return (prefix === 24 ? [original] : split).map((block) => ({ address: block.firstHost, cidr: block.cidr }));
+}
+
 function example({ prefix, target }: z.infer<typeof params>) {
   const mask = maskFor(prefix);
+  const routerLan = routerLanFor(prefix);
   const destination = targets[target];
   const connectedSubnet = subnetBlock(client, prefix);
   const clientNetwork = connectedSubnet.network;
@@ -54,7 +64,7 @@ function example({ prefix, target }: z.infer<typeof params>) {
   const direct = clientNetwork === destinationNetwork;
   const nextHop = direct ? destination.address : gateway;
   const nextHopMac = (direct && destination.mac) || "02:00:00:00:00:01";
-  return { prefix, client, gateway, phone: targets.phone.address, destination, mask: dotted(mask), connectedSubnet, clientNetwork, destinationNetwork, direct, nextHop, nextHopMac, original, split, natEntries, natPublic };
+  return { prefix, client, gateway, phone: targets.phone.address, destination, mask: dotted(mask), connectedSubnet, clientNetwork, destinationNetwork, direct, nextHop, nextHopMac, original, split, natEntries, natPublic, routerLan };
 }
 
 type View = "lan" | "interfaces" | "subnet" | "address" | "mask" | "ranges" | "routes" | "link" | "nat-out" | "nat-in" | "handoff";
@@ -91,6 +101,7 @@ export const ipAddressingAdapter: EngineAdapter<z.infer<typeof params>, IpAddres
     const clientFact = { id: "client-ip", label: "PC interface", value: client, entityId: "client" };
     const phoneFact = { id: "phone-ip", label: "Phone interface", value: targets.phone.address, entityId: "phone" };
     const gatewayFact = { id: "gateway-ip", label: "Router LAN IP", value: gateway, entityId: "gateway" };
+    const routerLanFact = { id: "router-lan", label: "Router LAN interfaces", value: data.routerLan.map((lan) => `${lan.address}/${prefix}`).join(" and "), entityId: "gateway" };
     const destinationFact = { id: "destination-ip", label: "Destination IP", value: destination.address, entityId: "route" };
     const maskFacts = [
       { id: "prefix", label: "Prefix length", value: prefix, entityId: "mask" },
@@ -109,7 +120,7 @@ export const ipAddressingAdapter: EngineAdapter<z.infer<typeof params>, IpAddres
 
     add("lan", "Meet your local network", "local", "PC, phone and home router", ["client", "phone", "gateway"], [clientFact, phoneFact, gatewayFact]);
     add("interfaces", "An address belongs to an interface", "local", "Home router", ["gateway", "client", "phone"], [
-      gatewayFact, clientFact, phoneFact, { id: "router-wan", label: "Router WAN IP", value: natPublic, entityId: "gateway" },
+      gatewayFact, routerLanFact, clientFact, phoneFact, { id: "router-wan", label: "Router WAN IP", value: natPublic, entityId: "gateway" },
     ]);
     add("subnet", "Which addresses count as local?", "addressing", "PC network settings", ["subnet"], [
       { id: "connected-subnet", label: "PC's subnet", value: data.connectedSubnet.cidr, entityId: "subnet" },
@@ -126,9 +137,11 @@ export const ipAddressingAdapter: EngineAdapter<z.infer<typeof params>, IpAddres
       { id: "upper-subnet", label: "Upper half", value: split[1].cidr, entityId: "ranges" },
       { id: "half-size", label: "Addresses per half", value: split[0].total, entityId: "ranges" },
       { id: "usable", label: "Usable host addresses per half", value: split[0].usable, entityId: "ranges" },
+      { id: "split-router-a", label: "Router address in the lower half", value: split[0].firstHost, entityId: "ranges" },
+      { id: "split-router-b", label: "Router address in the upper half", value: split[1].firstHost, entityId: "ranges" },
     ]);
     add("routes", "Pick the next hop", "forwarding", "PC routing table", ["route", "mask", "gateway"], [
-      ...routeFacts, ...maskFacts, ...networkFacts, gatewayFact,
+      ...routeFacts, ...maskFacts, ...networkFacts, gatewayFact, routerLanFact,
       { id: "connected-route", label: "Connected route", value: `${clientNetwork}/${prefix}`, entityId: "route" },
     ]);
     add("link", "Send to the next hop on the LAN", "forwarding", "PC network interface", ["route"], [

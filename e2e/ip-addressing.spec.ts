@@ -13,10 +13,12 @@ test("changing the printer’s subnet changes the hop and preserves the packet d
   await expect(scene).toContainText("Direct on the LAN");
   await expect(scene.locator(".ip-chosen")).toContainText("192.168.1.0/24");
   await page.getByText("Change the example", { exact: true }).click();
-  await page.getByText("/25 · split subnets", { exact: true }).click();
+  await page.getByText("/25 · LAN split into two subnets", { exact: true }).click();
   await expect(scene).toContainText("Via the default gateway");
   await expect(scene.locator(".ip-chosen")).toContainText("192.168.1.1");
   await expect(scene).toContainText("192.168.1.130");
+  // A real split: the router has an interface in the printer's half and delivers from there.
+  await expect(scene).toContainText("The router has an interface in printer's subnet, 192.168.1.129/25");
   await page.reload();
   await expect(scene).toContainText("Via the default gateway");
 

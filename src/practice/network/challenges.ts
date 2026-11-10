@@ -80,7 +80,7 @@ export function challenges(): Challenge[] {
       network: mask,
       action: { kind: "ping", source: "pc", target: "192.168.1.130" },
       proved:
-        "Your PC and the server now agree on one subnet, so the PC treats 192.168.1.130 as local and asks for its MAC address directly. A mask mismatch on one device made a neighbour look remote.",
+        "Your PC and the server now agree on one subnet, so the PC treats 192.168.1.130 as local and asks for its MAC address directly. A mask mismatch on one device made a neighbour look remote. (A LAN deliberately split into /25 subnets is different: every device changes, and a router connects the halves, as in the IP lesson.)",
       check: (run) => {
         const other = answeredBy(run, "server");
         if (other) return other;

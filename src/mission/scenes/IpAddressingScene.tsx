@@ -15,7 +15,7 @@ function Lan({ props }: { props: Props }) {
         <div className="ip-devices">
           <button {...entity("client", props, "PC Wi-Fi interface", "ip-node")}><Laptop aria-hidden="true" /><b>PC</b><code>{data.client}</code></button>
           <button {...entity("phone", props, "Phone Wi-Fi interface", "ip-node")}><Smartphone aria-hidden="true" /><b>Phone</b><code>{data.phone}</code></button>
-          <button {...entity("gateway", props, "Router LAN interface", "ip-node")}><Router aria-hidden="true" /><b>Router · LAN</b><code>{data.gateway}</code></button>
+          <button {...entity("gateway", props, data.routerLan.length > 1 ? "Router LAN interfaces" : "Router LAN interface", "ip-node")}><Router aria-hidden="true" /><b>Router · LAN</b>{data.routerLan.map((lan) => <code key={lan.cidr}>{lan.address}/{data.prefix}</code>)}</button>
         </div>
         <p className="ip-caption">Wi-Fi or Ethernet carries frames between local devices.</p>
       </div>
@@ -107,7 +107,9 @@ function Ranges({ props }: { props: Props }) {
 }
 
 function Route({ props }: { props: Props }) {
-  const { view, destination, direct, nextHop, nextHopMac, gateway, clientNetwork, prefix } = props.frame.data;
+  const { view, destination, direct, nextHop, nextHopMac, gateway, clientNetwork, prefix, routerLan } = props.frame.data;
+  // In the split LAN the printer is remote to the PC but still on the router's other LAN interface.
+  const otherHalf = !direct && destination.mac ? routerLan.find((lan) => lan.address !== gateway) : undefined;
   const hopLabel = direct ? destination.label : "Home router";
   return (
     <SceneSection label={view === "routes" ? "Inside the PC’s routing table" : "Packet destination and local recipient"} className="ip-scene">
@@ -123,6 +125,7 @@ function Route({ props }: { props: Props }) {
         <div><span>Next hop on this link</span><code>{nextHop}</code><small>{hopLabel}</small></div>
       </div>
       <button {...entity("route", props, "Inspect the chosen route", "ip-inspect")}>{direct ? "Direct on the LAN" : "Via the default gateway"}</button>
+      {otherHalf && <p className="ip-caption">The router has an interface in {destination.label.toLowerCase()}'s subnet, <code>{otherHalf.address}/{prefix}</code>, and delivers the packet from there.</p>}
       {view === "link" && <p className="ip-caption">Local frame destination MAC <code>{nextHopMac}</code>. Inside the frame, the packet still targets <code>{destination.address}</code>.</p>}
     </SceneSection>
   );
