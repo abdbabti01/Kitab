@@ -84,6 +84,13 @@ export function useJourney(network: Network) {
     setIndex(0);
     return result;
   }
+  /** Shows a run that was made elsewhere (e.g. a mission check), at a chosen event. The session is kept. */
+  function show(result: Trace, at: number) {
+    setPlaying(false);
+    setTrace(result);
+    setIndex(Math.max(0, Math.min(result.events.length - 1, at)));
+    setCardOpen(true);
+  }
   function step(next: number) {
     setPlaying(false);
     setIndex(Math.max(0, Math.min((trace?.events.length ?? 1) - 1, next)));
@@ -142,6 +149,7 @@ export function useJourney(network: Network) {
     journeyRef,
     reset,
     run,
+    show,
     step,
     play,
     stoppedAt,

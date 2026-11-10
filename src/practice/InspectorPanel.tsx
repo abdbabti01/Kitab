@@ -1,13 +1,13 @@
 // The inspector beside the diagram: the selected device, the current packet, state tables and every step.
-import type { RefObject } from "react";
-import { Layers, ListOrdered, Monitor, Server, Settings2 } from "lucide-react";
+import type { ReactNode, RefObject } from "react";
+import { Flag, Layers, ListOrdered, Monitor, Server, Settings2 } from "lucide-react";
 import { DeviceInspector } from "./DeviceInspector.tsx";
 import { PacketInspector, StateTables } from "./PacketInspector.tsx";
 import { StepsList } from "./Journey.tsx";
 import type { Journey } from "./useJourney.ts";
 import type { Device, Endpoint, Medium, Network } from "./network/model.ts";
 
-export type InspectorTab = "device" | "packet" | "tables" | "steps";
+export type InspectorTab = "mission" | "device" | "packet" | "tables" | "steps";
 /** How the selected device may be changed. */
 export type DeviceEditor = {
   onApply: (device: Device) => void;
@@ -25,7 +25,10 @@ export function InspectorPanel({
   onTab,
   editor,
   panelRef,
+  mission,
 }: {
+  /** A mission page's own tab, shown first. */
+  mission?: ReactNode;
   journey: Journey;
   network: Network;
   selected: string;
@@ -37,6 +40,7 @@ export function InspectorPanel({
 }) {
   const device = network.devices.find((d) => d.id === selected);
   const tabs: [InspectorTab, typeof Settings2, string][] = [
+    ...(mission ? [["mission", Flag, "Mission"] as [InspectorTab, typeof Settings2, string]] : []),
     ["device", Settings2, "Device"],
     ["packet", Layers, "Packet"],
     ["tables", Server, "Tables"],
@@ -52,7 +56,9 @@ export function InspectorPanel({
         ))}
       </div>
       <div className="inspector-body">
-        {tab === "device" ? (
+        {tab === "mission" && mission ? (
+          mission
+        ) : tab === "device" ? (
           device ? (
             <DeviceInspector
               key={device.id}

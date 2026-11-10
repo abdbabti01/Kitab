@@ -200,7 +200,8 @@ export function JourneyCard({
       Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
       scale,
     );
-    if (next.score >= 10 && !compact && !details) return setCompact(true);
+    // Covering any device (even one outside the stage) makes the card compact first: devices must stay clickable.
+    if (next.score >= 2 && !compact && !details) return setCompact(true);
     setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : { x: next.x, y: next.y }));
   });
   const [room, setRoom] = useState(0);

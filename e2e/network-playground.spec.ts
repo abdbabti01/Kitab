@@ -145,30 +145,6 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     ),
   ).toBe(true);
 });
-test("challenge feedback explains unfinished runs and what a pass proved", async ({
-  page,
-}) => {
-  await page.goto("/practice/network");
-  await page.getByRole("button", { name: /Challenges/ }).click();
-  const verdict = page.locator(".challenge-verdict");
-  await page.getByLabel("Choose a challenge").selectOption("nat");
-  await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(verdict).toContainText("The network stopped the delivery.");
-  // The reason is explained once, at the failing step; the verdict and status only point to it.
-  await verdict.getByRole("button", { name: "Show where and why" }).click();
-  await expect(page.locator(".journey-card")).toContainText("private address (RFC 1918)");
-  expect(await page.evaluate(() => document.body.innerText.split("Internet routers do not route to private home networks").length - 1)).toBe(1);
-
-  await page.getByLabel("Choose a challenge").selectOption("loss");
-  await expect(verdict).toHaveCount(0);
-  await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(verdict).toContainText("no segment was lost");
-  await page.getByLabel("Drop one data segment").check();
-  await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(verdict).toContainText("Challenge complete. What you proved:");
-  await expect(page.locator(".challenge-goal")).toContainText("Completed");
-  await expect(page.getByRole("button", { name: /Challenges/ })).toContainText("1/6");
-});
 test("TCP steps disclose stop-and-wait and link to the send-window mission", async ({
   page,
 }) => {

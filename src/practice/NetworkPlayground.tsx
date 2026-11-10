@@ -4,9 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
-  Check,
   Download,
-  Flag,
+  GraduationCap,
   HardDrive,
   Layers,
   Monitor,
@@ -28,8 +27,9 @@ import { useJourney } from "./useJourney.ts";
 import { createDevice, type Network, type DeviceKind, type Action } from "./network/model.ts";
 import { starter, starterOptions } from "./network/starters.ts";
 import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
-import { challenges, assessChallenge, type ChallengeVerdict } from "./network/challenges.ts";
-import { loadWorkspace, saveNamed, savedNetworks, WORKSPACE_KEY, CHALLENGES_KEY } from "./network/storage.ts";
+import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
+import { missions } from "./network/missions.ts";
+import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import "./practice.css";
 const deviceTypes = [
   { kind: "pc", label: "PC", icon: Monitor },
@@ -39,9 +39,25 @@ const deviceTypes = [
   { kind: "ap", label: "Access point", icon: Wifi },
   { kind: "server", label: "Server", icon: Server },
 ] as const;
-const challengeList = challenges();
+// A practice copy of a mission's network, opened with ?scratch=1. It is never saved over the workspace.
+function scratchCopy() {
+  try {
+    if (!new URLSearchParams(location.search).has("scratch")) return null;
+    const raw = sessionStorage.getItem(SCRATCH_KEY);
+    return raw ? importNetwork(raw) : null;
+  } catch {
+    return null;
+  }
+}
 export function NetworkPlayground() {
   const [startup] = useState(() => {
+    const copy = scratchCopy();
+    if (copy)
+      return {
+        network: copy,
+        scratch: true,
+        error: "This is a practice copy of a mission network. Experiment freely: it is not saved over your own playground network or your mission. Save it under a name to keep it.",
+      };
     try {
       return { network: loadWorkspace() ?? starter("internet"), error: "" };
     } catch {
@@ -54,7 +70,7 @@ export function NetworkPlayground() {
   });
   const [network, setNetwork] = useState<Network>(startup.network),
     [notice, setNotice] = useState(startup.error),
-    [saveBlocked, setSaveBlocked] = useState(!!startup.error),
+    [saveBlocked, setSaveBlocked] = useState(!!startup.error || "scratch" in startup),
     [saved, setSaved] = useState("Saved on this device");
   const [selected, setSelected] = useState(""),
     [tab, setTab] = useState<InspectorTab>("packet");
@@ -76,18 +92,15 @@ export function NetworkPlayground() {
   });
   const [past, setPast] = useState<Network[]>([]),
     [future, setFuture] = useState<Network[]>([]),
-    [challengeId, setChallengeId] = useState(""),
-    [hints, setHints] = useState(0),
-    [challengeOpen, setChallengeOpen] = useState(false),
-    [verdict, setVerdict] = useState<ChallengeVerdict | null>(null),
     [help, setHelp] = useState(false),
     [saveList, setSaveList] = useState(false);
-  const [completed, setCompleted] = useState<string[]>(() => {
+  const [practice] = useState(() => {
     try {
-      const a = JSON.parse(localStorage.getItem(CHALLENGES_KEY) ?? "[]");
-      return Array.isArray(a) ? a.filter((v) => typeof v === "string") : [];
+      const store = loadMissionStore(localStorage);
+      const states = missions.map((m) => missionState(store.missions[m.id], m));
+      return { done: states.filter((x) => x === "completed" || x === "mastered").length, mastered: states.filter((x) => x === "mastered").length };
     } catch {
-      return [];
+      return { done: 0, mastered: 0 };
     }
   });
   const fileRef = useRef<HTMLInputElement>(null);
@@ -95,7 +108,6 @@ export function NetworkPlayground() {
   useEffect(() => {
     if (inspectorRef.current) inspectorRef.current.scrollTop = 0;
   }, [tab, selected]);
-  const challenge = challengeList.find((c) => c.id === challengeId);
   useEffect(() => {
     document.title = "Network playground · Kitab";
   }, []);
@@ -113,7 +125,6 @@ export function NetworkPlayground() {
   ) {
     journey.reset();
     setNotice(message);
-    setVerdict(null);
   }
   function edit(next: Network, positionsOnly = false) {
     setPast((p) => [...p.slice(-49), network]);
@@ -173,22 +184,6 @@ export function NetworkPlayground() {
     const result = journey.run(action);
     if (!result) return;
     setTab("packet");
-    const assessed =
-      challenge && assessChallenge(challenge, action, result, network);
-    setVerdict(assessed || null);
-    if (
-      challenge &&
-      assessed?.status === "passed" &&
-      !completed.includes(challenge.id)
-    ) {
-      const next = [...completed, challenge.id];
-      setCompleted(next);
-      try {
-        localStorage.setItem(CHALLENGES_KEY, JSON.stringify(next));
-      } catch {
-        setNotice("Challenge completed, but progress could not be saved.");
-      }
-    }
   }
   function history(undo: boolean) {
     const source = undo ? past : future;
@@ -219,16 +214,6 @@ export function NetworkPlayground() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  function loadChallenge(id: string) {
-    const c = challengeList.find((c) => c.id === id);
-    if (!c) return;
-    replace(c.network, { ...c.action, ttl: 64 });
-    setChallengeId(id);
-    setHints(0);
-    setChallengeOpen(true);
-    setVerdict(null);
-  }
-  const { stoppedBy, showStop } = journey;
   function inspectPacket() {
     journey.setPlaying(false);
     setTab("packet");
@@ -239,9 +224,6 @@ export function NetworkPlayground() {
     setSelected(id);
     setTab("device");
   };
-  const nextChallenge =
-    challenge &&
-    challengeList[challengeList.findIndex((c) => c.id === challenge.id) + 1];
   return (
     <main id="main" className="network-playground">
       <header className="playground-heading">
@@ -254,13 +236,12 @@ export function NetworkPlayground() {
           <p>Build a network. Send a message. See everything in between.</p>
         </div>
         <div className="playground-heading-actions">
-          <button
-            className={`small-button ${challengeOpen ? "selected" : ""}`}
-            onClick={() => setChallengeOpen((v) => !v)}
-          >
-            <Flag size={16} /> Challenges{" "}
-            <span className="count">{completed.length}/6</span>
-          </button>
+          <a className="small-button" {...linkProps("/practice/missions")}>
+            <GraduationCap size={16} /> Practice missions{" "}
+            <span className="count">
+              {practice.done}/{missions.length} done
+            </span>
+          </a>
           <button
             className="icon-button"
             aria-label="Open playground guide"
@@ -314,112 +295,6 @@ export function NetworkPlayground() {
           </a>
         </section>
       )}
-      {challengeOpen && (
-        <section className="challenge-panel">
-          <div className="challenge-heading">
-            <div>
-              <span className="eyebrow">LEARN BY DOING</span>
-              <h2>
-                {challenge?.title ?? "Six small challenges. One big picture."}
-              </h2>
-            </div>
-            <select
-              aria-label="Choose a challenge"
-              value={challengeId}
-              onChange={(e) => loadChallenge(e.target.value)}
-            >
-              <option value="">Choose your challenge</option>
-              {challengeList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {completed.includes(c.id) ? "✓ " : ""}
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          {challenge ? (
-            <>
-              <p>{challenge.purpose}</p>
-              <div className="challenge-goal">
-                <Flag size={18} />
-                <b>{challenge.goal}</b>
-                {completed.includes(challenge.id) && (
-                  <span className="success-pill">
-                    <Check size={13} /> Completed
-                  </span>
-                )}
-              </div>
-              {verdict && (
-                <div
-                  className={`challenge-verdict is-${verdict.status}`}
-                  role="status"
-                >
-                  <b>
-                    {verdict.status === "passed"
-                      ? "Challenge complete. What you proved:"
-                      : verdict.status === "incomplete"
-                        ? "It ran, but the challenge is not complete yet."
-                        : "The network stopped the delivery."}
-                  </b>
-                  {verdict.status === "failed" ? (
-                    <p>
-                      The delivery stopped{stoppedBy ? ` at ${stoppedBy}` : ""} before the goal was reached.{" "}
-                      <button className="text-button stop-link" onClick={showStop}>
-                        Show where and why
-                      </button>
-                    </p>
-                  ) : (
-                    <p>{verdict.message}</p>
-                  )}
-                  {verdict.status === "passed" && nextChallenge && (
-                    <button
-                      className="small-button"
-                      onClick={() => loadChallenge(nextChallenge.id)}
-                    >
-                      Next challenge: {nextChallenge.title}{" "}
-                      <ArrowRight size={13} />
-                    </button>
-                  )}
-                </div>
-              )}
-              {challenge.hints.slice(0, hints).map((h) => (
-                <p className="challenge-hint" key={h}>
-                  {h}
-                </p>
-              ))}
-              <div className="challenge-actions">
-                <button
-                  className="text-button"
-                  disabled={hints >= challenge.hints.length}
-                  onClick={() => setHints((h) => h + 1)}
-                >
-                  Show a hint
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => loadChallenge(challenge.id)}
-                >
-                  Reset challenge
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setChallengeId("");
-                    setChallengeOpen(false);
-                  }}
-                >
-                  Keep building freely <ArrowRight size={13} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <p>
-              Practice cables, subnets, Wi-Fi, routing, NAT and TCP reliability.
-              Each challenge opens an editable network with a clear goal.
-            </p>
-          )}
-        </section>
-      )}
       <section className="lab-shell" aria-label="Network workspace">
         <div className="workspace-toolbar">
           <div className="workspace-title">
@@ -443,7 +318,6 @@ export function NetworkPlayground() {
               value=""
               onChange={(e) => {
                 replace(starter(e.target.value));
-                setChallengeId("");
               }}
             >
               <option value="" disabled>
@@ -508,7 +382,6 @@ export function NetworkPlayground() {
                   if (file.size > 1000000)
                     throw new Error("Network file is too large.");
                   replace(importNetwork(await file.text()));
-                  setChallengeId("");
                 } catch (error) {
                   setNotice(`Import failed. ${(error as Error).message}`);
                 }
@@ -530,7 +403,6 @@ export function NetworkPlayground() {
                       key={e.name}
                       onClick={() => {
                         replace(e.network);
-                        setChallengeId("");
                         setSaveList(false);
                       }}
                     >
