@@ -96,6 +96,14 @@ export type Layer = {
   fields: Record<string, string | number>;
   payload?: string;
 };
+/** Deterministic cause of a stopped simulation, for explanations and challenge feedback. */
+export type FailureReason =
+  | "DNS_SERVER_ADDRESS" // no device has the configured DNS server address
+  | "DNS_UNREACHABLE" // the DNS server exists but the query could not reach it
+  | "DNS_NO_SERVICE" // the query arrived at a device that does not run DNS
+  | "DNS_NO_RECORD" // a DNS server answered that the name does not exist
+  | "DNS_REPLY_UNREACHABLE" // the DNS server answered but the reply could not return
+  | "NO_ROUTE_PRIVATE"; // a router outside a private network has no route to a private address
 export type TraceEvent = {
   id: number;
   time: number;
@@ -107,6 +115,7 @@ export type TraceEvent = {
   snapshot: Session;
   hop?: { from: string; to: string; link: string };
   error?: boolean;
+  reason?: FailureReason;
   // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
   dhcpContext?: { client: string; server: string };
 };
@@ -123,6 +132,7 @@ export type Trace = {
   session: Session;
   success: boolean;
   summary: string;
+  reason?: FailureReason;
 };
 export const keyOf = (device: string, port: string) => `${device}/${port}`;
 export function createDevice(

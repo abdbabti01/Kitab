@@ -1,4 +1,9 @@
-import { isBridge, type Network, type TraceEvent } from "./model.ts";
+import {
+  isBridge,
+  type FailureReason,
+  type Network,
+  type TraceEvent,
+} from "./model.ts";
 
 export type StepExplanation = {
   why: string;
@@ -241,6 +246,40 @@ const dhcpLessons: Record<string, Lesson> = {
   ),
 };
 
+// Why each deterministic failure happens and which rule caused it. The event's own message names the devices.
+const failureLessons: Record<FailureReason, Lesson> = {
+  DNS_SERVER_ADDRESS: lesson(
+    "The client sent its DNS question to the DNS server address in its settings, but no device in this network has that address.",
+    "Nothing can answer, so the name is never turned into an IP address and the request cannot start.",
+    "Rule: a client only asks the DNS server it is configured with. Fix the client's DNS server setting (or the DHCP server's advertised DNS), not the DNS records.",
+  ),
+  DNS_UNREACHABLE: lesson(
+    "The DNS server exists, but the query could not be delivered to it. The problem is the path, not DNS.",
+    "The lookup stops before any DNS server sees the question.",
+    "Rule: DNS travels in ordinary IP packets, so it needs the same cables, routes, gateway and ARP as any other traffic. Fix the connectivity problem named above.",
+  ),
+  DNS_NO_SERVICE: lesson(
+    "The query reached the device at the configured DNS address, but that device does not run a DNS service.",
+    "No program is listening on UDP port 53, so the question goes unanswered. Adding records to the wrong device would not fix the client's setting.",
+    "Rule: an address only identifies an interface; a service must be running there to answer. In this lab a device runs DNS when it has at least one DNS record. Real hosts usually send an ICMP “port unreachable” error, which is not modeled.",
+  ),
+  DNS_NO_RECORD: lesson(
+    "A working DNS server received the question and answered: it has no A record for this name.",
+    "The client now knows the name does not exist (NXDOMAIN), so it cannot find an IP address to connect to.",
+    "Rule: reaching a DNS server is not enough; it must have a record for the exact name. Check the spelling or add the A record on that DNS server.",
+  ),
+  DNS_REPLY_UNREACHABLE: lesson(
+    "The DNS server received the question and replied, but the reply could not travel back to the client.",
+    "The client never receives the answer. Both directions must work, and the reply makes its own routing decisions.",
+    "Rule: every reply is a new packet addressed to the original sender. If the sender's address cannot be reached from the server's side, for example a private address without NAT, the reply is lost.",
+  ),
+  NO_ROUTE_PRIVATE: lesson(
+    "A router outside the home network received a packet for a private address (such as 192.168.x.x) and has no route to it.",
+    "The router discards the packet. Private addresses are reused in many homes, so the Internet cannot route to them.",
+    "Rule (RFC 1918): private addresses are not routed on the Internet. A home router uses NAT to send traffic from its public address, so replies come back to that address. Adding a static route on the ISP to your private network would hide the problem, not fix it.",
+  ),
+};
+
 export function explainStep(
   event: TraceEvent,
   network: Network,
@@ -281,15 +320,19 @@ export function explainStep(
       .filter(Boolean)
       .join(" · ") ||
     "No new packet fields at this step. The description above shows the local operation.";
-  if (event.error)
-    return {
-      why: "A required condition for delivery is missing, so the simulator stops here.",
-      audience,
-      outcome: event.explanation,
-      detail:
-        "Inspect the highlighted device and the last successful event. Correct the configuration and send again.",
-      message,
-    };
+  if (event.error) {
+    const failure = event.reason && failureLessons[event.reason];
+    return failure
+      ? { ...failure, audience, outcome: `${event.explanation} ${failure.outcome}`, message }
+      : {
+          why: "A required condition for delivery is missing, so the simulator stops here.",
+          audience,
+          outcome: event.explanation,
+          detail:
+            "Inspect the highlighted device and the last successful event. Correct the configuration and send again.",
+          message,
+        };
+  }
 
   if (app?.name.startsWith("DHCP ") && event.dhcpContext) {
     const { client, server } = event.dhcpContext;

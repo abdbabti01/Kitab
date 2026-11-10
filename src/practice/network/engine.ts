@@ -11,6 +11,7 @@ import {
   type Action,
   type Trace,
   type TraceEvent,
+  type FailureReason,
 } from "./model.ts";
 import {
   ipNumber,
@@ -67,6 +68,20 @@ export function effectiveInterface(
   };
 }
 const bytes = (s: string) => new TextEncoder().encode(s).length;
+class SimulationFailure extends Error {
+  reason?: FailureReason;
+  constructor(message: string, reason?: FailureReason) {
+    super(message);
+    this.reason = reason;
+  }
+}
+const errorText = (error: unknown) =>
+  error instanceof Error ? error.message : String(error);
+// RFC 1918 private ranges.
+export const isPrivate = (ip: string) =>
+  sameSubnet(ip, "10.0.0.0", 8) ||
+  sameSubnet(ip, "172.16.0.0", 12) ||
+  sameSubnet(ip, "192.168.0.0", 16);
 
 /** Deterministic teaching model. Every visible change is an immutable event snapshot. */
 export function simulate(
@@ -136,8 +151,8 @@ export function simulate(
     actor = d.id;
     location = where;
   };
-  function fail(message: string): never {
-    throw new Error(message);
+  function fail(message: string, reason?: FailureReason): never {
+    throw new SimulationFailure(message, reason);
   }
   const iface = (d: Device, id: string) =>
     effectiveInterface(
@@ -509,6 +524,17 @@ export function simulate(
           label: "Default gateway",
         });
     candidates.sort((a, b) => b.prefix - a.prefix);
+    // A router with no private interface is outside every private network: it cannot route back into one.
+    if (
+      !candidates.length &&
+      d.kind === "router" &&
+      isPrivate(dst) &&
+      !active(d).some((p) => p.ip && isPrivate(p.ip))
+    )
+      fail(
+        `${d.name} has no route to ${dst}. ${dst} is a private address (RFC 1918), and Internet routers do not route to private home networks. Replies reach a home network through its public address when the home router uses NAT.`,
+        "NO_ROUTE_PRIVATE",
+      );
     if (!candidates.length)
       fail(
         `${d.name} has no route to ${dst}. Configure a reachable default gateway or a matching static route.`,
@@ -880,7 +906,7 @@ export function simulate(
         at(client, "OS · DNS resolver");
         emit(
           "DNS query",
-          `Ask ${cp.dns} for the IPv4 address of ${destination}. DNS here uses UDP, not TCP.`,
+          `Ask ${cp.dns} for the IPv4 address of ${destination}. Typical lookups use UDP port 53.`,
           [],
         );
         const query: IpMessage = {
@@ -893,24 +919,64 @@ export function simulate(
           data: `A ${destination}`,
           label: "DNS query",
         };
-        const received = send(client, query)!;
-        const answer = received.device.records[destination];
-        if (!answer)
+        // Four different problems look alike from the client; each gets its own reason.
+        const owner = n.devices.find((d) =>
+          active(d).some((p) => p.ip === cp.dns),
+        );
+        let received: { device: Device; message: IpMessage };
+        try {
+          received = send(client, query)!;
+        } catch (error) {
+          if (!owner)
+            fail(
+              `No device in this network has the address ${cp.dns}, so nothing can answer the DNS query. ${client.name}'s DNS server setting is probably wrong: it should be the address of a DNS server.`,
+              "DNS_SERVER_ADDRESS",
+            );
           fail(
-            `DNS has no A record for “${destination}”. Add the record on ${received.device.name}.`,
+            `The DNS query could not reach ${owner.name} at ${cp.dns}. ${errorText(error)}`,
+            "DNS_UNREACHABLE",
           );
-        const response = send(received.device, {
-          ...received.message,
-          src: received.message.dst,
-          dst: received.message.src,
-          sport: 53,
-          dport: received.message.sport,
-          ttl: 64,
-          data: `${destination} A ${answer}`,
-          label: "DNS answer",
-        });
+        }
+        const server = received.device;
+        // ponytail: a device runs DNS when it has records; add an explicit service switch if learners need an empty DNS server.
+        if (!Object.keys(server.records).length) {
+          at(server, "OS · UDP");
+          fail(
+            `${server.name} (${cp.dns}) received the DNS query, but it does not run a DNS service: nothing listens on UDP port 53. Check ${client.name}'s DNS server setting; it should be the address of a DNS server.`,
+            "DNS_NO_SERVICE",
+          );
+        }
+        const answer = server.records[destination];
+        at(server, "DNS server");
+        let response: ReturnType<typeof send>;
+        try {
+          response = send(server, {
+            ...received.message,
+            src: received.message.dst,
+            dst: received.message.src,
+            sport: 53,
+            dport: received.message.sport,
+            ttl: 64,
+            data: answer
+              ? `${destination} A ${answer}`
+              : `${destination}: no such name (NXDOMAIN)`,
+            label: answer ? "DNS answer" : "DNS error",
+          });
+        } catch (error) {
+          fail(
+            `${server.name} answered the DNS query, but the reply could not get back to ${client.name}. ${errorText(error)}`,
+            "DNS_REPLY_UNREACHABLE",
+          );
+        }
         if (response?.device.id !== client.id)
           fail("DNS reply did not return to the client.");
+        if (!answer) {
+          at(client, "OS · DNS resolver");
+          fail(
+            `${server.name} answered that “${destination}” does not exist (NXDOMAIN). The DNS server is reachable and working; check the name, or add an A record for it on ${server.name}.`,
+            "DNS_NO_RECORD",
+          );
+        }
         s.dns[`${client.id}/${destination}`] = answer;
         at(client, "OS · DNS resolver");
         emit("DNS answer", `${destination} → ${answer}`, []);
@@ -1261,9 +1327,12 @@ export function simulate(
       summary: "HTTP 200 OK. Your request and response completed the journey.",
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = errorText(error);
+    const reason =
+      error instanceof SimulationFailure ? error.reason : undefined;
     if (events.length >= 9999) events.pop();
     emit("Delivery stopped", message, current, undefined, true);
-    return { events, session: s, success: false, summary: message };
+    if (reason) events[events.length - 1].reason = reason;
+    return { events, session: s, success: false, summary: message, reason };
   }
 }

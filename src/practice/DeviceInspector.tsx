@@ -399,7 +399,9 @@ export function DeviceInspector({
           <details>
             <summary>DNS records</summary>
             <p className="field-help">
-              Each record maps a hostname to an IPv4 address.
+              Each record maps a hostname to an IPv4 address. A device with at
+              least one record runs a DNS service on UDP port 53; without records
+              it does not answer DNS queries.
             </p>
             {Object.entries(draft.records).map(([name, address], i) => (
               <div className="dns-record" key={i}>
