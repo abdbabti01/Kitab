@@ -1,30 +1,26 @@
 import { linkProps } from "../app/router.ts";
-import { StepExplanation } from "./StepExplanation.tsx";
+import { JourneyCard, JourneyControls, MODE_KEY, StepsList, type JourneyMode, type Point } from "./Journey.tsx";
+import { stageAt, stagesOf } from "./network/stages.ts";
 import { sameConfiguration } from "./network/editing.ts";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Download,
+  ListOrdered,
   Flag,
   Globe2,
   HardDrive,
   Layers,
   Monitor,
   Network as NetworkIcon,
-  Pause,
-  Play,
   Plus,
   Redo2,
   RotateCcw,
   Save,
   Server,
   Settings2,
-  SkipBack,
-  SkipForward,
   Smartphone,
   Undo2,
   Upload,
@@ -71,29 +67,6 @@ const deviceTypes = [
   { kind: "server", label: "Server", icon: Server },
 ] as const;
 const challengeList = challenges();
-const stageTitles = [
-  "DHCP Discover",
-  "DHCP Offer",
-  "DHCP Request",
-  "DHCP ACK",
-  "Apply DHCP lease",
-  "Configuration complete",
-  "Prepare HTTP request",
-  "DNS query",
-  "Create socket and connect",
-  "TCP SYN",
-  "Create TCP segment",
-  "Create IPv4 packet",
-  "Translate source with NAT",
-  "Server reads HTTP request",
-  "Build HTTP response",
-  "Restore reply destination",
-  "Read reassembled response",
-  "Retransmit TCP segment",
-  "HTTP journey complete",
-  "Ping complete",
-  "Delivery stopped",
-];
 export function NetworkPlayground() {
   const [startup] = useState(() => {
     try {
@@ -111,7 +84,7 @@ export function NetworkPlayground() {
     [saveBlocked, setSaveBlocked] = useState(!!startup.error),
     [saved, setSaved] = useState("Saved on this device");
   const [selected, setSelected] = useState(""),
-    [tab, setTab] = useState<"device" | "packet" | "tables">("packet"),
+    [tab, setTab] = useState<"device" | "packet" | "tables" | "steps">("packet"),
     [session, setSession] = useState<Session>(newSession),
     [trace, setTrace] = useState<Trace | null>(null),
     [index, setIndex] = useState(0),
@@ -119,7 +92,16 @@ export function NetworkPlayground() {
     [speed, setSpeed] = useState(1),
     [follow, setFollow] = useState(false),
     [inside, setInside] = useState(false),
-    [showEvents, setShowEvents] = useState(false);
+    [cardOpen, setCardOpen] = useState(true),
+    [positions, setPositions] = useState<Record<string, Point>>({}),
+    // Summary is the first-visit default; the learner's choice is remembered on this device.
+    [mode, setMode] = useState<JourneyMode>(() => {
+      try {
+        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
+      } catch {
+        return "summary";
+      }
+    });
   const [action, setAction] = useState<Action>({
     kind: "http",
     source:
@@ -156,6 +138,8 @@ export function NetworkPlayground() {
   useEffect(() => {
     if (inspectorRef.current) inspectorRef.current.scrollTop = 0;
   }, [tab, selected]);
+  const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
+  const stage = trace ? stages[stageAt(stages, index)] : undefined;
   const event = trace?.events[index],
     shownSession = event?.snapshot ?? session,
     device = network.devices.find((d) => d.id === selected),
@@ -328,8 +312,28 @@ export function NetworkPlayground() {
     stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name : "";
   const showStop = () => {
     step(stoppedAt);
-    setTab("packet");
+    setCardOpen(true);
   };
+  function chooseMode(next: JourneyMode) {
+    setMode(next);
+    try {
+      localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // The choice still applies for this visit.
+    }
+  }
+  function inspectPacket() {
+    setPlaying(false);
+    setTab("packet");
+    if (window.matchMedia("(max-width: 850px)").matches)
+      inspectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  // Announce stage changes; when stepping by hand in Every event, announce each event.
+  const announcement = !trace
+    ? ""
+    : mode === "events" && !playing
+      ? `Event ${index + 1} of ${trace.events.length}: ${trace.events[index].title}`
+      : `Stage ${stageAt(stages, index) + 1} of ${stages.length}: ${stage?.title}`;
   const nextChallenge =
     challenge &&
     challengeList[challengeList.findIndex((c) => c.id === challenge.id) + 1];
@@ -681,10 +685,13 @@ export function NetworkPlayground() {
         )}
         <div className="workspace-grid">
           <div className="workspace-stage">
+            <div className="journey-stage">
             <NetworkCanvas
               network={network}
               session={shownSession}
               event={event}
+              focus={stage}
+              onPositions={setPositions}
               selected={selected}
               onSelect={(id) => {
                 setSelected(id);
@@ -704,6 +711,43 @@ export function NetworkPlayground() {
               onAdd={add}
               follow={follow}
             />
+            <JourneyControls
+              trace={trace}
+              stages={stages}
+              index={index}
+              mode={mode}
+              playing={playing}
+              speed={speed}
+              network={network}
+              onStep={step}
+              onPlay={() => {
+                if (trace && index >= trace.events.length - 1) setIndex(0);
+                setPlaying((p) => !p);
+              }}
+              onMode={chooseMode}
+              onSpeed={setSpeed}
+              onShowStop={showStop}
+            />
+            {trace && (
+              <JourneyCard
+                trace={trace}
+                stages={stages}
+                index={index}
+                mode={mode}
+                network={network}
+                playing={playing}
+                positions={positions}
+                open={cardOpen}
+                onOpen={setCardOpen}
+                onStep={step}
+                onInspect={inspectPacket}
+                onReadDetails={() => setPlaying(false)}
+              />
+            )}
+            <p className="sr-only" aria-live="polite">
+              {announcement}
+            </p>
+            </div>
             <div className="view-options">
               <label className="network-check">
                 <input
@@ -852,204 +896,6 @@ export function NetworkPlayground() {
                 </button>
               </div>
             </section>
-            <section className="replay-panel" aria-label="Packet playback">
-              <div className="replay-top">
-                <div className="send-title">
-                  <span className="step-marker">02</span>
-                  <div>
-                    <b>Follow the journey</b>
-                    <small>
-                      {trace
-                        ? `${index + 1} of ${trace.events.length} events · simulated ${((event?.time ?? 0) / 1000).toFixed(2)}s`
-                        : "Every hop. Every header. Every decision."}
-                    </small>
-                  </div>
-                </div>
-                <div className="replay-controls">
-                  <button
-                    aria-label="First event"
-                    disabled={!trace}
-                    onClick={() => step(0)}
-                  >
-                    <SkipBack size={16} />
-                  </button>
-                  <button
-                    aria-label="Previous event"
-                    disabled={!trace || index === 0}
-                    onClick={() => step(index - 1)}
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-                  <button
-                    className="play-button"
-                    aria-label={playing ? "Pause playback" : "Play journey"}
-                    disabled={!trace}
-                    onClick={() => {
-                      if (trace && index >= trace.events.length - 1)
-                        setIndex(0);
-                      setPlaying((p) => !p);
-                    }}
-                  >
-                    {playing ? <Pause size={19} /> : <Play size={19} />}
-                  </button>
-                  <button
-                    aria-label="Next event"
-                    disabled={!trace || index >= trace.events.length - 1}
-                    onClick={() => step(index + 1)}
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                  <button
-                    aria-label="Last event"
-                    disabled={!trace}
-                    onClick={() => step((trace?.events.length ?? 1) - 1)}
-                  >
-                    <SkipForward size={16} />
-                  </button>
-                  <select
-                    aria-label="Playback speed"
-                    value={speed}
-                    onChange={(e) => setSpeed(Number(e.target.value))}
-                  >
-                    <option value={0.5}>0.5×</option>
-                    <option value={1}>1×</option>
-                    <option value={2}>2×</option>
-                    <option value={4}>4×</option>
-                    <option value={8}>8×</option>
-                  </select>
-                </div>
-              </div>
-              {trace && (
-                <div className="stage-shortcuts">
-                  <span>JUMP TO</span>
-                  {stageTitles.flatMap((title) => {
-                    const i = trace.events.findIndex((e) => e.title === title);
-                    return i < 0
-                      ? []
-                      : [
-                          <button
-                            key={title}
-                            onClick={() => {
-                              step(i);
-                              setTab("packet");
-                            }}
-                            className={index === i ? "active" : ""}
-                          >
-                            {(
-                              {
-                                "Prepare HTTP request": "Request",
-                                "Create socket and connect": "Socket",
-                                "TCP SYN": "Handshake",
-                                "Create TCP segment": "TCP wrapping",
-                                "Create IPv4 packet": "IP wrapping",
-                                "Translate source with NAT": "NAT out",
-                                "Restore reply destination": "NAT reply",
-                                "Server reads HTTP request": "Server",
-                                "Build HTTP response": "Response",
-                                "Read reassembled response": "Browser",
-                                "HTTP journey complete": "Finish",
-                                "Retransmit TCP segment": "Retransmit",
-                              } as Record<string, string>
-                            )[title] ?? title}
-                          </button>,
-                        ];
-                  })}
-                </div>
-              )}
-              <input
-                className="timeline-slider"
-                type="range"
-                aria-label="Journey timeline"
-                min={0}
-                max={Math.max(1, (trace?.events.length ?? 1) - 1)}
-                value={index}
-                disabled={!trace}
-                onChange={(e) => step(Number(e.target.value))}
-              />
-              <div
-                className={`event-explanation ${event?.error ? "event-error" : ""}`}
-              >
-                <span className="event-symbol">
-                  {event?.error ? "!" : <Layers size={20} />}
-                </span>
-                <div>
-                  <span className="eyebrow">
-                    {event
-                      ? `${network.devices.find((d) => d.id === event.actor)?.name ?? event.actor} / ${event.location}`
-                      : "READY WHEN YOU ARE"}
-                  </span>
-                  <h3>
-                    {event?.title ?? "A message is more than its payload."}
-                  </h3>
-                  {!event && (
-                    <p>
-                      Send a request to see how your application’s data gets wrapped, routed, delivered and unwrapped at its destination.
-                    </p>
-                  )}
-                  {event && trace && (
-                    <StepExplanation
-                      events={trace.events}
-                      index={index}
-                      network={network}
-                      onReadDetails={() => setPlaying(false)}
-                      onGoto={step}
-                    />
-                  )}
-                </div>
-              </div>
-              {trace && (
-                <>
-                  <div
-                    className={`run-status ${trace.success ? "success" : "failure"}`}
-                    role="status"
-                  >
-                    {trace.success ? <Check size={15} /> : <span>!</span>}
-                    {trace.success ? (
-                      <span>{trace.summary}</span>
-                    ) : (
-                      <span>
-                        <b>Delivery stopped{stoppedBy ? ` at ${stoppedBy}` : ""}.</b>{" "}
-                        {index !== stoppedAt && (
-                          <button className="text-button stop-link" onClick={showStop}>
-                            Show where and why
-                          </button>
-                        )}
-                      </span>
-                    )}
-                    <button
-                      className="text-button"
-                      onClick={() => setShowEvents((v) => !v)}
-                    >
-                      {showEvents ? "Hide" : "Show"} event list
-                    </button>
-                  </div>
-                  {showEvents && (
-                    <ol className="event-list">
-                      {trace.events.map((e, i) => (
-                        <li key={e.id}>
-                          <button
-                            aria-current={i === index ? "step" : undefined}
-                            onClick={() => {
-                              step(i);
-                              setTab("packet");
-                            }}
-                          >
-                            <span>{i + 1}</span>
-                            <b>{e.title}</b>
-                            <small>
-                              {
-                                network.devices.find((d) => d.id === e.actor)
-                                  ?.name
-                              }
-                            </small>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-                </>
-              )}
-            </section>
           </div>
           <aside
             ref={inspectorRef}
@@ -1074,6 +920,12 @@ export function NetworkPlayground() {
                 onClick={() => setTab("tables")}
               >
                 <Server size={15} /> Tables
+              </button>
+              <button
+                className={tab === "steps" ? "active" : ""}
+                onClick={() => setTab("steps")}
+              >
+                <ListOrdered size={15} /> Steps
               </button>
             </div>
             <div className="inspector-body">
@@ -1128,6 +980,16 @@ export function NetworkPlayground() {
                       Click a device on the canvas to see what it does,
                       configure its interfaces and connect it to your network.
                     </p>
+                  </div>
+                )
+              ) : tab === "steps" ? (
+                trace ? (
+                  <StepsList trace={trace} stages={stages} index={index} mode={mode} network={network} onStep={step} />
+                ) : (
+                  <div className="inspector-empty">
+                    <ListOrdered size={32} />
+                    <h2>No journey yet</h2>
+                    <p>Send something. Every step it takes will be listed here.</p>
                   </div>
                 )
               ) : tab === "packet" ? (

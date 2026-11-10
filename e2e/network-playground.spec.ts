@@ -1,4 +1,10 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+/** Shows every event, then selects one from the Steps tab by title (and device). */
+async function goToEvent(page: Page, name: RegExp) {
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name }).first().click();
+}
 test("practice workspace runs and rewinds a real HTTP journey", async ({
   page,
 }) => {
@@ -7,17 +13,15 @@ test("practice workspace runs and rewinds a real HTTP journey", async ({
     page.getByRole("heading", { name: "Network playground" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  const card = page.locator(".journey-card");
   await page.getByRole("button", { name: "Last event", exact: true }).click();
-  await expect(page.locator(".event-explanation")).toContainText(
-    "HTTP journey complete",
-  );
+  await expect(card).toContainText("Close the connection");
+  await expect(card).toContainText("The page arrived, and both sides closed the connection");
   await expect(page.locator(".packet-inspector")).toContainText(
     "Hello from your network",
   );
   await page.getByRole("button", { name: "First event", exact: true }).click();
-  await expect(page.locator(".event-explanation")).toContainText(
-    "Prepare HTTP request",
-  );
+  await expect(card).toContainText("Prepare the HTTP request");
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -39,7 +43,7 @@ test("device settings affect delivery and designs survive reload", async ({
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(page.locator(".run-status")).toContainText("Delivery stopped");
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
-  await expect(page.locator(".event-explanation")).toContainText("ARP");
+  await expect(page.locator(".journey-card")).toContainText("ARP");
   await page.reload();
   await page
     .getByRole("button", { name: "Select Your PC", exact: true })
@@ -112,19 +116,13 @@ test("step explanations pause playback and explain DHCP recipients", async ({
   await page
     .getByRole("button", { name: "Configure automatically", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "DHCP Discover", exact: true })
-    .click();
+  await goToEvent(page, /DHCP Discover/);
   await page.getByRole("button", { name: "Play journey", exact: true }).click();
-  await page
-    .getByText("Who receives it, and what happens next?", { exact: true })
-    .click();
+  // Reading the details pauses playback.
+  await page.locator(".journey-card").getByRole("button", { name: "Why and how" }).click();
   await expect(
     page.getByRole("button", { name: "Play journey", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Show event list", exact: true })
-    .click();
   // Device names distinguish repeated receive events and must remain visible on phones.
   await expect(page.locator(".event-list small").filter({ hasText: "Your PC" }).first()).toBeVisible();
   await page
@@ -133,8 +131,9 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     .first()
     .click();
   await expect(page.locator(".step-guide")).toContainText("does not answer");
+  await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(page.locator(".step-guide")).toContainText("port 68 → 67");
-  await page.getByRole("button", { name: "DHCP Offer", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /DHCP Offer/ }).first().click();
   await expect(page.locator(".step-guide")).toContainText(
     "not simply because it is a router",
   );
@@ -157,7 +156,7 @@ test("challenge feedback explains unfinished runs and what a pass proved", async
   await expect(verdict).toContainText("The network stopped the delivery.");
   // The reason is explained once, at the failing step; the verdict and status only point to it.
   await verdict.getByRole("button", { name: "Show where and why" }).click();
-  await expect(page.locator(".event-explanation")).toContainText("private address (RFC 1918)");
+  await expect(page.locator(".journey-card")).toContainText("private address (RFC 1918)");
   expect(await page.evaluate(() => document.body.innerText.split("Internet routers do not route to private home networks").length - 1)).toBe(1);
 
   await page.getByLabel("Choose a challenge").selectOption("loss");
@@ -176,7 +175,8 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
   await page.goto("/practice/network");
   await page.getByLabel("Starter network").selectOption("lan");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "TCP wrapping", exact: true }).click();
+  await goToEvent(page, /Create TCP segment/);
+  await page.locator(".journey-card").getByRole("button", { name: "Why and how" }).click();
   const note = page.locator(".step-note");
   await expect(note).toContainText("Real TCP keeps several segments in flight");
   await note.getByRole("link").click();
@@ -186,7 +186,7 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
 test("no playground control is clipped or pushed off screen", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Show event list", exact: true }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
   // Checks real clipping: a control wider than the viewport or than its nearest overflow-clipping ancestor.
   const clipped = await page.evaluate(() => {
     const out: string[] = [];
@@ -226,8 +226,10 @@ test("a failure names its cause chain and where to look", async ({ page }) => {
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  const card = page.locator(".journey-card");
+  await expect(card.locator("h3")).toHaveText("The DNS answer could not come back");
+  await card.getByRole("button", { name: "Why it stopped" }).click();
   const guide = page.locator(".step-guide");
-  await expect(guide.locator(".failure-title")).toHaveText("The DNS answer could not come back");
   await expect(guide.getByRole("list", { name: "What caused it" })).toContainText("No route to a private address");
   await expect(guide).toContainText("Where to look:");
 });
@@ -236,12 +238,76 @@ test("a step links to the earlier step that caused it and cites its rule", async
   await page.getByLabel("Source device").selectOption("phone");
   await page.getByLabel("Traffic type").selectOption("dhcp");
   await page.getByRole("button", { name: "Configure automatically", exact: true }).click();
-  await page.getByRole("button", { name: "Apply DHCP lease", exact: true }).click();
+  await goToEvent(page, /Apply DHCP lease/);
+  await expect(page.locator(".journey-card .journey-summary")).toContainText("now uses 192.168.1.100/24, gateway 192.168.1.1");
+  await page.locator(".journey-card").getByRole("button", { name: "Why and how" }).click();
   const guide = page.locator(".step-guide");
-  await expect(guide.locator(".step-summary")).toContainText("now uses 192.168.1.100/24, gateway 192.168.1.1");
   await guide.getByRole("button", { name: /^Go to step \d+: DHCP ACK$/ }).click();
-  await expect(page.locator(".event-explanation h3")).toHaveText("DHCP ACK");
+  await expect(page.locator(".journey-card h3")).toHaveText("DHCP ACK");
   await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(guide.locator("cite")).toHaveText("RFC 2131 §3.1");
   await expect(guide).toContainText("unicast unless the client sets the broadcast flag");
+});
+
+test("Follow the journey: the card explains each stage beside the diagram and both views share one position", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  const card = page.locator(".journey-card");
+  const position = page.locator(".journey-position");
+  // Summary is the first-visit view: Next moves a whole stage.
+  await expect(page.getByRole("radio", { name: "Summary" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Next stage", exact: true }).click();
+  await page.getByRole("button", { name: "Next stage", exact: true }).click();
+  await expect(position).toContainText("Stage 3 of 30");
+  await expect(card.locator("h3")).toHaveText("ARP · Your PC looks for 192.168.1.1");
+  await expect(card).toContainText("Home router answered with its MAC");
+  // The stage's devices stay prominent; unrelated ones are dimmed but still there.
+  await expect(page.getByRole("button", { name: "Select ISP router", exact: true })).toHaveClass(/is-dimmed/);
+  await expect(page.getByRole("button", { name: "Select Home router", exact: true })).not.toHaveClass(/is-dimmed/);
+  // Switching views keeps the same event; Next then moves one event.
+  const at = await position.locator("small").innerText();
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await expect(position).toContainText(at.match(/event (\d+)/)![1]);
+  await page.getByRole("button", { name: "Next event", exact: true }).click();
+  await expect(position).toContainText("Event 26 of 489");
+  await expect(card.locator("h3")).toHaveText("Wrap in a link frame");
+  // The view is remembered on this device.
+  await page.reload();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Every event" })).toHaveAttribute("aria-checked", "true");
+  // The card can be hidden and brought back, and the step is announced for screen readers.
+  await card.getByRole("button", { name: "Hide the explanation" }).click();
+  await expect(card).toHaveCount(0);
+  await page.getByRole("button", { name: "Show the explanation" }).click();
+  await expect(card).toBeVisible();
+  await expect(page.locator(".journey-stage [aria-live]")).toHaveText(/^Event 1 of 489: Prepare HTTP request$/);
+});
+
+test("a stage in progress never claims its later events already happened", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByLabel("Journey timeline").fill("10");
+  const card = page.locator(".journey-card");
+  await expect(card.locator("h3")).toHaveText("ARP · Your PC looks for 192.168.1.1");
+  await expect(card).toContainText("In progress: event 8 of 22 in this stage.");
+  await expect(card).not.toContainText("Home router answered");
+});
+
+test("on the desktop the card sits on the diagram without covering the stage's devices or the zoom controls", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "Floating placement applies to wide canvases");
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "Next stage", exact: true }).click();
+  await page.getByRole("button", { name: "Next stage", exact: true }).click();
+  const overlap = await page.evaluate(() => {
+    const card = document.querySelector(".journey-card")!.getBoundingClientRect();
+    const hits = (r: DOMRect) => r.left < card.right && r.right > card.left && r.top < card.bottom && r.bottom > card.top;
+    return [...document.querySelectorAll(".network-device:not(.is-dimmed) .device-tile, .canvas-zoom")]
+      .filter((el) => hits(el.getBoundingClientRect()))
+      .map((el) => el.closest("[aria-label]")?.getAttribute("aria-label") ?? el.className);
+  });
+  expect(overlap).toEqual([]);
+  const canvas = await page.locator(".network-canvas").boundingBox();
+  const box = await page.locator(".journey-card").boundingBox();
+  expect(box!.y + box!.height).toBeLessThanOrEqual(canvas!.y + canvas!.height);
 });

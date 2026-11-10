@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type PointerEvent } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, type PointerEvent } from "react";
 import { Maximize, Minus, Plus, Move, MousePointer2 } from "lucide-react";
 import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
@@ -17,6 +17,8 @@ export function NetworkCanvas({
   onMove,
   onAdd,
   follow,
+  focus,
+  onPositions,
 }: {
   network: Network;
   session: Session;
@@ -26,6 +28,10 @@ export function NetworkCanvas({
   onMove: (id: string, x: number, y: number) => void;
   onAdd: (kind: DeviceKind, x: number, y: number) => void;
   follow: boolean;
+  /** The current stage: its devices stay prominent and its links show their direction. */
+  focus?: { devices: string[]; hops: { from: string; to: string; link: string }[] };
+  /** Device centres in pixels inside the canvas, for anchoring the journey card. */
+  onPositions?: (positions: Record<string, { x: number; y: number }>) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1),
@@ -123,6 +129,32 @@ export function NetworkCanvas({
   const groups = [
     ...new Set(visibleDevices.map((d) => d.group).filter(Boolean)),
   ];
+  const wrap = useRef<HTMLDivElement>(null),
+    reported = useRef("");
+  // Report where each device is drawn, after layout and whenever the view or size changes.
+  useLayoutEffect(() => {
+    const report = () => {
+      const m = svg.current?.getScreenCTM(),
+        box = wrap.current?.getBoundingClientRect();
+      if (!m || !box || !onPositions) return;
+      const out: Record<string, { x: number; y: number }> = {};
+      for (const d of devices) {
+        const p = new DOMPoint(displayPosition(d).x, displayPosition(d).y).matrixTransform(m);
+        out[d.id] = { x: Math.round(p.x - box.left), y: Math.round(p.y - box.top) };
+      }
+      const key = JSON.stringify(out);
+      if (key !== reported.current) {
+        reported.current = key;
+        onPositions(out);
+      }
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    if (wrap.current) observer.observe(wrap.current);
+    return () => observer.disconnect();
+  });
+  const onPath = new Set(focus?.hops.map((h) => h.link));
+  const involved = focus && new Set([...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])]);
   const cable = (
     from: { x: number; y: number },
     to: { x: number; y: number },
@@ -130,6 +162,7 @@ export function NetworkCanvas({
     `M ${from.x} ${from.y} C ${(from.x + to.x) / 2} ${from.y}, ${(from.x + to.x) / 2} ${to.y}, ${to.x} ${to.y}`;
   return (
     <div
+      ref={wrap}
       className="network-canvas"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -229,7 +262,7 @@ export function NetworkCanvas({
             <g key={l.id}>
               <path
                 d={path}
-                className={`network-wire ${l.medium} ${active ? "active" : ""}`}
+                className={`network-wire ${l.medium} ${active ? "active" : ""} ${onPath.has(l.id) ? "in-path" : ""}`}
               />
               <text
                 className="link-label"
@@ -257,6 +290,27 @@ export function NetworkCanvas({
                 </g>
               )}
             </g>
+          );
+        })}
+        {/* Direction of travel on each link the current stage used. */}
+        {[...new Map(focus?.hops.map((h) => [`${h.link}>${h.from}`, h])).values()].map((h) => {
+          const a = devices.find((d) => d.id === h.from),
+            b = devices.find((d) => d.id === h.to);
+          if (!a || !b) return null;
+          const pa = displayPosition(a),
+            pb = displayPosition(b);
+          const len = Math.hypot(pb.x - pa.x, pb.y - pa.y) || 1,
+            ux = (pb.x - pa.x) / len,
+            uy = (pb.y - pa.y) / len;
+          // Opposite directions sit on opposite sides of the cable.
+          const mx = (pa.x + pb.x) / 2 - uy * 11,
+            my = (pa.y + pb.y) / 2 + ux * 11;
+          return (
+            <path
+              key={`${h.link}>${h.from}`}
+              className="path-arrow"
+              d={`M ${mx - ux * 9 - uy * 6} ${my - uy * 9 + ux * 6} L ${mx + ux * 7} ${my + uy * 7} L ${mx - ux * 9 + uy * 6} ${my - uy * 9 - ux * 6}`}
+            />
           );
         })}
         {collapsedInternet && internetIds.size > 0 && (
@@ -295,7 +349,7 @@ export function NetworkCanvas({
             <g
               key={d.id}
               transform={`translate(${d.x} ${d.y})`}
-              className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""}`}
+              className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${event?.hop?.from === d.id ? "is-sender" : ""} ${event?.hop?.to === d.id ? "is-receiver" : ""} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}`}
               role="button"
               tabIndex={0}
               aria-label={`Select ${d.name}`}

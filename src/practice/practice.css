@@ -615,82 +615,12 @@
 .send-options > .text-button {
   margin-left: auto;
 }
-.replay-panel {
-  padding: 21px 22px;
-}
-.replay-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.replay-controls {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.replay-controls > button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  height: 31px;
-  width: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-}
-.replay-controls .play-button {
-  background: var(--primary);
-  color: white;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  margin: 0 5px;
-}
-.replay-controls select {
-  font-size: 10px;
-  min-height: 28px;
-  border: 0;
-  background: transparent;
-  padding-right: 14px;
-}
 .timeline-slider {
   width: 100%;
   height: 4px;
   accent-color: var(--primary);
   margin: 24px 0 21px;
   display: block;
-}
-.event-explanation {
-  display: flex;
-  gap: 12px;
-  background: #f1f5eb;
-  border: 1px solid #e0e7d9;
-  border-radius: 10px;
-  padding: 17px;
-}
-.event-symbol {
-  color: var(--primary);
-  padding-top: 3px;
-}
-.event-explanation h3 {
-  font: normal 22px/1.2 var(--display);
-  margin: 7px 0 8px;
-  letter-spacing: -0.3px;
-}
-.event-explanation p {
-  font-size: 12px;
-  line-height: 1.7;
-  margin: 0;
-  color: var(--ink-2);
-}
-.event-error {
-  background: var(--danger-soft);
-  border-color: #eac7ba;
-}
-.event-error .event-symbol {
-  color: var(--danger);
 }
 .run-status {
   display: flex;
@@ -1327,9 +1257,6 @@
   .workspace-actions select {
     max-width: 180px;
   }
-  .replay-top {
-    gap: 16px;
-  }
   .device-closeup {
     grid-template-columns: 1fr;
   }
@@ -1482,8 +1409,7 @@
   .network-check {
     font-size: 10px !important;
   }
-  .send-panel,
-  .replay-panel {
+  .send-panel {
     padding: 18px 14px;
   }
   .send-fields {
@@ -1507,29 +1433,6 @@
   }
   .ttl-input span {
     display: none;
-  }
-  .replay-controls {
-    justify-content: center;
-    width: 100%;
-    gap: 8px;
-  }
-  .replay-controls > button {
-    height: 36px;
-    width: 34px;
-  }
-  .event-explanation {
-    padding: 14px 11px;
-    gap: 8px;
-  }
-  .event-explanation h3 {
-    font-size: 20px;
-  }
-  .event-explanation p {
-    font-size: 11px;
-  }
-  .event-explanation .eyebrow {
-    font-size: 8px;
-    letter-spacing: 1px;
   }
   .run-status {
     flex-wrap: wrap;
@@ -1600,32 +1503,6 @@
     scroll-behavior: auto !important;
   }
 }
-.stage-shortcuts {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 18px 0 0;
-}
-.stage-shortcuts > span {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: var(--muted);
-  margin-right: 3px;
-}
-.stage-shortcuts button {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  font-size: 9px;
-  padding: 5px 7px;
-  color: var(--muted);
-}
-.stage-shortcuts button.active {
-  color: var(--primary);
-  background: var(--primary-soft);
-  border-color: var(--primary-soft-line);
-}
 .packet-stack {
   animation: layer-arrival 0.18s ease-out;
 }
@@ -1665,20 +1542,13 @@
   letter-spacing: 0.04em;
   color: var(--primary);
 }
-.event-explanation .step-guide p,
+.step-guide p,
 .step-guide dd {
   margin: 0;
   font-size: 13px;
   line-height: 1.7;
   max-width: 76ch;
   overflow-wrap: anywhere;
-}
-.event-explanation .step-guide p.step-note {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-left: 3px solid var(--warning);
-  background: var(--warning-soft);
-  font-size: 12px;
 }
 .step-note a {
   color: var(--primary);
@@ -1770,4 +1640,330 @@
   font-style: normal;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* Follow the Journey: the canvas, the card beside the active device, and the controls under it. */
+.journey-stage {
+  position: relative;
+  container: journey / inline-size;
+}
+.network-device.is-dimmed {
+  opacity: 0.42;
+}
+.network-device.is-sender .device-tile {
+  stroke: #b57729;
+  stroke-width: 3;
+}
+.network-device.is-receiver .device-tile {
+  stroke: #357a60;
+  stroke-width: 3;
+  stroke-dasharray: 5 4;
+}
+.network-wire.in-path {
+  stroke: #6f9c84;
+  stroke-width: 3.5;
+}
+.path-arrow {
+  fill: none;
+  stroke: #2d6b50;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.journey-card {
+  position: absolute;
+  left: var(--card-x, 16px);
+  top: var(--card-y, 56px);
+  z-index: 3;
+  width: min(330px, calc(100% - 32px));
+  max-height: var(--card-max, 440px);
+  overflow: auto;
+  padding: 13px 15px 10px;
+  background: #fffef9f5;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px #193a2d22;
+  color: var(--ink-2);
+  visibility: hidden;
+}
+.journey-card.is-placed {
+  visibility: visible;
+}
+.journey-card.has-details {
+  width: min(460px, calc(100% - 32px));
+}
+.journey-card.is-error {
+  border-left-color: var(--danger);
+}
+.journey-card header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.journey-card header .icon-button {
+  min-height: 32px;
+  min-width: 32px;
+  margin: -6px -8px 0 0;
+}
+.journey-card h3 {
+  font: normal 19px/1.25 var(--display);
+  margin: 2px 0 6px;
+  color: var(--ink);
+}
+.journey-card.is-error h3 {
+  color: var(--danger);
+}
+.journey-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.journey-progress {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.journey-why {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.journey-card footer {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+.journey-card footer .text-button {
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 32px;
+}
+.journey-details .step-guide {
+  margin-top: 10px;
+}
+.journey-reopen {
+  position: absolute;
+  left: var(--card-x, 16px);
+  top: var(--card-y, 56px);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.journey-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--line);
+  background: #fbfcf6;
+}
+.journey-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.journey-buttons > button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  height: 36px;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+.journey-buttons .play-button {
+  background: var(--primary);
+  color: white;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  margin: 0 4px;
+}
+.journey-position {
+  min-width: 0;
+  display: grid;
+}
+.journey-position b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journey-position small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.journey-mode {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.journey-mode button {
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 8px 10px;
+  min-height: 34px;
+}
+.journey-mode button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+.journey-controls > select {
+  font-size: 11px;
+}
+.journey-controls .timeline-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--primary);
+  margin: 2px 0 0;
+}
+.journey-controls .run-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: start;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--success);
+}
+.journey-controls .run-status.failure {
+  color: var(--danger);
+}
+.journey-controls .run-status > span[aria-hidden] {
+  flex: none;
+  font-weight: 700;
+}
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.stage-list > li {
+  border-bottom: 1px solid var(--line);
+}
+.stage-list summary {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.stage-list summary > span {
+  font: 10px var(--mono);
+  color: var(--muted);
+  min-width: 20px;
+}
+.stage-list summary b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.stage-list summary small {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.stage-list .is-error summary b {
+  color: var(--danger);
+}
+.stage-list .event-list {
+  max-height: none;
+  margin: 0 0 8px;
+}
+.event-list {
+  max-height: 520px;
+}
+@container journey (max-width: 900px) {
+  /* Narrower canvases: a smaller card; the cause moves into "Why and how". */
+  .journey-card:not(.has-details) {
+    width: 260px;
+  }
+  .journey-card:not(.has-details) .journey-why {
+    display: none;
+  }
+  .journey-card:not(.has-details) .journey-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-card h3 {
+    font-size: 17px;
+  }
+}
+@container journey (max-width: 760px) {
+  /* Phones: the card sits directly under the diagram with a steady size, so stepping does not move the page. */
+  .journey-controls {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .journey-position {
+    flex: 1 1 160px;
+  }
+  .journey-controls .timeline-slider,
+  .journey-controls .run-status {
+    flex-basis: 100%;
+  }
+  .journey-card,
+  .journey-card:not(.has-details),
+  .journey-reopen {
+    position: static;
+    width: auto;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    border-width: 1px 0 0 4px;
+    box-shadow: none;
+    visibility: visible;
+  }
+  .journey-card.has-details {
+    width: auto;
+  }
+  /* Room for a two-line title and four lines of summary, so stepping does not move the page. */
+  .journey-card:not(.has-details) {
+    min-height: 15.5rem;
+  }
+  .journey-card h3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-card:not(.has-details) .journey-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-reopen {
+    border-radius: 0;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-card {
+    scroll-behavior: auto;
+  }
 }

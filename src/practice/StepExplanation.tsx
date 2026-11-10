@@ -9,19 +9,22 @@ export function StepExplanation({
   network,
   onReadDetails,
   onGoto,
+  embedded = false,
 }: {
   events: TraceEvent[];
   index: number;
   network: Network;
   onReadDetails: () => void;
   onGoto: (index: number) => void;
+  /** Inside the journey card, which already shows the title and summary. */
+  embedded?: boolean;
 }) {
   const n = narrate(events, index, network);
   const failure = n.failure;
   return (
     <section className="step-guide" aria-label="Understand this step">
-      {failure && <h4 className="failure-title">{failure.title}</h4>}
-      <p className="step-summary">{failure ? events[index].explanation : n.summary}</p>
+      {!embedded && failure && <h4 className="failure-title">{failure.title}</h4>}
+      {!embedded && <p className="step-summary">{failure ? events[index].explanation : n.summary}</p>}
       <h4>{failure ? "Why it stopped" : "Why this happens"}</h4>
       {n.cause && (
         <p className="step-cause">
