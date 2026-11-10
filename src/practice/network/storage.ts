@@ -1,8 +1,8 @@
 import { importNetwork } from "./topology.ts";
 import type { Network } from "./model.ts";
+export { CHALLENGES_KEY } from "./mission-progress.ts";
 export const WORKSPACE_KEY = "kitab.network.workspace.v1",
   SAVES_KEY = "kitab.network.saves.v1",
-  CHALLENGES_KEY = "kitab.network.challenges.v1",
   /** A mission's network opened in the playground for free experiments; never saved over the workspace. */
   SCRATCH_KEY = "kitab.network.scratch";
 export function loadWorkspace(): Network | null {

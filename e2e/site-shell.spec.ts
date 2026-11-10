@@ -13,6 +13,8 @@ test("home, lessons, practice and concepts share navigation and surface tokens",
   for (const [path, label] of [
     ["/learn/ip-addressing", "Learn"],
     ["/missions/tcp-lost-segment", "Practice"],
+    ["/practice/missions", "Practice"],
+    ["/practice/missions/neighbours", "Practice"],
     ["/concepts/message-queues", "Concepts"],
   ]) {
     await page.goto(path);

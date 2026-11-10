@@ -20,6 +20,7 @@ import {
   type MissionAttempt,
 } from "./network/mission-progress.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
+import { networkingPath } from "../learning/networking-path.ts";
 import type { Action, Network, Trace } from "./network/model.ts";
 import "./practice.css";
 
@@ -535,34 +536,29 @@ export function NetworkMissionsIndex({ tcp }: { tcp: { id: string; title: string
           Prefer to build freely? Open the network playground →
         </a>
       </header>
-      <ol className="mission-list">
-        {missions.map((m) => {
-          const state = missionState(store.missions[m.id], m);
-          return (
-            <li key={m.id}>
-              <a {...linkProps(`/practice/missions/${m.id}`)}>
-                <span className="mission-level">Level {m.level}</span>
-                <b>{m.title}</b>
-                <span>{m.brief}</span>
-                <span className={`state-pill is-${state}`}>{practiceLabels[state]}</span>
-              </a>
-            </li>
-          );
-        })}
-      </ol>
-      <h2 className="mission-list-heading">TCP missions</h2>
-      <ol className="mission-list">
-        {tcp.map((m) => (
-          <li key={m.id}>
-            <a {...linkProps(`/missions/${m.id}`)}>
-              <span className="mission-level">TCP</span>
-              <b>{m.title}</b>
-              <span>{m.summary}</span>
-              <span className={`state-pill is-${m.state}`}>{practiceLabels[m.state]}</span>
-            </a>
-          </li>
-        ))}
-      </ol>
+      {/* In networking-path order, so each mission follows what it builds on. */}
+      {networkingPath.map((stage, index) => stage.practise.length > 0 && (
+        <section key={stage.id} aria-labelledby={`stage-${stage.id}`}>
+          <h2 className="mission-list-heading" id={`stage-${stage.id}`}>Stage {index + 1} · {stage.title}</h2>
+          <ol className="mission-list">
+            {stage.practise.map((activity) => {
+              const m = missions.find((x) => x.id === activity.id);
+              const t = tcp.find((x) => x.id === activity.id);
+              const state = m ? missionState(store.missions[m.id], m) : t?.state ?? "not-started";
+              return (
+                <li key={activity.id}>
+                  <a {...linkProps(activity.path)}>
+                    <span className="mission-level">{m ? `Level ${m.level}` : "TCP"}</span>
+                    <b>{activity.title}</b>
+                    <span>{m?.brief ?? t?.summary}</span>
+                    <span className={`state-pill is-${state}`}>{practiceLabels[state]}</span>
+                  </a>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ))}
     </main>
   );
 }

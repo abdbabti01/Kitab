@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide-react";
 import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
-import { loadProgress, missionStatus, practiceState, safeStorage } from "../learning/progress.ts";
-import { practiceLabels } from "../learning/practice-state.ts";
+import { loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
+import { practiceLabels, type PracticeState } from "../learning/practice-state.ts";
 import { journeys, lessons } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { api, ApiError } from "./api.ts";
@@ -81,8 +81,10 @@ export function Home() {
               const walkthrough = "kind" in lesson;
               const status = walkthrough ? null : lessonStatus(learning, lesson);
               const practice = lesson.practice.map((item) => missions.find((mission) => mission.id === item.missionId)).filter((mission) => mission !== undefined);
-              const practiceStates = practice.map((mission) => missionStatus(progress, mission.id, mission.version));
-              const practiceLabel = practiceStates.includes("mastered") ? "Practice: mastered" : practiceStates.includes("practiced") ? "Practice: attempted" : "Practice: not started";
+              // The same four states as every mission card: all mastered, all completed, any started, or none.
+              const states = practice.map((mission) => practiceState(progress, mission.id, mission.version));
+              const overall: PracticeState = states.every((s) => s === "mastered") ? "mastered" : states.every((s) => s === "completed" || s === "mastered") ? "completed" : states.some((s) => s !== "not-started") ? "in-progress" : "not-started";
+              const practiceLabel = `Practice: ${practiceLabels[overall].toLowerCase()}`;
               return (
                 <li key={lesson.id}>
                   <a className="mission-card journey-card" {...linkProps(path)}>

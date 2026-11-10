@@ -842,12 +842,3 @@ export const findNetworkMission = (id: string) => missions.find((m) => m.id === 
 /** The variant for an attempt number: attempts cycle through every version. */
 export const variantFor = (mission: NetworkMission, attempt: number) =>
   mission.variants[(Math.max(1, attempt) - 1) % mission.variants.length];
-/** Which old playground challenge each mission replaces, for keeping earlier completions. */
-export const legacyChallenges: Record<string, string> = {
-  cable: "no-connection",
-  subnet: "neighbours",
-  wifi: "join-and-address",
-  route: "leave-the-lan",
-  nat: "bring-reply-home",
-  loss: "missing-segment",
-};
