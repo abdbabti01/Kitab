@@ -466,6 +466,15 @@ export function simulate(
           : d.routes.some((r) => r.via === nextHop)
             ? `the next hop ${nextHop} in its static route`
             : nextHop;
+      // An address configured on an interface that is turned off still belongs to that device.
+      const switchedOff = n.devices.find(
+        (x) => !isBridge(x) && x.id !== d.id && x.interfaces.some((q) => !q.enabled && iface(x, q.id).ip === nextHop),
+      );
+      if (!elsewhere && switchedOff)
+        fail(
+          `ARP received no reply for ${nextHop}. ${switchedOff.name} has ${nextHop}, but on an interface that is turned off: a disabled interface neither sends nor receives frames.`,
+          "ARP_NO_PATH",
+        );
       if (elsewhere)
         fail(
           `ARP received no reply for ${nextHop}. ${elsewhere.name} uses ${nextHop}, but no link-layer path connects it to ${d.name} ${p.id}: a cable or Wi-Fi link is missing or disabled, or ${elsewhere.name} is on another LAN behind a router.`,
@@ -881,14 +890,10 @@ export function simulate(
         const d = dev(e.end.device);
         return d.dhcp.enabled && d.dhcp.port === e.end.port;
       });
-      if (!serverEntry)
-        fail(
-          "No DHCP server is reachable on this LAN. Enable DHCP on a connected router.",
-          "DHCP_NO_SERVER",
-        );
-      const server = dev(serverEntry.end.device),
-        sp = iface(server, serverEntry.end.port);
-      dhcpContext = { client: client.id, server: server.id };
+      // With no server, the Discover is still broadcast; the run then shows who heard it.
+      const server = serverEntry && dev(serverEntry.end.device),
+        sp = serverEntry && iface(server!, serverEntry.end.port);
+      dhcpContext = { client: client.id, server: server?.id ?? "" };
       const dhcpLayers = (name: string, data: string): Layer[] => [
         {
           name: `DHCP ${name}`,
@@ -910,7 +915,7 @@ export function simulate(
           kind: "network",
           fields: {
             "Source IP":
-              name === "Discover" || name === "Request" ? "0.0.0.0" : sp.ip,
+              name === "Discover" || name === "Request" ? "0.0.0.0" : sp!.ip,
             "Destination IP": "255.255.255.255",
             Protocol: "UDP",
             TTL: 64,
@@ -929,6 +934,21 @@ export function simulate(
         dhcpLayers("Discover", "Looking for a DHCP server"),
         "IPv4",
       );
+      if (!server || !sp) {
+        const heard = [
+          ...new Set(
+            reachable
+              .map((e) => dev(e.end.device))
+              .filter((d) => d.id !== client.id && !isBridge(d))
+              .map((d) => d.name),
+          ),
+        ];
+        at(client, "OS · DHCP client");
+        fail(
+          `No DHCP server is reachable on this LAN. ${client.name} broadcast a DHCP Discover${heard.length ? `; it reached ${heard.join(", ")}, but none of them runs a DHCP server on that network` : ", but it reached no other device"}, so nothing offered an address.`,
+          "DHCP_NO_SERVER",
+        );
+      }
       const startIp = ipNumber(server.dhcp.start),
         endIp = ipNumber(server.dhcp.end);
       if (endIp < startIp || endIp - startIp > 4096)

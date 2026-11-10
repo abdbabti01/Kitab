@@ -3992,7 +3992,21 @@
    "success": false,
    "events": [
     "Associate with Wi-Fi | phone | Network interface · Wi-Fi |  |  | 7b2897b033",
-    "Delivery stopped | phone | Network interface · Wi-Fi |  | error | 9a47d085f3"
+    "DHCP Discover | phone | OS · DHCP client |  |  | b59ba331ac",
+    "Transmit over Wi-Fi | phone | Network interface | phone>ap@l0 |  | d86a3ccb97",
+    "Learn source MAC | ap | Bridge / link layer |  |  | 7064ad7a76",
+    "Receive frame | ap | Bridge / link layer |  |  | fdc9bc3a6e",
+    "Forward broadcast on LAN | ap | Bridge / link layer |  |  | 0da449f1f5",
+    "Transmit over Ethernet | ap | Bridge / link layer | ap>switch@l1 |  | 8bbaf2b8a8",
+    "Learn source MAC | switch | Bridge / link layer |  |  | e785f1efa2",
+    "Receive frame | switch | Bridge / link layer |  |  | 02c5487251",
+    "Forward broadcast on LAN | switch | Bridge / link layer |  |  | 9af8abd16c",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>pc@l2 |  | db3899157f",
+    "Receive frame | pc | Network interface |  |  | d3475ed32a",
+    "Forward broadcast on LAN | switch | Bridge / link layer |  |  | 6dad56b5b7",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>router@l3 |  | d27b165a36",
+    "Receive frame | router | Network interface |  |  | 5f5360e12d",
+    "Delivery stopped | phone | OS · DHCP client |  | error | 823b01da80"
    ]
   },
   "fail: DHCP pool exhausted": {

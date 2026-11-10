@@ -687,7 +687,7 @@ export function explainStep(
         `${deviceName(event.hop.to)} will receive this copy. Receiving it does not automatically mean answering it.`,
         "The animation shows one link at a time. The broadcast also travels on other eligible links in the same LAN.",
       );
-    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended)}.`;
+    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended) || "none on this LAN"}.`;
     return {
       ...explanation,
       audience,

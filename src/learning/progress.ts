@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PracticeState } from "./practice-state.ts";
 import type { MissionState } from "./mission-controller.ts";
 
 const factValue = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
@@ -146,6 +147,15 @@ export function recordState(progress: Progress, state: MissionState, scenarioKey
   }
   const masteredAt = item.masteredAt ?? (attempt.mastered ? now : null);
   return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: state } } };
+}
+
+/** The shared four-state view of a framework mission: a finished run counts as completed. */
+export function practiceState(progress: Progress, missionId: string, missionVersion: string): PracticeState {
+  const item = progress.missions[missionId];
+  if (!item) return "not-started";
+  if (item.missionVersion === missionVersion && item.masteredAt) return "mastered";
+  if (item.attempts.some((a) => a.explanationCorrect !== null)) return "completed";
+  return "in-progress";
 }
 
 export function missionStatus(progress: Progress, missionId: string, missionVersion: string) {
