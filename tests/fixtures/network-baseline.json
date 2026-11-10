@@ -3638,7 +3638,7 @@
     "Transmit over Ethernet | pc | Network interface | pc>switch@l0 |  | 5ce90575f3",
     "Learn source MAC | switch | Bridge / link layer |  |  | 098750fe2e",
     "Receive frame | switch | Bridge / link layer |  |  | 8172a53672",
-    "Delivery stopped | switch | Bridge / link layer |  | error | 69f98acd24"
+    "Delivery stopped | pc | OS · ARP |  | error | 69f98acd24"
    ]
   },
   "fail: wrong gateway": {
@@ -3649,7 +3649,7 @@
     "ARP: discover the next-hop MAC | pc | OS · ARP |  |  | f4aad30ef1",
     "Transmit over Ethernet | pc | Network interface | pc>router@l0 |  | c531813277",
     "Receive frame | router | Network interface |  |  | 241cb8fb2f",
-    "Delivery stopped | router | Network interface |  | error | f441f9defe"
+    "Delivery stopped | pc | OS · ARP |  | error | f441f9defe"
    ]
   },
   "fail: no gateway": {
@@ -7046,7 +7046,7 @@
     "Transmit over Ethernet | isp | Network interface | isp>remote@l5 |  | bbe246e0eb",
     "Learn source MAC | remote | Bridge / link layer |  |  | 39c2c4f466",
     "DHCP lease expired | phone | OS · DHCP client |  |  | e26fdaaca0",
-    "Delivery stopped | remote | Bridge / link layer |  | error | 873841ff0c"
+    "Delivery stopped | phone | OS · DHCP client |  | error | 873841ff0c"
    ]
   },
   "fail: DNS address unused": {
@@ -7109,7 +7109,7 @@
     "Forward broadcast on LAN | remote | Bridge / link layer |  |  | df600a27a1",
     "Transmit over Ethernet | remote | Bridge / link layer | remote>dns@l7 |  | ef02e452ff",
     "Receive frame | dns | Network interface |  |  | 22fba09a3b",
-    "Delivery stopped | dns | Network interface |  | error | a8f4aab003"
+    "Delivery stopped | isp | OS · ARP |  | error | a8f4aab003"
    ]
   },
   "fail: DNS no service": {
@@ -7354,7 +7354,7 @@
     "Forward broadcast on LAN | remote | Bridge / link layer |  |  | a929d21e49",
     "Transmit over Ethernet | remote | Bridge / link layer | remote>server@l6 |  | 3238d9e9f9",
     "Receive frame | server | Network interface |  |  | c1350aa0a5",
-    "Delivery stopped | server | Network interface |  | error | 4c84b626db"
+    "Delivery stopped | isp | OS · ARP |  | error | 4c84b626db"
    ]
   },
   "fail: DNS reply unreachable": {

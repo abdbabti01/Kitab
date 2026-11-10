@@ -141,6 +141,7 @@ export function NetworkPlayground() {
     [challengeOpen, setChallengeOpen] = useState(false),
     [verdict, setVerdict] = useState<ChallengeVerdict | null>(null),
     [help, setHelp] = useState(false),
+    [inputError, setInputError] = useState<{ field: "source" | "target"; message: string } | null>(null),
     [saveList, setSaveList] = useState(false);
   const [completed, setCompleted] = useState<string[]>(() => {
     try {
@@ -253,6 +254,12 @@ export function NetworkPlayground() {
     setNotice("");
     setPlaying(false);
     const result = simulate(network, session, action);
+    // A typing mistake is not a network event: show it at the field and keep the current run.
+    if (result.reason?.startsWith("INPUT_")) {
+      setInputError({ field: result.reason === "INPUT_SOURCE" ? "source" : "target", message: result.summary });
+      return;
+    }
+    setInputError(null);
     setSession(result.session);
     setTrace(result);
     setIndex(0);
@@ -733,9 +740,12 @@ export function NetworkPlayground() {
                   <select
                     aria-label="Source device"
                     value={action.source}
-                    onChange={(e) =>
-                      setAction((a) => ({ ...a, source: e.target.value }))
-                    }
+                    aria-invalid={inputError?.field === "source" || undefined}
+                    aria-describedby={inputError?.field === "source" ? "send-error" : undefined}
+                    onChange={(e) => {
+                      setInputError(null);
+                      setAction((a) => ({ ...a, source: e.target.value }));
+                    }}
                   >
                     <option value="" disabled>
                       Choose a device
@@ -772,9 +782,12 @@ export function NetworkPlayground() {
                     <input
                       aria-label="Destination"
                       value={action.target}
-                      onChange={(e) =>
-                        setAction((a) => ({ ...a, target: e.target.value }))
-                      }
+                      aria-invalid={inputError?.field === "target" || undefined}
+                      aria-describedby={inputError?.field === "target" ? "send-error" : undefined}
+                      onChange={(e) => {
+                        setInputError(null);
+                        setAction((a) => ({ ...a, target: e.target.value }));
+                      }}
                       placeholder={
                         action.kind === "http"
                           ? "http://kitab.test/"
@@ -794,6 +807,11 @@ export function NetworkPlayground() {
                     : "Send request"}
                 </button>
               </div>
+              {inputError && (
+                <p className="field-error" id="send-error" role="alert">
+                  {inputError.message}
+                </p>
+              )}
               <div className="send-options">
                 {action.kind === "http" && (
                   <label className="network-check">

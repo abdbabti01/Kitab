@@ -1729,3 +1729,29 @@
 .run-status > span {
   flex: 1;
 }
+.field-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+.send-fields [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.step-guide .failure-title {
+  color: var(--danger);
+  font-size: 15px;
+}
+.failure-chain {
+  margin: 6px 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.failure-chain li + li {
+  margin-top: 3px;
+}
+.failure-chain span {
+  color: var(--muted);
+}
+.failure-check {
+  font-size: 12px;
+}

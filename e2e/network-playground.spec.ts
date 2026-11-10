@@ -207,3 +207,27 @@ test("no playground control is clipped or pushed off screen", async ({ page }) =
   });
   expect(clipped).toEqual([]);
 });
+test("a typing mistake is shown at the field, not as a network failure", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByLabel("Destination").fill("https://kitab.test/");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("HTTP on port 80");
+  await expect(page.getByLabel("Destination")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.locator(".run-status")).toHaveCount(0);
+  await page.getByLabel("Destination").fill("http://kitab.test/");
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+test("a failure names its cause chain and where to look", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await page.getByText("Routing & NAT", { exact: true }).click();
+  await page.getByLabel("Enable NAT / port translation").uncheck();
+  await page.getByRole("button", { name: "Apply settings", exact: true }).click();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
+  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  const guide = page.locator(".step-guide");
+  await expect(guide.locator(".failure-title")).toHaveText("The DNS answer could not come back");
+  await expect(guide.getByRole("list", { name: "What caused it" })).toContainText("No route to a private address");
+  await expect(guide).toContainText("Where to look:");
+});

@@ -12,6 +12,7 @@ import {
   type Trace,
   type TraceEvent,
   type FailureReason,
+  type Failure,
 } from "./model.ts";
 import {
   ipNumber,
@@ -69,12 +70,25 @@ export function effectiveInterface(
 }
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 class SimulationFailure extends Error {
-  reason?: FailureReason;
-  constructor(message: string, reason?: FailureReason) {
-    super(message);
+  reason: FailureReason;
+  device: string;
+  constructor(message: string, reason: FailureReason, device: string, cause?: unknown) {
+    super(message, { cause });
     this.reason = reason;
+    this.device = device;
   }
 }
+const failureOf = (e: SimulationFailure): Failure => ({
+  reason: e.reason,
+  device: e.device,
+  message: e.message,
+  cause: e.cause instanceof SimulationFailure ? failureOf(e.cause) : undefined,
+});
+// Failures of the path itself. A reply that hits one of these could not get back to the sender.
+const pathReasons = new Set<FailureReason>([
+  "DUPLICATE_IP", "ARP_NO_OWNER", "ARP_NO_PATH", "SWITCH_STALE_MAC", "NO_GATEWAY", "GATEWAY_NOT_LOCAL",
+  "ROUTER_NO_ROUTE", "NO_ROUTE_PRIVATE", "NOT_A_ROUTER", "TTL_EXPIRED", "ROUTING_LOOP", "NAT_NO_MAPPING",
+]);
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 // RFC 1918 private ranges.
@@ -109,8 +123,10 @@ export function simulate(
     error = false,
   ) => {
     if (events.length >= 9999)
-      throw new Error(
+      throw new SimulationFailure(
         "Simulation reached its 10,000-event limit. Simplify the network.",
+        "SIMULATION_LIMIT",
+        actor,
       );
     s.time += 10;
     for (const [leaseKey, lease] of Object.entries(s.leases))
@@ -126,10 +142,15 @@ export function simulate(
           layers: [],
           snapshot: structuredClone(s),
         });
-        if (lease.device === action.source)
-          throw new Error(
+        if (lease.device === action.source) {
+          actor = lease.device;
+          location = "OS · DHCP client";
+          throw new SimulationFailure(
             `DHCP lease expired for ${lease.ip} during this transfer. Configure automatically again to obtain a lease.`,
+            "DHCP_LEASE_EXPIRED",
+            lease.device,
           );
+        }
       }
     events.push({
       id: events.length,
@@ -151,8 +172,8 @@ export function simulate(
     actor = d.id;
     location = where;
   };
-  function fail(message: string, reason?: FailureReason): never {
-    throw new SimulationFailure(message, reason);
+  function fail(message: string, reason: FailureReason, cause?: unknown): never {
+    throw new SimulationFailure(message, reason, actor, cause);
   }
   const iface = (d: Device, id: string) =>
     effectiveInterface(
@@ -259,6 +280,7 @@ export function simulate(
         if (learned && learned !== h.from.port)
           fail(
             `${from.name}'s MAC table sends ${destinationMac} to ${learned}, which does not reach this destination. Restart the simulation to clear a stale mapping.`,
+            "SWITCH_STALE_MAC",
           );
         if (!learned && destinationMac !== "ff:ff:ff:ff:ff:ff" && !floodCopy) {
           const arrival = path[hopIndex - 1]?.to.port;
@@ -370,6 +392,7 @@ export function simulate(
     if (owners.length > 1)
       fail(
         `Duplicate IP ${nextHop} on this LAN. Assign a unique address to each interface.`,
+        "DUPLICATE_IP",
       );
     const cacheKey = `${d.id}/${p.id}/${nextHop}`,
       cached = s.arp[cacheKey];
@@ -398,10 +421,28 @@ export function simulate(
         upper,
       );
     const owner = owners[0];
-    if (!owner)
-      fail(
-        `ARP received no reply for ${nextHop}. Check the cable, Wi-Fi association, subnet and next-hop address.`,
+    if (!owner) {
+      // The device that asked is the one left without an answer.
+      at(d, "OS · ARP");
+      const elsewhere = n.devices.find(
+        (x) => !isBridge(x) && x.id !== d.id && active(x).some((q) => q.ip === nextHop),
       );
+      const role =
+        nextHop === p.gateway
+          ? `its default gateway ${nextHop}`
+          : d.routes.some((r) => r.via === nextHop)
+            ? `the next hop ${nextHop} in its static route`
+            : nextHop;
+      if (elsewhere)
+        fail(
+          `ARP received no reply for ${nextHop}. ${elsewhere.name} uses ${nextHop}, but no link-layer path connects it to ${d.name} ${p.id}: a cable or Wi-Fi link is missing or disabled, or ${elsewhere.name} is on another LAN behind a router.`,
+          "ARP_NO_PATH",
+        );
+      fail(
+        `ARP received no reply for ${nextHop}. No device in this network uses ${nextHop}, so nobody can answer. Check ${d.name}'s setting for ${role}.`,
+        "ARP_NO_OWNER",
+      );
+    }
     const remote = dev(owner.end.device),
       rp = iface(remote, owner.end.port);
     if (!cached) {
@@ -535,10 +576,30 @@ export function simulate(
         `${d.name} has no route to ${dst}. ${dst} is a private address (RFC 1918), and Internet routers do not route to private home networks. Replies reach a home network through its public address when the home router uses NAT.`,
         "NO_ROUTE_PRIVATE",
       );
-    if (!candidates.length)
+    if (!candidates.length) {
+      if (d.kind === "router")
+        fail(
+          `${d.name} has no route to ${dst}. None of its connected networks, static routes or default route matches ${dst}.`,
+          "ROUTER_NO_ROUTE",
+        );
+      const own = active(d).filter((p) => p.ip),
+        blocks = own
+          .map((p) => {
+            const b = subnet(p.ip, p.prefix);
+            return `${b.network}/${p.prefix} (${b.first}–${b.last})`;
+          })
+          .join(", "),
+        stray = own.find((p) => p.gateway);
+      if (stray)
+        fail(
+          `${d.name} has no route to ${dst}. Its default gateway ${stray.gateway} is outside its own subnet ${blocks}, so ${d.name} cannot reach the gateway directly. A gateway must be on the local network.`,
+          "GATEWAY_NOT_LOCAL",
+        );
       fail(
-        `${d.name} has no route to ${dst}. Configure a reachable default gateway or a matching static route.`,
+        `${d.name} has no route to ${dst}. ${dst} is outside ${d.name}'s subnet ${blocks}, and no default gateway is set, so ${d.name} has nowhere to send it.`,
+        "NO_GATEWAY",
       );
+    }
     return candidates[0];
   }
   function send(
@@ -549,7 +610,8 @@ export function simulate(
     let d = start,
       m = { ...message },
       ingress = "";
-    const visited = new Set<string>();
+    const forwarded = new Set<string>();
+    let looped = false;
     for (let count = 0; count < 256; count++) {
       at(d, "OS · IPv4");
       if (d.kind === "router" && d.nat && ingress === d.outside) {
@@ -573,7 +635,10 @@ export function simulate(
           m.protocol !== "ICMP" &&
           active(d).some((p) => p.id === d.outside && p.ip === m.dst)
         )
-          fail(`${d.name} has no NAT mapping for this incoming response.`);
+          fail(
+            `${d.name} received a packet for its public address ${m.dst}:${m.dport} from ${m.src}:${m.sport}, but its NAT table has no mapping for it. NAT only lets in replies to connections that started inside; this lab has no port forwarding, so the packet is dropped.`,
+            "NAT_NO_MAPPING",
+          );
       }
       if (active(d).some((p) => p.ip === m.dst)) {
         emit(
@@ -584,18 +649,32 @@ export function simulate(
         return { device: d, message: m };
       }
       if (ingress && d.kind !== "router")
-        fail(`${d.name} is an endpoint and cannot route this packet.`);
+        fail(
+          `${d.name} received a packet for ${m.dst}, which is not its address. It is an endpoint, not a router, so it discards the packet. Check the route that sent it here.`,
+          "NOT_A_ROUTER",
+        );
       if (ingress) {
+        // The same router forwarding the same destination twice means routers are passing it in a circle.
+        const key = `${d.id}>${m.dst}`;
+        if (forwarded.has(key)) looped = true;
+        forwarded.add(key);
         m.ttl--;
         emit(
           "Decrease TTL",
           `${d.name} is forwarding this packet. TTL is now ${m.ttl}. Switches and access points do not decrease TTL.`,
           layers(m),
         );
-        if (m.ttl <= 0)
+        if (m.ttl <= 0) {
+          if (looped)
+            fail(
+              `TTL expired at ${d.name}. The packet had already passed through ${d.name} on its way to ${m.dst}: the routers are sending it around in a loop. The packet is discarded. Fix the routes so they lead toward ${m.dst}.`,
+              "ROUTING_LOOP",
+            );
           fail(
             `TTL expired at ${d.name}. The packet is discarded. Check for a routing loop or increase the starting TTL.`,
+            "TTL_EXPIRED",
           );
+        }
       }
       const r = route(d, m.dst);
       emit(
@@ -660,17 +739,33 @@ export function simulate(
       deliverPath(found.path, r.p.mac, found.mac, layers(m));
       d = dev(found.end.device);
       ingress = found.end.port;
-      const visit = `${d.id}/${m.dst}/${m.ttl}`;
-      if (visited.has(visit)) fail("Routing loop detected.");
-      visited.add(visit);
     }
-    return fail("Routing exceeded the simulation hop limit.");
+    // Unreachable: the TTL (at most 255) expires first.
+    throw new Error("Routing exceeded the simulation hop limit.");
+  }
+  /** Sends a packet; a path failure on the way back from the destination is a reply problem. */
+  function back(from: Device, m: IpMessage, lose = false) {
+    if (from.id === action.source) return send(from, m, lose);
+    try {
+      return send(from, m, lose);
+    } catch (error) {
+      if (error instanceof SimulationFailure && pathReasons.has(error.reason))
+        fail(
+          `${from.name} received the request, but its reply could not get back to ${dev(action.source).name}. ${error.message}`,
+          "REPLY_NO_PATH",
+          error,
+        );
+      throw error;
+    }
   }
   function sourceConfig(d: Device) {
     const p = active(d).find((p) => p.ip);
     if (!p)
       fail(
-        `${d.name} has no usable IP address. Configure a static address or run DHCP to obtain a lease.`,
+        active(d).some((q) => q.mode === "dhcp")
+          ? `${d.name} has no usable IP address. It is set to get one from DHCP, but it has no current lease. Run DHCP (Configure automatically) to obtain one.`
+          : `${d.name} has no usable IP address. Configure a static address or run DHCP to obtain a lease.`,
+        "NO_ADDRESS",
       );
     return p!;
   }
@@ -681,11 +776,21 @@ export function simulate(
       (l) =>
         l.medium === "wifi" && (l.a.device === d.id || l.b.device === d.id),
     );
-    if (!link) fail("Join a Wi-Fi access point before sending data.");
-    const ap = dev(link.a.device === d.id ? link.b.device : link.a.device);
-    if (ap.ssid !== d.ssid || ap.password !== d.password)
+    if (!link)
       fail(
-        "Wi-Fi association failed. Match the access point SSID and password.",
+        `Join a Wi-Fi access point before sending data. ${d.name} has no Wi-Fi link to an access point.`,
+        "WIFI_NOT_JOINED",
+      );
+    const ap = dev(link.a.device === d.id ? link.b.device : link.a.device);
+    if (ap.ssid !== d.ssid)
+      fail(
+        `Wi-Fi association failed. ${d.name} is looking for the network “${d.ssid}”, but ${ap.name} offers “${ap.ssid}”.`,
+        "WIFI_SSID_NOT_FOUND",
+      );
+    if (ap.password !== d.password)
+      fail(
+        `Wi-Fi association failed. ${d.name} found “${ap.ssid}”, but its passphrase does not match the one set on ${ap.name}, so it cannot join.`,
+        "WIFI_WRONG_PASSPHRASE",
       );
     emit(
       "Associate with Wi-Fi",
@@ -695,7 +800,9 @@ export function simulate(
   }
   try {
     const validation = validateNetwork(n);
-    if (validation.length) fail(validation.join(" "));
+    if (validation.length) fail(validation.join(" "), "INVALID_NETWORK");
+    if (!n.devices.some((d) => d.id === action.source))
+      fail("Choose a device in this network.", "INPUT_SOURCE");
     for (const [key, lease] of Object.entries(s.leases))
       if (lease.expires <= s.time) {
         delete s.leases[key];
@@ -708,12 +815,15 @@ export function simulate(
       }
     const client = dev(action.source);
     if (isBridge(client))
-      fail("Select a PC, phone, router or server as the source.");
+      fail("Select a PC, phone, router or server as the source.", "INPUT_SOURCE");
     ensureWifi(client);
     if (action.kind === "dhcp") {
       const port = active(client).find((p) => p.mode === "dhcp");
       if (!port)
-        fail("Set the client interface to DHCP before requesting an address.");
+        fail(
+          "Set the client interface to DHCP before requesting an address.",
+          "DHCP_CLIENT_STATIC",
+        );
       const cp = port!;
       const start = { device: client.id, port: cp.id },
         reachable = reach(start);
@@ -724,6 +834,7 @@ export function simulate(
       if (!serverEntry)
         fail(
           "No DHCP server is reachable on this LAN. Enable DHCP on a connected router.",
+          "DHCP_NO_SERVER",
         );
       const server = dev(serverEntry.end.device),
         sp = iface(server, serverEntry.end.port);
@@ -772,6 +883,7 @@ export function simulate(
       if (endIp < startIp || endIp - startIp > 4096)
         fail(
           "DHCP pool must contain at most 4097 addresses in ascending order.",
+          "DHCP_POOL_INVALID",
         );
       const existing = s.leases[keyOf(client.id, cp.id)];
       let offered =
@@ -798,7 +910,8 @@ export function simulate(
       }
       if (!offered)
         fail(
-          "The DHCP pool has no available host address in the server interface subnet.",
+          `The DHCP pool has no available host address in the server interface subnet. ${server.name}'s pool ${server.dhcp.start}–${server.dhcp.end} has no address that is inside ${subnet(sp.ip, sp.prefix).network}/${sp.prefix} and not already used on this LAN.`,
+          "DHCP_POOL_EMPTY",
         );
       at(server, "DHCP server");
       emit(
@@ -843,8 +956,8 @@ export function simulate(
           [],
         );
       });
-      if (!applied)
-        fail(`The DHCP ACK did not reach ${client.name}.`);
+      // Unreachable: the ACK crosses the same links the Discover just reached the server on.
+      if (!applied) throw new Error(`The DHCP ACK did not reach ${client.name}.`);
       at(client, "OS · network settings");
       emit(
         "Configuration complete",
@@ -869,10 +982,13 @@ export function simulate(
           destination.includes("://") ? destination : `http://${destination}`,
         );
       } catch {
-        fail("Enter a valid HTTP URL or IPv4 address.");
+        fail("Enter a valid HTTP URL or IPv4 address.", "INPUT_URL");
       }
       if (url!.protocol !== "http:" || (url!.port && url!.port !== "80"))
-        fail("This lesson models HTTP on port 80. Use an http:// address.");
+        fail(
+          "This lesson models HTTP on port 80. Use an http:// address.",
+          "INPUT_PORT",
+        );
       host = url!.hostname;
       path = url!.pathname + url!.search;
       destination = host;
@@ -902,6 +1018,7 @@ export function simulate(
         if (!cp.dns)
           fail(
             "No DNS server is configured. Enter its IP address or use an IP-literal URL.",
+            "DNS_NOT_CONFIGURED",
           );
         at(client, "OS · DNS resolver");
         emit(
@@ -931,10 +1048,12 @@ export function simulate(
             fail(
               `No device in this network has the address ${cp.dns}, so nothing can answer the DNS query. ${client.name}'s DNS server setting is probably wrong: it should be the address of a DNS server.`,
               "DNS_SERVER_ADDRESS",
+              error,
             );
           fail(
             `The DNS query could not reach ${owner.name} at ${cp.dns}. ${errorText(error)}`,
             "DNS_UNREACHABLE",
+            error,
           );
         }
         const server = received.device;
@@ -966,10 +1085,14 @@ export function simulate(
           fail(
             `${server.name} answered the DNS query, but the reply could not get back to ${client.name}. ${errorText(error)}`,
             "DNS_REPLY_UNREACHABLE",
+            error,
           );
         }
         if (response?.device.id !== client.id)
-          fail("DNS reply did not return to the client.");
+          fail(
+            `The DNS reply reached ${response?.device.name ?? "another device"} instead of ${client.name}.`,
+            "REPLY_MISDELIVERED",
+          );
         if (!answer) {
           at(client, "OS · DNS resolver");
           fail(
@@ -994,7 +1117,10 @@ export function simulate(
           iface(dev(e.end.device), e.end.port).ip === src,
       )
     )
-      fail(`Duplicate IP ${src} on the source LAN. Assign a unique address.`);
+      fail(
+        `Duplicate IP ${src} on the source LAN. Assign a unique address.`,
+        "DUPLICATE_IP",
+      );
     if (action.kind === "ping") {
       at(client, "Ping application");
       emit(
@@ -1019,7 +1145,7 @@ export function simulate(
         "The destination builds a reply and performs its own route lookup.",
         layers(received.message),
       );
-      const result = send(received.device, {
+      const result = back(received.device, {
         ...received.message,
         src: received.message.dst,
         dst: received.message.src,
@@ -1029,7 +1155,10 @@ export function simulate(
         label: "Echo reply",
       });
       if (result?.device.id !== client.id)
-        fail("The echo reply did not return to the original device.");
+        fail(
+          `The echo reply reached ${result?.device.name ?? "another device"} instead of ${client.name}.`,
+          "REPLY_MISDELIVERED",
+        );
       at(client, "Ping application");
       emit(
         "Ping complete",
@@ -1081,7 +1210,10 @@ export function simulate(
     );
     const syn = send(client, base)!;
     if (!syn.device.web.enabled)
-      fail(`${syn.device.name} has no HTTP service listening on port 80.`);
+      fail(
+        `${syn.device.name} has no HTTP service listening on port 80.`,
+        "HTTP_NO_LISTENER",
+      );
     const server = syn.device;
     const reverse: IpMessage = {
       ...syn.message,
@@ -1120,7 +1252,7 @@ export function simulate(
       "The server acknowledges the client SYN and sends its own SYN.",
       layers(reverse),
     );
-    send(server, reverse);
+    back(server, reverse);
     serverSeq++;
     send(client, { ...base, seq: clientSeq, ack: serverSeq, flags: "ACK" });
     s.tcp[connection] = "ESTABLISHED";
@@ -1197,7 +1329,7 @@ export function simulate(
           `IP wraps the segment with source ${m.src}, destination ${m.dst}, protocol TCP and TTL ${m.ttl}.`,
           layers(m),
         );
-        let received = send(sender, m, !!action.dropOnce && !dropped);
+        let received = back(sender, m, !!action.dropOnce && !dropped);
         if (!received) {
           dropped = true;
           s.time += 1000;
@@ -1207,9 +1339,10 @@ export function simulate(
             `No ACK arrived before the modeled timeout. Resend the same bytes beginning at sequence ${seq}.`,
             layers(m),
           );
-          received = send(sender, m);
+          received = back(sender, m);
         }
-        if (!received) fail("TCP retransmission failed.");
+        // Unreachable: only the one-loss experiment drops a segment, and only once.
+        if (!received) throw new Error("TCP retransmission failed.");
         s.buffers[receiverSocket] = receiveBytes(
           s.buffers[receiverSocket],
           seq,
@@ -1237,7 +1370,7 @@ export function simulate(
           `Received ${bytes(data)} bytes. ACK ${reply.ack} means “send me the byte at this position next.”`,
           layers(reply),
         );
-        send(received!.device, reply);
+        back(received!.device, reply);
         s.sockets[senderSocket].sendBytes = 0;
       }
       return reconstructed;
@@ -1296,8 +1429,8 @@ export function simulate(
       flags: "FIN, ACK",
     });
     clientSeq++;
-    send(server, { ...reverse, seq: serverSeq, ack: clientSeq, flags: "ACK" });
-    send(server, {
+    back(server, { ...reverse, seq: serverSeq, ack: clientSeq, flags: "ACK" });
+    back(server, {
       ...reverse,
       seq: serverSeq,
       ack: clientSeq,
@@ -1328,11 +1461,16 @@ export function simulate(
     };
   } catch (error) {
     const message = errorText(error);
-    const reason =
-      error instanceof SimulationFailure ? error.reason : undefined;
+    const failure =
+      error instanceof SimulationFailure ? failureOf(error) : undefined;
+    // The stop is shown where the deepest cause was detected.
+    let root = failure;
+    while (root?.cause) root = root.cause;
+    if (root) actor = root.device;
     if (events.length >= 9999) events.pop();
     emit("Delivery stopped", message, current, undefined, true);
-    if (reason) events[events.length - 1].reason = reason;
-    return { events, session: s, success: false, summary: message, reason };
+    const last = events[events.length - 1];
+    if (failure) Object.assign(last, { reason: failure.reason, failure });
+    return { events, session: s, success: false, summary: message, reason: failure?.reason, failure };
   }
 }
