@@ -233,6 +233,7 @@ export function simulate(
     upper: Layer[],
     protocol = "IPv4",
     floodCopy = false,
+    onReceive?: (device: Device) => void,
   ) {
     for (const [hopIndex, h] of path.entries()) {
       const from = dev(h.from.device),
@@ -311,9 +312,15 @@ export function simulate(
         `${to.name} receives the ${h.medium === "wifi" ? "wireless" : "wired"} frame. ${isBridge(to) ? "It forwards at the link layer; it does not route IP." : "The network interface removes the link header and passes the payload upward."}`,
         layers,
       );
+      if (!isBridge(to)) onReceive?.(to);
     }
   }
-  function broadcast(start: Endpoint, upper: Layer[], protocol: string) {
+  function broadcast(
+    start: Endpoint,
+    upper: Layer[],
+    protocol: string,
+    onReceive?: (device: Device) => void,
+  ) {
     const source = portOf(n, start),
       seen = new Set<string>();
     for (const target of reach(start))
@@ -326,6 +333,8 @@ export function simulate(
             "ff:ff:ff:ff:ff:ff",
             upper,
             protocol,
+            false,
+            onReceive,
           );
         }
   }
@@ -779,23 +788,37 @@ export function simulate(
         dhcpLayers("Request", offered),
       );
       broadcast(start, dhcpLayers("Request", offered), "IPv4");
-      s.leases[keyOf(client.id, cp.id)] = {
-        device: client.id,
-        port: cp.id,
-        ip: offered,
-        prefix: sp.prefix,
-        gateway: server.dhcp.gateway,
-        dns: server.dhcp.dns,
-        expires: s.time + server.dhcp.leaseSeconds * 1000,
-        server: server.id,
-      };
+      const settings = `${offered}, mask ${subnet(offered, sp.prefix).mask}, gateway ${server.dhcp.gateway}, DNS ${server.dhcp.dns}`;
       at(server, "DHCP server");
       emit(
         "DHCP ACK",
-        `Lease assigned: ${offered}, mask ${subnet(offered, sp.prefix).mask}, gateway ${server.dhcp.gateway}, DNS ${server.dhcp.dns}.`,
+        `${server.name} confirms the lease: ${settings}. The client applies it when the ACK arrives.`,
         dhcpLayers("ACK", offered),
       );
-      broadcast(serverEntry.end, dhcpLayers("ACK", offered), "IPv4");
+      // The client applies the lease when the ACK reaches it, not when the server sends it.
+      let applied = false;
+      broadcast(serverEntry.end, dhcpLayers("ACK", offered), "IPv4", (d) => {
+        if (d.id !== client.id) return;
+        applied = true;
+        s.leases[keyOf(client.id, cp.id)] = {
+          device: client.id,
+          port: cp.id,
+          ip: offered,
+          prefix: sp.prefix,
+          gateway: server.dhcp.gateway,
+          dns: server.dhcp.dns,
+          expires: s.time + server.dhcp.leaseSeconds * 1000,
+          server: server.id,
+        };
+        at(client, "OS · DHCP client");
+        emit(
+          "Apply DHCP lease",
+          `${client.name} received the ACK and now uses ${settings}.`,
+          [],
+        );
+      });
+      if (!applied)
+        fail(`The DHCP ACK did not reach ${client.name}.`);
       at(client, "OS · network settings");
       emit(
         "Configuration complete",

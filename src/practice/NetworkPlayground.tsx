@@ -72,6 +72,7 @@ const stageTitles = [
   "DHCP Offer",
   "DHCP Request",
   "DHCP ACK",
+  "Apply DHCP lease",
   "Configuration complete",
   "Prepare HTTP request",
   "DNS query",

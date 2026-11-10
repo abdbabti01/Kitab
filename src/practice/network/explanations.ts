@@ -201,6 +201,11 @@ const lessons: Record<string, Lesson> = {
     "The SSID and password match in this model, so the wireless link can carry traffic.",
     "Joining Wi-Fi does not itself assign an IP address. DHCP can provide network settings afterward. Radio physics are not simulated.",
   ),
+  "Apply DHCP lease": lesson(
+    "The DHCP ACK has reached the client that asked for it. That confirmation is what allows the client to use the offered address.",
+    "The client's interface now has the leased IP address, subnet prefix, gateway and DNS server. The Tables tab shows the new lease from this step on.",
+    "Until this step the client keeps its previous settings (none on a first request), even while the ACK is travelling. An Offer alone is not permission to use an address.",
+  ),
   "Configuration complete": lesson(
     "The client now has permission to use the leased address and has the settings needed to send IP traffic.",
     "The acquired settings remain available for later traffic in this session.",
@@ -231,7 +236,7 @@ const dhcpLessons: Record<string, Lesson> = {
   ),
   ACK: lesson(
     "The DHCP server confirms that the requesting client may use the address for a limited lease time.",
-    "The client can apply its address, subnet prefix, gateway and DNS settings. Configuration complete shows the resulting state.",
+    "Nothing changes on the client yet. When this ACK reaches it, the client applies the address, subnet prefix, gateway and DNS settings.",
     "A lease is permission to use an address for a period of time. Only the requesting client should apply these settings.",
   ),
 };

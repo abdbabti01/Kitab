@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { starter } from "../src/practice/network/starters.ts";
-import { newSession, simulate } from "../src/practice/network/engine.ts";
+import { effectiveInterface, newSession, simulate } from "../src/practice/network/engine.ts";
 
 test("local ping learns ARP/MAC without a TCP segment", () => {
   const n = starter("lan"),
@@ -270,4 +270,40 @@ test("a DHCP lease expiring during a long transfer stops using that address", ()
   assert.equal(t.success, false);
   assert.ok(t.events.some((e) => e.title === "DHCP lease expired"));
   assert.equal(t.session.leases["phone/wlan0"], undefined);
+});
+test("the DHCP client applies its lease only when the ACK reaches it", () => {
+  const n = starter("wifi");
+  const phone = n.devices.find((d) => d.id === "phone")!;
+  const t = simulate(n, newSession(), { kind: "dhcp", source: "phone", target: "" });
+  assert.equal(t.success, true, t.summary);
+  const ackSent = t.events.findIndex((e) => e.title === "DHCP ACK");
+  const ackArrives = t.events.findIndex(
+    (e) =>
+      e.actor === "phone" &&
+      e.title === "Receive frame" &&
+      e.layers.some((l) => l.name === "DHCP ACK"),
+  );
+  const applied = t.events.findIndex((e) => e.title === "Apply DHCP lease");
+  assert.ok(ackSent >= 0 && ackSent < ackArrives, "the ACK travels before it arrives");
+  assert.equal(applied, ackArrives + 1, "the lease is applied right after the ACK reaches the phone");
+  // The Tables tab and device settings read these snapshots.
+  const shownIp = (i: number) =>
+    effectiveInterface(phone, phone.interfaces[0], t.events[i].snapshot).ip;
+  for (const e of t.events.slice(0, applied))
+    assert.equal(e.snapshot.leases["phone/wlan0"], undefined, `no lease yet at #${e.id} ${e.title}`);
+  assert.equal(shownIp(ackArrives), "");
+  assert.equal(shownIp(applied), t.session.leases["phone/wlan0"].ip);
+  assert.ok(t.events.slice(applied).every((e) => e.snapshot.leases["phone/wlan0"]));
+});
+test("a renewal keeps the old lease until the new ACK arrives", () => {
+  const n = starter("wifi");
+  const a = { kind: "dhcp" as const, source: "phone", target: "" };
+  const first = simulate(n, newSession(), a);
+  const second = simulate(n, first.session, a);
+  assert.equal(second.success, true, second.summary);
+  const applied = second.events.findIndex((e) => e.title === "Apply DHCP lease");
+  const old = first.session.leases["phone/wlan0"];
+  for (const e of second.events.slice(0, applied))
+    assert.equal(e.snapshot.leases["phone/wlan0"].expires, old.expires, `#${e.id} ${e.title}`);
+  assert.ok(second.events[applied].snapshot.leases["phone/wlan0"].expires > old.expires);
 });
