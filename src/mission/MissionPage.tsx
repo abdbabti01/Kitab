@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import "../learning/engines/index.ts";
-import { assessExplanation, assessPrediction, evidenceFrameIndex, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
+import { assessExplanation, assessPrediction, evidenceFrameIndex, evidenceMatches, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.ts";
 import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionAction, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
 import type { Mission } from "../learning/mission-schema.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { lessonsForMission } from "../learning/lessons/catalog.ts";
-import { loadProgress, recordState, recordVisit, restoreState, safeStorage, saveProgress } from "../learning/progress.ts";
+import { loadProgress, masteredVersions, recordState, recordVisit, restoreState, safeStorage, saveProgress } from "../learning/progress.ts";
 import { fallbackTutor, buildTutorContext, tutorRequestSchema } from "../learning/tutor.ts";
 import type { FactValue } from "../learning/types.ts";
 import { frameAt } from "../learning/registry.ts";
@@ -68,7 +68,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
   // Persist meaningful state (phase/attempt changes), never per animation frame.
   useEffect(() => {
     setProgress((current) => {
-      const next = recordState(current, state, trace.scenarioKey, attemptStatus(state.attempt));
+      const next = recordState(current, state, trace.scenarioKey, attemptStatus(state.attempt), undefined, mission.masteryVariants ?? 1);
       saveProgress(storage, next);
       return next;
     });
@@ -122,7 +122,8 @@ export function MissionPage({ mission }: { mission: Mission }) {
   function explain(choiceId: string) {
     const result = assessExplanation(mission, choiceId);
     dispatch({ type: "SUBMIT_EXPLANATION", choiceId, ...result });
-    const mastered = result.correct && Boolean(state.attempt.prediction?.correct) && !state.attempt.skippedPrediction;
+    const evidenceOk = !state.attempt.needsEvidence || Boolean(state.attempt.evidence?.correct && !state.attempt.evidence.revealed);
+    const mastered = result.correct && Boolean(state.attempt.prediction?.correct) && !state.attempt.skippedPrediction && evidenceOk;
     if (mastered) {
       emit({ type: "mastered" });
       void sendLearningEvent({ type: "mission-mastered", missionId: mission.id, missionVersion: mission.version, engineVersion: trace.engine.version, scenarioKey: trace.scenarioKey, correct: true });
@@ -132,7 +133,13 @@ export function MissionPage({ mission }: { mission: Mission }) {
     }
   }
 
+  /** The learner says the step on screen proves the answer. */
+  function chooseEvidence() {
+    dispatch({ type: "CHOOSE_EVIDENCE", index: playback.index, correct: evidenceMatches(mission, trace, playback.index) });
+  }
+
   function showEvidence() {
+    if (mission.evidence) dispatch({ type: "REVEAL_EVIDENCE" });
     const index = evidenceFrameIndex(mission, trace);
     playback.dispatch({ type: "SEEK", index });
     const code = state.attempt.prediction?.misconception;
@@ -286,12 +293,36 @@ export function MissionPage({ mission }: { mission: Mission }) {
           </section>
         </div>
         <div className="mission-side">
+          {mission.evidence && (state.phase === "explain" || (state.phase === "result" && state.attempt.evidence)) && (
+            <section className="evidence-step" aria-label="Point to the evidence">
+              <h2 className="phase-title">Point to the evidence</h2>
+              <p>{fillTemplate(mission.evidence.prompt, trace)}</p>
+              <p className="muted">
+                Showing step {frame.index + 1}: {frame.title}
+              </p>
+              {state.phase === "explain" && (
+                <button type="button" className="button" onClick={chooseEvidence}>
+                  This step proves it
+                </button>
+              )}
+              {state.attempt.evidence && state.attempt.evidence.index >= 0 && (
+                <p className={state.attempt.evidence.correct ? "verdict is-right" : "verdict is-wrong"} role="status">
+                  {state.attempt.evidence.correct
+                    ? state.attempt.evidence.revealed
+                      ? "Yes, that step shows it, though the evidence had already been revealed."
+                      : "Yes: that step shows it."
+                    : "That step doesn't show it. Use the playback controls to find the moment, then try again."}
+                </p>
+              )}
+            </section>
+          )}
           <PhasePanel
             mission={mission}
             trace={trace}
             state={state}
             {...panel}
             nextMissionId={nextMission}
+            mastery={{ done: masteredVersions(progress, mission.id, state), required: mission.masteryVariants ?? 1 }}
           />
           <KitabGuide
             guide={guide}

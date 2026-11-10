@@ -18,6 +18,8 @@ const attempt = z
     explanation: z.object({ choiceId: z.string().max(64), correct: z.boolean(), misconception: z.string().max(64).optional() }).strict().nullable(),
     reflection: z.string().max(600),
     mastered: z.boolean(),
+    needsEvidence: z.boolean().optional(),
+    evidence: z.object({ index: z.number().int(), correct: z.boolean(), revealed: z.boolean() }).strict().nullable().optional(),
   })
   .strict();
 
@@ -127,7 +129,14 @@ export function restoreState(progress: Progress, missionId: string, missionVersi
   return item.current.missionId === missionId && item.current.missionVersion === missionVersion ? (item.current as MissionState) : null;
 }
 
-export function recordState(progress: Progress, state: MissionState, scenarioKey: string, status: string, now = new Date().toISOString()): Progress {
+/** Distinct versions mastered so far, counting the current attempt. */
+export function masteredVersions(progress: Progress, missionId: string, current?: MissionState) {
+  const ids = new Set((progress.missions[missionId]?.attempts ?? []).filter((a) => a.status === "mastered").map((a) => a.variantId));
+  if (current?.attempt.mastered) ids.add(current.attempt.variantId);
+  return ids.size;
+}
+
+export function recordState(progress: Progress, state: MissionState, scenarioKey: string, status: string, now = new Date().toISOString(), requiredVersions = 1): Progress {
   const item = base(progress, state.missionId, state.missionVersion);
   const { attempt } = state;
   let attempts = item.attempts;
@@ -145,7 +154,8 @@ export function recordState(progress: Progress, state: MissionState, scenarioKey
     };
     attempts = [...attempts.filter((existing) => existing.attemptId !== attempt.id), entry].slice(-30);
   }
-  const masteredAt = item.masteredAt ?? (attempt.mastered ? now : null);
+  const versions = new Set([...attempts.filter((a) => a.status === "mastered").map((a) => a.variantId), ...(attempt.mastered ? [attempt.variantId] : [])]);
+  const masteredAt = item.masteredAt ?? (attempt.mastered && versions.size >= requiredVersions ? now : null);
   return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: state } } };
 }
 

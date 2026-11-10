@@ -126,3 +126,16 @@
 .scene { scroll-margin-top: calc(var(--nav-height) + 16px); }
 @media (max-width: 760px) { .scene { scroll-margin-top: 8px; } }
 .learn-first { margin: 6px 0 0; font-size: 0.92rem; color: var(--muted); }
+
+/* Opt-in evidence step: the learner points to the step that proves the answer. */
+.evidence-step {
+  padding: 16px 18px;
+  margin-bottom: 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.evidence-step .phase-title {
+  margin-top: 0;
+}
