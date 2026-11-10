@@ -14,6 +14,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { StepExplanation } from "./StepExplanation.tsx";
+import { withoutAdvice } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
 import { neighbours, place, type JourneyMode, type Point } from "./journey-nav.ts";
@@ -148,6 +149,7 @@ export function JourneyCard({
   onInspect,
   onAbout,
   onReadDetails,
+  advice = true,
 }: {
   trace: Trace;
   stages: Stage[];
@@ -163,6 +165,8 @@ export function JourneyCard({
   onInspect: () => void;
   onAbout: (device: string) => void;
   onReadDetails: () => void;
+  /** False in missions: failure advice is left for the learner to work out. */
+  advice?: boolean;
 }) {
   const card = useRef<HTMLElement>(null);
   const [spot, setSpot] = useState<Point | null>(null);
@@ -221,7 +225,13 @@ export function JourneyCard({
     );
   const title = mode === "summary" ? stage.title : event.title;
   // A stage's summary is only shown once all of its events have happened.
-  const text = event.error ? event.explanation : mode === "summary" && complete ? stage.summary : n.summary;
+  const text = event.error
+    ? advice
+      ? event.explanation
+      : withoutAdvice(event.explanation)
+    : mode === "summary" && complete
+      ? stage.summary
+      : n.summary;
   return (
     <section
       ref={card}
@@ -252,7 +262,7 @@ export function JourneyCard({
       )}
       {details && (
         <div className="journey-details">
-          <StepExplanation events={trace.events} index={index} network={network} onReadDetails={onReadDetails} onGoto={onStep} embedded />
+          <StepExplanation events={trace.events} index={index} network={network} onReadDetails={onReadDetails} onGoto={onStep} embedded advice={advice} />
         </div>
       )}
       <footer>

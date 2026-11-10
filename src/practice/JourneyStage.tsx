@@ -18,7 +18,10 @@ export function JourneyStage({
   start,
   onAbout,
   onInspect,
+  advice = true,
 }: {
+  /** False in missions: failure advice is left for the learner to work out. */
+  advice?: boolean;
   journey: Journey;
   network: Network;
   selected: string;
@@ -85,6 +88,7 @@ export function JourneyStage({
             onStep={j.step}
             onInspect={onInspect}
             onReadDetails={() => j.setPlaying(false)}
+            advice={advice}
           />
         )}
         <p className="sr-only" aria-live="polite">

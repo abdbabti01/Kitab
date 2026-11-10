@@ -2445,3 +2445,17 @@
   padding: 16px 2px;
   font-size: 10.5px;
 }
+/* On narrow screens the Mission tab sits below the diagram; the heading offers a shortcut to it. */
+.mission-jump {
+  display: none !important;
+}
+@media (max-width: 850px) {
+  .mission-jump {
+    display: inline-flex !important;
+    font-size: 12px !important;
+    font-weight: 600;
+  }
+  .network-mission .network-inspector {
+    scroll-margin-top: 72px;
+  }
+}

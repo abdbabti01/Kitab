@@ -66,17 +66,9 @@ export function NetworkCanvas({
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [network.name, network.devices.length]);
-  const cameraZoom = follow ? Math.max(1.7, zoom) : zoom;
-  let width = extent.width / cameraZoom,
-    height = extent.height / cameraZoom;
-  const center =
-    follow && event
-      ? network.devices.find((d) => d.id === event.actor)
-      : undefined;
-  let view = {
-    x: center ? Math.max(0, center.x - width / 2) : pan.x,
-    y: center ? Math.max(0, center.y - height / 2) : pan.y,
-  };
+  let width = extent.width / zoom,
+    height = extent.height / zoom;
+  let view = { x: pan.x, y: pan.y };
   // Following the journey frames the current stage's devices when the whole network would be too small
   // to read (below 0.4 px per unit: tiles under ~40 px); otherwise every device stays in view and reachable.
   const [canvasWidth, setCanvasWidth] = useState(0);

@@ -538,6 +538,17 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "A real host answers a SYN to a closed port with a TCP reset (RST) straight away. This lab stops at the server instead.",
   ),
 };
+/**
+ * A failure message without its advice ("Check …", "Configure …"). Missions keep the evidence and
+ * leave working out the fix to the learner; their hints take over the advice.
+ */
+export function withoutAdvice(text: string) {
+  return text
+    .split(/(?<=\.)\s+/)
+    .filter((s) => !/^(Check|Configure|Enable|Run |Restart|Fix |Assign|Remove|Add |Enter |Set the|Join |Select |Choose |Increase)/.test(s))
+    .join(" ");
+}
+
 /** The failure and every failure that caused it, outermost first. */
 export function failureChain(f: Failure | undefined, network: Network) {
   const chain: { reason: FailureReason; title: string; device: string; message: string }[] = [];

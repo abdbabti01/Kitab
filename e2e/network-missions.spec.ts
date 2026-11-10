@@ -163,6 +163,11 @@ test("a mission failure is explained once, at the failing step, and shortcuts ar
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   await expect(page.locator(".journey-card")).toContainText("private address (RFC 1918)");
   expect(await page.evaluate(() => document.body.innerText.split("Internet routers do not route to private home networks").length - 1)).toBe(1);
+  // In a mission the learner works out the fix: the step keeps its evidence but not "Where to look".
+  await page.locator(".journey-card").getByRole("button", { name: "Why it stopped" }).click();
+  await expect(page.locator(".step-guide")).toContainText("Caused by");
+  await expect(page.locator(".step-guide")).not.toContainText("Where to look:");
+  await page.locator(".journey-card").getByRole("button", { name: "Less detail" }).click();
   // The ISP route makes the page load, but the check refuses it and says why.
   await page.getByRole("button", { name: "Select ISP router", exact: true }).focus();
   await page.keyboard.press("Enter");

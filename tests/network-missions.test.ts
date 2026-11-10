@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { missions, variantFor, type FixMission, type InvestigateMission, type Variant } from "../src/practice/network/missions.ts";
 import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, runSequence } from "../src/practice/network/mission-assess.ts";
 import { connect } from "../src/practice/network/topology.ts";
-import { failures } from "../src/practice/network/explanations.ts";
+import { failures, withoutAdvice } from "../src/practice/network/explanations.ts";
 import type { Network } from "../src/practice/network/model.ts";
 
 const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
@@ -91,7 +91,7 @@ const cases: Record<string, Record<string, { fix: Change; also?: Change[]; not?:
     },
     static: {
       fix: (n) => void (dev(n, "phone").interfaces[0].mode = "dhcp"),
-      not: [[(n) => void Object.assign(dev(n, "phone").interfaces[0], { ip: "192.168.1.50", prefix: 24 }), /Set the client interface to DHCP/]],
+      not: [[(n) => void Object.assign(dev(n, "phone").interfaces[0], { ip: "192.168.1.50", prefix: 24 }), /Interface not set to DHCP/]],
       secrets: ["DHCP · ask the network", "switch it to DHCP"],
     },
     "dhcp-off": {
@@ -307,4 +307,16 @@ test("every explanation question has exactly one right answer and every failure 
       const reason = runSequence(v.build(), [v.probe]).reason!;
       assert.ok(failures[reason], `${m.id}/${v.id}: ${reason}`);
     }
+});
+
+test("missions keep failure evidence but leave out advice that would hand over the fix", () => {
+  const wrong = mission("leave-the-lan").variants.find((v) => v.id === "wrong-gateway")!;
+  const summary = runSequence(wrong.build(), [wrong.probe]).summary;
+  assert.match(summary, /Check Your PC's setting for its default gateway/);
+  const stripped = withoutAdvice(summary);
+  assert.equal(stripped, "ARP received no reply for 192.168.1.254. No device in this network uses 192.168.1.254, so nobody can answer.");
+  for (const m of fixMissions)
+    for (const v of m.variants)
+      for (const c of assessFix(m, v, v.build()).checks)
+        assert.doesNotMatch(c.message, /(^|. )(Check|Configure|Enable|Run |Fix |Assign|Restart)/, `${m.id}/${v.id}: ${c.message}`);
 });

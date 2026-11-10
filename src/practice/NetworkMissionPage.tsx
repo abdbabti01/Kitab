@@ -387,6 +387,15 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         <p className="mission-symptom">{variant.symptom}</p>
         <p className="mission-meta">
           <span className={`state-pill is-${state}`}>{practiceLabels[state]}</span> Version {position} of {mission.variants.length}
+          <button
+            className="text-button mission-jump"
+            onClick={() => {
+              setTab("mission");
+              inspectorRef.current?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+            }}
+          >
+            Mission steps ↓
+          </button>
         </p>
       </header>
       <details className="mission-brief" open={!journey.trace}>
@@ -448,6 +457,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
                 journey.setPlaying(false);
                 setTab("packet");
               }}
+              advice={false}
             />
             <SendPanel
               network={network}
