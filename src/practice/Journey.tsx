@@ -189,6 +189,7 @@ export function JourneyCard({
       { w: area.clientWidth, h: area.clientHeight },
       avoidIds.filter((id) => id !== anchorId).flatMap((id) => (positions[id] ? [positions[id]] : [])),
       controls,
+      Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
     );
     setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : next));
   });

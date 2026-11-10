@@ -329,3 +329,15 @@ test("the packet inspector follows one packet, shows what changed at each link a
   await expect(page.locator(".journey-card h3")).toHaveText("Transmit over Ethernet");
   await expect(page.locator(".packet-identity")).toContainText("On link 5 of 5");
 });
+test("selecting a device during a run explains its part in that run", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  // A device the card happens to cover stays reachable from the keyboard.
+  await page.getByRole("button", { name: "Select Home router", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const role = page.getByRole("region", { name: "Home router in this run" });
+  await expect(role).toContainText("Here it also runs a DHCP server and NAT");
+  await expect(role).toContainText(/Translated \d+ outgoing packets to its public address \(NAT\)/);
+  await expect(role).toContainText("does not pass local broadcasts");
+});

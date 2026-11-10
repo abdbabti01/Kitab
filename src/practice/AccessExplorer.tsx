@@ -16,6 +16,7 @@ import {
 import { linkProps } from "../app/router.ts";
 import {
   accessJourney,
+  boxRoles,
   technologies,
   type AccessTechnology,
   type LocalTechnology,
@@ -27,7 +28,11 @@ export function AccessExplorer() {
   const [local, setLocal] = useState<LocalTechnology>("wifi");
   const [combined, setCombined] = useState(true);
   const [index, setIndex] = useState(0),
-    [playing, setPlaying] = useState(false);
+    [playing, setPlaying] = useState(false),
+    // Which box's role is explained under the diagram (the modem or ONT by default).
+    [about, setAbout] = useState(2);
+  const roles = boxRoles(technology, combined),
+    role = roles[about];
   const stages = accessJourney(technology, local, combined),
     stage = stages[index],
     t = technologies[technology];
@@ -167,7 +172,7 @@ export function AccessExplorer() {
         >
           <svg
             viewBox="0 0 1100 270"
-            role="img"
+            role="group"
             aria-label={`Laptop, home router, ${t.terminal}, ${t.provider}, web server. Current step: ${stage.title}`}
           >
             <rect
@@ -227,7 +232,18 @@ export function AccessExplorer() {
               return (
                 <g
                   key={i}
-                  className={stage.focus === i ? "map-node active" : "map-node"}
+                  className={`${stage.focus === i ? "map-node active" : "map-node"} ${about === i ? "is-about" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`What does the ${name} do?`}
+                  aria-pressed={about === i}
+                  onClick={() => setAbout(i)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setAbout(i);
+                    }
+                  }}
                 >
                   <rect x={xs[i] - 38} y="103" width="76" height="65" rx="15" />
                   <Icon
@@ -288,7 +304,20 @@ export function AccessExplorer() {
             ? `The router, access point, switch, DHCP service and ${t.terminal} are shown as functions inside one example gateway. Actual products vary.`
             : `The router box contains Wi-Fi, switching, routing and DHCP. The ${t.terminal} is a separate box connected to its WAN port.`}{" "}
           The moving dot represents information, not a physical object.
+          Select a box to see what it does.
         </p>
+        <section className="access-about" aria-live="polite" aria-label={`About the ${role.name}`}>
+          <span className="access-kicker">WHAT THIS BOX DOES</span>
+          <h2>{role.name}</h2>
+          <p>{role.what}</p>
+          <ul>
+            {role.does.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="access-about-not">{role.not}</p>
+          {role.standard && <p className="access-about-standard">Standard: {role.standard}</p>}
+        </section>
       </section>
       <section className="access-player" aria-label="Technology playback">
         <div className="access-controls">

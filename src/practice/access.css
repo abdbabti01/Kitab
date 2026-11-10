@@ -443,3 +443,46 @@
     display: none;
   }
 }
+
+/* The selected box's role, under the diagram. */
+.map-node {
+  cursor: pointer;
+}
+.map-node:focus-visible rect {
+  outline: none;
+  stroke: var(--focus);
+  stroke-width: 3;
+}
+.map-node.is-about rect {
+  stroke: var(--primary);
+  stroke-width: 2.5;
+}
+.access-about {
+  margin: 14px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.access-about h2 {
+  margin: 4px 0 6px;
+  font-size: 18px;
+}
+.access-about p,
+.access-about ul {
+  margin: 0 0 8px;
+}
+.access-about ul {
+  padding-left: 20px;
+}
+.access-about-not {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+.access-about-standard {
+  color: var(--muted);
+  font-size: 12px;
+}

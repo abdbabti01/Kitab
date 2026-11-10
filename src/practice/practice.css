@@ -2075,3 +2075,35 @@
   color: var(--muted);
   overflow-wrap: anywhere;
 }
+
+/* A device's part in the current run. */
+.device-role {
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.device-role h3 {
+  margin: 10px 0 2px;
+  font-size: 12px;
+  color: var(--primary);
+}
+.device-role p,
+.device-role ul {
+  margin: 0;
+}
+.device-role ul {
+  padding-left: 18px;
+}
+.device-role-entry code {
+  font: 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.device-role-not {
+  margin-top: 10px !important;
+  color: var(--muted);
+}

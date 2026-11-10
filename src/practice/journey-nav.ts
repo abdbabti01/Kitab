@@ -22,7 +22,15 @@ export type Rect = { x: number; y: number; w: number; h: number };
  * Picks where the card goes: beside the anchor device if that is clear, otherwise the nearest spot
  * on a coarse grid that covers none of the stage's devices and none of the canvas controls.
  */
-export function place(anchor: Point, box: { w: number; h: number }, area: { w: number; h: number }, avoid: Point[], controls: Rect[]) {
+export function place(
+  anchor: Point,
+  box: { w: number; h: number },
+  area: { w: number; h: number },
+  avoid: Point[],
+  controls: Rect[],
+  /** Devices outside the stage: covering them is allowed, but they must stay clickable when possible. */
+  others: Point[] = [],
+) {
   const gap = 66;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
   const right = area.w - box.w - 8,
@@ -41,6 +49,7 @@ export function place(anchor: Point, box: { w: number; h: number }, area: { w: n
   // Beside the device wins whenever it is clear; grid spots are fallbacks, nearest first.
   const score = (c: Point, i: number) =>
     avoid.filter((p) => covers(c, p)).length * 10 +
+    others.filter((p) => covers(c, p)).length * 2 +
     controls.filter((r) => overlaps(c, r)).length * 20 +
     (covers(c, anchor) ? 50 : 0) +
     (i >= 4 ? 1 : 0) +

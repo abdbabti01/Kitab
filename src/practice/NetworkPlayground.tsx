@@ -936,6 +936,8 @@ export function NetworkPlayground() {
                     device={device}
                     network={network}
                     session={shownSession}
+                    events={trace?.events}
+                    index={index}
                     onApply={(updated) =>
                       change({
                         ...network,
