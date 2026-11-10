@@ -1707,12 +1707,12 @@
   min-width: 32px;
   margin: -6px -8px 0 0;
 }
-.journey-card h3 {
+.journey-card h2 {
   font: normal 19px/1.25 var(--display);
   margin: 2px 0 6px;
   color: var(--ink);
 }
-.journey-card.is-error h3 {
+.journey-card.is-error h2 {
   color: var(--danger);
 }
 .journey-summary {
@@ -1908,7 +1908,7 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .journey-card h3 {
+  .journey-card h2 {
     font-size: 17px;
   }
 }
@@ -1960,7 +1960,7 @@
   .journey-card:not(.has-details) {
     min-height: 15.5rem;
   }
-  .journey-card h3 {
+  .journey-card h2 {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -2127,7 +2127,7 @@
 .journey-card.is-compact {
   width: min(300px, calc(100% - 32px));
 }
-.journey-card.is-compact h3 {
+.journey-card.is-compact h2 {
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
@@ -2170,5 +2170,291 @@
   /* Below the caption and the Internet toggle on narrow canvases. */
   .network-canvas .journey-start {
     top: 96px;
+  }
+}
+
+/* Networking practice missions: the brief and steps above the shared workspace. */
+.mission-heading {
+  margin-bottom: 18px;
+}
+.mission-heading h1 {
+  font: normal clamp(34px, 5vw, 52px) / 1.05 var(--display);
+  margin: 10px 0 8px;
+  color: var(--ink);
+}
+.mission-heading a.eyebrow {
+  text-decoration: none;
+}
+.mission-symptom {
+  font-size: 17px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.state-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.state-pill.is-in-progress {
+  color: #8a5a17;
+  border-color: #e3c99a;
+  background: var(--warning-soft);
+}
+.state-pill.is-completed {
+  color: var(--primary);
+  border-color: var(--primary-soft-line);
+  background: var(--primary-soft);
+}
+.state-pill.is-mastered {
+  color: white;
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.mission-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.mission-brief,
+.mission-card {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mission-card h2,
+.mission-brief h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.mission-brief h2 {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.mission-brief ul,
+.mission-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.mission-card small {
+  font-weight: normal;
+  color: var(--muted);
+}
+.mission-steps {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.mission-card.is-right {
+  border-left: 4px solid var(--success);
+}
+.mission-card.is-wrong {
+  border-left: 4px solid var(--warning);
+}
+.mission-locks {
+  margin: 10px 0;
+}
+.mission-locks summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mission-options {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mission-options .small-button {
+  text-align: left;
+  justify-content: flex-start;
+  min-height: 40px;
+  white-space: normal;
+  height: auto;
+  padding: 8px 12px;
+}
+.mission-options .small-button.is-right {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+.mission-options .small-button.is-wrong {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+.mission-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+}
+.mission-fields label {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 180px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mission-fields select,
+.mission-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.mission-evidence-now {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mission-feedback {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+.mission-checks {
+  list-style: none;
+  padding: 0 !important;
+  margin-top: 10px !important;
+  display: grid;
+  gap: 8px;
+}
+.mission-checks li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: start;
+}
+.mission-checks li > span,
+.mission-checks li > .text-button {
+  grid-column: 2;
+}
+.mission-checks .is-passed > svg {
+  color: var(--success);
+}
+.mission-checks .is-failed > svg {
+  color: var(--danger);
+}
+.mission-checks .text-button {
+  justify-self: start;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.mission-hints p {
+  margin: 0 0 6px;
+}
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+}
+.mission-list {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.mission-list a {
+  display: grid;
+  gap: 6px;
+  height: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mission-list a:hover {
+  border-color: var(--primary-soft-line);
+}
+.mission-list b {
+  font-size: 17px;
+  color: var(--ink);
+}
+.mission-list .state-pill {
+  justify-self: start;
+}
+.mission-level {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mission-list-heading {
+  font: normal 26px var(--display);
+  margin: 10px 0 12px;
+}
+@media (max-width: 850px) {
+  .mission-panel {
+    grid-template-columns: 1fr;
+  }
+}
+.network-mission .mission-brief {
+  margin: 0 0 16px;
+}
+.network-mission .mission-brief > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+}
+.network-mission .mission-brief[open] > summary {
+  margin-bottom: 8px;
+}
+.network-inspector .mission-steps .mission-card {
+  padding: 12px 14px;
+}
+/* Five tabs when a mission adds its own: keep every label on one line. */
+.network-mission .inspector-tabs {
+  padding: 0 6px;
+}
+.network-mission .inspector-tabs button {
+  gap: 4px;
+  padding: 16px 2px;
+  font-size: 10.5px;
+}
+/* On narrow screens the Mission tab sits below the diagram; the heading offers a shortcut to it. */
+.mission-jump {
+  display: none !important;
+}
+@media (max-width: 850px) {
+  .mission-jump {
+    display: inline-flex !important;
+    font-size: 12px !important;
+    font-weight: 600;
+  }
+  .network-mission .network-inspector {
+    scroll-margin-top: 72px;
   }
 }

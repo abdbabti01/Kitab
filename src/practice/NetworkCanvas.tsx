@@ -66,19 +66,13 @@ export function NetworkCanvas({
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [network.name, network.devices.length]);
-  const cameraZoom = follow ? Math.max(1.7, zoom) : zoom;
-  let width = extent.width / cameraZoom,
-    height = extent.height / cameraZoom;
-  const center =
-    follow && event
-      ? network.devices.find((d) => d.id === event.actor)
-      : undefined;
-  let view = {
-    x: center ? Math.max(0, center.x - width / 2) : pan.x,
-    y: center ? Math.max(0, center.y - height / 2) : pan.y,
-  };
-  // Following the journey frames the current stage's devices, so they stay legible on small screens.
-  const framed = follow && focus
+  let width = extent.width / zoom,
+    height = extent.height / zoom;
+  let view = { x: pan.x, y: pan.y };
+  // Following the journey frames the current stage's devices when the whole network would be too small
+  // to read (below 0.4 px per unit: tiles under ~40 px); otherwise every device stays in view and reachable.
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  const framed = follow && focus && canvasWidth > 0 && canvasWidth / extent.width < 0.4
     ? network.devices.filter((d) => focus.devices.includes(d.id) || focus.hops.some((h) => h.from === d.id || h.to === d.id))
     : [];
   if (framed.length) {
@@ -148,6 +142,8 @@ export function NetworkCanvas({
   // Report where each device is drawn, after layout and whenever the view or size changes.
   useLayoutEffect(() => {
     const report = () => {
+      const w = wrap.current?.clientWidth ?? 0;
+      if (w && w !== canvasWidth) setCanvasWidth(w);
       const m = svg.current?.getScreenCTM(),
         box = wrap.current?.getBoundingClientRect();
       if (!m || !box || !onPositions) return;
@@ -193,7 +189,7 @@ export function NetworkCanvas({
       <div className="canvas-caption">
         <span className="live-dot" /> YOUR NETWORK{" "}
         <span>
-          {network.devices.length} devices · {network.links.length} links
+          {network.devices.length} {network.devices.length === 1 ? "device" : "devices"} · {network.links.length} {network.links.length === 1 ? "link" : "links"}
         </span>
       </div>
       <svg

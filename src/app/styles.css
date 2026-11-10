@@ -126,7 +126,8 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .mission-card > span:not(.status-chip) { color: var(--ink-2); font-size: 0.95rem; }
 .mission-card small { color: var(--muted); }
 .status-chip { justify-self: start; padding: 2px 8px; border-radius: 999px; font-size: 0.76rem; font-weight: 700; background: var(--surface-2); color: var(--muted); }
-.status-chip.status-practiced { background: var(--primary-soft); color: var(--primary-strong); }
+.status-chip.status-in-progress,
+.status-chip.status-completed { background: var(--primary-soft); color: var(--primary-strong); }
 .status-chip.status-mastered { background: var(--success-soft); color: var(--success); }
 .concept-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 8px; list-style: none; padding: 0; margin: 12px 0 0; }
 .concept-list a { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; }

@@ -1,16 +1,15 @@
 // Behaviour baseline recorded before Phase 2 (explanations and journey UX).
 // Phase 2 may add metadata to events but must not change what the network does:
-// event order, acting device, hops, headers, state snapshots, outcomes and challenge verdicts.
+// event order, acting device, hops, headers, state snapshots, outcomes, and each practice mission's starting run.
 // Regenerate deliberately with BASELINE_WRITE=1 and justify every difference in the commit.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { scenarios } from "./support/network-scenarios.ts";
-import { challenges, assessChallenge } from "../src/practice/network/challenges.ts";
-import { newSession, simulate } from "../src/practice/network/engine.ts";
-import { connect } from "../src/practice/network/topology.ts";
-import type { Network, Trace } from "../src/practice/network/model.ts";
+import { missions } from "../src/practice/network/missions.ts";
+import { runSequence } from "../src/practice/network/mission-assess.ts";
+import type { Trace } from "../src/practice/network/model.ts";
 
 const file = new URL("./fixtures/network-baseline.json", import.meta.url);
 const hash = (value: unknown) => createHash("sha1").update(JSON.stringify(value)).digest("hex").slice(0, 10);
@@ -22,35 +21,20 @@ const project = (t: Trace) => ({
   ),
 });
 
-const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
-const variants: Record<string, Record<string, (n: Network) => void>> = {
-  cable: { fix: (n) => void Object.assign(n, connect(n, { device: "switch", port: "p2" }, { device: "server", port: "eth0" }, "ethernet")) },
-  subnet: { fix: (n) => void (dev(n, "pc").interfaces[0].prefix = 24), "move pc only": (n) => void (dev(n, "pc").interfaces[0].ip = "192.168.1.140") },
-  wifi: { fix: (n) => void (dev(n, "phone").password = "learn123"), "blank ap password": (n) => void (dev(n, "ap").password = "") },
-  route: { fix: (n) => void (dev(n, "pc").interfaces[0].gateway = "192.168.1.1") },
-  nat: {
-    fix: (n) => void (dev(n, "router").nat = true),
-    "isp route": (n) => void dev(n, "isp").routes.push({ network: "192.168.1.0", prefix: 24, via: "203.0.113.2", port: "lan" }),
-  },
-  loss: { fix: () => undefined },
-};
-function verdicts() {
+// Each mission version's first probe on its broken network: outcome, reason, length and where it stopped.
+function missionStarts() {
   const out: Record<string, string> = {};
-  for (const c of challenges()) {
-    out[`${c.id}: start`] = assessChallenge(c, c.action, simulate(c.network, newSession(), c.action), c.network).status;
-    for (const [name, change] of Object.entries(variants[c.id] ?? {})) {
-      const fresh = challenges().find((x) => x.id === c.id)!;
-      change(fresh.network);
-      const action = c.id === "loss" ? { ...fresh.action, dropOnce: true } : fresh.action;
-      out[`${c.id}: ${name}`] = assessChallenge(fresh, action, simulate(fresh.network, newSession(), action), fresh.network).status;
+  for (const m of missions)
+    for (const v of m.variants) {
+      const t = runSequence(v.build(), [v.probe]);
+      out[`${m.id}/${v.id}`] = [t.success, t.reason ?? "", t.events.length, t.events.at(-1)!.actor].join(" | ");
     }
-  }
   return out;
 }
 
 const current = () => ({
   scenarios: Object.fromEntries(scenarios().map((s) => [s.name, project(s.trace)])),
-  challenges: verdicts(),
+  missions: missionStarts(),
 });
 
 test("networking behaviour matches the recorded baseline", () => {
@@ -65,7 +49,7 @@ test("networking behaviour matches the recorded baseline", () => {
     assert.equal(actual.events.length, run.events.length, `${name}: event count`);
     assert.equal(at, -1, `${name}: first difference at event ${at}\n  was: ${run.events[at]}\n  now: ${actual.events[at]}`);
   }
-  assert.deepEqual(now.challenges, recorded.challenges);
+  assert.deepEqual(now.missions, recorded.missions);
 });
 
 test("the same input always produces the same trace", () => {

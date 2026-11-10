@@ -56,10 +56,10 @@ test("the networking glossary gives a definition, purpose and example for each t
   assert.match(subnet.example!, /192\.168\.1\.0\/24/);
 });
 
-test("the lesson's /25 split and playground challenge 02's mask mismatch follow the same rules", async () => {
+test("the lesson's /25 split and the Neighbours mission's mask mismatch follow the same rules", async () => {
   const { starter } = await import("../src/practice/network/starters.ts");
   const { newSession, simulate } = await import("../src/practice/network/engine.ts");
-  const { challenges } = await import("../src/practice/network/challenges.ts");
+  const { missions } = await import("../src/practice/network/missions.ts");
   type Net = ReturnType<typeof starter>;
   const dev = (n: Net, id: string) => n.devices.find((d) => d.id === id)!;
   const ping = (n: Net) => simulate(n, newSession(), { kind: "ping", source: "pc", target: "192.168.1.130" });
@@ -88,8 +88,8 @@ test("the lesson's /25 split and playground challenge 02's mask mismatch follow 
   assert.equal(firstArp(t25), lesson25.outcome.nextHop, "the PC hands the packet to the router, as the lesson says");
   assert.ok(t25.events.some((e) => e.title === "Decrease TTL" && e.actor === "router"));
 
-  // Challenge 02: only the PC uses /25 and there is no router. That is a mismatch, and it fails.
-  const mismatch = challenges().find((c) => c.id === "subnet")!.network;
+  // The Neighbours mission's first version: only the PC uses /25 and there is no router. That is a mismatch, and it fails.
+  const mismatch = missions.find((m) => m.id === "neighbours")!.variants.find((v) => v.id === "pc-mask")!.build();
   assert.equal(dev(mismatch, "pc").interfaces[0].prefix, 25);
   assert.equal(dev(mismatch, "server").interfaces[0].prefix, 24);
   assert.ok(!mismatch.devices.some((d) => d.kind === "router"));

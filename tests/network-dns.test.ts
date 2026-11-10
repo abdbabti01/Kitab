@@ -33,7 +33,9 @@ test("DNS pointed at a device that does not run DNS is not blamed on missing rec
   assert.equal(t.reason, "DNS_NO_SERVICE");
   assert.equal(last.actor, "server", "the device that received the query is highlighted");
   assert.match(t.summary, /does not run a DNS service/);
-  assert.match(t.summary, /DNS server setting/);
+  // Pointing at the setting is advice: the playground shows it, missions leave it to the learner.
+  assert.doesNotMatch(t.summary, /DNS server setting/);
+  assert.match(t.failure!.advice!, /DNS server setting/);
   assert.doesNotMatch(t.summary, /Add the record/i);
   assert.match(why.detail, /port 53|service/);
 });

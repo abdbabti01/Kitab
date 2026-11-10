@@ -45,6 +45,13 @@ export const missionSchema = z
     hints: z.array(z.object({ text: text(240), beforePrediction: z.boolean(), target: z.string().max(64).optional() }).strict()).min(2).max(4),
     misconceptions: z.record(id, z.object({ label: text(80), message: text(260), target: z.string().max(64).optional() }).strict()),
     sources: z.array(z.object({ id, text: text(600) }).strict()).min(1).max(6),
+    /**
+     * Opt-in: the learner points to the step that proves the answer. Frame ids may end in "*".
+     * Without it, a mission behaves exactly as before.
+     */
+    evidence: z.object({ prompt: text(200), frames: z.array(text(80)).min(1).max(6) }).strict().optional(),
+    /** Opt-in: how many different versions must be mastered before the mission counts as mastered. */
+    masteryVariants: z.number().int().min(1).max(3).optional(),
   })
   .strict()
   .superRefine((mission, context) => {

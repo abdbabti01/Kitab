@@ -538,6 +538,15 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "A real host answers a SYN to a closed port with a TCP reset (RST) straight away. This lab stops at the server instead.",
   ),
 };
+/**
+ * What a failed step says. The event's explanation is only what was observed; with coaching (the
+ * playground) the simulator's diagnosis follows it. Missions leave the diagnosis to the learner.
+ */
+export function failureText(event: TraceEvent, coaching: boolean) {
+  const detail = coaching ? event.failure?.detail : undefined;
+  return detail ? `${event.explanation} ${detail}` : event.explanation;
+}
+
 /** The failure and every failure that caused it, outermost first. */
 export function failureChain(f: Failure | undefined, network: Network) {
   const chain: { reason: FailureReason; title: string; device: string; message: string }[] = [];
@@ -687,7 +696,7 @@ export function explainStep(
         `${deviceName(event.hop.to)} will receive this copy. Receiving it does not automatically mean answering it.`,
         "The animation shows one link at a time. The broadcast also travels on other eligible links in the same LAN.",
       );
-    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended)}.`;
+    audience = `${audience} DHCP ${phase}: ${deviceName(origin)} → local LAN; ${requesting ? "server handling it" : "intended client"}: ${deviceName(intended) || "none on this LAN"}.`;
     return {
       ...explanation,
       audience,

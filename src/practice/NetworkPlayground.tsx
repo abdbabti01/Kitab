@@ -1,62 +1,35 @@
 import { linkProps } from "../app/router.ts";
-import { JourneyCard, JourneyControls, MODE_KEY, StepsList, type JourneyMode, type Point } from "./Journey.tsx";
-import { stageAt, stagesOf } from "./network/stages.ts";
 import { sameConfiguration } from "./network/editing.ts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
-  Check,
   Download,
-  ListOrdered,
-  Flag,
-  Globe2,
+  GraduationCap,
   HardDrive,
   Layers,
   Monitor,
   Network as NetworkIcon,
   Plus,
   Redo2,
-  RotateCcw,
   Save,
   Server,
-  Settings2,
   Smartphone,
   Undo2,
   Upload,
   Wifi,
   X,
 } from "lucide-react";
-import { NetworkCanvas } from "./NetworkCanvas.tsx";
-import { DeviceInspector } from "./DeviceInspector.tsx";
-import {
-  PacketInspector,
-  StateTables,
-  DeviceCloseup,
-} from "./PacketInspector.tsx";
-import {
-  createDevice,
-  type Network,
-  type DeviceKind,
-  type Action,
-  type Trace,
-  type Session,
-} from "./network/model.ts";
+import { JourneyStage } from "./JourneyStage.tsx";
+import { SendPanel } from "./SendPanel.tsx";
+import { InspectorPanel, type InspectorTab } from "./InspectorPanel.tsx";
+import { useJourney } from "./useJourney.ts";
+import { createDevice, type Network, type DeviceKind, type Action } from "./network/model.ts";
 import { starter, starterOptions } from "./network/starters.ts";
 import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
-import { newSession, simulate } from "./network/engine.ts";
-import {
-  challenges,
-  assessChallenge,
-  type ChallengeVerdict,
-} from "./network/challenges.ts";
-import {
-  loadWorkspace,
-  saveNamed,
-  savedNetworks,
-  WORKSPACE_KEY,
-  CHALLENGES_KEY,
-} from "./network/storage.ts";
+import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
+import { missions } from "./network/missions.ts";
+import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import "./practice.css";
 const deviceTypes = [
   { kind: "pc", label: "PC", icon: Monitor },
@@ -66,9 +39,25 @@ const deviceTypes = [
   { kind: "ap", label: "Access point", icon: Wifi },
   { kind: "server", label: "Server", icon: Server },
 ] as const;
-const challengeList = challenges();
+// A practice copy of a mission's network, opened with ?scratch=1. It is never saved over the workspace.
+function scratchCopy() {
+  try {
+    if (!new URLSearchParams(location.search).has("scratch")) return null;
+    const raw = sessionStorage.getItem(SCRATCH_KEY);
+    return raw ? importNetwork(raw) : null;
+  } catch {
+    return null;
+  }
+}
 export function NetworkPlayground() {
   const [startup] = useState(() => {
+    const copy = scratchCopy();
+    if (copy)
+      return {
+        network: copy,
+        scratch: true,
+        error: "This is a practice copy of a mission network. Experiment freely: it is not saved over your own playground network or your mission. Save it under a name to keep it.",
+      };
     try {
       return { network: loadWorkspace() ?? starter("internet"), error: "" };
     } catch {
@@ -81,35 +70,12 @@ export function NetworkPlayground() {
   });
   const [network, setNetwork] = useState<Network>(startup.network),
     [notice, setNotice] = useState(startup.error),
-    [saveBlocked, setSaveBlocked] = useState(!!startup.error),
+    [saveBlocked, setSaveBlocked] = useState(!!startup.error || "scratch" in startup),
     [saved, setSaved] = useState("Saved on this device");
   const [selected, setSelected] = useState(""),
-    [tab, setTab] = useState<"device" | "packet" | "tables" | "steps">("packet"),
-    [session, setSession] = useState<Session>(newSession),
-    [trace, setTrace] = useState<Trace | null>(null),
-    [index, setIndex] = useState(0),
-    [playing, setPlaying] = useState(false),
-    [speed, setSpeed] = useState(1),
-    // On narrow screens the whole network is too small to read, so the camera follows the journey.
-    [follow, setFollow] = useState(() => {
-      try {
-        return matchMedia("(max-width: 760px)").matches;
-      } catch {
-        return false;
-      }
-    }),
-    [inside, setInside] = useState(false),
-    [cardOpen, setCardOpen] = useState(true),
-    [positions, setPositions] = useState<Record<string, Point>>({}),
-    [scale, setScale] = useState(1),
-    // Summary is the first-visit default; the learner's choice is remembered on this device.
-    [mode, setMode] = useState<JourneyMode>(() => {
-      try {
-        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
-      } catch {
-        return "summary";
-      }
-    });
+    [tab, setTab] = useState<InspectorTab>("packet");
+  const journey = useJourney(network),
+    { trace } = journey;
   const [action, setAction] = useState<Action>({
     kind: "http",
     source:
@@ -126,33 +92,22 @@ export function NetworkPlayground() {
   });
   const [past, setPast] = useState<Network[]>([]),
     [future, setFuture] = useState<Network[]>([]),
-    [challengeId, setChallengeId] = useState(""),
-    [hints, setHints] = useState(0),
-    [challengeOpen, setChallengeOpen] = useState(false),
-    [verdict, setVerdict] = useState<ChallengeVerdict | null>(null),
     [help, setHelp] = useState(false),
-    [inputError, setInputError] = useState<{ field: "source" | "target"; message: string } | null>(null),
     [saveList, setSaveList] = useState(false);
-  const [completed, setCompleted] = useState<string[]>(() => {
+  const [practice] = useState(() => {
     try {
-      const a = JSON.parse(localStorage.getItem(CHALLENGES_KEY) ?? "[]");
-      return Array.isArray(a) ? a.filter((v) => typeof v === "string") : [];
+      const store = loadMissionStore(localStorage);
+      const states = missions.map((m) => missionState(store.missions[m.id], m));
+      return { done: states.filter((x) => x === "completed" || x === "mastered").length, mastered: states.filter((x) => x === "mastered").length };
     } catch {
-      return [];
+      return { done: 0, mastered: 0 };
     }
   });
   const fileRef = useRef<HTMLInputElement>(null);
   const inspectorRef = useRef<HTMLElement>(null);
-  const journeyRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (inspectorRef.current) inspectorRef.current.scrollTop = 0;
   }, [tab, selected]);
-  const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
-  const stage = trace ? stages[stageAt(stages, index)] : undefined;
-  const event = trace?.events[index],
-    shownSession = event?.snapshot ?? session,
-    device = network.devices.find((d) => d.id === selected),
-    challenge = challengeList.find((c) => c.id === challengeId);
   useEffect(() => {
     document.title = "Network playground · Kitab";
   }, []);
@@ -165,30 +120,11 @@ export function NetworkPlayground() {
       setSaved("Could not save · export your network");
     }
   }, [network, saveBlocked]);
-  useEffect(() => {
-    if (!playing || !trace) return;
-    const timer = window.setInterval(
-      () =>
-        setIndex((i) => {
-          if (i >= trace.events.length - 1) {
-            setPlaying(false);
-            return i;
-          }
-          return i + 1;
-        }),
-      Math.max(120, 1100 / speed),
-    );
-    return () => clearInterval(timer);
-  }, [playing, speed, trace]);
   function resetSession(
     message = "Simulation restarted. DHCP clients need a new lease.",
   ) {
-    setSession(newSession());
-    setTrace(null);
-    setIndex(0);
-    setPlaying(false);
+    journey.reset();
     setNotice(message);
-    setVerdict(null);
   }
   function edit(next: Network, positionsOnly = false) {
     setPast((p) => [...p.slice(-49), network]);
@@ -245,47 +181,9 @@ export function NetworkPlayground() {
   }
   function run() {
     setNotice("");
-    setPlaying(false);
-    const result = simulate(network, session, action);
-    // A typing mistake is not a network event: show it at the field and keep the current run.
-    if (result.reason?.startsWith("INPUT_")) {
-      setInputError({ field: result.reason === "INPUT_SOURCE" ? "source" : "target", message: result.summary });
-      return;
-    }
-    setInputError(null);
-    // Bring the diagram into view if the learner pressed Send from further down the page.
-    requestAnimationFrame(() => {
-      const box = journeyRef.current?.getBoundingClientRect();
-      if (box && (box.top < 0 || box.top > innerHeight * 0.4))
-        journeyRef.current!.scrollIntoView({
-          block: "start",
-          behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
-        });
-    });
-    setSession(result.session);
-    setTrace(result);
-    setIndex(0);
+    const result = journey.run(action);
+    if (!result) return;
     setTab("packet");
-    const assessed =
-      challenge && assessChallenge(challenge, action, result, network);
-    setVerdict(assessed || null);
-    if (
-      challenge &&
-      assessed?.status === "passed" &&
-      !completed.includes(challenge.id)
-    ) {
-      const next = [...completed, challenge.id];
-      setCompleted(next);
-      try {
-        localStorage.setItem(CHALLENGES_KEY, JSON.stringify(next));
-      } catch {
-        setNotice("Challenge completed, but progress could not be saved.");
-      }
-    }
-  }
-  function step(next: number) {
-    setPlaying(false);
-    setIndex(Math.max(0, Math.min((trace?.events.length ?? 1) - 1, next)));
   }
   function history(undo: boolean) {
     const source = undo ? past : future;
@@ -316,45 +214,16 @@ export function NetworkPlayground() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  function loadChallenge(id: string) {
-    const c = challengeList.find((c) => c.id === id);
-    if (!c) return;
-    replace(c.network, { ...c.action, ttl: 64 });
-    setChallengeId(id);
-    setHints(0);
-    setChallengeOpen(true);
-    setVerdict(null);
-  }
-  // The failing step holds the full explanation; status lines only point to it.
-  const stoppedAt = trace && !trace.success ? trace.events.length - 1 : -1,
-    stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name : "";
-  const showStop = () => {
-    step(stoppedAt);
-    setCardOpen(true);
-  };
-  function chooseMode(next: JourneyMode) {
-    setMode(next);
-    try {
-      localStorage.setItem(MODE_KEY, next);
-    } catch {
-      // The choice still applies for this visit.
-    }
-  }
   function inspectPacket() {
-    setPlaying(false);
+    journey.setPlaying(false);
     setTab("packet");
     if (window.matchMedia("(max-width: 850px)").matches)
       inspectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  // Announce stage changes; when stepping by hand in Every event, announce each event.
-  const announcement = !trace
-    ? ""
-    : mode === "events" && !playing
-      ? `Event ${index + 1} of ${trace.events.length}: ${trace.events[index].title}`
-      : `Stage ${stageAt(stages, index) + 1} of ${stages.length}: ${stage?.title}`;
-  const nextChallenge =
-    challenge &&
-    challengeList[challengeList.findIndex((c) => c.id === challenge.id) + 1];
+  const select = (id: string) => {
+    setSelected(id);
+    setTab("device");
+  };
   return (
     <main id="main" className="network-playground">
       <header className="playground-heading">
@@ -367,13 +236,12 @@ export function NetworkPlayground() {
           <p>Build a network. Send a message. See everything in between.</p>
         </div>
         <div className="playground-heading-actions">
-          <button
-            className={`small-button ${challengeOpen ? "selected" : ""}`}
-            onClick={() => setChallengeOpen((v) => !v)}
-          >
-            <Flag size={16} /> Challenges{" "}
-            <span className="count">{completed.length}/6</span>
-          </button>
+          <a className="small-button" {...linkProps("/practice/missions")}>
+            <GraduationCap size={16} /> Practice missions{" "}
+            <span className="count">
+              {practice.done}/{missions.length} done
+            </span>
+          </a>
           <button
             className="icon-button"
             aria-label="Open playground guide"
@@ -427,112 +295,6 @@ export function NetworkPlayground() {
           </a>
         </section>
       )}
-      {challengeOpen && (
-        <section className="challenge-panel">
-          <div className="challenge-heading">
-            <div>
-              <span className="eyebrow">LEARN BY DOING</span>
-              <h2>
-                {challenge?.title ?? "Six small challenges. One big picture."}
-              </h2>
-            </div>
-            <select
-              aria-label="Choose a challenge"
-              value={challengeId}
-              onChange={(e) => loadChallenge(e.target.value)}
-            >
-              <option value="">Choose your challenge</option>
-              {challengeList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {completed.includes(c.id) ? "✓ " : ""}
-                  {c.title}
-                </option>
-              ))}
-            </select>
-          </div>
-          {challenge ? (
-            <>
-              <p>{challenge.purpose}</p>
-              <div className="challenge-goal">
-                <Flag size={18} />
-                <b>{challenge.goal}</b>
-                {completed.includes(challenge.id) && (
-                  <span className="success-pill">
-                    <Check size={13} /> Completed
-                  </span>
-                )}
-              </div>
-              {verdict && (
-                <div
-                  className={`challenge-verdict is-${verdict.status}`}
-                  role="status"
-                >
-                  <b>
-                    {verdict.status === "passed"
-                      ? "Challenge complete. What you proved:"
-                      : verdict.status === "incomplete"
-                        ? "It ran, but the challenge is not complete yet."
-                        : "The network stopped the delivery."}
-                  </b>
-                  {verdict.status === "failed" ? (
-                    <p>
-                      The delivery stopped{stoppedBy ? ` at ${stoppedBy}` : ""} before the goal was reached.{" "}
-                      <button className="text-button stop-link" onClick={showStop}>
-                        Show where and why
-                      </button>
-                    </p>
-                  ) : (
-                    <p>{verdict.message}</p>
-                  )}
-                  {verdict.status === "passed" && nextChallenge && (
-                    <button
-                      className="small-button"
-                      onClick={() => loadChallenge(nextChallenge.id)}
-                    >
-                      Next challenge: {nextChallenge.title}{" "}
-                      <ArrowRight size={13} />
-                    </button>
-                  )}
-                </div>
-              )}
-              {challenge.hints.slice(0, hints).map((h) => (
-                <p className="challenge-hint" key={h}>
-                  {h}
-                </p>
-              ))}
-              <div className="challenge-actions">
-                <button
-                  className="text-button"
-                  disabled={hints >= challenge.hints.length}
-                  onClick={() => setHints((h) => h + 1)}
-                >
-                  Show a hint
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => loadChallenge(challenge.id)}
-                >
-                  Reset challenge
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setChallengeId("");
-                    setChallengeOpen(false);
-                  }}
-                >
-                  Keep building freely <ArrowRight size={13} />
-                </button>
-              </div>
-            </>
-          ) : (
-            <p>
-              Practice cables, subnets, Wi-Fi, routing, NAT and TCP reliability.
-              Each challenge opens an editable network with a clear goal.
-            </p>
-          )}
-        </section>
-      )}
       <section className="lab-shell" aria-label="Network workspace">
         <div className="workspace-toolbar">
           <div className="workspace-title">
@@ -556,7 +318,6 @@ export function NetworkPlayground() {
               value=""
               onChange={(e) => {
                 replace(starter(e.target.value));
-                setChallengeId("");
               }}
             >
               <option value="" disabled>
@@ -621,7 +382,6 @@ export function NetworkPlayground() {
                   if (file.size > 1000000)
                     throw new Error("Network file is too large.");
                   replace(importNetwork(await file.text()));
-                  setChallengeId("");
                 } catch (error) {
                   setNotice(`Import failed. ${(error as Error).message}`);
                 }
@@ -643,7 +403,6 @@ export function NetworkPlayground() {
                       key={e.name}
                       onClick={() => {
                         replace(e.network);
-                        setChallengeId("");
                         setSaveList(false);
                       }}
                     >
@@ -703,360 +462,62 @@ export function NetworkPlayground() {
         )}
         <div className="workspace-grid">
           <div className="workspace-stage">
-            <div className="journey-stage" ref={journeyRef}>
-            <NetworkCanvas
+            <JourneyStage
+              journey={journey}
               network={network}
-              session={shownSession}
-              event={event}
-              focus={stage}
-              onPositions={(p, s) => {
-                setPositions(p);
-                setScale(s);
-              }}
               selected={selected}
-              onSelect={(id) => {
-                setSelected(id);
-                setTab("device");
-              }}
+              onSelect={select}
               onMove={(id, x, y) =>
-                edit(
-                  {
-                    ...network,
-                    devices: network.devices.map((d) =>
-                      d.id === id ? { ...d, x, y } : d,
-                    ),
-                  },
-                  true,
-                )
+                edit({ ...network, devices: network.devices.map((d) => (d.id === id ? { ...d, x, y } : d)) }, true)
               }
               onAdd={add}
-              follow={follow}
-            >
-              {!trace && (
-                <button className="button primary journey-start" disabled={!action.source} onClick={run}>
-                  {action.kind === "dhcp" ? "Configure automatically" : "Send request"} and follow it
-                </button>
-              )}
-            </NetworkCanvas>
-            <JourneyControls
-              trace={trace}
-              stages={stages}
-              index={index}
-              mode={mode}
-              playing={playing}
-              speed={speed}
-              network={network}
-              onStep={step}
-              onPlay={() => {
-                if (trace && index >= trace.events.length - 1) setIndex(0);
-                setPlaying((p) => !p);
+              start={{
+                label: `${action.kind === "dhcp" ? "Configure automatically" : "Send request"} and follow it`,
+                disabled: !action.source,
+                onClick: run,
               }}
-              onMode={chooseMode}
-              onSpeed={setSpeed}
-              onShowStop={showStop}
+              onAbout={select}
+              onInspect={inspectPacket}
             />
-            {trace && (
-              <JourneyCard
-                trace={trace}
-                stages={stages}
-                index={index}
-                mode={mode}
-                network={network}
-                playing={playing}
-                positions={positions}
-                scale={scale}
-                onAbout={(id) => {
-                  setPlaying(false);
-                  setSelected(id);
-                  setTab("device");
-                }}
-                open={cardOpen}
-                onOpen={setCardOpen}
-                onStep={step}
-                onInspect={inspectPacket}
-                onReadDetails={() => setPlaying(false)}
-              />
-            )}
-            <p className="sr-only" aria-live="polite">
-              {announcement}
-            </p>
-            </div>
-            <div className="view-options">
-              <label className="network-check">
-                <input
-                  type="checkbox"
-                  checked={follow}
-                  onChange={(e) => setFollow(e.target.checked)}
-                />{" "}
-                Zoom to the current stage
-              </label>
-              <label className="network-check">
-                <input
-                  type="checkbox"
-                  checked={inside}
-                  onChange={(e) => setInside(e.target.checked)}
-                />{" "}
-                Look inside device
-              </label>
-              <span>
-                <Globe2 size={13} /> Simulated network · no real traffic
-              </span>
-            </div>
-            {inside && <DeviceCloseup event={event} network={network} />}
-            <section className="send-panel" aria-label="Send traffic">
-              <div className="send-title">
-                <span className="step-marker">01</span>
-                <div>
-                  <b>Send something</b>
-                  <small>Choose the app and where its message goes.</small>
-                </div>
-              </div>
-              <div className="send-fields">
-                <label>
-                  <span>From</span>
-                  <select
-                    aria-label="Source device"
-                    value={action.source}
-                    aria-invalid={inputError?.field === "source" || undefined}
-                    aria-describedby={inputError?.field === "source" ? "send-error" : undefined}
-                    onChange={(e) => {
-                      setInputError(null);
-                      setAction((a) => ({ ...a, source: e.target.value }));
-                    }}
-                  >
-                    <option value="" disabled>
-                      Choose a device
-                    </option>
-                    {network.devices
-                      .filter((d) => d.kind !== "switch" && d.kind !== "ap")
-                      .map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label>
-                  <span>Action</span>
-                  <select
-                    aria-label="Traffic type"
-                    value={action.kind}
-                    onChange={(e) =>
-                      setAction((a) => ({
-                        ...a,
-                        kind: e.target.value as Action["kind"],
-                      }))
-                    }
-                  >
-                    <option value="http">HTTP · load a page</option>
-                    <option value="ping">Ping · check reachability</option>
-                    <option value="dhcp">DHCP · configure automatically</option>
-                  </select>
-                </label>
-                {action.kind !== "dhcp" && (
-                  <label className="destination-field">
-                    <span>To</span>
-                    <input
-                      aria-label="Destination"
-                      value={action.target}
-                      aria-invalid={inputError?.field === "target" || undefined}
-                      aria-describedby={inputError?.field === "target" ? "send-error" : undefined}
-                      onChange={(e) => {
-                        setInputError(null);
-                        setAction((a) => ({ ...a, target: e.target.value }));
-                      }}
-                      placeholder={
-                        action.kind === "http"
-                          ? "http://kitab.test/"
-                          : "192.168.1.20"
-                      }
-                    />
-                  </label>
-                )}
-                <button
-                  className="button primary send-button"
-                  disabled={!action.source}
-                  onClick={run}
-                >
-                  <ArrowRight size={17} />{" "}
-                  {action.kind === "dhcp"
-                    ? "Configure automatically"
-                    : "Send request"}
-                </button>
-              </div>
-              {inputError && (
-                <p className="field-error" id="send-error" role="alert">
-                  {inputError.message}
-                </p>
-              )}
-              <div className="send-options">
-                {action.kind === "http" && (
-                  <label className="network-check">
-                    <input
-                      type="checkbox"
-                      checked={!!action.dropOnce}
-                      onChange={(e) =>
-                        setAction((a) => ({ ...a, dropOnce: e.target.checked }))
-                      }
-                    />{" "}
-                    Drop one data segment
-                  </label>
-                )}
-                {action.kind !== "dhcp" && (
-                  <label className="ttl-input">
-                    Starting TTL{" "}
-                    <input
-                      aria-label="Starting TTL"
-                      type="number"
-                      min={1}
-                      max={255}
-                      value={action.ttl ?? 64}
-                      onChange={(e) =>
-                        setAction((a) => ({
-                          ...a,
-                          ttl: Math.max(
-                            1,
-                            Math.min(255, Number(e.target.value) || 1),
-                          ),
-                        }))
-                      }
-                    />
-                    <span>router hop limit</span>
-                  </label>
-                )}
-                <button className="text-button" onClick={() => resetSession()}>
-                  <RotateCcw size={13} /> Restart simulation
-                </button>
-              </div>
-            </section>
+            <SendPanel
+              network={network}
+              action={action}
+              onAction={setAction}
+              onSend={run}
+              inputError={journey.inputError}
+              onClearError={journey.clearInputError}
+              onRestart={() => resetSession()}
+            />
           </div>
-          <aside
-            ref={inspectorRef}
-            className="network-inspector"
-            aria-label="Network inspector"
-          >
-            <div className="inspector-tabs">
-              <button
-                className={tab === "device" ? "active" : ""}
-                onClick={() => setTab("device")}
-              >
-                <Settings2 size={15} /> Device
-              </button>
-              <button
-                className={tab === "packet" ? "active" : ""}
-                onClick={() => setTab("packet")}
-              >
-                <Layers size={15} /> Packet
-              </button>
-              <button
-                className={tab === "tables" ? "active" : ""}
-                onClick={() => setTab("tables")}
-              >
-                <Server size={15} /> Tables
-              </button>
-              <button
-                className={tab === "steps" ? "active" : ""}
-                onClick={() => setTab("steps")}
-              >
-                <ListOrdered size={15} /> Steps
-              </button>
-            </div>
-            <div className="inspector-body">
-              {tab === "device" ? (
-                device ? (
-                  <DeviceInspector
-                    key={device.id}
-                    device={device}
-                    network={network}
-                    session={shownSession}
-                    events={trace?.events}
-                    index={index}
-                    onApply={(updated) =>
-                      change({
-                        ...network,
-                        devices: network.devices.map((d) =>
-                          d.id === updated.id ? updated : d,
-                        ),
-                      })
-                    }
-                    onDelete={() => {
-                      edit({
-                        ...network,
-                        devices: network.devices.filter(
-                          (d) => d.id !== device.id,
-                        ),
-                        links: network.links.filter(
-                          (l) =>
-                            l.a.device !== device.id &&
-                            l.b.device !== device.id,
-                        ),
-                      });
-                      setSelected("");
-                    }}
-                    onConnect={(a, b, medium) => {
-                      try {
-                        edit(connect(network, a, b, medium));
-                      } catch (e) {
-                        setNotice((e as Error).message);
-                      }
-                    }}
-                    onDisconnect={(id) =>
-                      edit({
-                        ...network,
-                        links: network.links.filter((l) => l.id !== id),
-                      })
-                    }
-                  />
-                ) : (
-                  <div className="inspector-empty">
-                    <Monitor size={32} />
-                    <h2>Select a device</h2>
-                    <p>
-                      Click a device on the canvas to see what it does,
-                      configure its interfaces and connect it to your network.
-                    </p>
-                  </div>
-                )
-              ) : tab === "steps" ? (
-                trace ? (
-                  <StepsList trace={trace} stages={stages} index={index} mode={mode} network={network} onStep={step} />
-                ) : (
-                  <div className="inspector-empty">
-                    <ListOrdered size={32} />
-                    <h2>No journey yet</h2>
-                    <p>Send something. Every step it takes will be listed here.</p>
-                  </div>
-                )
-              ) : tab === "packet" ? (
-                <PacketInspector events={trace?.events ?? []} index={index} network={network} onStep={step} />
-              ) : (
-                <>
-                  <label className="table-device-picker">
-                    Inspect device
-                    <select
-                      aria-label="Table device"
-                      value={selected || event?.actor || ""}
-                      onChange={(e) => setSelected(e.target.value)}
-                    >
-                      <option value="" disabled>
-                        Choose a device
-                      </option>
-                      {network.devices.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <StateTables
-                    network={network}
-                    session={shownSession}
-                    actor={selected || event?.actor || ""}
-                  />
-                </>
-              )}
-            </div>
-          </aside>
+          <InspectorPanel
+            journey={journey}
+            network={network}
+            selected={selected}
+            onSelect={setSelected}
+            tab={tab}
+            onTab={setTab}
+            panelRef={inspectorRef}
+            editor={{
+              onApply: (updated) =>
+                change({ ...network, devices: network.devices.map((d) => (d.id === updated.id ? updated : d)) }),
+              onDelete: (device) => {
+                edit({
+                  ...network,
+                  devices: network.devices.filter((d) => d.id !== device.id),
+                  links: network.links.filter((l) => l.a.device !== device.id && l.b.device !== device.id),
+                });
+                setSelected("");
+              },
+              onConnect: (a, b, medium) => {
+                try {
+                  edit(connect(network, a, b, medium));
+                } catch (e) {
+                  setNotice((e as Error).message);
+                }
+              },
+              onDisconnect: (id) => edit({ ...network, links: network.links.filter((l) => l.id !== id) }),
+            }}
+          />
         </div>
       </section>
       <footer className="playground-footer">

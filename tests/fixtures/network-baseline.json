@@ -3992,7 +3992,21 @@
    "success": false,
    "events": [
     "Associate with Wi-Fi | phone | Network interface · Wi-Fi |  |  | 7b2897b033",
-    "Delivery stopped | phone | Network interface · Wi-Fi |  | error | 9a47d085f3"
+    "DHCP Discover | phone | OS · DHCP client |  |  | b59ba331ac",
+    "Transmit over Wi-Fi | phone | Network interface | phone>ap@l0 |  | d86a3ccb97",
+    "Learn source MAC | ap | Bridge / link layer |  |  | 7064ad7a76",
+    "Receive frame | ap | Bridge / link layer |  |  | fdc9bc3a6e",
+    "Forward broadcast on LAN | ap | Bridge / link layer |  |  | 0da449f1f5",
+    "Transmit over Ethernet | ap | Bridge / link layer | ap>switch@l1 |  | 8bbaf2b8a8",
+    "Learn source MAC | switch | Bridge / link layer |  |  | e785f1efa2",
+    "Receive frame | switch | Bridge / link layer |  |  | 02c5487251",
+    "Forward broadcast on LAN | switch | Bridge / link layer |  |  | 9af8abd16c",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>pc@l2 |  | db3899157f",
+    "Receive frame | pc | Network interface |  |  | d3475ed32a",
+    "Forward broadcast on LAN | switch | Bridge / link layer |  |  | 6dad56b5b7",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>router@l3 |  | d27b165a36",
+    "Receive frame | router | Network interface |  |  | 5f5360e12d",
+    "Delivery stopped | phone | OS · DHCP client |  | error | 823b01da80"
    ]
   },
   "fail: DHCP pool exhausted": {
@@ -8197,21 +8211,28 @@
    ]
   }
  },
- "challenges": {
-  "cable: start": "failed",
-  "cable: fix": "passed",
-  "subnet: start": "failed",
-  "subnet: fix": "passed",
-  "subnet: move pc only": "incomplete",
-  "wifi: start": "failed",
-  "wifi: fix": "passed",
-  "wifi: blank ap password": "incomplete",
-  "route: start": "failed",
-  "route: fix": "passed",
-  "nat: start": "failed",
-  "nat: fix": "passed",
-  "nat: isp route": "incomplete",
-  "loss: start": "incomplete",
-  "loss: fix": "passed"
+ "missions": {
+  "no-connection/cable": "false | ARP_NO_PATH | 7 | pc",
+  "no-connection/port": "false | ARP_NO_PATH | 7 | pc",
+  "no-connection/switches": "false | ARP_NO_PATH | 7 | pc",
+  "no-connection/wifi": "false | WIFI_NOT_JOINED | 1 | phone",
+  "neighbours/pc-mask": "false | NO_GATEWAY | 1 | pc",
+  "neighbours/pc-address": "false | NO_GATEWAY | 1 | pc",
+  "neighbours/server-mask": "false | REPLY_NO_PATH | 27 | server",
+  "join-and-address/passphrase": "false | WIFI_WRONG_PASSPHRASE | 1 | phone",
+  "join-and-address/ssid": "false | WIFI_SSID_NOT_FOUND | 1 | phone",
+  "join-and-address/static": "false | DHCP_CLIENT_STATIC | 2 | phone",
+  "join-and-address/dhcp-off": "false | DHCP_NO_SERVER | 16 | phone",
+  "join-and-address/pool": "false | DHCP_POOL_EMPTY | 16 | router",
+  "leave-the-lan/no-gateway": "false | NO_GATEWAY | 1 | pc",
+  "leave-the-lan/wrong-gateway": "false | ARP_NO_OWNER | 6 | pc",
+  "leave-the-lan/server-gateway": "false | REPLY_NO_PATH | 27 | server",
+  "leave-the-lan/router-route": "false | ROUTER_NO_ROUTE | 14 | router",
+  "bring-reply-home/nat-off": "false | DNS_REPLY_UNREACHABLE | 83 | isp",
+  "bring-reply-home/nat-swapped": "false | DNS_REPLY_UNREACHABLE | 83 | isp",
+  "bring-reply-home/no-default": "false | DNS_UNREACHABLE | 34 | router",
+  "missing-segment/short": "true |  | 170 | pc",
+  "missing-segment/long": "true |  | 170 | pc",
+  "missing-segment/internet": "true |  | 494 | pc"
  }
 }

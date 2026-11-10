@@ -142,11 +142,17 @@ test("a failure keeps the specific failure that caused it", () => {
 });
 
 test("failure messages name the actual values that matter", () => {
-  assert.match(run("fail: mask mismatch").trace.summary, /outside Your PC's subnet 192\.168\.1\.0\/25 \(192\.168\.1\.1–192\.168\.1\.126\)/);
-  assert.match(run("fail: gateway outside subnet").trace.summary, /default gateway 10\.0\.0\.1 is outside/);
-  assert.match(run("fail: wrong gateway").trace.summary, /No device in this network uses 192\.168\.1\.99.*default gateway/);
-  assert.match(run("fail: lan cable missing").trace.summary, /Local server uses 192\.168\.1\.20, but no link-layer path/);
-  assert.match(run("fail: wifi wrong SSID").trace.summary, /looking for the network “Neighbour”/);
-  assert.match(run("fail: unsolicited inbound through NAT").trace.summary, /no mapping .* started inside/);
-  assert.match(run("fail: lease expired before ping").trace.summary, /set to get one from DHCP, but it has no current lease/);
+  // What was observed, followed by the simulator's diagnosis that the playground shows.
+  const said = (name: string) => {
+    const t = run(name).trace;
+    return `${t.summary} ${t.failure?.detail ?? ""}`;
+  };
+  assert.match(said("fail: mask mismatch"), /outside its subnet 192\.168\.1\.0\/25 \(192\.168\.1\.1–192\.168\.1\.126\)/);
+  assert.match(said("fail: gateway outside subnet"), /default gateway 10\.0\.0\.1 is outside/);
+  assert.match(said("fail: wrong gateway"), /No device in this network uses 192\.168\.1\.99/);
+  assert.match(run("fail: wrong gateway").trace.failure!.advice!, /default gateway/);
+  assert.match(said("fail: lan cable missing"), /Local server uses 192\.168\.1\.20, but no link-layer path/);
+  assert.match(said("fail: wifi wrong SSID"), /no network named “Neighbour”/);
+  assert.match(said("fail: unsolicited inbound through NAT"), /no mapping .* started inside/);
+  assert.match(said("fail: lease expired before ping"), /set to get one from DHCP, but it has no current lease/);
 });

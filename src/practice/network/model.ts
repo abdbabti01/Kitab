@@ -142,10 +142,19 @@ export type FailureReason =
   | "REPLY_MISDELIVERED" // a reply reached a different device than the one that asked
   | "HTTP_NO_LISTENER"; // nothing listens on TCP port 80
 /** A failure, the device where it was detected, and the failure that caused it, if any. */
+/**
+ * Why delivery stopped, in three parts so a view can choose how much to tell:
+ * - message: what was observed (the event's explanation and the trace summary); safe to show in missions.
+ * - detail: what the simulator can see but a participant couldn't, often naming the device or setting at fault.
+ * - advice: a repair suggestion.
+ * Missions show only the message; the playground shows all three.
+ */
 export type Failure = {
   reason: FailureReason;
   device: string;
   message: string;
+  detail?: string;
+  advice?: string;
   cause?: Failure;
 };
 export type TraceEvent = {

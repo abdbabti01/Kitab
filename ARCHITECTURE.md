@@ -81,7 +81,32 @@ prediction), misconception messages, and reviewed source excerpts.
 - **Mastery** = correct prediction **and** correct evidence choice in the same
   attempt, with the run completed. Watching without predicting, Next clicks,
   autoplay and the optional reflection never grant it.
+- Two opt-in mission fields raise the bar; missions without them behave as above.
+  `evidence` makes the learner step to the frame that proves the answer and choose it,
+  before "Show me the evidence" (a revealed choice doesn't count). `masteryVariants`
+  sets how many different variants must be mastered before the mission counts as mastered.
 - Retry moves to the next variant, so the computed answer changes.
+
+## Networking practice
+
+`src/practice/` is the networking playground and its practice missions. One pure engine
+(`network/engine.ts`, `simulate(network, session, action)`) drives both; playback state lives in
+`useJourney`, and `JourneyStage`, `SendPanel` and `InspectorPanel` are shared by the playground
+(`/practice/network`) and the missions (`/practice/missions/:id`).
+
+- **Missions** (`network/missions.ts`) are fix or investigate tasks. Each has several variants that differ in
+  cause, configuration or location. `network/mission-assess.ts` judges an attempt only from simulation runs
+  (checks with proof events), mission locks and shortcut detectors. Any network that passes is accepted.
+- **Failures** carry three parts (`Failure` in `network/model.ts`): `message` is what was observed and is the
+  event's explanation and the trace summary; `detail` is the simulator's diagnosis, often naming the device or
+  setting at fault; `advice` is a repair suggestion. Missions show only the message; the playground also shows
+  the detail and "What to try". No view filters text.
+- **Progress**: `kitab.network-missions.v1` (completion and mastery per variant; mastery needs two variants with
+  different causes). Earlier `kitab.network.challenges.v1` completions migrate as completed, never mastered.
+  Networking and TCP missions share four states (`learning/practice-state.ts`): Not started, In progress,
+  Completed, Mastered. Home uses them for every mission card.
+- The behaviour baseline (`tests/network-baseline.test.ts`) pins event order, actors, hops, headers and
+  snapshots for every scenario and every mission variant's first run.
 
 ## Playback and motion
 

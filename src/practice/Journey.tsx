@@ -14,6 +14,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { StepExplanation } from "./StepExplanation.tsx";
+import { failureText } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
 import { neighbours, place, type JourneyMode, type Point } from "./journey-nav.ts";
@@ -148,6 +149,7 @@ export function JourneyCard({
   onInspect,
   onAbout,
   onReadDetails,
+  advice = true,
 }: {
   trace: Trace;
   stages: Stage[];
@@ -163,6 +165,8 @@ export function JourneyCard({
   onInspect: () => void;
   onAbout: (device: string) => void;
   onReadDetails: () => void;
+  /** False in missions: the simulator's diagnosis and repair advice are left for the learner to work out. */
+  advice?: boolean;
 }) {
   const card = useRef<HTMLElement>(null);
   const [spot, setSpot] = useState<Point | null>(null);
@@ -200,7 +204,8 @@ export function JourneyCard({
       Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
       scale,
     );
-    if (next.score >= 10 && !compact && !details) return setCompact(true);
+    // Covering any device (even one outside the stage) makes the card compact first: devices must stay clickable.
+    if (next.score >= 2 && !compact && !details) return setCompact(true);
     setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : { x: next.x, y: next.y }));
   });
   const [room, setRoom] = useState(0);
@@ -220,7 +225,11 @@ export function JourneyCard({
     );
   const title = mode === "summary" ? stage.title : event.title;
   // A stage's summary is only shown once all of its events have happened.
-  const text = event.error ? event.explanation : mode === "summary" && complete ? stage.summary : n.summary;
+  const text = event.error
+    ? failureText(event, advice)
+    : mode === "summary" && complete
+      ? stage.summary
+      : n.summary;
   return (
     <section
       ref={card}
@@ -237,7 +246,7 @@ export function JourneyCard({
           <Minimize2 size={14} />
         </button>
       </header>
-      <h3>{n.failure?.title ?? title}</h3>
+      <h2>{n.failure?.title ?? title}</h2>
       {mode === "summary" && !complete && (
         <p className="journey-progress">
           In progress: event {index - stage.start + 1} of {stage.end - stage.start + 1} in this stage.
@@ -251,7 +260,7 @@ export function JourneyCard({
       )}
       {details && (
         <div className="journey-details">
-          <StepExplanation events={trace.events} index={index} network={network} onReadDetails={onReadDetails} onGoto={onStep} embedded />
+          <StepExplanation events={trace.events} index={index} network={network} onReadDetails={onReadDetails} onGoto={onStep} embedded advice={advice} />
         </div>
       )}
       <footer>

@@ -16,7 +16,7 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
   scope: [
     "A home LAN with a PC, phone, router, and a printer. Change the prefix or destination under Change the example.",
     "With /24 the whole LAN is one subnet. With /25 the LAN is split into two subnets: every device uses /25, and the router has an interface in each half (192.168.1.1 and 192.168.1.129) so it can route between them.",
-    "A real split is different from a mask mismatch, where only one device uses a different prefix. The network playground's challenge 02 shows that mistake.",
+    "A real split is different from a mask mismatch, where only one device uses a different prefix. The practice mission “Neighbours that look remote” shows that mistake.",
     "NAT follows a separate web example using illustrative public addresses. It models address and port translation for two TCP connections.",
   ],
   prerequisites: "None. Start with the devices on your home Wi-Fi.",
@@ -50,7 +50,7 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
     ] },
     { id: "split", title: "Split a subnet", goal: "See how one more prefix bit cuts a block into two halves.", steps: [
       { id: "split-range", frame: "ranges", what: "Split {fact:parent-subnet} into {fact:lower-subnet} and {fact:upper-subnet}. Each half has {fact:half-size} addresses and {fact:usable} usable host addresses in this example.", why: "The new prefix bit can be 0 or 1, creating two equally sized blocks. In each /25 here, the first address identifies the network and the last is its broadcast address. Hosts use the addresses between them.", terms: ["subnetting", "broadcast"], focus: [] },
-      { id: "real-split", frame: "ranges", what: "A real split moves every device on the LAN to /25. The router gets an address in each half, {fact:split-router-a} and {fact:split-router-b}, so it can route between the two subnets.", why: "If only one PC used /25 while everything else stayed /24, that would be a mask mismatch, not a split. That PC would treat some of its own neighbours as remote and fail to reach them. The network playground's challenge 02 shows this mistake.", terms: ["subnetting"], focus: [] },
+      { id: "real-split", frame: "ranges", what: "A real split moves every device on the LAN to /25. The router gets an address in each half, {fact:split-router-a} and {fact:split-router-b}, so it can route between the two subnets.", why: "If only one PC used /25 while everything else stayed /24, that would be a mask mismatch, not a split. That PC would treat some of its own neighbours as remote and fail to reach them. The practice mission “Neighbours that look remote” shows this mistake.", terms: ["subnetting"], focus: [] },
     ] },
     { id: "route", title: "Choose a route", goal: "Follow the PC's decision to deliver directly or use a gateway.", steps: [
       { id: "choose-hop", frame: "routes", what: "For {fact:destination-name} at {fact:destination-ip}, the PC chooses: {fact:route-type}. The next hop is {fact:next-hop}.", why: "The connected route wins when it matches because its prefix is longer than the default route. Try the printer with /24 and /25 under Change the example. The printer keeps its IP, and the PC's next hop changes. The router's LAN interfaces are {fact:router-lan}; with /25 it forwards the packet to the printer from its interface in the printer's half.", terms: ["default", "hop", "router", "route-table"], focus: [] },
