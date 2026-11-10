@@ -110,6 +110,13 @@ export function simulate(
     location = "Application",
     current: Layer[] = [];
   let dhcpContext: TraceEvent["dhcpContext"];
+  // Message identity for the events being emitted (see TraceEvent.packet and .frame).
+  let packet = "",
+    frame = 0,
+    messages = 0,
+    frames = 0;
+  // The frame each bridge received last: its forwarding decision is about that frame.
+  const arrived: Record<string, number> = {};
   const dev = (id: string) => {
     const d = n.devices.find((d) => d.id === id);
     if (!d) throw new Error("Choose a device in this network.");
@@ -163,6 +170,8 @@ export function simulate(
       snapshot: structuredClone(s),
       hop,
       error,
+      packet: packet || undefined,
+      frame: frame || undefined,
       dhcpContext: layers.some((layer) => layer.name.startsWith("DHCP "))
         ? dhcpContext && { ...dhcpContext }
         : undefined,
@@ -275,6 +284,7 @@ export function simulate(
     floodCopy = false,
     onReceive?: (device: Device) => void,
   ) {
+    const outerFrame = frame;
     for (const [hopIndex, h] of path.entries()) {
       const from = dev(h.from.device),
         to = dev(h.to.device);
@@ -288,7 +298,8 @@ export function simulate(
           );
         if (!learned && destinationMac !== "ff:ff:ff:ff:ff:ff" && !floodCopy) {
           const arrival = path[hopIndex - 1]?.to.port;
-          const seen = new Set(path.map((h) => h.link));
+          const seen = new Set(path.map((h) => h.link)),
+            incoming = frame;
           for (const p of from.interfaces.filter(
             (p) => p.enabled && p.id !== arrival && p.id !== h.from.port,
           )) {
@@ -306,8 +317,10 @@ export function simulate(
                   );
                 }
           }
+          frame = incoming;
           at(from, "Bridge / link layer");
         }
+        frame = arrived[from.id] ?? frame;
         emit(
           destinationMac === "ff:ff:ff:ff:ff:ff"
             ? "Forward broadcast on LAN"
@@ -322,6 +335,7 @@ export function simulate(
         facts({ MAC: destinationMac, ...(learned ? { Port: learned } : {}) });
       }
       const layers = frameLayers(h, sourceMac, destinationMac, upper, protocol);
+      frame = ++frames;
       emit(
         h.medium === "wifi" ? "Transmit over Wi-Fi" : "Transmit over Ethernet",
         `${from.name} ${h.from.port} sends a frame to ${to.name} ${h.to.port}. The frame carries ${protocol}.`,
@@ -331,6 +345,7 @@ export function simulate(
       at(to, isBridge(to) ? "Bridge / link layer" : "Network interface");
       if (isBridge(to)) {
         s.mac[`${to.id}/${sourceMac}`] = h.to.port;
+        arrived[to.id] = frame;
         emit(
           "Learn source MAC",
           `${to.name} records that ${sourceMac} is reachable through ${h.to.port}.`,
@@ -357,6 +372,7 @@ export function simulate(
       );
       if (!isBridge(to)) onReceive?.(to);
     }
+    frame = outerFrame;
   }
   function broadcast(
     start: Endpoint,
@@ -381,7 +397,16 @@ export function simulate(
           );
         }
   }
-  function arp(
+  /** One ARP exchange: its request and reply are their own messages, not part of the IP packet. */
+  function arp(d: Device, p: NetworkInterface, nextHop: string, upper: Layer[]) {
+    const outer = packet;
+    try {
+      return resolve(d, p, nextHop, upper);
+    } finally {
+      packet = outer;
+    }
+  }
+  function resolve(
     d: Device,
     p: NetworkInterface,
     nextHop: string,
@@ -403,6 +428,7 @@ export function simulate(
     const cacheKey = `${d.id}/${p.id}/${nextHop}`,
       cached = s.arp[cacheKey];
     if (!cached) {
+      packet = `arp-${++messages}`;
       const request: Layer[] = [
         {
           name: "ARP request",
@@ -466,6 +492,7 @@ export function simulate(
           },
         },
       ];
+      packet = `${packet}-reply`;
       emit("ARP reply", `${remote.name} answers with ${rp.mac}.`, reply);
       deliverPath(
         [...owner.path]
@@ -610,7 +637,17 @@ export function simulate(
     }
     return candidates[0];
   }
-  function send(
+  /** Sends one IP packet. Every event until it is delivered (or dropped) carries the packet's id. */
+  function send(start: Device, message: IpMessage, lose = false) {
+    const outer = packet;
+    packet = `ip-${++messages}`;
+    try {
+      return forward(start, message, lose);
+    } finally {
+      packet = outer;
+    }
+  }
+  function forward(
     start: Device,
     message: IpMessage,
     lose = false,
@@ -881,6 +918,7 @@ export function simulate(
         },
       ];
       at(client, "OS · DHCP client");
+      packet = `dhcp-${++messages}`;
       emit(
         "DHCP Discover",
         "The client broadcasts to find a server that can lend it an address.",
@@ -927,6 +965,7 @@ export function simulate(
           "DHCP_POOL_EMPTY",
         );
       at(server, "DHCP server");
+      packet = `dhcp-${++messages}`;
       emit(
         "DHCP Offer",
         `${server.name} offers ${offered}/${sp.prefix}.`,
@@ -934,6 +973,7 @@ export function simulate(
       );
       broadcast(serverEntry.end, dhcpLayers("Offer", offered), "IPv4");
       at(client, "OS · DHCP client");
+      packet = `dhcp-${++messages}`;
       emit(
         "DHCP Request",
         `${client.name} asks to use ${offered}.`,
@@ -942,6 +982,7 @@ export function simulate(
       broadcast(start, dhcpLayers("Request", offered), "IPv4");
       const settings = `${offered}, mask ${subnet(offered, sp.prefix).mask}, gateway ${server.dhcp.gateway}, DNS ${server.dhcp.dns}`;
       at(server, "DHCP server");
+      packet = `dhcp-${++messages}`;
       emit(
         "DHCP ACK",
         `${server.name} confirms the lease: ${settings}. The client applies it when the ACK arrives.`,
@@ -971,6 +1012,7 @@ export function simulate(
       });
       // Unreachable: the ACK crosses the same links the Discover just reached the server on.
       if (!applied) throw new Error(`The DHCP ACK did not reach ${client.name}.`);
+      packet = "";
       at(client, "OS · network settings");
       emit(
         "Configuration complete",

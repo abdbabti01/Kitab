@@ -163,6 +163,14 @@ export type TraceEvent = {
   failure?: Failure;
   /** The decision this event made, with its actual values (route chosen, next-hop MAC, NAT mapping…). */
   facts?: Record<string, string | number>;
+  /**
+   * Which message this event belongs to. One IP packet keeps its id from creation to delivery,
+   * including across NAT rewrites; a retransmission is a new packet. "arp-N" is an ARP request and
+   * "arp-N-reply" its reply; "dhcp-N" is one DHCP message.
+   */
+  packet?: string;
+  /** Which link-layer frame: a new number for every transmission on every link, so broadcast copies differ. */
+  frame?: number;
   // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
   dhcpContext?: { client: string; server: string };
 };
