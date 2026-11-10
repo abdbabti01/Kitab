@@ -4,13 +4,13 @@ import { ipTerms } from "./ip-terms.ts";
 export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
   schemaVersion: 1,
   id: "ip-addressing",
-  version: "1.0.0",
+  version: "1.1.0",
   title: "IP Addresses & Subnets",
   question: "How does your PC know where to send a packet?",
   summary: "Start on your home Wi-Fi. Read an IPv4 address, split a subnet, choose a next hop, and watch your router translate a web request with NAT.",
   topic: "Networks",
   review: { status: "reviewed", note: "The subnet math, next hop and example NAT mappings come from the lesson model." },
-  engine: { id: "ip-addressing", version: "1.0.0" },
+  engine: { id: "ip-addressing", version: "1.1.0" },
   scenario: { prefix: 24, target: "printer" },
   nextLessonId: "hello-tcp",
   scope: [

@@ -85,7 +85,7 @@ const entities: Record<string, Entity> = {
 };
 
 export const ipAddressingAdapter: EngineAdapter<z.infer<typeof params>, IpAddressingData> = {
-  id: "ip-addressing", version: "1.0.0", title: "IP Addresses & Subnets",
+  id: "ip-addressing", version: "1.1.0", title: "IP Addresses & Subnets",
   params,
   vocabulary: ["lan", "wan", "network", "interface", "ipv4", "ip", "address", "subnet", "prefix", "mask", "bit", "octet", "binary", "cidr", "broadcast", "host", "router", "route", "gateway", "arp", "mac", "dhcp", "frame", "packet", "nat", "port", "private", "public", "source", "destination", "next hop"],
   build(values) {
