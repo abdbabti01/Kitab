@@ -3,6 +3,9 @@
   "name": "kitab2",
   "main": "worker/index.ts",
   "compatibility_date": "2026-08-31",
+  // Version URLs (<version>-kitab2.<subdomain>.workers.dev) are public and run on production
+  // bindings. Keep them off; every deploy and version upload applies this setting.
+  "preview_urls": false,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
