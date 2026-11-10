@@ -41,6 +41,20 @@ export async function reserve(db: D1Database, items: Reservation[], day = today(
   return { ok: true as const, release: () => Promise.all(taken.map((done) => releaseOne(db, done, day))) };
 }
 
+/**
+ * reserve() behind one read: when any counter is already full the request is rejected without a D1 write, so a
+ * client hammering a closed limit costs reads, not writes. Requests racing past the read are still settled
+ * exactly by reserve().
+ */
+export async function admit(db: D1Database, items: Reservation[], day = today()) {
+  const full = await db
+    .prepare(`SELECT scope FROM usage_counters WHERE day = ? AND (${items.map(() => "(scope = ? AND subject = ? AND count >= ?)").join(" OR ")}) LIMIT 1`)
+    .bind(day, ...items.flatMap((item) => [item.scope, item.subject, item.limit]))
+    .first<{ scope: string }>();
+  if (full) return { ok: false as const, exhausted: full.scope };
+  return reserve(db, items, day);
+}
+
 // ---------------------------------------------------------------- shared AI Neuron allowance
 
 /**
