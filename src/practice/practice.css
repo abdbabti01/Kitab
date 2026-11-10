@@ -1967,3 +1967,111 @@
     scroll-behavior: auto;
   }
 }
+
+/* Packet inspection: identity, rewrites at this link, glossary and the whole trip. */
+.packet-identity,
+.packet-changes,
+.packet-trip {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.packet-identity {
+  display: grid;
+  gap: 2px;
+}
+.packet-identity b {
+  font-size: 13px;
+  color: var(--ink);
+}
+.packet-relation .text-button,
+.packet-relation .text-button:visited {
+  display: inline;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.packet-changes h3,
+.packet-trip h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.packet-changes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.packet-changes code {
+  font: 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.packet-changes small {
+  display: block;
+  color: var(--muted);
+}
+.packet-changes p,
+.packet-trip p {
+  margin: 0;
+  color: var(--muted);
+}
+.layer-content dl > div.is-changed {
+  background: var(--warning-soft);
+  border-radius: 4px;
+}
+.field-glossary {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.field-glossary summary {
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 4px 0;
+}
+.field-glossary cite {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field-glossary em {
+  display: block;
+  font-style: normal;
+  color: #8a5a17;
+}
+.packet-trip ol {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.packet-trip button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 1px 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  padding: 7px 4px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.packet-trip button[aria-current] {
+  background: var(--primary-soft);
+}
+.packet-trip button > span {
+  grid-row: span 3;
+  font: 10px var(--mono);
+  color: var(--muted);
+}
+.packet-trip small {
+  font: 10px var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}

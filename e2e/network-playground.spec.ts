@@ -311,3 +311,21 @@ test("on the desktop the card sits on the diagram without covering the stage's d
   const box = await page.locator(".journey-card").boundingBox();
   expect(box!.y + box!.height).toBeLessThanOrEqual(canvas!.y + canvas!.height);
 });
+test("the packet inspector follows one packet, shows what changed at each link and why", async ({ page }) => {
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("radio", { name: "Every event" }).click();
+  // The DNS query's frame from the home router to the ISP router: NAT and TTL have rewritten it.
+  await page.getByLabel("Journey timeline").fill("43");
+  await expect(page.locator(".journey-position")).toContainText("Event 44 of 489");
+  await page.getByRole("button", { name: "Packet", exact: true }).click();
+  const changes = page.getByRole("region", { name: "Changed since the previous link" });
+  await expect(changes).toContainText("Source IP 192.168.1.10 → 203.0.113.2");
+  await expect(changes).toContainText("translated the private source");
+  await expect(changes).toContainText("TTL 64 → 63");
+  const trip = page.getByRole("region", { name: "Follow this packet" });
+  await expect(trip.locator("li")).toHaveCount(5);
+  await trip.getByRole("button", { name: /DNS server/ }).click();
+  await expect(page.locator(".journey-card h3")).toHaveText("Transmit over Ethernet");
+  await expect(page.locator(".packet-identity")).toContainText("On link 5 of 5");
+});

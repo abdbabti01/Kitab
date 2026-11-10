@@ -993,7 +993,7 @@ export function NetworkPlayground() {
                   </div>
                 )
               ) : tab === "packet" ? (
-                <PacketInspector event={event} />
+                <PacketInspector events={trace?.events ?? []} index={index} network={network} onStep={step} />
               ) : (
                 <>
                   <label className="table-device-picker">
