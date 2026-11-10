@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, type PointerEvent } from "react";
+import { useRef, useState, useEffect, useLayoutEffect, type PointerEvent, type ReactNode } from "react";
 import { Maximize, Minus, Plus, Move, MousePointer2 } from "lucide-react";
 import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
@@ -17,7 +17,12 @@ export function NetworkCanvas({
   onMove,
   onAdd,
   follow,
+  focus,
+  onPositions,
+  children,
 }: {
+  /** Overlays drawn on the canvas, such as the first-run start button. */
+  children?: ReactNode;
   network: Network;
   session: Session;
   event?: TraceEvent;
@@ -26,6 +31,10 @@ export function NetworkCanvas({
   onMove: (id: string, x: number, y: number) => void;
   onAdd: (kind: DeviceKind, x: number, y: number) => void;
   follow: boolean;
+  /** The current stage: its devices stay prominent and its links show their direction. */
+  focus?: { devices: string[]; hops: { from: string; to: string; link: string }[] };
+  /** Device centres in pixels inside the canvas, for anchoring the journey card. */
+  onPositions?: (positions: Record<string, { x: number; y: number }>, scale: number) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1),
@@ -57,17 +66,22 @@ export function NetworkCanvas({
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [network.name, network.devices.length]);
-  const cameraZoom = follow ? Math.max(1.7, zoom) : zoom;
-  const width = extent.width / cameraZoom,
-    height = extent.height / cameraZoom;
-  const center =
-    follow && event
-      ? network.devices.find((d) => d.id === event.actor)
-      : undefined;
-  const view = {
-    x: center ? Math.max(0, center.x - width / 2) : pan.x,
-    y: center ? Math.max(0, center.y - height / 2) : pan.y,
-  };
+  let width = extent.width / zoom,
+    height = extent.height / zoom;
+  let view = { x: pan.x, y: pan.y };
+  // Following the journey frames the current stage's devices when the whole network would be too small
+  // to read (below 0.4 px per unit: tiles under ~40 px); otherwise every device stays in view and reachable.
+  const [canvasWidth, setCanvasWidth] = useState(0);
+  const framed = follow && focus && canvasWidth > 0 && canvasWidth / extent.width < 0.4
+    ? network.devices.filter((d) => focus.devices.includes(d.id) || focus.hops.some((h) => h.from === d.id || h.to === d.id))
+    : [];
+  if (framed.length) {
+    let [x0, x1] = [Math.min(...framed.map((d) => d.x)) - 110, Math.max(...framed.map((d) => d.x)) + 110],
+      [y0, y1] = [Math.min(...framed.map((d) => d.y)) - 110, Math.max(...framed.map((d) => d.y)) + 140];
+    if (x1 - x0 < 420) [x0, x1] = [(x0 + x1) / 2 - 210, (x0 + x1) / 2 + 210];
+    if (y1 - y0 < 300) [y0, y1] = [(y0 + y1) / 2 - 150, (y0 + y1) / 2 + 150];
+    [width, height, view] = [x1 - x0, y1 - y0, { x: x0, y: y0 }];
+  }
   function point(clientX: number, clientY: number) {
     const matrix = svg.current?.getScreenCTM();
     if (!matrix) return { x: 0, y: 0 };
@@ -123,6 +137,34 @@ export function NetworkCanvas({
   const groups = [
     ...new Set(visibleDevices.map((d) => d.group).filter(Boolean)),
   ];
+  const wrap = useRef<HTMLDivElement>(null),
+    reported = useRef("");
+  // Report where each device is drawn, after layout and whenever the view or size changes.
+  useLayoutEffect(() => {
+    const report = () => {
+      const w = wrap.current?.clientWidth ?? 0;
+      if (w && w !== canvasWidth) setCanvasWidth(w);
+      const m = svg.current?.getScreenCTM(),
+        box = wrap.current?.getBoundingClientRect();
+      if (!m || !box || !onPositions) return;
+      const out: Record<string, { x: number; y: number }> = {};
+      for (const d of devices) {
+        const p = new DOMPoint(displayPosition(d).x, displayPosition(d).y).matrixTransform(m);
+        out[d.id] = { x: Math.round(p.x - box.left), y: Math.round(p.y - box.top) };
+      }
+      const key = JSON.stringify([out, m.a]);
+      if (key !== reported.current) {
+        reported.current = key;
+        onPositions(out, m.a);
+      }
+    };
+    report();
+    const observer = new ResizeObserver(report);
+    if (wrap.current) observer.observe(wrap.current);
+    return () => observer.disconnect();
+  });
+  const onPath = new Set(focus?.hops.map((h) => h.link));
+  const involved = focus && new Set([...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])]);
   const cable = (
     from: { x: number; y: number },
     to: { x: number; y: number },
@@ -130,6 +172,7 @@ export function NetworkCanvas({
     `M ${from.x} ${from.y} C ${(from.x + to.x) / 2} ${from.y}, ${(from.x + to.x) / 2} ${to.y}, ${to.x} ${to.y}`;
   return (
     <div
+      ref={wrap}
       className="network-canvas"
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
@@ -146,7 +189,7 @@ export function NetworkCanvas({
       <div className="canvas-caption">
         <span className="live-dot" /> YOUR NETWORK{" "}
         <span>
-          {network.devices.length} devices · {network.links.length} links
+          {network.devices.length} {network.devices.length === 1 ? "device" : "devices"} · {network.links.length} {network.links.length === 1 ? "link" : "links"}
         </span>
       </div>
       <svg
@@ -229,7 +272,7 @@ export function NetworkCanvas({
             <g key={l.id}>
               <path
                 d={path}
-                className={`network-wire ${l.medium} ${active ? "active" : ""}`}
+                className={`network-wire ${l.medium} ${active ? "active" : ""} ${onPath.has(l.id) ? "in-path" : ""}`}
               />
               <text
                 className="link-label"
@@ -257,6 +300,27 @@ export function NetworkCanvas({
                 </g>
               )}
             </g>
+          );
+        })}
+        {/* Direction of travel on each link the current stage used. */}
+        {[...new Map(focus?.hops.map((h) => [`${h.link}>${h.from}`, h])).values()].map((h) => {
+          const a = devices.find((d) => d.id === h.from),
+            b = devices.find((d) => d.id === h.to);
+          if (!a || !b) return null;
+          const pa = displayPosition(a),
+            pb = displayPosition(b);
+          const len = Math.hypot(pb.x - pa.x, pb.y - pa.y) || 1,
+            ux = (pb.x - pa.x) / len,
+            uy = (pb.y - pa.y) / len;
+          // Opposite directions sit on opposite sides of the cable.
+          const mx = (pa.x + pb.x) / 2 - uy * 11,
+            my = (pa.y + pb.y) / 2 + ux * 11;
+          return (
+            <path
+              key={`${h.link}>${h.from}`}
+              className="path-arrow"
+              d={`M ${mx - ux * 9 - uy * 6} ${my - uy * 9 + ux * 6} L ${mx + ux * 7} ${my + uy * 7} L ${mx - ux * 9 + uy * 6} ${my - uy * 9 - ux * 6}`}
+            />
           );
         })}
         {collapsedInternet && internetIds.size > 0 && (
@@ -295,7 +359,7 @@ export function NetworkCanvas({
             <g
               key={d.id}
               transform={`translate(${d.x} ${d.y})`}
-              className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""}`}
+              className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${event?.hop?.from === d.id ? "is-sender" : ""} ${event?.hop?.to === d.id ? "is-receiver" : ""} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}`}
               role="button"
               tabIndex={0}
               aria-label={`Select ${d.name}`}
@@ -425,6 +489,7 @@ export function NetworkCanvas({
           {collapsedInternet ? "Expand Internet" : "Collapse Internet"}
         </button>
       )}
+      {children}
       <span className="canvas-mode">
         <MousePointer2 size={13} /> Select & move
       </span>

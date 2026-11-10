@@ -1,7 +1,7 @@
-import { findMission } from "../learning/missions/catalog.ts";
+import { findMission, missions as frameworkMissions } from "../learning/missions/catalog.ts";
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { LEARNING_KEY } from "../learning/lessons/progress.ts";
-import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
+import { PROGRESS_KEY, loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
@@ -11,6 +11,8 @@ import { chapters } from "../content/chapters.ts";
 
 const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(m => ({default:m.AccessExplorer})));
 const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
+const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
+const NetworkMissionsIndex = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionsIndex })));
 
 const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
 const LessonPage = lazy(() => import("../lesson/LessonPage.tsx").then((module) => ({ default: module.LessonPage })));
@@ -34,6 +36,15 @@ export function App() {
   if (route.name === "home") view = <Home />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
   else if (route.name === "network-practice") view = <NetworkPlayground />;
+  else if (route.name === "network-missions") {
+    const progress = loadProgress(safeStorage()).progress;
+    const tcp = frameworkMissions
+      .filter((m) => m.concept === "tcp")
+      .map((m) => ({ id: m.id, title: m.title, summary: m.summary, state: practiceState(progress, m.id, m.version) }));
+    view = <NetworkMissionsIndex tcp={tcp} />;
+  } else if (route.name === "network-mission") {
+    view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;
+  }
   else if (route.name === "mission") {
     const mission = findMission(route.id);
     view = mission ? <MissionPage key={mission.id} mission={mission} /> : <NotFound what="that mission" />;

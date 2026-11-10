@@ -120,7 +120,10 @@ export const PhasePanel = memo(function PhasePanel({
   onParam,
   onParams,
   nextMissionId,
+  mastery = { done: 0, required: 1 },
 }: {
+  /** Versions mastered so far and how many the mission needs. */
+  mastery?: { done: number; required: number };
   mission: Mission;
   trace: Trace;
   state: MissionState;
@@ -143,6 +146,8 @@ export const PhasePanel = memo(function PhasePanel({
   const [explanation, setExplanation] = useState("");
   const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
+  // The whole mission, not just this version: until then, trying another version is the next step.
+  const done = attempt.mastered && mastery.done >= mastery.required;
 
   // Reset local form state for a new attempt; move focus to the phase heading on phase change.
   useEffect(() => {
@@ -263,13 +268,26 @@ export const PhasePanel = memo(function PhasePanel({
 
       {phase === "result" && (
         <div>
-          <h2 id={`${ids}-heading`} ref={heading} tabIndex={-1} className="phase-title">{attempt.mastered ? "Mission mastered" : "Not mastered yet"}</h2>
+          <h2 id={`${ids}-heading`} ref={heading} tabIndex={-1} className="phase-title">
+            {!attempt.mastered ? "Not mastered yet" : mastery.done >= mastery.required ? "Mission mastered" : "This version mastered"}
+          </h2>
           <ul className="result-list">
             <li className={attempt.prediction?.correct ? "is-right" : "is-wrong"}>{attempt.skippedPrediction ? "No prediction (watched only)" : attempt.prediction?.correct ? "Prediction correct" : "Prediction missed"}</li>
+            {attempt.needsEvidence && (
+              <li className={attempt.evidence?.correct && !attempt.evidence.revealed ? "is-right" : "is-wrong"}>
+                {attempt.evidence?.correct && !attempt.evidence.revealed ? "Evidence step found" : attempt.evidence?.revealed ? "Evidence step was revealed" : "Evidence step not found"}
+              </li>
+            )}
             <li className={attempt.explanation?.correct ? "is-right" : "is-wrong"}>{attempt.explanation?.correct ? "Evidence identified" : "Evidence missed"}</li>
           </ul>
-          {attempt.mastered ? (
+          {attempt.mastered && mastery.done < mastery.required ? (
+            <p>
+              <Sparkles aria-hidden="true" className="inline-icon" /> This version counts. Master {mastery.required - mastery.done} more {mastery.required - mastery.done === 1 ? "version" : "versions"} with a different scenario to master the mission.
+            </p>
+          ) : attempt.mastered ? (
             <p><Sparkles aria-hidden="true" className="inline-icon" /> You predicted the outcome and explained it from the evidence.</p>
+          ) : attempt.needsEvidence ? (
+            <p>Mastery needs a correct prediction, the step that proves it (found before revealing it) and the right explanation in the same attempt. The retry uses a new scenario, so reason from the mechanism rather than the last answer.</p>
           ) : (
             <p>Mastery needs a correct prediction and the right evidence in the same attempt. The retry uses a new scenario, so reason from the mechanism rather than the last answer.</p>
           )}
@@ -279,8 +297,8 @@ export const PhasePanel = memo(function PhasePanel({
             <textarea rows={2} maxLength={REASONING_LIMIT} defaultValue={attempt.reflection} onBlur={(event) => onReflection(event.target.value)} />
           </label>
           <div className="actions">
-            <button type="button" className={`button ${attempt.mastered ? "" : "primary"}`} onClick={onRetry}><RefreshCw aria-hidden="true" /> {attempt.mastered ? "Try another scenario" : "Retry with a new scenario"}</button>
-            {nextMissionId && <a className={`button ${attempt.mastered ? "primary" : ""}`} {...linkProps(`/missions/${nextMissionId}`)}>Next mission</a>}
+            <button type="button" className={`button ${done ? "" : "primary"}`} onClick={onRetry}><RefreshCw aria-hidden="true" /> {attempt.mastered ? "Try another scenario" : "Retry with a new scenario"}</button>
+            {nextMissionId && <a className={`button ${done ? "primary" : ""}`} {...linkProps(`/missions/${nextMissionId}`)}>Next mission</a>}
           </div>
         </div>
       )}

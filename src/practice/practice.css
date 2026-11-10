@@ -543,6 +543,11 @@
   font-size: 10px;
   color: var(--muted);
 }
+/* A select is as wide as its longest option unless it may shrink with its label. */
+.send-fields select {
+  width: 100%;
+  min-width: 0;
+}
 .send-fields input {
   min-width: 0;
   width: 100%;
@@ -610,82 +615,12 @@
 .send-options > .text-button {
   margin-left: auto;
 }
-.replay-panel {
-  padding: 21px 22px;
-}
-.replay-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.replay-controls {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.replay-controls > button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  height: 31px;
-  width: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: 6px;
-}
-.replay-controls .play-button {
-  background: var(--primary);
-  color: white;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  margin: 0 5px;
-}
-.replay-controls select {
-  font-size: 10px;
-  min-height: 28px;
-  border: 0;
-  background: transparent;
-  padding-right: 14px;
-}
 .timeline-slider {
   width: 100%;
   height: 4px;
   accent-color: var(--primary);
   margin: 24px 0 21px;
   display: block;
-}
-.event-explanation {
-  display: flex;
-  gap: 12px;
-  background: #f1f5eb;
-  border: 1px solid #e0e7d9;
-  border-radius: 10px;
-  padding: 17px;
-}
-.event-symbol {
-  color: var(--primary);
-  padding-top: 3px;
-}
-.event-explanation h3 {
-  font: normal 22px/1.2 var(--display);
-  margin: 7px 0 8px;
-  letter-spacing: -0.3px;
-}
-.event-explanation p {
-  font-size: 12px;
-  line-height: 1.7;
-  margin: 0;
-  color: var(--ink-2);
-}
-.event-error {
-  background: var(--danger-soft);
-  border-color: #eac7ba;
-}
-.event-error .event-symbol {
-  color: var(--danger);
 }
 .run-status {
   display: flex;
@@ -1155,6 +1090,29 @@
   gap: 20px;
   margin-top: 13px;
 }
+.challenge-verdict {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 3px solid var(--warning);
+  background: var(--warning-soft);
+}
+.challenge-verdict.is-passed {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+.challenge-verdict.is-failed {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+.challenge-verdict b {
+  font-size: 12px;
+  color: var(--ink);
+}
+.challenge-verdict p {
+  margin: 4px 0 8px;
+  color: var(--ink-2);
+}
 .challenge-hint {
   padding-left: 15px;
   border-left: 2px solid var(--primary-soft-line);
@@ -1298,9 +1256,6 @@
   }
   .workspace-actions select {
     max-width: 180px;
-  }
-  .replay-top {
-    gap: 16px;
   }
   .device-closeup {
     grid-template-columns: 1fr;
@@ -1454,8 +1409,7 @@
   .network-check {
     font-size: 10px !important;
   }
-  .send-panel,
-  .replay-panel {
+  .send-panel {
     padding: 18px 14px;
   }
   .send-fields {
@@ -1479,29 +1433,6 @@
   }
   .ttl-input span {
     display: none;
-  }
-  .replay-controls {
-    justify-content: center;
-    width: 100%;
-    gap: 8px;
-  }
-  .replay-controls > button {
-    height: 36px;
-    width: 34px;
-  }
-  .event-explanation {
-    padding: 14px 11px;
-    gap: 8px;
-  }
-  .event-explanation h3 {
-    font-size: 20px;
-  }
-  .event-explanation p {
-    font-size: 11px;
-  }
-  .event-explanation .eyebrow {
-    font-size: 8px;
-    letter-spacing: 1px;
   }
   .run-status {
     flex-wrap: wrap;
@@ -1572,32 +1503,6 @@
     scroll-behavior: auto !important;
   }
 }
-.stage-shortcuts {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 18px 0 0;
-}
-.stage-shortcuts > span {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: var(--muted);
-  margin-right: 3px;
-}
-.stage-shortcuts button {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  font-size: 9px;
-  padding: 5px 7px;
-  color: var(--muted);
-}
-.stage-shortcuts button.active {
-  color: var(--primary);
-  background: var(--primary-soft);
-  border-color: var(--primary-soft-line);
-}
 .packet-stack {
   animation: layer-arrival 0.18s ease-out;
 }
@@ -1637,13 +1542,17 @@
   letter-spacing: 0.04em;
   color: var(--primary);
 }
-.event-explanation .step-guide p,
+.step-guide p,
 .step-guide dd {
   margin: 0;
   font-size: 13px;
   line-height: 1.7;
   max-width: 76ch;
   overflow-wrap: anywhere;
+}
+.step-note a {
+  color: var(--primary);
+  font-weight: 600;
 }
 .step-guide summary {
   margin-top: 10px;
@@ -1677,4 +1586,875 @@
   background: rgba(255, 255, 255, 0.6);
   border-radius: 6px;
   padding: 10px 12px;
+}
+/* Points from a status line to the failing step, where the reason is explained once. */
+.network-playground .stop-link {
+  display: inline;
+  padding: 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.run-status > span {
+  flex: 1;
+}
+.field-error {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--danger);
+}
+.send-fields [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.step-guide .failure-title {
+  color: var(--danger);
+  font-size: 15px;
+}
+.failure-chain {
+  margin: 6px 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.failure-chain li + li {
+  margin-top: 3px;
+}
+.failure-chain span {
+  color: var(--muted);
+}
+.failure-check {
+  font-size: 12px;
+}
+.step-summary {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.step-cause .text-button {
+  display: inline;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.step-guide cite {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Follow the Journey: the canvas, the card beside the active device, and the controls under it. */
+.journey-stage {
+  position: relative;
+  container: journey / inline-size;
+}
+.network-device.is-dimmed {
+  opacity: 0.42;
+}
+.network-device.is-sender .device-tile {
+  stroke: #b57729;
+  stroke-width: 3;
+}
+.network-device.is-receiver .device-tile {
+  stroke: #357a60;
+  stroke-width: 3;
+  stroke-dasharray: 5 4;
+}
+.network-wire.in-path {
+  stroke: #6f9c84;
+  stroke-width: 3.5;
+}
+.path-arrow {
+  fill: none;
+  stroke: #2d6b50;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.journey-card {
+  position: absolute;
+  left: var(--card-x, 16px);
+  top: var(--card-y, 56px);
+  z-index: 3;
+  width: min(330px, calc(100% - 32px));
+  max-height: var(--card-max, 440px);
+  overflow: auto;
+  padding: 13px 15px 10px;
+  background: #fffef9f5;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px #193a2d22;
+  color: var(--ink-2);
+  visibility: hidden;
+}
+.journey-card.is-placed {
+  visibility: visible;
+}
+.journey-card.has-details {
+  width: min(460px, calc(100% - 32px));
+}
+.journey-card.is-error {
+  border-left-color: var(--danger);
+}
+.journey-card header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.journey-card header .icon-button {
+  min-height: 32px;
+  min-width: 32px;
+  margin: -6px -8px 0 0;
+}
+.journey-card h2 {
+  font: normal 19px/1.25 var(--display);
+  margin: 2px 0 6px;
+  color: var(--ink);
+}
+.journey-card.is-error h2 {
+  color: var(--danger);
+}
+.journey-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.journey-progress {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.journey-why {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.journey-card footer {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+.journey-card footer .text-button {
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 32px;
+}
+.journey-details .step-guide {
+  margin-top: 10px;
+}
+.journey-reopen {
+  position: absolute;
+  left: var(--card-x, 16px);
+  top: var(--card-y, 56px);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.journey-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--line);
+  background: #fbfcf6;
+}
+.journey-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.journey-buttons > button {
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  height: 36px;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+.journey-buttons .play-button {
+  background: var(--primary);
+  color: white;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  margin: 0 4px;
+}
+.journey-position {
+  min-width: 0;
+  display: grid;
+}
+.journey-position b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.journey-position small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.journey-mode {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.journey-mode button {
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 8px 10px;
+  min-height: 34px;
+}
+.journey-mode button.active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+.journey-controls > select {
+  font-size: 11px;
+}
+.journey-controls .timeline-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--primary);
+  margin: 2px 0 0;
+}
+.journey-controls .run-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: start;
+  gap: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--success);
+}
+.journey-controls .run-status.failure {
+  color: var(--danger);
+}
+.journey-controls .run-status > span[aria-hidden] {
+  flex: none;
+  font-weight: 700;
+}
+.stage-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.stage-list > li {
+  border-bottom: 1px solid var(--line);
+}
+.stage-list summary {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.stage-list summary > span {
+  font: 10px var(--mono);
+  color: var(--muted);
+  min-width: 20px;
+}
+.stage-list summary b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.stage-list summary small {
+  margin-left: auto;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.stage-list .is-error summary b {
+  color: var(--danger);
+}
+.stage-list .event-list {
+  max-height: none;
+  margin: 0 0 8px;
+}
+.event-list {
+  max-height: 520px;
+}
+@container journey (max-width: 900px) {
+  /* Narrower canvases: a smaller card; the cause moves into "Why and how". */
+  .journey-card:not(.has-details) {
+    width: 260px;
+  }
+  .journey-card:not(.has-details) .journey-why {
+    display: none;
+  }
+  .journey-card:not(.has-details) .journey-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-card h2 {
+    font-size: 17px;
+  }
+}
+@container journey (max-width: 760px) {
+  /* Phones: the card sits directly under the diagram with a steady size, so stepping does not move the page. */
+  .journey-controls {
+    display: flex;
+    flex-wrap: wrap;
+    padding: 10px 12px;
+  }
+  .journey-position {
+    order: 2;
+    flex: 1 1 160px;
+  }
+  .journey-mode {
+    order: 3;
+  }
+  /* Speed shares the first row with the playback buttons. */
+  .journey-controls > select {
+    order: 1;
+    margin-left: auto;
+  }
+  .journey-controls .timeline-slider {
+    order: 4;
+  }
+  .journey-controls .run-status {
+    order: 5;
+  }
+  .journey-controls .timeline-slider,
+  .journey-controls .run-status {
+    flex-basis: 100%;
+  }
+  .journey-card,
+  .journey-card:not(.has-details),
+  .journey-reopen {
+    position: static;
+    width: auto;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    border-width: 1px 0 0 4px;
+    box-shadow: none;
+    visibility: visible;
+  }
+  .journey-card.has-details {
+    width: auto;
+  }
+  /* Room for a two-line title and four lines of summary, so stepping does not move the page. */
+  .journey-card:not(.has-details) {
+    min-height: 15.5rem;
+  }
+  .journey-card h2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-card:not(.has-details) .journey-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .journey-reopen {
+    border-radius: 0;
+    justify-content: center;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-card {
+    scroll-behavior: auto;
+  }
+}
+
+/* Packet inspection: identity, rewrites at this link, glossary and the whole trip. */
+.packet-identity,
+.packet-changes,
+.packet-trip {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.packet-identity {
+  display: grid;
+  gap: 2px;
+}
+.packet-identity b {
+  font-size: 13px;
+  color: var(--ink);
+}
+.packet-relation .text-button,
+.packet-relation .text-button:visited {
+  display: inline;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.packet-changes h3,
+.packet-trip h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--ink);
+}
+.packet-changes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.packet-changes code {
+  font: 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.packet-changes small {
+  display: block;
+  color: var(--muted);
+}
+.packet-changes p,
+.packet-trip p {
+  margin: 0;
+  color: var(--muted);
+}
+.layer-content dl > div.is-changed {
+  background: var(--warning-soft);
+  border-radius: 4px;
+}
+.field-glossary {
+  margin-top: 8px;
+  font-size: 11px;
+}
+.field-glossary summary {
+  cursor: pointer;
+  color: var(--primary);
+  font-weight: 600;
+  padding: 4px 0;
+}
+.field-glossary cite {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--muted);
+}
+.field-glossary em {
+  display: block;
+  font-style: normal;
+  color: #8a5a17;
+}
+.packet-trip ol {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.packet-trip button {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 1px 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  padding: 7px 4px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.packet-trip button[aria-current] {
+  background: var(--primary-soft);
+}
+.packet-trip button > span {
+  grid-row: span 3;
+  font: 10px var(--mono);
+  color: var(--muted);
+}
+.packet-trip small {
+  font: 10px var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* A device's part in the current run. */
+.device-role {
+  margin: -8px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--primary);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.device-role h3 {
+  margin: 10px 0 2px;
+  font-size: 12px;
+  color: var(--primary);
+}
+.device-role p,
+.device-role ul {
+  margin: 0;
+}
+.device-role ul {
+  padding-left: 18px;
+}
+.device-role-entry code {
+  font: 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.device-role-not {
+  margin-top: 10px !important;
+  color: var(--muted);
+}
+
+/* No clear spot for the full card: a shorter one, with the cause one click away in "Why and how". */
+.journey-card.is-compact {
+  width: min(300px, calc(100% - 32px));
+}
+.journey-card.is-compact h2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 17px;
+}
+.journey-card.is-compact .journey-about {
+  display: none;
+}
+.journey-card.is-compact .journey-why {
+  display: none;
+}
+.journey-card.is-compact .journey-summary {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.journey-card footer {
+  flex-wrap: wrap;
+  gap: 0 16px;
+}
+
+.journey-stage {
+  scroll-margin-top: 76px;
+}
+/* Before the first run: the one action that starts the journey, at the top of the diagram, where it is seen first. */
+.network-canvas .journey-start {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  z-index: 2;
+  min-height: 40px;
+  padding: 9px 18px;
+  box-shadow: 0 6px 18px #193a2d33;
+  white-space: nowrap;
+}
+@container journey (max-width: 760px) {
+  /* Below the caption and the Internet toggle on narrow canvases. */
+  .network-canvas .journey-start {
+    top: 96px;
+  }
+}
+
+/* Networking practice missions: the brief and steps above the shared workspace. */
+.mission-heading {
+  margin-bottom: 18px;
+}
+.mission-heading h1 {
+  font: normal clamp(34px, 5vw, 52px) / 1.05 var(--display);
+  margin: 10px 0 8px;
+  color: var(--ink);
+}
+.mission-heading a.eyebrow {
+  text-decoration: none;
+}
+.mission-symptom {
+  font-size: 17px;
+  color: var(--ink);
+  margin: 0 0 8px;
+}
+.mission-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.state-pill {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.state-pill.is-in-progress {
+  color: #8a5a17;
+  border-color: #e3c99a;
+  background: var(--warning-soft);
+}
+.state-pill.is-completed {
+  color: var(--primary);
+  border-color: var(--primary-soft-line);
+  background: var(--primary-soft);
+}
+.state-pill.is-mastered {
+  color: white;
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.mission-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.6fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+.mission-brief,
+.mission-card {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mission-card h2,
+.mission-brief h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  color: var(--ink);
+}
+.mission-brief h2 {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.mission-brief ul,
+.mission-card ul {
+  margin: 0;
+  padding-left: 18px;
+}
+.mission-card small {
+  font-weight: normal;
+  color: var(--muted);
+}
+.mission-steps {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.mission-card.is-right {
+  border-left: 4px solid var(--success);
+}
+.mission-card.is-wrong {
+  border-left: 4px solid var(--warning);
+}
+.mission-locks {
+  margin: 10px 0;
+}
+.mission-locks summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mission-options {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.mission-options .small-button {
+  text-align: left;
+  justify-content: flex-start;
+  min-height: 40px;
+  white-space: normal;
+  height: auto;
+  padding: 8px 12px;
+}
+.mission-options .small-button.is-right {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+.mission-options .small-button.is-wrong {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+.mission-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+}
+.mission-fields label {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 180px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.mission-fields select,
+.mission-fields input {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  padding: 7px 9px;
+  font-size: 13px;
+}
+.mission-evidence-now {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.mission-feedback {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+.mission-checks {
+  list-style: none;
+  padding: 0 !important;
+  margin-top: 10px !important;
+  display: grid;
+  gap: 8px;
+}
+.mission-checks li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  align-items: start;
+}
+.mission-checks li > span,
+.mission-checks li > .text-button {
+  grid-column: 2;
+}
+.mission-checks .is-passed > svg {
+  color: var(--success);
+}
+.mission-checks .is-failed > svg {
+  color: var(--danger);
+}
+.mission-checks .text-button {
+  justify-self: start;
+  font-size: 12px;
+  text-decoration: underline;
+}
+.mission-hints p {
+  margin: 0 0 6px;
+}
+.mission-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin-top: 10px;
+}
+.mission-list {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.mission-list a {
+  display: grid;
+  gap: 6px;
+  height: 100%;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mission-list a:hover {
+  border-color: var(--primary-soft-line);
+}
+.mission-list b {
+  font-size: 17px;
+  color: var(--ink);
+}
+.mission-list .state-pill {
+  justify-self: start;
+}
+.mission-level {
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.mission-list-heading {
+  font: normal 26px var(--display);
+  margin: 10px 0 12px;
+}
+@media (max-width: 850px) {
+  .mission-panel {
+    grid-template-columns: 1fr;
+  }
+}
+.network-mission .mission-brief {
+  margin: 0 0 16px;
+}
+.network-mission .mission-brief > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+}
+.network-mission .mission-brief[open] > summary {
+  margin-bottom: 8px;
+}
+.network-inspector .mission-steps .mission-card {
+  padding: 12px 14px;
+}
+/* Five tabs when a mission adds its own: keep every label on one line. */
+.network-mission .inspector-tabs {
+  padding: 0 6px;
+}
+.network-mission .inspector-tabs button {
+  gap: 4px;
+  padding: 16px 2px;
+  font-size: 10.5px;
+}
+/* On narrow screens the Mission tab sits below the diagram; the heading offers a shortcut to it. */
+.mission-jump {
+  display: none !important;
+}
+@media (max-width: 850px) {
+  .mission-jump {
+    display: inline-flex !important;
+    font-size: 12px !important;
+    font-weight: 600;
+  }
+  .network-mission .network-inspector {
+    scroll-margin-top: 72px;
+  }
 }

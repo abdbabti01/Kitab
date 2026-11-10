@@ -17,6 +17,9 @@ export type Attempt = {
   explanation: { choiceId: string; correct: boolean; misconception?: string } | null;
   reflection: string;
   mastered: boolean;
+  /** For missions with an evidence step: mastery also needs the right step, chosen before it was revealed. */
+  needsEvidence?: boolean;
+  evidence?: { index: number; correct: boolean; revealed: boolean } | null;
 };
 
 export type MissionState = { missionId: string; missionVersion: string; phase: Phase; attempt: Attempt };
@@ -28,6 +31,10 @@ export type MissionAction =
   | { type: "RUN_COMPLETED" }
   | { type: "SUBMIT_EXPLANATION"; choiceId: string; correct: boolean; misconception?: string }
   | { type: "SET_REFLECTION"; text: string }
+  /** The learner says the shown step proves the answer. */
+  | { type: "CHOOSE_EVIDENCE"; index: number; correct: boolean }
+  /** "Show me the evidence" was used; a later choice no longer counts towards mastery. */
+  | { type: "REVEAL_EVIDENCE" }
   | { type: "NEW_ATTEMPT"; attempt: Attempt }
   /**
    * Change a lab's settings. Applied only if, in the latest state, the phase is still before the prediction
@@ -66,6 +73,7 @@ export function createAttempt(mission: Mission, number: number, custom?: Record<
     explanation: null,
     reflection: "",
     mastered: false,
+    ...(mission.evidence ? { needsEvidence: true, evidence: null } : {}),
   };
 }
 
@@ -96,9 +104,16 @@ export function missionReducer(state: MissionState, action: MissionAction): Miss
       return { ...state, phase: "explain", attempt: { ...attempt, runCompleted: true } };
     case "SUBMIT_EXPLANATION": {
       if (state.phase !== "explain" || !action.choiceId) return state;
-      const mastered = Boolean(attempt.prediction?.correct && !attempt.skippedPrediction && attempt.runCompleted && action.correct);
+      const evidence = !attempt.needsEvidence || Boolean(attempt.evidence?.correct && !attempt.evidence.revealed);
+      const mastered = Boolean(attempt.prediction?.correct && !attempt.skippedPrediction && attempt.runCompleted && action.correct && evidence);
       return { ...state, phase: "result", attempt: { ...attempt, explanation: { choiceId: action.choiceId, correct: action.correct, misconception: action.misconception }, mastered } };
     }
+    case "CHOOSE_EVIDENCE":
+      if (state.phase !== "explain" || !attempt.needsEvidence) return state;
+      return { ...state, attempt: { ...attempt, evidence: { index: action.index, correct: action.correct, revealed: attempt.evidence?.revealed ?? false } } };
+    case "REVEAL_EVIDENCE":
+      if (!attempt.needsEvidence || attempt.evidence?.correct) return state;
+      return { ...state, attempt: { ...attempt, evidence: { index: attempt.evidence?.index ?? -1, correct: false, revealed: true } } };
     case "SET_REFLECTION":
       return { ...state, attempt: { ...attempt, reflection: action.text.slice(0, REASONING_LIMIT) } };
     case "NEW_ATTEMPT":

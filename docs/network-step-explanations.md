@@ -10,6 +10,8 @@ The same treatment covers ARP, DNS, sockets, TCP handshake, buffering, encapsula
 
 ## Implementation
 
+A failed step's explanation is only what was observed. The simulator's diagnosis (`failure.detail`) and a repair suggestion (`failure.advice`) are separate fields: the playground shows them as part of the step and as "What to try"; practice missions leave them out so the learner works out the cause.
+
 `explanations.ts` reads the selected event and network. DHCP client/server IDs are teaching context on the event, separate from the transmitted packet fields. This preserves client identity even when two devices share a display name. No runtime network state is changed by reading explanations. `StepExplanation.tsx` renders semantic details/summary, retaining keyboard access and narrow-screen wrapping.
 
 ## Verification

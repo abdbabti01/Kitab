@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "../src/learning/engines/index.ts";
-import { assessExplanation, assessPrediction, resolvePredictionOptions, traceFor } from "../src/learning/assessment.ts";
+import { assessExplanation, assessPrediction, evidenceMatches, resolvePredictionOptions, traceFor } from "../src/learning/assessment.ts";
 import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionState } from "../src/learning/mission-controller.ts";
 import { findMission } from "../src/learning/missions/catalog.ts";
-import { PROGRESS_KEY, loadProgress, missionStatus, recordState, recordVisit, restoreState, saveProgress } from "../src/learning/progress.ts";
+import { PROGRESS_KEY, loadProgress, masteredVersions, missionStatus, recordState, recordVisit, restoreState, saveProgress } from "../src/learning/progress.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../src/learning/guide.ts";
 
 const mission = findMission("tcp-lost-segment")!;
@@ -14,13 +14,20 @@ function memoryStorage(initial: Record<string, string> = {}) {
   return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => void data.set(key, value), removeItem: (key: string) => void data.delete(key) };
 }
 
-function play(state: MissionState, optionPick: "right" | "wrong", explanation: "right" | "wrong") {
+/** Evidence: "right" picks a proving step, "wrong" another step, "revealed" uses Show me first; none skips the step. */
+function play(state: MissionState, optionPick: "right" | "wrong", explanation: "right" | "wrong", evidence: "right" | "wrong" | "revealed" | "none" = "right", m = mission) {
+  const mission = m;
   const trace = traceFor(mission, state.attempt.params);
   const options = resolvePredictionOptions(mission, trace);
   const option = options.find((item) => assessPrediction(mission, trace, { optionId: item.id }).correct === (optionPick === "right"))!;
   let next = missionReducer(state, { type: "BEGIN_PREDICTION" });
   next = missionReducer(next, { type: "SUBMIT_PREDICTION", answer: { optionId: option.id }, result: assessPrediction(mission, trace, { optionId: option.id }), reasoning: "  because the ACK is cumulative  " });
   next = missionReducer(next, { type: "RUN_COMPLETED" });
+  if (evidence === "revealed") next = missionReducer(next, { type: "REVEAL_EVIDENCE" });
+  if (evidence !== "none") {
+    const index = trace.frames.findIndex((_, i) => evidenceMatches(mission, trace, i) === (evidence !== "wrong"));
+    next = missionReducer(next, { type: "CHOOSE_EVIDENCE", index, correct: evidenceMatches(mission, trace, index) });
+  }
   const choice = mission.explanation.options.find((item) => item.correct === (explanation === "right"))!;
   return missionReducer(next, { type: "SUBMIT_EXPLANATION", choiceId: choice.id, ...assessExplanation(mission, choice.id) });
 }
@@ -75,13 +82,88 @@ test("progress separates visits, attempts and mastery and survives refresh", () 
   assert.equal(restored.phase, "predict");
   assert.deepEqual(restored.attempt.optionOrder, state.attempt.optionOrder);
 
+  // This mission needs two different versions: one mastered attempt is not enough, and repeating it doesn't count twice.
   state = play(createMissionState(mission, createAttempt(mission, 1, undefined, "p2")), "right", "right");
-  progress = recordState(reloaded, state, "key", attemptStatus(state.attempt));
+  progress = recordState(reloaded, state, "key", attemptStatus(state.attempt), undefined, mission.masteryVariants);
+  assert.equal(missionStatus(progress, mission.id, mission.version), "practiced");
+  state = play(createMissionState(mission, createAttempt(mission, 1, undefined, "p3")), "right", "right");
+  progress = recordState(progress, state, "key", attemptStatus(state.attempt), undefined, mission.masteryVariants);
+  assert.equal(masteredVersions(progress, mission.id), 1);
+  assert.equal(missionStatus(progress, mission.id, mission.version), "practiced");
+  state = play(createMissionState(mission, createAttempt(mission, 2, undefined, "p4")), "right", "right");
+  progress = recordState(progress, state, "key", attemptStatus(state.attempt), undefined, mission.masteryVariants);
+  assert.equal(masteredVersions(progress, mission.id), 2);
   assert.equal(missionStatus(progress, mission.id, mission.version), "mastered");
   assert.equal(progress.missions[mission.id].attempts.at(-1)!.reasoning, "because the ACK is cumulative");
   // A new mission version does not inherit mastery or an in-progress attempt.
   assert.equal(missionStatus(recordVisit(progress, mission.id, "2.0.0"), mission.id, "2.0.0"), "practiced");
   assert.equal(restoreState(progress, mission.id, "2.0.0"), null);
+});
+
+test("evidence step: mastery needs the proving step, chosen before it was revealed", () => {
+  const fresh = () => createMissionState(mission, createAttempt(mission, 1, undefined, "e"));
+  assert.equal(fresh().attempt.needsEvidence, true);
+  assert.equal(play(fresh(), "right", "right", "right").attempt.mastered, true);
+  assert.equal(play(fresh(), "right", "right", "wrong").attempt.mastered, false);
+  assert.equal(play(fresh(), "right", "right", "none").attempt.mastered, false);
+  const revealed = play(fresh(), "right", "right", "revealed");
+  assert.equal(revealed.attempt.evidence!.correct, true);
+  assert.equal(revealed.attempt.evidence!.revealed, true);
+  assert.equal(revealed.attempt.mastered, false);
+  const state = missionReducer(fresh(), { type: "BEGIN_PREDICTION" });
+  assert.equal(missionReducer(state, { type: "CHOOSE_EVIDENCE", index: 0, correct: true }), state, "only in the explain phase");
+  // A wrong step can be corrected before explaining.
+  let explain = missionReducer(missionReducer(state, { type: "SUBMIT_PREDICTION", answer: { optionId: "x" }, result: { correct: true } as never, reasoning: "" }), { type: "RUN_COMPLETED" });
+  explain = missionReducer(explain, { type: "CHOOSE_EVIDENCE", index: 0, correct: false });
+  explain = missionReducer(explain, { type: "CHOOSE_EVIDENCE", index: 5, correct: true });
+  assert.deepEqual(explain.attempt.evidence, { index: 5, correct: true, revealed: false });
+  // Every version of both evidence missions has a proving step and a non-proving one.
+  for (const id of ["tcp-lost-segment", "tcp-send-window"]) {
+    const m = findMission(id)!;
+    assert.equal(m.masteryVariants, 2);
+    for (const variant of m.variants) {
+      const trace = traceFor(m, variant.params);
+      const proving = trace.frames.filter((_, i) => evidenceMatches(m, trace, i)).length;
+      assert.ok(proving >= 1 && proving < trace.frames.length / 2, `${id}/${variant.id}: ${proving} proving steps`);
+    }
+  }
+});
+
+test("evidence fields are not stored, so the previous release can still read progress; restoring rebuilds them", () => {
+  const storage = memoryStorage();
+  const empty = loadProgress(storage).progress;
+  // Mid-explain: the evidence choice is in memory only, and restoring asks for it again.
+  let open = missionReducer(createMissionState(mission, createAttempt(mission, 1, undefined, "r1")), { type: "BEGIN_PREDICTION" });
+  const trace = traceFor(mission, open.attempt.params);
+  const right = resolvePredictionOptions(mission, trace).find((o) => assessPrediction(mission, trace, { optionId: o.id }).correct)!;
+  open = missionReducer(open, { type: "SUBMIT_PREDICTION", answer: { optionId: right.id }, result: assessPrediction(mission, trace, { optionId: right.id }), reasoning: "" });
+  open = missionReducer(open, { type: "RUN_COMPLETED" });
+  open = missionReducer(open, { type: "CHOOSE_EVIDENCE", index: 3, correct: true });
+  saveProgress(storage, recordState(empty, open, "key", attemptStatus(open.attempt), undefined, 2));
+  const raw = storage.data.get(PROGRESS_KEY)!;
+  assert.doesNotMatch(raw, /needsEvidence|"evidence"/);
+  const restored = restoreState(loadProgress(storage).progress, mission.id, mission.version, true)!;
+  assert.equal(restored.attempt.needsEvidence, true);
+  assert.equal(restored.attempt.evidence, null);
+  const right2 = mission.explanation.options.find((o) => o.correct)!;
+  assert.equal(missionReducer(restored, { type: "SUBMIT_EXPLANATION", choiceId: right2.id, correct: true }).attempt.mastered, false, "a reload never skips the evidence step");
+  // A mastered attempt restores as having found its evidence.
+  const done = play(createMissionState(mission, createAttempt(mission, 1, undefined, "r2")), "right", "right");
+  saveProgress(storage, recordState(empty, done, "key", attemptStatus(done.attempt), undefined, 2));
+  assert.deepEqual(restoreState(loadProgress(storage).progress, mission.id, mission.version, true)!.attempt.evidence, { index: -1, correct: true, revealed: false });
+});
+
+test("missions without the opt-in behave as before", () => {
+  const other = findMission("array-insert-shift")!;
+  assert.equal(other.evidence, undefined);
+  assert.equal(other.masteryVariants, undefined);
+  const attempt = createAttempt(other, 1, undefined, "o");
+  assert.equal("needsEvidence" in attempt, false);
+  const state = play(createMissionState(other, attempt), "right", "right", "none", other);
+  assert.equal(state.attempt.mastered, true);
+  const progress = recordState(loadProgress(memoryStorage()).progress, state, "key", attemptStatus(state.attempt));
+  assert.equal(missionStatus(progress, other.id, other.version), "mastered");
+  assert.equal(missionReducer(state, { type: "REVEAL_EVIDENCE" }), state);
 });
 
 test("malformed, tampered or unavailable storage recovers to a clean state", () => {

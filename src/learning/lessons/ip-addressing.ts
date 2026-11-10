@@ -4,18 +4,19 @@ import { ipTerms } from "./ip-terms.ts";
 export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
   schemaVersion: 1,
   id: "ip-addressing",
-  version: "1.0.0",
+  version: "1.1.0",
   title: "IP Addresses & Subnets",
   question: "How does your PC know where to send a packet?",
   summary: "Start on your home Wi-Fi. Read an IPv4 address, split a subnet, choose a next hop, and watch your router translate a web request with NAT.",
   topic: "Networks",
   review: { status: "reviewed", note: "The subnet math, next hop and example NAT mappings come from the lesson model." },
-  engine: { id: "ip-addressing", version: "1.0.0" },
+  engine: { id: "ip-addressing", version: "1.1.0" },
   scenario: { prefix: 24, target: "printer" },
   nextLessonId: "hello-tcp",
   scope: [
     "A home LAN with a PC, phone, router, and a printer. Change the prefix or destination under Change the example.",
-    "The PC has a connected route and a default route. In the split network the router can reach the printer's other subnet.",
+    "With /24 the whole LAN is one subnet. With /25 the LAN is split into two subnets: every device uses /25, and the router has an interface in each half (192.168.1.1 and 192.168.1.129) so it can route between them.",
+    "A real split is different from a mask mismatch, where only one device uses a different prefix. The practice mission “Neighbours that look remote” shows that mistake.",
     "NAT follows a separate web example using illustrative public addresses. It models address and port translation for two TCP connections.",
   ],
   prerequisites: "None. Start with the devices on your home Wi-Fi.",
@@ -34,13 +35,13 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
     translation: { represents: "The router's packet rewrite and saved NAT mapping.", matters: "One outside IP can serve multiple connections with distinct translated ports." },
   },
   controls: [
-    { key: "prefix", label: "PC subnet prefix", control: "choice", options: [{ value: 24, label: "/24 · one subnet" }, { value: 25, label: "/25 · split subnets" }], help: "The PC stays at the same IP. Change the prefix to move the subnet boundary." },
+    { key: "prefix", label: "PC subnet prefix", control: "choice", options: [{ value: 24, label: "/24 · one subnet" }, { value: 25, label: "/25 · LAN split into two subnets" }], help: "With /25 every device uses the new prefix and the router gets an address in each half. The PC and printer keep their IPs." },
     { key: "target", label: "Destination", control: "choice", options: [{ value: "phone", label: "Phone · 192.168.1.25" }, { value: "printer", label: "Printer · 192.168.1.130" }, { value: "web", label: "Web · 198.51.100.20" }], help: "Compare a nearby phone, a printer near the subnet boundary, and an internet destination." },
   ],
   chapters: [
     { id: "home-lan", title: "LAN & subnet", goal: "See what is connected and which addresses count as local.", steps: [
       { id: "meet-lan", frame: "lan", what: "Your PC ({fact:client-ip}) and phone ({fact:phone-ip}) join the home LAN. The router's LAN interface is {fact:gateway-ip}.", why: "Devices on the home network can exchange frames with each other, such as when the PC sends a document to a local printer.", terms: ["lan"], focus: [] },
-      { id: "interfaces", frame: "interfaces", what: "The router has a LAN interface at {fact:gateway-ip} and a WAN interface at {fact:router-wan} in this example. Your PC's IP is on its own Wi-Fi interface.", why: "Each interface connects to a network. At home, DHCP usually supplies your PC's address, subnet mask, and default gateway when it joins.", terms: ["ip-address", "interface", "wan", "dhcp"], focus: [] },
+      { id: "interfaces", frame: "interfaces", what: "The router's LAN side has {fact:router-lan}, and its WAN interface is {fact:router-wan} in this example. Your PC's IP is on its own Wi-Fi interface.", why: "Each interface connects to a network. At home, DHCP usually supplies your PC's address, subnet mask, and default gateway when it joins.", terms: ["ip-address", "interface", "wan", "dhcp"], focus: [] },
       { id: "meet-subnet", frame: "subnet", what: "The PC is in {fact:connected-subnet}. The diagram shows its address block and whether {fact:destination-ip} is in it.", why: "The LAN is the network the devices connect to. The subnet describes an IP address block used on that network. Change the example to see how /25 moves the printer outside the PC’s subnet.", terms: ["subnet"], focus: [] },
     ] },
     { id: "read-address", title: "Read an address", goal: "Read the address and its prefix in both decimal and bits.", steps: [
@@ -49,9 +50,10 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
     ] },
     { id: "split", title: "Split a subnet", goal: "See how one more prefix bit cuts a block into two halves.", steps: [
       { id: "split-range", frame: "ranges", what: "Split {fact:parent-subnet} into {fact:lower-subnet} and {fact:upper-subnet}. Each half has {fact:half-size} addresses and {fact:usable} usable host addresses in this example.", why: "The new prefix bit can be 0 or 1, creating two equally sized blocks. In each /25 here, the first address identifies the network and the last is its broadcast address. Hosts use the addresses between them.", terms: ["subnetting", "broadcast"], focus: [] },
+      { id: "real-split", frame: "ranges", what: "A real split moves every device on the LAN to /25. The router gets an address in each half, {fact:split-router-a} and {fact:split-router-b}, so it can route between the two subnets.", why: "If only one PC used /25 while everything else stayed /24, that would be a mask mismatch, not a split. That PC would treat some of its own neighbours as remote and fail to reach them. The practice mission “Neighbours that look remote” shows this mistake.", terms: ["subnetting"], focus: [] },
     ] },
     { id: "route", title: "Choose a route", goal: "Follow the PC's decision to deliver directly or use a gateway.", steps: [
-      { id: "choose-hop", frame: "routes", what: "For {fact:destination-name} at {fact:destination-ip}, the PC chooses: {fact:route-type}. The next hop is {fact:next-hop}.", why: "The connected route wins when it matches because its prefix is longer than the default route. Try the printer with /24 and /25 under Change the example. The printer keeps its IP, and the PC's next hop changes.", terms: ["default", "hop", "router", "route-table"], focus: [] },
+      { id: "choose-hop", frame: "routes", what: "For {fact:destination-name} at {fact:destination-ip}, the PC chooses: {fact:route-type}. The next hop is {fact:next-hop}.", why: "The connected route wins when it matches because its prefix is longer than the default route. Try the printer with /24 and /25 under Change the example. The printer keeps its IP, and the PC's next hop changes. The router's LAN interfaces are {fact:router-lan}; with /25 it forwards the packet to the printer from its interface in the printer's half.", terms: ["default", "hop", "router", "route-table"], focus: [] },
       { id: "local-delivery", frame: "link", what: "The IP packet is addressed to {fact:destination-ip}. The local frame carries it to next hop {fact:next-hop}, using the MAC address {fact:next-hop-mac} in this example.", why: "The IP destination tells devices where the packet is ultimately headed. The frame's destination MAC gets it across this local link. The PC can use ARP to find that MAC address if it does not have it cached.", terms: ["arp", "mac", "packet", "frame"], focus: [] },
     ] },
     { id: "nat", title: "Follow NAT", goal: "Watch the router rewrite a web packet and find the right device for the reply.", steps: [

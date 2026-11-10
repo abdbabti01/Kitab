@@ -1,8 +1,30 @@
 import { ArrowDown, Layers, Info } from "lucide-react";
 import { effectiveInterface } from "./network/engine.ts";
 import { subnet } from "./network/topology.ts";
+import { changesAt, glossary, packetNumber, resends, shown, trip } from "./network/packets.ts";
 import type { TraceEvent, Session, Network } from "./network/model.ts";
-export function PacketInspector({ event }: { event?: TraceEvent }) {
+
+const kindOf = (packet: string) =>
+  packet.startsWith("arp-") ? (packet.endsWith("-reply") ? "ARP reply" : "ARP request") : packet.startsWith("dhcp-") ? "DHCP message" : "IP packet";
+
+/** The current event's message: its layers, what changed at this hop, and its whole trip. */
+export function PacketInspector({
+  events,
+  index,
+  network,
+  onStep,
+}: {
+  events: TraceEvent[];
+  index: number;
+  network: Network;
+  onStep: (index: number) => void;
+}) {
+  const event = events[index];
+  const name = (id: string) => network.devices.find((d) => d.id === id)?.name ?? id;
+  const hops = event ? trip(events, event.packet) : [];
+  const here = hops.filter((h) => h.index <= index).at(-1);
+  const changes = event?.hop ? changesAt(events, index, network) : [];
+  const resent = event?.hop ? resends(events, index) : undefined;
   return (
     <div className="packet-inspector">
       <div className="inspector-intro">
@@ -13,6 +35,50 @@ export function PacketInspector({ event }: { event?: TraceEvent }) {
           inspect the actual values at this step.
         </p>
       </div>
+      {event?.packet && (
+        <section className="packet-identity" aria-label="This message">
+          <b>
+            {kindOf(event.packet)} {packetNumber(events, event.packet)}
+          </b>
+          <span>
+            {hops.length
+              ? here
+                ? `On link ${hops.indexOf(here) + 1} of ${hops.length}: ${name(here.from)} → ${name(here.to)}`
+                : `Not sent yet · will cross ${hops.length} link${hops.length > 1 ? "s" : ""}`
+              : "Never left its sender"}
+          </span>
+          {resent !== undefined && (
+            <span className="packet-relation">
+              Retransmission: the same bytes as the segment lost at{" "}
+              <button className="text-button" onClick={() => onStep(resent)}>
+                step {resent + 1}
+              </button>
+              , in a new packet.
+            </span>
+          )}
+        </section>
+      )}
+      {event?.hop && (
+        <section className="packet-changes" aria-label="Changed since the previous link">
+          <h3>Changed since the previous link</h3>
+          {changes.length ? (
+            <ul>
+              {changes.map((c) => (
+                <li key={c.field}>
+                  <b>{c.field}</b> <code>{shown(c.field, c.before)}</code> → <code>{shown(c.field, c.after)}</code>
+                  <small>{c.why}</small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>
+              {hops[0]?.index === index
+                ? "This is the first link: the message has just left its sender."
+                : "Nothing: switches and access points pass frames on without rewriting them."}
+            </p>
+          )}
+        </section>
+      )}
       {!event?.layers.length ? (
         <div className="inspector-empty">
           <Layers size={32} />
@@ -53,13 +119,28 @@ export function PacketInspector({ event }: { event?: TraceEvent }) {
                   </p>
                   <dl>
                     {Object.entries(l.fields).map(([key, value]) => (
-                      <div key={key}>
+                      <div key={key} className={changes.some((c) => c.field === key) ? "is-changed" : ""}>
                         <dt>{key}</dt>
-                        <dd>{value}</dd>
+                        <dd>{shown(key, value)}</dd>
                       </div>
                     ))}
                   </dl>
                   {l.payload && <pre>{l.payload}</pre>}
+                  <details className="field-glossary">
+                    <summary>What these fields mean</summary>
+                    <dl>
+                      {Object.keys(l.fields).map((key) => (
+                        <div key={key}>
+                          <dt>{key}</dt>
+                          <dd>
+                            {glossary[key]?.meaning}
+                            {glossary[key]?.source && <cite> {glossary[key].source}</cite>}
+                            {glossary[key]?.simplified && <em> In this lab: {glossary[key].simplified}</em>}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </details>
                 </div>
               </details>
               {i < event.layers.length - 1 && (
@@ -70,6 +151,35 @@ export function PacketInspector({ event }: { event?: TraceEvent }) {
             </div>
           ))}
         </div>
+      )}
+      {hops.length > 0 && (
+        <section className="packet-trip" aria-label="Follow this packet">
+          <h3>Follow this {event?.packet ? kindOf(event.packet) : "message"}</h3>
+          <p>One row per link it crossed. Select a row to show that moment on the diagram.</p>
+          <ol>
+            {hops.map((h, k) => (
+              <li key={h.frame}>
+                <button aria-current={h === here ? "step" : undefined} onClick={() => onStep(h.index)}>
+                  <span>{k + 1}</span>
+                  <b>
+                    {name(h.from)} → {name(h.to)}
+                  </b>
+                  <small>
+                    MAC {h.fields["Source MAC"]} → {h.fields["Destination MAC"]}
+                  </small>
+                  {"Source IP" in h.fields && (
+                    <small>
+                      IP {h.fields["Source IP"]}
+                      {"Source port" in h.fields ? `:${h.fields["Source port"]}` : ""} → {h.fields["Destination IP"]}
+                      {"Destination port" in h.fields ? `:${h.fields["Destination port"]}` : ""}
+                      {"TTL" in h.fields ? ` · TTL ${h.fields.TTL}` : ""}
+                    </small>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
       <div className="model-note">
         <Info size={15} />

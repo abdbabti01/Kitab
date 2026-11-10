@@ -41,3 +41,14 @@ test("provider and local choices reset the journey and explain the matching carr
     ),
   ).toBe(true);
 });
+test("selecting a box explains its role, and a modem or ONT is never described as routing", async ({ page }) => {
+  await page.goto("/practice/connections");
+  const about = page.locator(".access-about");
+  await expect(about.locator("h2")).toHaveText("ONT");
+  await expect(about).toContainText("OLT tells each ONT when it may send");
+  await expect(about).toContainText("It does not route, hand out addresses or translate them with NAT");
+  await page.getByRole("button", { name: "What does the Home router do?" }).click();
+  await expect(about).toContainText("here also the ONT");
+  await page.getByRole("combobox").last().selectOption("separate");
+  await expect(about).toContainText("connects by an Ethernet cable to the separate ONT");
+});

@@ -2,6 +2,7 @@ import { useEffect, useState, useId } from "react";
 import { Cable, Info, Trash2, Wifi } from "lucide-react";
 import { deviceDescription, subnet } from "./network/topology.ts";
 import { effectiveInterface } from "./network/engine.ts";
+import { deviceRole } from "./network/roles.ts";
 import {
   createDevice,
   type Device,
@@ -9,6 +10,7 @@ import {
   type Endpoint,
   type Medium,
   type Session,
+  type TraceEvent,
 } from "./network/model.ts";
 function Field({
   label,
@@ -47,7 +49,12 @@ export function DeviceInspector({
   onDelete,
   onConnect,
   onDisconnect,
+  events,
+  index,
 }: {
+  /** The current run, if any: the inspector then explains this device's part in it. */
+  events?: TraceEvent[];
+  index?: number;
   device: Device;
   network: Network;
   session: Session;
@@ -105,6 +112,7 @@ export function DeviceInspector({
         <h2>{device.name}</h2>
         <p>{deviceDescription(device)}</p>
       </div>
+      {events?.length ? <DeviceRole device={device} network={network} events={events} index={index ?? 0} /> : null}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -399,7 +407,9 @@ export function DeviceInspector({
           <details>
             <summary>DNS records</summary>
             <p className="field-help">
-              Each record maps a hostname to an IPv4 address.
+              Each record maps a hostname to an IPv4 address. A device with at
+              least one record runs a DNS service on UDP port 53; without records
+              it does not answer DNS queries.
             </p>
             {Object.entries(draft.records).map(([name, address], i) => (
               <div className="dns-record" key={i}>
@@ -555,5 +565,33 @@ export function DeviceInspector({
         <Trash2 size={14} /> Delete device
       </button>
     </div>
+  );
+}
+
+/** What this device did in the current run, what it is doing now, and the table entry behind it. */
+function DeviceRole({ device, network, events, index }: { device: Device; network: Network; events: TraceEvent[]; index: number }) {
+  const role = deviceRole(device, network, events, index);
+  return (
+    <section className="device-role" aria-label={`${device.name} in this run`}>
+      <p>{role.what}</p>
+      <h3>Right now</h3>
+      <p>{role.now}</p>
+      {role.entry && (
+        <p className="device-role-entry">
+          <b>{role.entry.table}:</b> <code>{role.entry.row}</code>
+        </p>
+      )}
+      <h3>So far in this run</h3>
+      {role.did.length ? (
+        <ul>
+          {role.did.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nothing yet. Step forward to see when it takes part.</p>
+      )}
+      <p className="device-role-not">{role.not}</p>
+    </section>
   );
 }

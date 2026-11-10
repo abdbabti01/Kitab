@@ -16,7 +16,7 @@ test("networking terms explain their meaning and purpose before the calculations
   await expect(page.locator(".ip-scene")).toContainText("192.168.1.0/24");
   await expect(page.locator(".ip-scene .ip-bits")).toHaveCount(0);
   await page.getByText("Change the example", { exact: true }).click();
-  await page.getByText("/25 · split subnets", { exact: true }).click();
+  await page.getByText("/25 · LAN split into two subnets", { exact: true }).click();
   await expect(page.locator(".ip-scene")).toContainText("192.168.1.0/25");
   await expect(page.locator(".ip-scene")).toContainText("Outside this subnet");
 
