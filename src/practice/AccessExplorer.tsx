@@ -14,6 +14,7 @@ import {
   Lightbulb,
 } from "lucide-react";
 import { linkProps } from "../app/router.ts";
+import { PathNext } from "../app/NetworkingPath.tsx";
 import {
   accessJourney,
   boxRoles,
@@ -489,6 +490,7 @@ export function AccessExplorer() {
           </aside>
         </div>
       </section>
+      <PathNext id="connections" />
       <footer className="access-footer">
         <p>
           <strong>A guided physical-media model.</strong> It summarizes DNS,

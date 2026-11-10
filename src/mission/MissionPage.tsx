@@ -12,6 +12,8 @@ import type { FactValue } from "../learning/types.ts";
 import { frameAt } from "../learning/registry.ts";
 import { askTutor, sendLearningEvent } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
+import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
+import { pathPosition } from "../learning/networking-path.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { KitabGuide, type GuideAction } from "./KitabGuide.tsx";
@@ -261,7 +263,10 @@ export function MissionPage({ mission }: { mission: Mission }) {
   });
 
   const missionIndex = missions.findIndex((item) => item.id === mission.id);
-  const nextMission = missions[missionIndex + 1]?.id;
+  // A networking-path mission points to the path's next step instead of the next mission in the catalog.
+  const inPath = Boolean(pathPosition(mission.id));
+  const nextMission = inPath ? undefined : missions[missionIndex + 1]?.id;
+  const firstLessons = lessonsForMission(mission.id);
   const Scene = module?.Scene;
   const revealed = state.phase === "explain" || state.phase === "result";
   const summary = useMemo(() => predictionSummary(mission, trace, state.attempt), [mission, trace, state.attempt]);
@@ -272,9 +277,10 @@ export function MissionPage({ mission }: { mission: Mission }) {
         <div className="mission-main">
           <div className="mission-head">
             <LearningHeading eyebrow={`${mission.topic} · Mission${state.attempt.number > 1 ? ` · Attempt ${state.attempt.number}` : ""}`} title={mission.title} description={mission.objective} review={mission.review.status} reviewDetail="computed by Kitab" />
-            {lessonsForMission(mission.id).map((lesson) => (
+            {firstLessons.map((lesson) => (
               <p className="learn-first" key={lesson.id}>New to this? <a {...linkProps(`/learn/${lesson.id}`)}>Follow the walkthrough first: {lesson.title}</a></p>
             ))}
+            {!firstLessons.length && <PathNeeds id={mission.id} />}
           </div>
           <section className="scene card" aria-label="Interactive scene">
             <div className="scene-head">
@@ -329,6 +335,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
             nextMissionId={nextMission}
             mastery={{ done: masteredVersions(progress, mission.id, state), required: mission.masteryVariants ?? 1 }}
           />
+          {inPath && <PathNext id={mission.id} />}
           <KitabGuide
             guide={guide}
             busy={tutorBusy}

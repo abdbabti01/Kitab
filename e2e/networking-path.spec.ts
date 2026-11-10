@@ -75,3 +75,25 @@ test("the roadmap fits the screen, and the playground stays one click away with 
   await expect(page).toHaveURL(/\/practice\/network$/);
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 });
+
+test("a path starter opens as an unsaved copy, an unknown starter opens the learner's own network, and nothing is locked", async ({ page }) => {
+  await seed(page, { "kitab.network.workspace.v1": { version: 1, name: "My home lab", devices: [], links: [] } });
+  await page.goto("/practice/network?starter=wifi");
+  await expect(page.getByLabel("Network name")).toHaveValue("A wireless home");
+  await page.getByLabel("Network name").fill("Edited starter");
+  await page.getByLabel("Network name").press("Tab");
+  await page.reload();
+  // A reload reopens the starter; edits to it were never saved over the learner's design.
+  await expect(page.getByLabel("Network name")).toHaveValue("A wireless home");
+  expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toContain("My home lab");
+  await page.goto("/practice/network?starter=not-a-starter");
+  await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
+  await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
+
+  // Advanced activities open directly, with their prerequisites as suggestions only.
+  await page.goto("/practice/missions/missing-segment");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A segment goes missing");
+  await expect(page.locator(".path-needs")).toContainText("Before you start: The ACK that wouldn't move");
+  await page.goto("/missions/tcp-lab");
+  await expect(page.locator(".path-needs")).toContainText("Before you start: The ACK that wouldn't move, How full can the pipe get?");
+});

@@ -11,6 +11,8 @@ import type { Lesson } from "../learning/lessons/schema.ts";
 import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.ts";
 import { askLessonTutor } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
+import { PathNext } from "../app/NetworkingPath.tsx";
+import { pathPosition } from "../learning/networking-path.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { useFlip, useReducedMotion } from "../mission/motion.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
@@ -500,7 +502,9 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
         {practice.length > 0 && <li className={attempted ? "is-yes" : ""}>{attempted ? "Practice attempted" : "Practice not attempted"}</li>}
         {practice.length > 0 && <li className={mastered ? "is-yes" : ""}>{mastered ? "Mastery demonstrated in practice" : "Mastery not shown yet: it's earned by predicting in practice"}</li>}
       </ul>
-      {nextLesson && <a className="button primary" {...linkProps(`/learn/${nextLesson.id}`)}>Next lesson: {nextLesson.title} <ChevronRight aria-hidden="true" /></a>}
+      <PathNext id={lesson.id} />
+      {/* In the networking path, the path's next step leads; the lesson's own next lesson stays available. */}
+      {nextLesson && <a className={`button ${pathPosition(lesson.id) ? "" : "primary"}`} {...linkProps(`/learn/${nextLesson.id}`)}>Next lesson: {nextLesson.title} <ChevronRight aria-hidden="true" /></a>}
       {lesson.experiments.map((experiment) => (
         <button type="button" className="button primary" key={experiment.id} onClick={() => onExperiment(experiment.id)}><FlaskConical aria-hidden="true" /> Experiment: {experiment.title}</button>
       ))}
