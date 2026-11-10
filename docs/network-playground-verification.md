@@ -2,7 +2,7 @@
 
 ## Delivered behavior
 
-Practice → Network playground opens `/practice/network`. The sandbox includes five starters, editable devices and interfaces, Ethernet/Wi-Fi connections, IP configuration, DHCP, DNS, routes and NAT. Six guided challenges use the same simulator. Immutable snapshots drive packet wrapping, state tables, device close-ups and backward/forward replay. Save/load, JSON import/export, autosave and undo/redo retain designs locally.
+Practice → Network playground opens `/practice/network`. The sandbox includes five starters, editable devices and interfaces, Ethernet/Wi-Fi connections, IP configuration, DHCP, DNS, routes and NAT. The six guided challenges described below were replaced on 2026-11-10 by the networking practice missions at `/practice/missions` (see ARCHITECTURE.md, "Networking practice"); the playground links to them and stays free. Immutable snapshots drive packet wrapping, state tables, device close-ups and backward/forward replay. Save/load, JSON import/export, autosave and undo/redo retain designs locally.
 
 ## Validation on 2026-11-08
 

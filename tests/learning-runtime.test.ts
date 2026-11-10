@@ -129,6 +129,30 @@ test("evidence step: mastery needs the proving step, chosen before it was reveal
   }
 });
 
+test("evidence fields are not stored, so the previous release can still read progress; restoring rebuilds them", () => {
+  const storage = memoryStorage();
+  const empty = loadProgress(storage).progress;
+  // Mid-explain: the evidence choice is in memory only, and restoring asks for it again.
+  let open = missionReducer(createMissionState(mission, createAttempt(mission, 1, undefined, "r1")), { type: "BEGIN_PREDICTION" });
+  const trace = traceFor(mission, open.attempt.params);
+  const right = resolvePredictionOptions(mission, trace).find((o) => assessPrediction(mission, trace, { optionId: o.id }).correct)!;
+  open = missionReducer(open, { type: "SUBMIT_PREDICTION", answer: { optionId: right.id }, result: assessPrediction(mission, trace, { optionId: right.id }), reasoning: "" });
+  open = missionReducer(open, { type: "RUN_COMPLETED" });
+  open = missionReducer(open, { type: "CHOOSE_EVIDENCE", index: 3, correct: true });
+  saveProgress(storage, recordState(empty, open, "key", attemptStatus(open.attempt), undefined, 2));
+  const raw = storage.data.get(PROGRESS_KEY)!;
+  assert.doesNotMatch(raw, /needsEvidence|"evidence"/);
+  const restored = restoreState(loadProgress(storage).progress, mission.id, mission.version, true)!;
+  assert.equal(restored.attempt.needsEvidence, true);
+  assert.equal(restored.attempt.evidence, null);
+  const right2 = mission.explanation.options.find((o) => o.correct)!;
+  assert.equal(missionReducer(restored, { type: "SUBMIT_EXPLANATION", choiceId: right2.id, correct: true }).attempt.mastered, false, "a reload never skips the evidence step");
+  // A mastered attempt restores as having found its evidence.
+  const done = play(createMissionState(mission, createAttempt(mission, 1, undefined, "r2")), "right", "right");
+  saveProgress(storage, recordState(empty, done, "key", attemptStatus(done.attempt), undefined, 2));
+  assert.deepEqual(restoreState(loadProgress(storage).progress, mission.id, mission.version, true)!.attempt.evidence, { index: -1, correct: true, revealed: false });
+});
+
 test("missions without the opt-in behave as before", () => {
   const other = findMission("array-insert-shift")!;
   assert.equal(other.evidence, undefined);

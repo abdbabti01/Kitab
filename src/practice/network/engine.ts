@@ -69,19 +69,29 @@ export function effectiveInterface(
   };
 }
 const bytes = (s: string) => new TextEncoder().encode(s).length;
+/** The engine's diagnosis and a repair suggestion, kept apart from what was observed (see Failure). */
+type Coaching = { detail?: string; advice?: string };
 class SimulationFailure extends Error {
   reason: FailureReason;
   device: string;
-  constructor(message: string, reason: FailureReason, device: string, cause?: unknown) {
+  detail?: string;
+  advice?: string;
+  constructor(message: string, reason: FailureReason, device: string, cause?: unknown, more: Coaching = {}) {
     super(message, { cause });
     this.reason = reason;
     this.device = device;
+    // A failure that wraps another one inherits its diagnosis and suggestion unless it has its own.
+    const inner = cause instanceof SimulationFailure ? cause : undefined;
+    this.detail = more.detail ?? inner?.detail;
+    this.advice = more.advice ?? inner?.advice;
   }
 }
 const failureOf = (e: SimulationFailure): Failure => ({
   reason: e.reason,
   device: e.device,
   message: e.message,
+  ...(e.detail ? { detail: e.detail } : {}),
+  ...(e.advice ? { advice: e.advice } : {}),
   cause: e.cause instanceof SimulationFailure ? failureOf(e.cause) : undefined,
 });
 // Failures of the path itself. A reply that hits one of these could not get back to the sender.
@@ -131,9 +141,11 @@ export function simulate(
   ) => {
     if (events.length >= 9999)
       throw new SimulationFailure(
-        "Simulation reached its 10,000-event limit. Simplify the network.",
+        "Simulation reached its 10,000-event limit.",
         "SIMULATION_LIMIT",
         actor,
+        undefined,
+        { advice: "Simplify the network." },
       );
     s.time += 10;
     for (const [leaseKey, lease] of Object.entries(s.leases))
@@ -145,7 +157,7 @@ export function simulate(
           actor: lease.device,
           location: "OS · DHCP client",
           title: "DHCP lease expired",
-          explanation: `${lease.ip} is no longer assigned. Run DHCP again.`,
+          explanation: `${lease.ip} is no longer assigned to this device.`,
           layers: [],
           snapshot: structuredClone(s),
         });
@@ -153,9 +165,11 @@ export function simulate(
           actor = lease.device;
           location = "OS · DHCP client";
           throw new SimulationFailure(
-            `DHCP lease expired for ${lease.ip} during this transfer. Configure automatically again to obtain a lease.`,
+            `DHCP lease expired for ${lease.ip} during this transfer.`,
             "DHCP_LEASE_EXPIRED",
             lease.device,
+            undefined,
+            { advice: "Configure automatically again to obtain a lease." },
           );
         }
       }
@@ -185,8 +199,8 @@ export function simulate(
     actor = d.id;
     location = where;
   };
-  function fail(message: string, reason: FailureReason, cause?: unknown): never {
-    throw new SimulationFailure(message, reason, actor, cause);
+  function fail(message: string, reason: FailureReason, cause?: unknown, more?: Coaching): never {
+    throw new SimulationFailure(message, reason, actor, cause, more);
   }
   const iface = (d: Device, id: string) =>
     effectiveInterface(
@@ -293,8 +307,10 @@ export function simulate(
         const learned = s.mac[`${from.id}/${destinationMac}`];
         if (learned && learned !== h.from.port)
           fail(
-            `${from.name}'s MAC table sends ${destinationMac} to ${learned}, which does not reach this destination. Restart the simulation to clear a stale mapping.`,
+            `${from.name}'s MAC table sends ${destinationMac} to ${learned}, which does not reach this destination.`,
             "SWITCH_STALE_MAC",
+            undefined,
+            { advice: "Restart the simulation to clear a stale mapping." },
           );
         if (!learned && destinationMac !== "ff:ff:ff:ff:ff:ff" && !floodCopy) {
           const arrival = path[hopIndex - 1]?.to.port;
@@ -422,8 +438,10 @@ export function simulate(
     );
     if (owners.length > 1)
       fail(
-        `Duplicate IP ${nextHop} on this LAN. Assign a unique address to each interface.`,
+        `Duplicate IP ${nextHop} on this LAN.`,
         "DUPLICATE_IP",
+        undefined,
+        { advice: "Assign a unique address to each interface." },
       );
     const cacheKey = `${d.id}/${p.id}/${nextHop}`,
       cached = s.arp[cacheKey];
@@ -472,17 +490,26 @@ export function simulate(
       );
       if (!elsewhere && switchedOff)
         fail(
-          `ARP received no reply for ${nextHop}. ${switchedOff.name} has ${nextHop}, but on an interface that is turned off: a disabled interface neither sends nor receives frames.`,
+          `ARP received no reply for ${nextHop}.`,
           "ARP_NO_PATH",
+          undefined,
+          { detail: `${switchedOff.name} has ${nextHop}, but on an interface that is turned off: a disabled interface neither sends nor receives frames.`, advice: `Turn on ${switchedOff.name}'s interface.` },
         );
       if (elsewhere)
         fail(
-          `ARP received no reply for ${nextHop}. ${elsewhere.name} uses ${nextHop}, but no link-layer path connects it to ${d.name} ${p.id}: a cable or Wi-Fi link is missing or disabled, or ${elsewhere.name} is on another LAN behind a router.`,
+          `ARP received no reply for ${nextHop}.`,
           "ARP_NO_PATH",
+          undefined,
+          {
+            detail: `${elsewhere.name} uses ${nextHop}, but no link-layer path connects it to ${d.name} ${p.id}.`,
+            advice: `Check for a missing or disabled cable or Wi-Fi link, or whether ${elsewhere.name} is on another LAN behind a router.`,
+          },
         );
       fail(
-        `ARP received no reply for ${nextHop}. No device in this network uses ${nextHop}, so nobody can answer. Check ${d.name}'s setting for ${role}.`,
+        `ARP received no reply for ${nextHop}.`,
         "ARP_NO_OWNER",
+        undefined,
+        { detail: `No device in this network uses ${nextHop}, so nobody can answer.`, advice: `Check ${d.name}'s setting for ${role}.` },
       );
     }
     const remote = dev(owner.end.device),
@@ -617,8 +644,10 @@ export function simulate(
       !active(d).some((p) => p.ip && isPrivate(p.ip))
     )
       fail(
-        `${d.name} has no route to ${dst}. ${dst} is a private address (RFC 1918), and Internet routers do not route to private home networks. Replies reach a home network through its public address when the home router uses NAT.`,
+        `${d.name} has no route to ${dst}. ${dst} is a private address (RFC 1918), and Internet routers do not route to private home networks.`,
         "NO_ROUTE_PRIVATE",
+        undefined,
+        { advice: "Replies reach a home network through its public address when the home router uses NAT." },
       );
     if (!candidates.length) {
       if (d.kind === "router")
@@ -636,12 +665,16 @@ export function simulate(
         stray = own.find((p) => p.gateway);
       if (stray)
         fail(
-          `${d.name} has no route to ${dst}. Its default gateway ${stray.gateway} is outside its own subnet ${blocks}, so ${d.name} cannot reach the gateway directly. A gateway must be on the local network.`,
+          `${d.name} has no route to ${dst}, which is outside its subnet ${blocks}.`,
           "GATEWAY_NOT_LOCAL",
+          undefined,
+          { detail: `Its default gateway ${stray.gateway} is outside that subnet too, so ${d.name} cannot reach the gateway directly. A gateway must be on the local network.` },
         );
       fail(
-        `${d.name} has no route to ${dst}. ${dst} is outside ${d.name}'s subnet ${blocks}, and no default gateway is set, so ${d.name} has nowhere to send it.`,
+        `${d.name} has no route to ${dst}, which is outside its subnet ${blocks}.`,
         "NO_GATEWAY",
+        undefined,
+        { detail: `No default gateway is set, so ${d.name} has nowhere to send it.` },
       );
     }
     return candidates[0];
@@ -705,8 +738,10 @@ export function simulate(
       }
       if (ingress && d.kind !== "router")
         fail(
-          `${d.name} received a packet for ${m.dst}, which is not its address. It is an endpoint, not a router, so it discards the packet. Check the route that sent it here.`,
+          `${d.name} received a packet for ${m.dst}, which is not its address. It is an endpoint, not a router, so it discards the packet.`,
           "NOT_A_ROUTER",
+          undefined,
+          { advice: "Check the route that sent it here." },
         );
       if (ingress) {
         // The same router forwarding the same destination twice means routers are passing it in a circle.
@@ -722,12 +757,16 @@ export function simulate(
         if (m.ttl <= 0) {
           if (looped)
             fail(
-              `TTL expired at ${d.name}. The packet had already passed through ${d.name} on its way to ${m.dst}: the routers are sending it around in a loop. The packet is discarded. Fix the routes so they lead toward ${m.dst}.`,
+              `TTL expired at ${d.name}. The packet had already passed through ${d.name} on its way to ${m.dst}: the routers are sending it around in a loop. The packet is discarded.`,
               "ROUTING_LOOP",
+              undefined,
+              { advice: `Fix the routes so they lead toward ${m.dst}.` },
             );
           fail(
-            `TTL expired at ${d.name}. The packet is discarded. Check for a routing loop or increase the starting TTL.`,
+            `TTL expired at ${d.name}. The packet is discarded.`,
             "TTL_EXPIRED",
+            undefined,
+            { advice: "Check for a routing loop or increase the starting TTL." },
           );
         }
       }
@@ -821,9 +860,15 @@ export function simulate(
     if (!p)
       fail(
         active(d).some((q) => q.mode === "dhcp")
-          ? `${d.name} has no usable IP address. It is set to get one from DHCP, but it has no current lease. Run DHCP (Configure automatically) to obtain one.`
-          : `${d.name} has no usable IP address. Configure a static address or run DHCP to obtain a lease.`,
+          ? `${d.name} has no usable IP address. It is set to get one from DHCP, but it has no current lease.`
+          : `${d.name} has no usable IP address.`,
         "NO_ADDRESS",
+        undefined,
+        {
+          advice: active(d).some((q) => q.mode === "dhcp")
+            ? "Run DHCP (Configure automatically) to obtain one."
+            : "Configure a static address or run DHCP to obtain a lease.",
+        },
       );
     return p!;
   }
@@ -836,19 +881,25 @@ export function simulate(
     );
     if (!link)
       fail(
-        `Join a Wi-Fi access point before sending data. ${d.name} has no Wi-Fi link to an access point.`,
+        `${d.name} has no Wi-Fi link to an access point.`,
         "WIFI_NOT_JOINED",
+        undefined,
+        { advice: "Join a Wi-Fi access point before sending data." },
       );
     const ap = dev(link.a.device === d.id ? link.b.device : link.a.device);
     if (ap.ssid !== d.ssid)
       fail(
-        `Wi-Fi association failed. ${d.name} is looking for the network “${d.ssid}”, but ${ap.name} offers “${ap.ssid}”.`,
+        `Wi-Fi association failed. ${d.name} found no network named “${d.ssid}”.`,
         "WIFI_SSID_NOT_FOUND",
+        undefined,
+        { detail: `${ap.name} offers “${ap.ssid}”.`, advice: `Make the network name on ${d.name} match the one ${ap.name} offers.` },
       );
     if (ap.password !== d.password)
       fail(
-        `Wi-Fi association failed. ${d.name} found “${ap.ssid}”, but its passphrase does not match the one set on ${ap.name}, so it cannot join.`,
+        `Wi-Fi association failed. ${d.name} found “${ap.ssid}”, but ${ap.name} rejected its passphrase, so it cannot join.`,
         "WIFI_WRONG_PASSPHRASE",
+        undefined,
+        { detail: `${d.name}'s passphrase does not match the one set on ${ap.name}.` },
       );
     emit(
       "Associate with Wi-Fi",
@@ -868,7 +919,7 @@ export function simulate(
         actor = lease.device;
         emit(
           "DHCP lease expired",
-          "This address is no longer assigned. Run DHCP again.",
+          "This address is no longer assigned to this device.",
           [],
         );
       }
@@ -880,8 +931,10 @@ export function simulate(
       const port = active(client).find((p) => p.mode === "dhcp");
       if (!port)
         fail(
-          "Set the client interface to DHCP before requesting an address.",
+          `${client.name} has no interface set to DHCP, so it does not request an address.`,
           "DHCP_CLIENT_STATIC",
+          undefined,
+          { advice: "Set the client interface to DHCP before requesting an address." },
         );
       const cp = port!;
       const start = { device: client.id, port: cp.id },
@@ -1093,8 +1146,10 @@ export function simulate(
       } else {
         if (!cp.dns)
           fail(
-            "No DNS server is configured. Enter its IP address or use an IP-literal URL.",
+            "No DNS server is configured.",
             "DNS_NOT_CONFIGURED",
+            undefined,
+            { advice: "Enter its IP address or use an IP-literal URL." },
           );
         at(client, "OS · DNS resolver");
         emit(
@@ -1123,9 +1178,10 @@ export function simulate(
         } catch (error) {
           if (!owner)
             fail(
-              `No device in this network has the address ${cp.dns}, so nothing can answer the DNS query. ${client.name}'s DNS server setting is probably wrong: it should be the address of a DNS server.`,
+              `No device in this network has the address ${cp.dns}, so nothing can answer the DNS query.`,
               "DNS_SERVER_ADDRESS",
               error,
+              { detail: `${client.name}'s DNS server setting is probably wrong: it should be the address of a DNS server.` },
             );
           fail(
             `The DNS query could not reach ${owner.name} at ${cp.dns}. ${errorText(error)}`,
@@ -1138,8 +1194,10 @@ export function simulate(
         if (!Object.keys(server.records).length) {
           at(server, "OS · UDP");
           fail(
-            `${server.name} (${cp.dns}) received the DNS query, but it does not run a DNS service: nothing listens on UDP port 53. Check ${client.name}'s DNS server setting; it should be the address of a DNS server.`,
+            `${server.name} (${cp.dns}) received the DNS query, but it does not run a DNS service: nothing listens on UDP port 53.`,
             "DNS_NO_SERVICE",
+            undefined,
+            { advice: `Check ${client.name}'s DNS server setting; it should be the address of a DNS server.` },
           );
         }
         const answer = server.records[destination];
@@ -1173,8 +1231,10 @@ export function simulate(
         if (!answer) {
           at(client, "OS · DNS resolver");
           fail(
-            `${server.name} answered that “${destination}” does not exist (NXDOMAIN). The DNS server is reachable and working; check the name, or add an A record for it on ${server.name}.`,
+            `${server.name} answered that “${destination}” does not exist (NXDOMAIN). The DNS server is reachable and working.`,
             "DNS_NO_RECORD",
+            undefined,
+            { advice: `Check the name, or add an A record for it on ${server.name}.` },
           );
         }
         s.dns[`${client.id}/${destination}`] = answer;
@@ -1196,8 +1256,10 @@ export function simulate(
       )
     )
       fail(
-        `Duplicate IP ${src} on the source LAN. Assign a unique address.`,
+        `Duplicate IP ${src} on the source LAN.`,
         "DUPLICATE_IP",
+        undefined,
+        { advice: "Assign a unique address to each interface." },
       );
     if (action.kind === "ping") {
       at(client, "Ping application");

@@ -203,11 +203,13 @@ test("a failure names its cause chain and where to look", async ({ page }) => {
   await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   const card = page.locator(".journey-card");
-  await expect(card.locator("h3")).toHaveText("The DNS answer could not come back");
+  await expect(card.locator("h2")).toHaveText("The DNS answer could not come back");
   await card.getByRole("button", { name: "Why it stopped" }).click();
   const guide = page.locator(".step-guide");
   await expect(guide.getByRole("list", { name: "What caused it" })).toContainText("No route to a private address");
   await expect(guide).toContainText("Where to look:");
+  // The playground also gives the simulator's repair suggestion; missions leave it out.
+  await expect(guide).toContainText("What to try: Replies reach a home network through its public address when the home router uses NAT.");
 });
 test("a step links to the earlier step that caused it and cites its rule", async ({ page }) => {
   await page.goto("/practice/network");
@@ -219,7 +221,7 @@ test("a step links to the earlier step that caused it and cites its rule", async
   await page.locator(".journey-card").getByRole("button", { name: "Why and how" }).click();
   const guide = page.locator(".step-guide");
   await guide.getByRole("button", { name: /^Go to step \d+: DHCP ACK$/ }).click();
-  await expect(page.locator(".journey-card h3")).toHaveText("DHCP ACK");
+  await expect(page.locator(".journey-card h2")).toHaveText("DHCP ACK");
   await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(guide.locator("cite")).toHaveText("RFC 2131 §3.1");
   await expect(guide).toContainText("unicast unless the client sets the broadcast flag");
@@ -235,7 +237,7 @@ test("Follow the journey: the card explains each stage beside the diagram and bo
   await page.getByRole("button", { name: "Next stage", exact: true }).click();
   await page.getByRole("button", { name: "Next stage", exact: true }).click();
   await expect(position).toContainText("Stage 3 of 27");
-  await expect(card.locator("h3")).toHaveText("ARP · Your PC looks for 192.168.1.1");
+  await expect(card.locator("h2")).toHaveText("ARP · Your PC looks for 192.168.1.1");
   await expect(card).toContainText("Home router answered with its MAC");
   // The stage's devices stay prominent; unrelated ones are dimmed but still there.
   await expect(page.getByRole("button", { name: "Select ISP router", exact: true })).toHaveClass(/is-dimmed/);
@@ -246,7 +248,7 @@ test("Follow the journey: the card explains each stage beside the diagram and bo
   await expect(position).toContainText(at.match(/event (\d+)/)![1]);
   await page.getByRole("button", { name: "Next event", exact: true }).click();
   await expect(position).toContainText("Event 26 of 489");
-  await expect(card.locator("h3")).toHaveText("Wrap in a link frame");
+  await expect(card.locator("h2")).toHaveText("Wrap in a link frame");
   // The view is remembered on this device.
   await page.reload();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
@@ -264,7 +266,7 @@ test("a stage in progress never claims its later events already happened", async
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await page.getByLabel("Journey timeline").fill("10");
   const card = page.locator(".journey-card");
-  await expect(card.locator("h3")).toHaveText("ARP · Your PC looks for 192.168.1.1");
+  await expect(card.locator("h2")).toHaveText("ARP · Your PC looks for 192.168.1.1");
   await expect(card).toContainText("In progress: event 8 of 22 in this stage.");
   await expect(card).not.toContainText("Home router answered");
 });
@@ -302,7 +304,7 @@ test("the packet inspector follows one packet, shows what changed at each link a
   const trip = page.getByRole("region", { name: "Follow this packet" });
   await expect(trip.locator("li")).toHaveCount(5);
   await trip.getByRole("button", { name: /DNS server/ }).click();
-  await expect(page.locator(".journey-card h3")).toHaveText("Transmit over Ethernet");
+  await expect(page.locator(".journey-card h2")).toHaveText("Transmit over Ethernet");
   await expect(page.locator(".packet-identity")).toContainText("On link 5 of 5");
 });
 test("selecting a device during a run explains its part in that run", async ({ page }) => {

@@ -1,7 +1,7 @@
 // Judging a mission attempt from the network the learner built and the runs it produces.
 // Pure and deterministic: no UI state, no text matching on what the learner typed.
 import { newSession, simulate } from "./engine.ts";
-import { failures, withoutAdvice } from "./explanations.ts";
+import { failures } from "./explanations.ts";
 import type { Device, Network, Trace } from "./model.ts";
 import type { Area, Aspect, FixMission, InvestigateMission, Lock, NetworkMission, Variant } from "./missions.ts";
 
@@ -42,7 +42,8 @@ export function runChecks(mission: FixMission, variant: Variant, network: Networ
     const last = trace.events.length - 1;
     if (!trace.success) {
       const title = trace.reason ? failures[trace.reason].title : "Delivery stopped";
-      return { id: check.id, label: check.label, passed: false, message: withoutAdvice(trace.summary) ? `${title}: ${withoutAdvice(trace.summary)}` : title, trace, evidence: last };
+      // The summary is only what was observed; the diagnosis and advice stay with the learner.
+      return { id: check.id, label: check.label, passed: false, message: `${title}: ${trace.summary}`, trace, evidence: last };
     }
     const missing = check.expect?.(trace.events, network) ?? null;
     const proof = check.proof?.(trace.events) ?? -1;

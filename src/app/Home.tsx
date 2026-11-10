@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide-react";
 import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
-import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
+import { loadProgress, missionStatus, practiceState, safeStorage } from "../learning/progress.ts";
+import { practiceLabels } from "../learning/practice-state.ts";
 import { journeys, lessons } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { api, ApiError } from "./api.ts";
@@ -11,7 +12,6 @@ import { LibraryHero } from "./LibraryHero.tsx";
 
 type SavedConcept = { slug: string; title: string; category: string; source: "curated" | "ai"; status: string };
 
-const statusLabel = { new: "New", visited: "Opened", practiced: "Practiced", mastered: "Mastered" } as const;
 const learningLabel = { new: "Not started", visited: "Opened", learning: "In progress", completed: "Walkthrough complete" } as const;
 
 export function Home() {
@@ -116,11 +116,12 @@ export function Home() {
               <h3>{topic}</h3>
               <ul className="mission-grid">
                 {matchedMissions.filter((mission) => mission.topic === topic).map((mission) => {
-                  const status = missionStatus(progress, mission.id, mission.version);
+                  // The same four states as the networking missions page.
+                  const status = practiceState(progress, mission.id, mission.version);
                   return (
                     <li key={mission.id}>
                       <a className="mission-card" {...linkProps(`/missions/${mission.id}`)}>
-                        <span className={`status-chip status-${status}`}>{statusLabel[status]}</span>
+                        <span className={`status-chip status-${status}`}>{practiceLabels[status]}</span>
                         <b>{mission.title}</b>
                         <span>{mission.summary}</span>
                         <small>{mission.learnerParams.length ? "Lab · configurable" : `${mission.variants.length} scenarios`} · {mission.review.status === "reviewed" ? "Reviewed" : "Draft"}</small>

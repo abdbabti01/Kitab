@@ -14,7 +14,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { StepExplanation } from "./StepExplanation.tsx";
-import { withoutAdvice } from "./network/explanations.ts";
+import { failureText } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
 import { neighbours, place, type JourneyMode, type Point } from "./journey-nav.ts";
@@ -165,7 +165,7 @@ export function JourneyCard({
   onInspect: () => void;
   onAbout: (device: string) => void;
   onReadDetails: () => void;
-  /** False in missions: failure advice is left for the learner to work out. */
+  /** False in missions: the simulator's diagnosis and repair advice are left for the learner to work out. */
   advice?: boolean;
 }) {
   const card = useRef<HTMLElement>(null);
@@ -226,9 +226,7 @@ export function JourneyCard({
   const title = mode === "summary" ? stage.title : event.title;
   // A stage's summary is only shown once all of its events have happened.
   const text = event.error
-    ? advice
-      ? event.explanation
-      : withoutAdvice(event.explanation)
+    ? failureText(event, advice)
     : mode === "summary" && complete
       ? stage.summary
       : n.summary;
@@ -248,7 +246,7 @@ export function JourneyCard({
           <Minimize2 size={14} />
         </button>
       </header>
-      <h3>{n.failure?.title ?? title}</h3>
+      <h2>{n.failure?.title ?? title}</h2>
       {mode === "summary" && !complete && (
         <p className="journey-progress">
           In progress: event {index - stage.start + 1} of {stage.end - stage.start + 1} in this stage.

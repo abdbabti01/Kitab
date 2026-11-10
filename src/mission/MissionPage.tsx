@@ -36,7 +36,7 @@ function useStableHandlers<T extends Record<string, (...args: never[]) => unknow
 
 export function MissionPage({ mission }: { mission: Mission }) {
   const [progress, setProgress] = useState(() => recordVisit(loadProgress(storage).progress, mission.id, mission.version));
-  const restored = useMemo(() => restoreState(progress, mission.id, mission.version), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const restored = useMemo(() => restoreState(progress, mission.id, mission.version, Boolean(mission.evidence)), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, dispatchMission] = useReducer(missionReducer, null, () => restored ?? createMissionState(mission));
   const [guide, dispatchGuide] = useReducer(guideReducer, initialGuide);
   const [selected, setSelected] = useState<string | null>(null);
@@ -132,6 +132,10 @@ export function MissionPage({ mission }: { mission: Mission }) {
       emit({ type: "explanation-assessed", correct: result.correct, predictionCorrect: Boolean(state.attempt.prediction?.correct), skipped: state.attempt.skippedPrediction, message: misconception ? fillTemplate(misconception.message, trace) : undefined });
     }
   }
+
+  // The evidence step is open while explaining; the result panel reports how it went.
+  const findingEvidence = Boolean(mission.evidence) && state.phase === "explain";
+  const chosen = state.attempt.evidence && state.attempt.evidence.index >= 0 ? state.attempt.evidence : null;
 
   /** The learner says the step on screen proves the answer. */
   function chooseEvidence() {
@@ -283,39 +287,40 @@ export function MissionPage({ mission }: { mission: Mission }) {
               ) : null}
               <h2 className="scene-title">{frame.title}</h2>
               <p className="scene-narration">{frame.narration}</p>
+              {findingEvidence && (
+                <p className="evidence-prompt" id="evidence-prompt">
+                  <b>Find the evidence:</b> {fillTemplate(mission.evidence!.prompt, trace)}
+                </p>
+              )}
             </div>
             <div className="scene-body" ref={sceneRef}>
               {Scene ? <Scene frame={frame} trace={trace} selected={selected} attention={attention} onSelect={select} /> : <p className="error-text">No renderer is registered for engine “{trace.engine.id}”.</p>}
             </div>
-            <PlaybackBar playback={playback} trace={trace} enabled={unlocked} disabledReason="Make a prediction to run the system. Until then, only the starting state is shown." />
+            {/* The evidence choice sits with the playback controls, so stepping and choosing happen in one place on every width. */}
+            <div className="scene-footer">
+              {findingEvidence && (
+                <div className="evidence-row">
+                  <button type="button" className="button" onClick={chooseEvidence} aria-describedby="evidence-prompt">
+                    This step proves it
+                  </button>
+                  <p className={`evidence-verdict ${chosen ? (chosen.correct ? "is-right" : "is-wrong") : ""}`} role="status">
+                    {!chosen
+                      ? "Step to the moment, then choose it."
+                      : chosen.correct
+                        ? chosen.revealed
+                          ? `Yes, step ${chosen.index + 1} shows it, though the evidence had already been revealed.`
+                          : `Yes: step ${chosen.index + 1} shows it.`
+                        : `Step ${chosen.index + 1} doesn't show it. Keep stepping and try again.`}
+                  </p>
+                </div>
+              )}
+              <PlaybackBar playback={playback} trace={trace} enabled={unlocked} disabledReason="Make a prediction to run the system. Until then, only the starting state is shown." />
+            </div>
             {/* Announce steps the learner moves to; during autoplay this would read out every step. */}
             <p className="sr-only" aria-live="polite">{unlocked && playback.status !== "playing" ? `Step ${frame.index + 1}: ${frame.title}` : ""}</p>
           </section>
         </div>
         <div className="mission-side">
-          {mission.evidence && (state.phase === "explain" || (state.phase === "result" && state.attempt.evidence)) && (
-            <section className="evidence-step" aria-label="Point to the evidence">
-              <h2 className="phase-title">Point to the evidence</h2>
-              <p>{fillTemplate(mission.evidence.prompt, trace)}</p>
-              <p className="muted">
-                Showing step {frame.index + 1}: {frame.title}
-              </p>
-              {state.phase === "explain" && (
-                <button type="button" className="button" onClick={chooseEvidence}>
-                  This step proves it
-                </button>
-              )}
-              {state.attempt.evidence && state.attempt.evidence.index >= 0 && (
-                <p className={state.attempt.evidence.correct ? "verdict is-right" : "verdict is-wrong"} role="status">
-                  {state.attempt.evidence.correct
-                    ? state.attempt.evidence.revealed
-                      ? "Yes, that step shows it, though the evidence had already been revealed."
-                      : "Yes: that step shows it."
-                    : "That step doesn't show it. Use the playback controls to find the moment, then try again."}
-                </p>
-              )}
-            </section>
-          )}
           <PhasePanel
             mission={mission}
             trace={trace}

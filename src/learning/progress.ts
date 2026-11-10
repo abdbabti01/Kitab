@@ -123,10 +123,19 @@ export function recordVisit(progress: Progress, missionId: string, missionVersio
   return { ...progress, missions: { ...progress.missions, [missionId]: { ...item, visits: item.visits + 1, lastVisitedAt: now } } };
 }
 
-export function restoreState(progress: Progress, missionId: string, missionVersion: string): MissionState | null {
+/**
+ * The saved attempt, if it belongs to this mission version. The evidence-step fields are not stored
+ * (see recordState), so they are rebuilt here: a mastered attempt had found the evidence; an open one
+ * asks for it again.
+ */
+export function restoreState(progress: Progress, missionId: string, missionVersion: string, needsEvidence = false): MissionState | null {
   const item = progress.missions[missionId];
   if (!item || item.missionVersion !== missionVersion || !item.current) return null;
-  return item.current.missionId === missionId && item.current.missionVersion === missionVersion ? (item.current as MissionState) : null;
+  if (item.current.missionId !== missionId || item.current.missionVersion !== missionVersion) return null;
+  const state = item.current as MissionState;
+  if (!needsEvidence) return state;
+  const evidence = state.attempt.mastered ? { index: -1, correct: true, revealed: false } : null;
+  return { ...state, attempt: { ...state.attempt, needsEvidence: true, evidence } };
 }
 
 /** Distinct versions mastered so far, counting the current attempt. */
@@ -156,7 +165,10 @@ export function recordState(progress: Progress, state: MissionState, scenarioKey
   }
   const versions = new Set([...attempts.filter((a) => a.status === "mastered").map((a) => a.variantId), ...(attempt.mastered ? [attempt.variantId] : [])]);
   const masteredAt = item.masteredAt ?? (attempt.mastered && versions.size >= requiredVersions ? now : null);
-  return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: state } } };
+  // The evidence-step fields stay in memory only. Earlier releases read progress with a strict schema and would
+  // discard all of it on an unknown key, so leaving them out keeps a rollback from wiping learners' progress.
+  const { needsEvidence: _needs, evidence: _evidence, ...stored } = attempt;
+  return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: { ...state, attempt: stored } } } };
 }
 
 /** The shared four-state view of a framework mission: a finished run counts as completed. */

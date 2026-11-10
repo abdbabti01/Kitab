@@ -21,7 +21,7 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   // Investigate with the shared journey.
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
-  await expect(page.locator(".journey-card h3")).toHaveText("The next hop cannot be reached on this LAN");
+  await expect(page.locator(".journey-card h2")).toHaveText("The next hop cannot be reached on this LAN");
 
   // Diagnose, using the step on the diagram as evidence.
   await openMissionTab(page);
@@ -167,6 +167,8 @@ test("a mission failure is explained once, at the failing step, and shortcuts ar
   await page.locator(".journey-card").getByRole("button", { name: "Why it stopped" }).click();
   await expect(page.locator(".step-guide")).toContainText("Caused by");
   await expect(page.locator(".step-guide")).not.toContainText("Where to look:");
+  // The repair suggestion would hand over the fix (turn NAT back on): it appears nowhere on the page.
+  expect(await page.evaluate(() => document.body.innerText)).not.toMatch(/What to try|home router uses NAT/);
   await page.locator(".journey-card").getByRole("button", { name: "Less detail" }).click();
   // The ISP route makes the page load, but the check refuses it and says why.
   await page.getByRole("button", { name: "Select ISP router", exact: true }).focus();

@@ -198,7 +198,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     <div className="mission-steps" aria-label="Mission steps">
       {askPrediction && prediction && (
         <section className="mission-card" aria-label="Predict">
-          <h3>Predict first</h3>
+          <h2>Predict first</h2>
           <p>{prediction.prompt}</p>
           <div className="mission-options">
             {prediction.options(network).map((o) => (
@@ -218,14 +218,14 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       )}
       {predicted !== null && prediction && (
         <section className={`mission-card ${predicted === correctPrediction ? "is-right" : "is-wrong"}`} role="status">
-          <h3>{predicted === correctPrediction ? "Your prediction was right." : "Not quite."}</h3>
+          <h2>{predicted === correctPrediction ? "Your prediction was right." : "Not quite."}</h2>
           <p>{prediction.explain}</p>
         </section>
       )}
       {mission.kind === "fix" ? (
         <>
           <section className="mission-card" aria-label="Diagnose">
-            <h3>Name the cause <small>(for mastery; you can fix it without this)</small></h3>
+            <h2>Name the cause <small>(for mastery; you can fix it without this)</small></h2>
             <p>Pick the device and the kind of setting at fault, and show a step of a failing run on the diagram as your evidence.</p>
             <div className="mission-fields">
               <label>
@@ -264,7 +264,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
             )}
           </section>
           <section className="mission-card" aria-label="Check your fix">
-            <h3>Fix it, then check</h3>
+            <h2>Fix it, then check</h2>
             <p>Change the settings in the Device tab. The check runs real traffic on your network and shows the evidence.</p>
             <button className="button primary" onClick={check}>
               Check my fix
@@ -291,7 +291,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         </>
       ) : (
         <section className="mission-card" aria-label="Investigate">
-          <h3>{mission.question.prompt}</h3>
+          <h2>{mission.question.prompt}</h2>
           <p>Send the request, find the evidence in the journey, then answer. Leave the diagram on the step that proves it.</p>
           <div className="mission-fields">
             <label>
@@ -325,12 +325,12 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       </section>
       {completed && (
         <section className="mission-card is-right" aria-label="Mission completed">
-          <h3>Completed. What you proved:</h3>
+          <h2>Completed. What you proved:</h2>
           <p>{mission.proved}</p>
           <p>
             <b>What was wrong:</b> {variant.cause}
           </p>
-          <h3>{mission.explanation.prompt}</h3>
+          <h2>{mission.explanation.prompt}</h2>
           <div className="mission-options">
             {mission.explanation.options.map((o) => (
               <button
@@ -354,7 +354,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         </section>
       )}
       <section className="mission-card" aria-label="Progress">
-        <h3>{state === "mastered" ? "Mastered" : "Towards mastery"}</h3>
+        <h2>{state === "mastered" ? "Mastered" : "Towards mastery"}</h2>
         {state === "mastered" ? (
           <p>You solved two versions with different causes, with first-try diagnoses, evidence and explanations.</p>
         ) : (
@@ -401,7 +401,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       <details className="mission-brief" open={!journey.trace}>
         <summary>About this mission</summary>
           <p>{mission.brief}</p>
-          <h3>What you will practise</h3>
+          <h2>What you will practise</h2>
           <ul>
             {mission.objectives.map((o) => (
               <li key={o}>{o}</li>

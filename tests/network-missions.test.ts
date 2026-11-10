@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 import { missions, variantFor, type FixMission, type InvestigateMission, type Variant } from "../src/practice/network/missions.ts";
 import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, runSequence } from "../src/practice/network/mission-assess.ts";
 import { connect } from "../src/practice/network/topology.ts";
-import { failures, withoutAdvice } from "../src/practice/network/explanations.ts";
-import type { Network } from "../src/practice/network/model.ts";
+import { failures } from "../src/practice/network/explanations.ts";
+import { scenarios } from "./support/network-scenarios.ts";
+import type { Failure, Network } from "../src/practice/network/model.ts";
 
 const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
 const mission = (id: string) => missions.find((m) => m.id === id)!;
@@ -173,13 +174,14 @@ test("each version starts broken for its stated cause and is fixed by its intend
       const start = assessFix(m, v, v.build());
       assert.equal(start.completed, false, `${where} must start broken`);
       assert.ok(start.checks.some((c) => !c.passed), where);
-      // The failing run gives evidence that leads to the fault: it names the device, or the device takes part.
+      // The failing run gives evidence that leads to the fault: it names the device or one of its addresses, or the device takes part.
       const t = runSequence(v.build(), [v.probe]);
       const n = v.build();
       assert.ok(
         v.faults.some(
           (f) =>
             t.summary.includes(dev(n, f.device).name) ||
+            dev(n, f.device).interfaces.some((p) => p.ip && t.summary.includes(`${p.ip}.`)) ||
             t.events.some((e) => e.actor === f.device || e.hop?.from === f.device || e.hop?.to === f.device),
         ),
         `${where}: nothing in the failing run points to ${v.faults.map((f) => f.device)}`,
@@ -309,14 +311,46 @@ test("every explanation question has exactly one right answer and every failure 
     }
 });
 
-test("missions keep failure evidence but leave out advice that would hand over the fix", () => {
+test("failures keep what was observed apart from the diagnosis and repair advice, for every reason and cause", () => {
+  const traces = [
+    ...scenarios().map((s) => [s.name, s.trace] as const),
+    ...missions.flatMap((m) => m.variants.map((v) => [`${m.id}/${v.id}`, runSequence(v.build(), [v.probe])] as const)),
+  ];
+  const seen = new Set<string>();
+  let coached = 0;
+  for (const [name, t] of traces) {
+    if (t.success) continue;
+    assert.ok(t.failure, name);
+    // What every view shows by default is only the observation.
+    assert.equal(t.summary, t.failure!.message, name);
+    assert.equal(t.events.at(-1)!.explanation, t.failure!.message, name);
+    for (let f: Failure | undefined = t.failure; f; f = f.cause) {
+      seen.add(f.reason);
+      if (f.detail || f.advice) coached++;
+      for (const extra of [f.detail, f.advice]) {
+        if (!extra) continue;
+        for (const e of t.events) assert.ok(!e.explanation.includes(extra), `${name}: "${extra}" leaked into an event`);
+      }
+      assert.doesNotMatch(f.message, /(^|\. )(Check|Configure|Run |Fix |Assign|Restart|Turn on|Make |Join |Simplify)/, `${name}: advice in "${f.message}"`);
+    }
+  }
+  assert.ok(coached > 10, "the playground still has diagnoses and suggestions to show");
+  // Every reason is covered except: editor validation of the learner's own file, the 10,000-event guard,
+  // and a misdelivered reply, which has no diagnosis or advice to separate. Keep this list exact.
+  const unreached = ["INVALID_NETWORK", "SIMULATION_LIMIT", "REPLY_MISDELIVERED"];
+  assert.deepEqual(Object.keys(failures).filter((reason) => !seen.has(reason)), unreached);
+});
+
+test("missions show the observation only: no simulator diagnosis or repair advice in check results", () => {
   const wrong = mission("leave-the-lan").variants.find((v) => v.id === "wrong-gateway")!;
-  const summary = runSequence(wrong.build(), [wrong.probe]).summary;
-  assert.match(summary, /Check Your PC's setting for its default gateway/);
-  const stripped = withoutAdvice(summary);
-  assert.equal(stripped, "ARP received no reply for 192.168.1.254. No device in this network uses 192.168.1.254, so nobody can answer.");
+  const t = runSequence(wrong.build(), [wrong.probe]);
+  assert.equal(t.summary, "ARP received no reply for 192.168.1.254.");
+  assert.equal(t.failure!.detail, "No device in this network uses 192.168.1.254, so nobody can answer.");
+  assert.match(t.failure!.advice!, /Check Your PC's setting for its default gateway/);
   for (const m of fixMissions)
-    for (const v of m.variants)
+    for (const v of m.variants) {
+      const probe = runSequence(v.build(), [v.probe]).failure;
       for (const c of assessFix(m, v, v.build()).checks)
-        assert.doesNotMatch(c.message, /(^|. )(Check|Configure|Enable|Run |Fix |Assign|Restart)/, `${m.id}/${v.id}: ${c.message}`);
+        for (const extra of [probe?.detail, probe?.advice]) if (extra) assert.ok(!c.message.includes(extra), `${m.id}/${v.id}: ${c.message}`);
+    }
 });

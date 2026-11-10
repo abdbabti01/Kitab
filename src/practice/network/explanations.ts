@@ -539,14 +539,12 @@ export const failures: Record<FailureReason, FailureInfo> = {
   ),
 };
 /**
- * A failure message without its advice ("Check …", "Configure …"). Missions keep the evidence and
- * leave working out the fix to the learner; their hints take over the advice.
+ * What a failed step says. The event's explanation is only what was observed; with coaching (the
+ * playground) the simulator's diagnosis follows it. Missions leave the diagnosis to the learner.
  */
-export function withoutAdvice(text: string) {
-  return text
-    .split(/(?<=\.)\s+/)
-    .filter((s) => !/^(Check|Configure|Enable|Run |Restart|Fix |Assign|Remove|Add |Enter |Set the|Join |Select |Choose |Increase)/.test(s))
-    .join(" ");
+export function failureText(event: TraceEvent, coaching: boolean) {
+  const detail = coaching ? event.failure?.detail : undefined;
+  return detail ? `${event.explanation} ${detail}` : event.explanation;
 }
 
 /** The failure and every failure that caused it, outermost first. */

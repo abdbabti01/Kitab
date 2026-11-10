@@ -1,6 +1,6 @@
 import type { Network, TraceEvent } from "./network/model.ts";
 import { narrate } from "./network/narration.ts";
-import { withoutAdvice } from "./network/explanations.ts";
+import { failureText } from "./network/explanations.ts";
 import { linkProps } from "../app/router.ts";
 
 /** One event explained at three depths: what and why, the cause and rule, then the protocol detail. */
@@ -13,7 +13,7 @@ export function StepExplanation({
   embedded = false,
   advice = true,
 }: {
-  /** False in missions: the learner works out the fix, so "Where to look" and advice sentences are left out. */
+  /** False in missions: the learner works out the fix, so the simulator's diagnosis, "Where to look" and repair advice are left out. */
   advice?: boolean;
   events: TraceEvent[];
   index: number;
@@ -28,7 +28,7 @@ export function StepExplanation({
   return (
     <section className="step-guide" aria-label="Understand this step">
       {!embedded && failure && <h4 className="failure-title">{failure.title}</h4>}
-      {!embedded && <p className="step-summary">{failure ? (advice ? events[index].explanation : withoutAdvice(events[index].explanation)) : n.summary}</p>}
+      {!embedded && <p className="step-summary">{failure ? failureText(events[index], advice) : n.summary}</p>}
       <h4>{failure ? "Why it stopped" : "Why this happens"}</h4>
       {n.cause && (
         <p className="step-cause">
@@ -54,6 +54,12 @@ export function StepExplanation({
       {failure && advice && (
         <p className="failure-check">
           <b>Where to look:</b> {failure.check}
+          {events[index].failure?.advice && (
+            <>
+              <br />
+              <b>What to try:</b> {events[index].failure!.advice}
+            </>
+          )}
         </p>
       )}
       {n.note && (
