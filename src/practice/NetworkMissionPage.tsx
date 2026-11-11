@@ -21,6 +21,7 @@ import {
 } from "./network/mission-progress.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
 import { networkingPath } from "../learning/networking-path.ts";
+import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
 import type { Action, Network, Trace } from "./network/model.ts";
 import "./practice.css";
 
@@ -376,6 +377,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           </a>
         </div>
       </section>
+      <PathNext id={mission.id} />
     </div>
   );
   return (
@@ -402,6 +404,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       <details className="mission-brief" open={!journey.trace}>
         <summary>About this mission</summary>
           <p>{mission.brief}</p>
+          <PathNeeds id={mission.id} />
           <h2>What you will practise</h2>
           <ul>
             {mission.objectives.map((o) => (

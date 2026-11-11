@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 
 test("changing the printer’s subnet changes the hop and preserves the packet destination", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Start IP Addresses & Subnets" }).click();
+  await page.locator(".path-stages summary", { hasText: "Addresses, subnets and routes" }).click();
+  await page.locator(".path-activity", { hasText: "IP Addresses & Subnets" }).click();
   await expect(page).toHaveURL(/\/learn\/ip-addressing$/);
   await expect(page.getByRole("button", { name: "PC Wi-Fi interface" })).toBeVisible();
   await page.getByRole("button", { name: "PC Wi-Fi interface" }).click();

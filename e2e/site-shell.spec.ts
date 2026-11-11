@@ -23,8 +23,8 @@ test("home, lessons, practice and concepts share navigation and surface tokens",
     expect(await palette()).toEqual(homePalette);
   }
   await nav.getByRole("link", { name: "Learn" }).click();
-  await expect(page).toHaveURL(/\/#journeys$/);
-  await expect(page.getByRole("heading", { name: "Learning journeys" })).toBeInViewport();
+  await expect(page).toHaveURL(/\/#path$/);
+  await expect(page.getByRole("heading", { name: "Networking path" })).toBeInViewport();
   await page.getByRole("link", { name: "Kitab", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".journey-hero h1")).toBeInViewport();

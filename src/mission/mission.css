@@ -82,6 +82,8 @@
   .scene { order: 2; }
   .guide { order: 3; }
   .inspector { order: 4; }
+  /* The networking path's next step comes after the mission, not before it. */
+  .mission-layout .path-next { order: 5; margin-top: 0; }
 }
 .describe { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
 

@@ -96,7 +96,7 @@ test("wrong prediction → run → evidence → explanation → retry on new sce
   await expect(page.locator(".kitab-avatar.mood-celebrating").first()).toBeVisible();
 
   await page.goto("/");
-  await expect(page.locator(".mission-card", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Mastered");
+  await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Mastered");
 });
 
 test("blank answers and watch-only runs never grant mastery", async ({ page }) => {
