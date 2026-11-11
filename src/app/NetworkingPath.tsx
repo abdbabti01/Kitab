@@ -94,9 +94,11 @@ export function NetworkingPath({ evidence, recommendation }: { evidence: Evidenc
         </div>
         <div className="actions">
           <a className="button primary" {...linkProps(next.path)}>{next.label} <ArrowRight aria-hidden="true" /></a>
-          <a className="button" {...linkProps("/practice/network")}>Build freely in the playground</a>
+          {/* When the path is done, the primary action already opens the playground. */}
+          {recommendation.kind !== "done" && <a className="button" {...linkProps("/practice/network")}>Build freely in the playground</a>}
         </div>
       </div>
+      {recommendation.kind === "done" && <p className="path-note">You've mastered every mission on the networking path. Keep experimenting in the playground.</p>}
       {recommendation.kind === "suggested" && (
         <p className="path-note">Kitab doesn't record explorations or playground sessions, so this is a suggestion. If you've done it already, carry on with the next step.</p>
       )}
