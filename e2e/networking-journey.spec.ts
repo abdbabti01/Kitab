@@ -72,6 +72,8 @@ test("networking path: home → explorer → starters → missions → lesson �
   await expect(page).toHaveURL(/\/missions\/tcp-lost-segment$/);
   await page.locator("label.choice", { hasText: "ACK 4501" }).click();
   await page.getByRole("button", { name: "Test prediction" }).click();
+  // Starting the run moves focus to its heading; take the slider only after that, so End isn't lost.
+  await expect(page.getByRole("heading", { name: "Running the system" })).toBeFocused();
   const slider = page.getByRole("slider", { name: "Step" });
   await expect(slider).toBeEnabled();
   await slider.focus();

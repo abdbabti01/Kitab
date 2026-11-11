@@ -26,6 +26,8 @@ test("'Show me the evidence' brings the evidence into view without moving focus"
   await page.goto("/missions/tcp-lost-segment");
   await page.locator("label.choice", { hasText: "ACK 4501" }).click();
   await page.getByRole("button", { name: "Test prediction" }).click();
+  // Starting the run moves focus to its heading; take the slider only after that, so End isn't lost.
+  await expect(page.getByRole("heading", { name: "Running the system" })).toBeFocused();
   await page.getByRole("slider", { name: "Step" }).focus();
   await page.keyboard.press("End");
   await expect(page.getByTestId("prediction-strip")).toHaveText(/You predicted ACK 4501.*Engine computed ACK 2461/);
