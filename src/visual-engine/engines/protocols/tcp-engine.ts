@@ -265,9 +265,9 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
     kind: "orientation",
     title: "Two programs want a reliable conversation",
     explanation:
-      "The browser chooses a temporary port. The server is already listening on port 443.",
+      "The browser chooses a temporary port. The server is already listening on port 80 for plain HTTP.",
     technical:
-      "The connection will be identified by protocol plus source and destination IP addresses and ports.",
+      "The connection will be identified by protocol plus source and destination IP addresses and ports. This view leaves out NAT: the client's home router would replace its private address 192.168.1.8 with a public one, as in Bring the reply home.",
   });
 
   emit(

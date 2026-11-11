@@ -141,3 +141,14 @@ test("unsafe scenario values and controls are normalized", () => {
     },
   );
 });
+
+test("the TCP timeline describes plain HTTP on port 80 and discloses that NAT is left out", () => {
+  for (const scenario of ["normal", "loss", "reorder"] as const) {
+    const timeline = buildTcpTimeline(config({ scenario }));
+    const text = JSON.stringify(timeline.events.map((e) => [e.title, e.explanation, e.technical]));
+    assert.doesNotMatch(text, /443|HTTPS|TLS/, scenario);
+    const ready = timeline.events.find((e) => e.id === "endpoints-ready")!;
+    assert.match(ready.explanation, /port 80 for plain HTTP/);
+    assert.match(ready.technical ?? "", /leaves out NAT/);
+  }
+});

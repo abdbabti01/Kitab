@@ -11,7 +11,7 @@ const layers = [
 ] as const;
 
 const hops: { id: TcpLocation; title: string; detail: string }[] = [
-  { id: "local-network", title: "Gateway", detail: "first hop" },
+  { id: "local-network", title: "Gateway", detail: "first hop · NAT not shown" },
   { id: "router", title: "Router", detail: "forwards by IP" },
   { id: "internet", title: "Internet", detail: "many hops" },
   { id: "destination-network", title: "Final router", detail: "last link" },
@@ -43,16 +43,15 @@ function Endpoint({ side, props }: { side: "client" | "server"; props: Props }) 
         <Server aria-hidden="true" />
         <span>
           <b>{side === "client" ? "Client" : "Server"}</b>
-          <small>{side === "client" ? "Computer A · 192.168.1.8:52491" : "Computer B · 203.0.113.10:443"}</small>
+          <small>{side === "client" ? "Computer A · 192.168.1.8:52491" : "Computer B · 203.0.113.10:80"}</small>
         </span>
         <em>{state}</em>
       </button>
       <ol className="tcp-layers">
-        {ordered.map((layer, index) => {
+        {ordered.map((layer) => {
           const location = `${side}-${layer.id}` as TcpLocation;
           return (
             <li className={`tcp-layer ${packet?.location === location ? "is-active" : ""}`} key={layer.id}>
-              <span className="tcp-layer-num">L{4 - index}</span>
               <span className="tcp-layer-name"><b>{layer.name}</b><small>{layer.detail}</small></span>
               <span className="tcp-slot">{packet?.location === location && <PacketGlyph packet={packet} props={props} />}</span>
             </li>
@@ -98,6 +97,9 @@ function Scene(props: Props) {
       <div className="tcp-grid">
         <Endpoint side="client" props={props} />
         <SceneSection label="Network path" className="tcp-path">
+          <p className="scene-caption">
+            Simplified: NAT at the client's home router is not shown. It would replace 192.168.1.8 with a public address.
+          </p>
           <ol className="tcp-hops">
             {hops.map((hop, index) => (
               <li className={`tcp-hop ${packet?.location === hop.id ? "is-active" : ""}`} key={hop.id}>
