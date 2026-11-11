@@ -216,6 +216,8 @@ test("the NAT mission requests the server by IP, so its failures are NAT and rou
   for (const v of m.variants) {
     const n = v.build();
     assert.equal(v.probe.target, `http://${dev(n, "server").interfaces[0].ip}/`, v.id);
+    // The completion text says this home's DNS server is on the Internet, so a lookup would need NAT too.
+    assert.ok(!dev(n, "pc").interfaces[0].dns!.startsWith("192.168.1."), v.id);
     const t = runSequence(n, [v.probe]);
     assert.equal(t.reason, expected[v.id], v.id);
     assert.ok(!t.events.some((e) => e.title.startsWith("DNS")), `${v.id}: no DNS before the failure`);

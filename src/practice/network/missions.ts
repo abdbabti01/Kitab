@@ -644,7 +644,7 @@ export const missions: NetworkMission[] = [
     version: "1.0.0",
     level: 5,
     title: "Bring the reply home",
-    brief: "At home, Your PC can't load the web server at 198.51.100.20. The provider says their network is working. You request the server by its IP address here, so no name lookup (DNS) is involved; DNS comes in the next stage.",
+    brief: "At home, your PC can't load a web server by its IP address, 198.51.100.20, so no DNS lookup is involved. The provider says their network is working.",
     objectives: [
       "Explain why replies can't be routed to a private address on the Internet.",
       "Make the home router translate outgoing traffic and route it to the provider, without changing the provider's network.",
@@ -751,7 +751,7 @@ export const missions: NetworkMission[] = [
       ],
     },
     proved:
-      "Your page left home from the router's public address and came back to it, and the router's NAT table delivered each reply to your PC. Private addresses stay private. When a browser starts from a name such as kitab.test, its DNS lookup leaves home too, and NAT brings that answer back the same way.",
+      "Your page left home from the router's public address and came back to it, and the router's NAT table delivered each reply to your PC. Private addresses stay private. You used the server's IP address to test NAT on its own. Starting from a name such as kitab.test adds a separate DNS exchange first; this home's DNS server is on the Internet, so that query needs NAT too. A DNS server inside the home would not.",
   },
   {
     kind: "investigate",

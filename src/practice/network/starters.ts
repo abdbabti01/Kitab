@@ -19,7 +19,7 @@ export const starterOptions: { id: string; name: string; detail: string; steps?:
       },
       {
         action: { kind: "http", source: "phone", target: "http://kitab.test/", ttl: 64 },
-        note: "Step 2 of 2: your phone now has an IP address, a gateway and a DNS server from DHCP. Press “Send request” to load http://kitab.test/: DNS finds the server's address, then TCP and HTTP carry the page through your home router and the provider's router.",
+        note: "Step 2 of 2: your phone now has an IP address, a gateway and a DNS server from DHCP. Press “Send request” to load http://kitab.test/: DNS finds the server's address (this DNS server answers from its own records; a real resolver may first ask other DNS servers), then TCP and HTTP carry the page through your home router and the provider's router.",
       },
     ],
   },

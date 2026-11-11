@@ -145,7 +145,7 @@ test("DNS is introduced as a concept between the NAT mission and the first activ
   await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
   // The NAT mission before it requests the web server by address, so no name lookup runs.
   await page.goto("/practice/missions/bring-reply-home");
-  await expect(page.locator(".mission-brief")).toContainText("no name lookup (DNS) is involved");
+  await expect(page.locator(".mission-brief")).toContainText("no DNS lookup is involved");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
