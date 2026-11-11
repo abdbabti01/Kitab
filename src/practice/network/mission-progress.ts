@@ -1,11 +1,22 @@
 // Progress in networking missions, kept on this device. Completion and mastery are separate:
 // fixing the network completes a mission; mastery needs stronger evidence on two different versions.
 import { z } from "zod";
-import { legacyChallenges, type NetworkMission } from "./missions.ts";
-import { CHALLENGES_KEY } from "./storage.ts";
+// Type imports only, so Home can read this progress without loading the networking engine.
+import type { NetworkMission } from "./missions.ts";
 import type { PracticeState } from "../../learning/practice-state.ts";
 
 export const MISSIONS_KEY = "kitab.network-missions.v1";
+/** Completed challenges of the earlier playground. */
+export const CHALLENGES_KEY = "kitab.network.challenges.v1";
+/** Which old playground challenge each mission replaces, for keeping earlier completions. */
+export const legacyChallenges: Record<string, string> = {
+  cable: "no-connection",
+  subnet: "neighbours",
+  wifi: "join-and-address",
+  route: "leave-the-lan",
+  nat: "bring-reply-home",
+  loss: "missing-segment",
+};
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
 
 const attempt = z
@@ -91,7 +102,7 @@ export function masteredVariants(r: MissionRecord | undefined, mission: NetworkM
   return [...causes.values()];
 }
 
-export function missionState(r: MissionRecord | undefined, mission: NetworkMission): PracticeState {
+export function missionState(r: MissionRecord | undefined, mission: Pick<NetworkMission, "version">): PracticeState {
   if (!r) return "not-started";
   if (r.missionVersion === mission.version && r.masteredAt) return "mastered";
   if (r.completedAt) return "completed";

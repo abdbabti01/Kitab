@@ -5,7 +5,8 @@ const path = "/learn/hello-tcp";
 
 test("Kitab opens the original walkthrough as a full page at the lesson URL", async ({ page }) => {
   await page.goto("/");
-  await page.locator(".journey-hero a").filter({ hasText: /journey|Packet Journey/i }).click();
+  await page.locator(".path-stages summary", { hasText: "Across the Internet" }).click();
+  await page.locator(".path-activity", { hasText: "Packet Journey" }).click();
   await expect(page).toHaveURL(new RegExp(path + "$"));
   await expect(page).toHaveTitle("Packet Journey · C# Walkthrough", { timeout: 3_000 });
   await expect(page.locator("#step-number")).toHaveText("1 / 130");
@@ -63,6 +64,6 @@ test("the walkthrough links back into Kitab and on to practice, and missions lin
   await page.goto(path);
   await nav.getByRole("link", { name: "← Kitab" }).click();
   await expect(page.locator(".journey-hero")).toBeVisible();
-  await expect(page.locator(".journey-card", { hasText: "Packet Journey" })).toContainText("130 recorded steps");
+  await expect(page.locator(".path-activity", { hasText: "Packet Journey" })).toHaveAttribute("href", path);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

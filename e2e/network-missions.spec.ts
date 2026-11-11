@@ -10,6 +10,27 @@ async function selectDevice(page: Page, name: string) {
   await page.keyboard.press("Enter");
 }
 
+test("the missions index follows the networking path: TCP basics come before the lost-segment investigation", async ({ page }) => {
+  await page.goto("/practice/missions");
+  await expect(page.locator(".mission-list-heading")).toHaveText([
+    "Stage 2 · Inside your LAN",
+    "Stage 3 · Addresses, subnets and routes",
+    "Stage 4 · Across the Internet",
+    "Stage 5 · Show mastery",
+  ]);
+  await expect(page.locator(".mission-list b")).toHaveText([
+    "No connection",
+    "Neighbours that look remote",
+    "Join and get an address",
+    "Leave your LAN",
+    "Bring the reply home",
+    "The ACK that wouldn't move",
+    "How full can the pipe get?",
+    "A segment goes missing",
+    "TCP lab: count the transmissions",
+  ]);
+});
+
 test("a learner investigates, diagnoses, fixes and checks a mission, and progress survives a reload", async ({ page }) => {
   await page.goto("/practice/missions");
   await page.getByRole("link", { name: /No connection/ }).click();

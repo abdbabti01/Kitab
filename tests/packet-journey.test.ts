@@ -6,6 +6,7 @@ import "../src/learning/engines/index.ts";
 import { findJourney, journeys, lessons, lessonsForMission, packetJourney } from "../src/learning/lessons/catalog.ts";
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { HTTP_WALKTHROUGH_PATH, parseRoute } from "../src/app/routes.ts";
+import { starterOptions } from "../src/practice/network/starters.ts";
 
 // The original HttpWalkthrough export (LF line endings) before Kitab's navigation block was added.
 const EXPORT_SHA256 = "395555c5ed2cd4adbff3fc800a2794283d99dda812a657bab0f65ed7f82dc677";
@@ -25,8 +26,12 @@ test("every link in the walkthrough's navigation leads to existing Kitab content
   const links = [...html.match(nav)![0].matchAll(/<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/g)].map(([, href, text]) => ({ href, text: text.replace("&amp;", "&") }));
   assert.ok(links.some((link) => link.href === "/"), "a way back to Kitab");
   for (const { href, text } of links) {
-    const route = parseRoute(href);
+    const url = new URL(href, "https://kitab.test");
+    const route = parseRoute(url.pathname);
     assert.notEqual(route.name, "not-found", href);
+    const starter = url.searchParams.get("starter");
+    if (starter) assert.equal(starterOptions.find((s) => s.id === starter)?.name, text, href);
+    if (url.hash === "#path") assert.equal(route.name, "home", href);
     if (route.name === "mission") assert.equal(findMission(route.id)?.title, text, href);
     if (route.name === "lesson") assert.equal(findJourney(route.id)?.title, text, href);
   }
