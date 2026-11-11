@@ -85,8 +85,8 @@ test("a lost DNS reply without NAT explains private addresses instead of suggest
 test("a DNS server learned from DHCP works the same way", () => {
   const n = starter("wifi");
   const lease = simulate(n, newSession(), { kind: "dhcp", source: "phone", target: "" });
-  const t = simulate(n, lease.session, { kind: "http", source: "phone", target: "http://home.test/" });
-  // The home router answers DNS (it has a record), then the PC at home.test has no web service.
-  assert.equal(t.session.dns["phone/home.test"], "192.168.1.10");
+  const t = simulate(n, lease.session, { kind: "http", source: "phone", target: "http://pc.home.arpa/" });
+  // The home router answers DNS (it has a record), then the PC at pc.home.arpa has no web service.
+  assert.equal(t.session.dns["phone/pc.home.arpa"], "192.168.1.10");
   assert.match(t.summary, /no HTTP service/);
 });
