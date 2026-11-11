@@ -2,6 +2,7 @@
 // functions only. Progress is read from the existing lesson, mission and networking-mission records; the path
 // stores nothing. Nothing is locked: every activity stays open, and the playground stays free to use.
 import { HTTP_WALKTHROUGH_PATH } from "../app/routes.ts";
+import { chapters } from "../content/chapters.ts";
 import { findLesson, packetJourney } from "./lessons/catalog.ts";
 import { lessonStatus, type Learning } from "./lessons/progress.ts";
 import { findMission } from "./missions/catalog.ts";
@@ -10,13 +11,13 @@ import type { PracticeState } from "./practice-state.ts";
 import { missionState, type MissionStore } from "../practice/network/mission-progress.ts";
 
 export type Activity = {
-  /** Unique in the path: a lesson or mission id, "connections", or "starter:<starter id>". */
+  /** Unique in the path: a lesson or mission id, "connections", "starter:<starter id>" or "concept:<chapter slug>". */
   id: string;
   title: string;
   /** What the learner does or sees there, in one line. */
   detail: string;
   path: string;
-  /** Where completion is recorded; absent when the activity records none (exploration, playground, Packet Journey). */
+  /** Where completion is recorded; absent when the activity records none (exploration, playground, concept, Packet Journey). */
   track?: "lesson" | "mission" | "network-mission";
   /** Networking missions are loaded with the engine, so their version is repeated here (a test keeps it in step). */
   version?: string;
@@ -31,6 +32,7 @@ const networkMission = (id: string, title: string, version: string, detail: stri
   id, title, version, detail, path: `/practice/missions/${id}`, track: "network-mission", needs,
 });
 const starter = (id: string, title: string, detail: string): Activity => ({ id: `starter:${id}`, title, detail, path: `/practice/network?starter=${id}` });
+const concept = (slug: string, detail: string): Activity => ({ id: `concept:${slug}`, title: chapters.find((c) => c.slug === slug)!.title, detail, path: `/concepts/${slug}` });
 
 export const networkingPath: Stage[] = [
   {
@@ -71,6 +73,8 @@ export const networkingPath: Stage[] = [
     title: "Across the Internet",
     objective: "Follow a web request: DNS finds the server's address, TCP delivers the bytes reliably and HTTP carries the page.",
     learn: [
+      // DNS comes before the first activity that depends on it; earlier stages request servers by IP address.
+      concept("dns", "How a name such as kitab.test becomes the IP address a request is sent to."),
       starter("internet", "A request across the Internet", "Load a page over Wi-Fi, your router, the provider and DNS."),
       { id: packetJourney.id, title: packetJourney.title, detail: "Follow GET /hello through sockets, TCP and IP in a recorded C# run.", path: HTTP_WALKTHROUGH_PATH },
     ],

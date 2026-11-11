@@ -6,6 +6,7 @@ import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { ReadingWalkthrough } from "../ui/ReadingWalkthrough.tsx";
 import { visualizationForChapter } from "../visual-engine/lessons/curated-visualizations.ts";
 import { linkProps } from "./router.ts";
+import { PathNext } from "./NetworkingPath.tsx";
 
 /** Curated concept walkthrough. Honest label: it is illustrative unless a mission computes it. */
 export function ConceptPage({ chapter }: { chapter: Chapter }) {
@@ -47,6 +48,7 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
             </ul>
           </section>
         )}
+        <PathNext id={`concept:${chapter.slug}`} />
       </main>
     </div>
   );

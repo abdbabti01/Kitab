@@ -64,7 +64,8 @@ test("networking path: home → explorer → starters → missions → lesson �
   await follow(page, "Bring the reply home", /\/practice\/missions\/bring-reply-home$/);
   await expect(page.locator(".mission-meta .state-pill")).toHaveText("Completed");
 
-  // Stage 4: the Internet starter, Packet Journey (a static page with its own links), then the TCP missions.
+  // Stage 4: the DNS concept, the Internet starter, Packet Journey (a static page with its own links), then the TCP missions.
+  await follow(page, "DNS resolution", /\/concepts\/dns$/);
   await follow(page, "A request across the Internet", /\/practice\/network\?starter=internet$/);
   await follow(page, "Packet Journey", /\/learn\/hello-tcp$/);
   await expect(page).toHaveTitle("Packet Journey · C# Walkthrough");
