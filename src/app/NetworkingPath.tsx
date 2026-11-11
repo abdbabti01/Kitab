@@ -52,6 +52,7 @@ function kindOf(a: Activity) {
   if (a.track === "lesson") return "Lesson";
   if (a.track) return "Mission";
   if (a.id.startsWith("starter:")) return "Playground";
+  if (a.id.startsWith("concept:")) return "Concept";
   return a.id === "connections" ? "Explorer" : "Walkthrough";
 }
 

@@ -139,6 +139,9 @@ const isPrivateRoute = (network: string, prefix: number) => {
 };
 
 // Variants are built from the playground's starter networks, then broken in one specific way.
+// The web server's address in the internet starter. "Bring the reply home" requests it directly, so no DNS lookup
+// runs before the web traffic and the first thing to fail is the reply that NAT should bring home.
+const webByIp = "http://198.51.100.20/";
 const lanWithServer = () => {
   const n = starter("lan");
   n.name = "Office LAN";
@@ -641,7 +644,7 @@ export const missions: NetworkMission[] = [
     version: "1.0.0",
     level: 5,
     title: "Bring the reply home",
-    brief: "At home, websites don't load on the PC. The provider says their network is working.",
+    brief: "At home, Your PC can't load the web server at 198.51.100.20. The provider says their network is working. You request the server by its IP address here, so no name lookup (DNS) is involved; DNS comes in the next stage.",
     objectives: [
       "Explain why replies can't be routed to a private address on the Internet.",
       "Make the home router translate outgoing traffic and route it to the provider, without changing the provider's network.",
@@ -657,7 +660,7 @@ export const missions: NetworkMission[] = [
     ],
     prediction: {
       when: "before-check",
-      prompt: "When your page request finally reaches kitab.test, which source address will it carry?",
+      prompt: "When your page request finally reaches the web server, which source address will it carry?",
       options: (n) => [
         { id: "private", text: ipOf(n, "pc") },
         { id: "public", text: dev(n, "router").interfaces.find((p) => p.id === "wan")!.ip },
@@ -668,45 +671,45 @@ export const missions: NetworkMission[] = [
       explain: "NAT replaces the private source address with the home router's public address, so the server replies to the router, which maps the reply back to your PC.",
     },
     hints: [
-      "Load http://kitab.test/ and open the step where it stopped. Did a request get out? Did a reply come back?",
+      "Load http://198.51.100.20/ and open the step where it stopped. Did a request get out? Did a reply come back?",
       "Private addresses such as 192.168.x.x are not routed on the Internet (RFC 1918). A home router needs a route toward the provider, and NAT to send traffic from its public address.",
     ],
     variants: [
       {
         id: "nat-off",
-        symptom: "Websites don't load on Your PC.",
+        symptom: "Your PC can't load http://198.51.100.20/.",
         build: () => {
           const n = starter("internet");
           dev(n, "router").nat = false;
           return n;
         },
-        probe: { kind: "http", source: "pc", target: "http://kitab.test/", ttl: 64 },
+        probe: { kind: "http", source: "pc", target: webByIp, ttl: 64 },
         faults: [{ device: "router", area: "nat" }],
         focus: "Look at the home router's Routing & NAT settings.",
         cause: "NAT was off, so packets left with a private source address and the replies could not be routed back.",
       },
       {
         id: "nat-swapped",
-        symptom: "Websites don't load on Your PC. NAT is switched on.",
+        symptom: "Your PC can't load http://198.51.100.20/. NAT is switched on.",
         build: () => {
           const n = starter("internet");
           Object.assign(dev(n, "router"), { inside: "wan", outside: "lan" });
           return n;
         },
-        probe: { kind: "http", source: "pc", target: "http://kitab.test/", ttl: 64 },
+        probe: { kind: "http", source: "pc", target: webByIp, ttl: 64 },
         faults: [{ device: "router", area: "nat" }],
         focus: "Look at the home router's Routing & NAT settings: which side is inside?",
         cause: "NAT's inside and outside interfaces were swapped, so outgoing traffic was never translated.",
       },
       {
         id: "no-default",
-        symptom: "Websites don't load on Your PC. Devices at home can still reach each other.",
+        symptom: "Your PC can't load http://198.51.100.20/. Devices at home can still reach each other.",
         build: () => {
           const n = starter("internet");
           dev(n, "router").routes = [];
           return n;
         },
-        probe: { kind: "http", source: "pc", target: "http://kitab.test/", ttl: 64 },
+        probe: { kind: "http", source: "pc", target: webByIp, ttl: 64 },
         faults: [{ device: "router", area: "routes" }, { device: "router", area: "gateway" }],
         focus: "Find the router that dropped the request and read its routing table.",
         cause: "The home router had no default route, so it did not know where to send traffic for the Internet.",
@@ -716,15 +719,15 @@ export const missions: NetworkMission[] = [
     checks: [
       {
         id: "page",
-        label: "Your PC loads http://kitab.test/",
-        actions: () => [{ kind: "http", source: "pc", target: "http://kitab.test/", ttl: 64 }],
+        label: `Your PC loads ${webByIp}`,
+        actions: () => [{ kind: "http", source: "pc", target: webByIp, ttl: 64 }],
         expect: (events, n) => answeredBy(events, "server", dev(n, "server").name),
         proof: (events) => hasTitle(events, "Server reads HTTP request", "server"),
       },
       {
         id: "nat",
         label: "The home router translates the request and restores the reply (NAT)",
-        actions: () => [{ kind: "http", source: "pc", target: "http://kitab.test/", ttl: 64 }],
+        actions: () => [{ kind: "http", source: "pc", target: webByIp, ttl: 64 }],
         expect: (events) =>
           hasTitle(events, "Translate source with NAT", "router") >= 0 && hasTitle(events, "Restore reply destination", "router") >= 0
             ? null
@@ -748,7 +751,7 @@ export const missions: NetworkMission[] = [
       ],
     },
     proved:
-      "Your page left home from the router's public address and came back to it, and the router's NAT table delivered each reply to your PC. Private addresses stay private.",
+      "Your page left home from the router's public address and came back to it, and the router's NAT table delivered each reply to your PC. Private addresses stay private. When a browser starts from a name such as kitab.test, its DNS lookup leaves home too, and NAT brings that answer back the same way.",
   },
   {
     kind: "investigate",

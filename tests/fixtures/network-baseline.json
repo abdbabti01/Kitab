@@ -8228,9 +8228,9 @@
   "leave-the-lan/wrong-gateway": "false | ARP_NO_OWNER | 6 | pc",
   "leave-the-lan/server-gateway": "false | REPLY_NO_PATH | 27 | server",
   "leave-the-lan/router-route": "false | ROUTER_NO_ROUTE | 14 | router",
-  "bring-reply-home/nat-off": "false | DNS_REPLY_UNREACHABLE | 83 | isp",
-  "bring-reply-home/nat-swapped": "false | DNS_REPLY_UNREACHABLE | 83 | isp",
-  "bring-reply-home/no-default": "false | DNS_UNREACHABLE | 34 | router",
+  "bring-reply-home/nat-off": "false | REPLY_NO_PATH | 85 | isp",
+  "bring-reply-home/nat-swapped": "false | REPLY_NO_PATH | 85 | isp",
+  "bring-reply-home/no-default": "false | ROUTER_NO_ROUTE | 35 | router",
   "missing-segment/short": "true |  | 170 | pc",
   "missing-segment/long": "true |  | 194 | pc",
   "missing-segment/internet": "true |  | 494 | pc"
