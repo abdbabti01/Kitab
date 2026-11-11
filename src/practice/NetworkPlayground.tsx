@@ -139,6 +139,11 @@ export function NetworkPlayground() {
     message = "Simulation restarted. DHCP clients need a new lease.",
   ) {
     journey.reset();
+    // A later guided step relies on state from earlier ones (such as a DHCP lease), which a reset discards.
+    if (steps.findIndex((s) => s.action === action) > 0) {
+      setAction(steps[0].action);
+      message = `${message} ${steps[0].note}`;
+    }
     setNotice(message);
   }
   function edit(next: Network, positionsOnly = false) {
@@ -158,7 +163,8 @@ export function NetworkPlayground() {
   }
   function replace(next: Network, nextAction?: Action) {
     edit(structuredClone(next));
-    setSaveBlocked(false);
+    // A practice copy never starts saving over the learner's own network, whatever it loads.
+    if (!("scratch" in startup)) setSaveBlocked(false);
     setSelected("");
     setTab("packet");
     setNotice("");
@@ -327,8 +333,8 @@ export function NetworkPlayground() {
               onChange={(e) => setNetwork({ ...network, name: e.target.value })}
             />
             <span className="save-status">
-              <span className="live-dot" />
-              {saved}
+              {!saveBlocked && <span className="live-dot" />}
+              {saveBlocked ? ("scratch" in startup ? "Practice copy · not saved" : "Not saved") : saved}
             </span>
           </div>
           <div className="workspace-actions">
