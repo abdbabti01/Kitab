@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { accessJourney } from "../src/practice/network/access.ts";
 
 test("provider and local choices reset the journey and explain the matching carrier", async ({
   page,
@@ -51,4 +52,14 @@ test("selecting a box explains its role, and a modem or ONT is never described a
   await expect(about).toContainText("here also the ONT");
   await page.getByRole("combobox").last().selectOption("separate");
   await expect(about).toContainText("connects by an Ethernet cable to the separate ONT");
+});
+
+test("NAT records its mapping when the connection's SYN leaves home; the request reuses it", async ({ page }) => {
+  const stages = accessJourney("fiber", "wifi", true);
+  await page.goto("/practice/connections");
+  const timeline = page.getByLabel("Technology journey timeline");
+  await timeline.fill(String(stages.findIndex((s) => s.id === "tcp")));
+  await expect(page.locator(".access-story")).toContainText("As the SYN leaves home, the router's NAT records the mapping this connection will use.");
+  await timeline.fill(String(stages.findIndex((s) => s.id === "route")));
+  await expect(page.locator(".access-story")).toContainText("using the mapping it recorded when this connection's SYN went out");
 });

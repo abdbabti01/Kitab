@@ -79,7 +79,7 @@ const rules: Record<string, [string, string]> = {
 };
 
 const real: Record<string, string> = {
-  "Associate with Wi-Fi": "Scanning, radio and encryption are not modeled; the lab only checks the network name and passphrase.",
+  "Associate with Wi-Fi": "Scanning, radio and encryption are not modeled; the lab only checks the network name and passphrase. A real device set to get its address automatically starts DHCP by itself as soon as it joins; here “Configure automatically” runs both steps so you can watch them.",
   "DHCP Offer": "Real servers often send the Offer by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "DHCP ACK": "Real servers often send the ACK by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "Apply DHCP lease": "A real client should first check with ARP that nobody else uses the address (RFC 2131 §3.1). This lab skips that check.",

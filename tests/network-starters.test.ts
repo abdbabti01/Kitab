@@ -58,7 +58,7 @@ test("the wireless home's PC uses the home router for DNS, like its DHCP clients
   const pc = n.devices.find((d) => d.id === "pc")!;
   const router = n.devices.find((d) => d.id === "router")!;
   assert.equal(pc.interfaces[0].dns, router.dhcp.dns);
-  const t = simulate(n, newSession(), { kind: "http", source: "pc", target: "http://home.test/", ttl: 64 });
+  const t = simulate(n, newSession(), { kind: "http", source: "pc", target: "http://pc.home.arpa/", ttl: 64 });
   assert.ok(stagesOf(t.events, n).some((s) => s.title === "Name resolved"), t.summary);
 });
 
@@ -102,4 +102,18 @@ test("a phone that already holds a lease is described as still on Wi-Fi, not joi
   assert.ok(!stagesOf(t.events, n).some((s) => s.title.startsWith("Still on Wi-Fi")));
   const join = t.events.findIndex((e) => e.title === "Associate with Wi-Fi");
   assert.match(narrate(t.events, join, n).summary, /no IP settings from it/);
+});
+
+test("the wireless home's router names the PC in the home network's own domain, and the notes say real phones start DHCP by themselves", () => {
+  const n = starter("wifi");
+  const router = n.devices.find((d) => d.id === "router")!;
+  assert.deepEqual(router.records, { "pc.home.arpa": n.devices.find((d) => d.id === "pc")!.interfaces[0].ip });
+  for (const id of ["wifi", "internet"]) assert.match(starterOptions.find((s) => s.id === id)!.steps![0].note, /A real phone does both by itself/);
+});
+
+test("joining Wi-Fi says a real device starts DHCP by itself", () => {
+  const n = starter("wifi");
+  const t = simulate(n, newSession(), { kind: "dhcp", source: "phone", target: "" });
+  assert.equal(t.events[0].title, "Associate with Wi-Fi");
+  assert.match(narrate(t.events, 0, n).real ?? "", /starts DHCP by itself as soon as it joins/);
 });
