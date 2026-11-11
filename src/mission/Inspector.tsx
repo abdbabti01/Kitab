@@ -71,7 +71,8 @@ export function Inspector({
             role="tab"
             type="button"
             aria-selected={tab === item.id}
-            aria-controls={`${base}-${item.id}-panel`}
+            // Only the selected tab's panel is rendered; the others would reference a missing id.
+            aria-controls={tab === item.id ? `${base}-${item.id}-panel` : undefined}
             tabIndex={tab === item.id ? 0 : -1}
             onClick={() => setTab(item.id)}
             onKeyDown={(event) => onKey(event, index)}
