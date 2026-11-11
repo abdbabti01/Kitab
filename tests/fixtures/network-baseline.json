@@ -8232,7 +8232,7 @@
   "bring-reply-home/nat-swapped": "false | DNS_REPLY_UNREACHABLE | 83 | isp",
   "bring-reply-home/no-default": "false | DNS_UNREACHABLE | 34 | router",
   "missing-segment/short": "true |  | 170 | pc",
-  "missing-segment/long": "true |  | 170 | pc",
+  "missing-segment/long": "true |  | 194 | pc",
   "missing-segment/internet": "true |  | 494 | pc"
  }
 }

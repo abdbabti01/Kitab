@@ -794,10 +794,11 @@ export const missions: NetworkMission[] = [
         id: "long",
         symptom: "Your PC loads a report from the local server, and one segment of the long request is lost.",
         build: lanWithServer,
-        probe: { kind: "http", source: "pc", target: "http://192.168.1.20/reports/2026/q3-summary.txt?format=full", ttl: 64, dropOnce: true },
+        // The request must exceed the engine's 96-byte segment size, so it is sent as two segments.
+        probe: { kind: "http", source: "pc", target: "http://192.168.1.20/reports/2026/q3-summary.txt?format=full&sections=sales,costs,forecast", ttl: 64, dropOnce: true },
         faults: [],
-        focus: "The request is longer than one segment. Find the retransmission and read how many bytes it carries.",
-        cause: "The first of the request's segments was lost; TCP resent exactly those bytes, then continued with the rest.",
+        focus: "The request is longer than one 96-byte segment, so TCP sends it in two. Find the retransmission and read how many bytes it carries.",
+        cause: "The first of the request's two segments was lost; TCP resent exactly those 96 bytes, then sent the rest of the request.",
       },
       {
         id: "internet",

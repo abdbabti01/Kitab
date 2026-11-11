@@ -9,10 +9,9 @@
 .tcp-layers, .tcp-hops { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
 .tcp-layer, .tcp-hop { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; align-items: center; padding: 8px; border-radius: var(--radius-sm); background: var(--surface-2); min-height: 56px; position: relative; }
 .tcp-layer.is-active, .tcp-hop.is-active { background: var(--primary-soft); }
-.tcp-layer-num { font-size: 0.72rem; font-weight: 700; color: var(--muted); }
 .tcp-layer-name, .tcp-hop-name { display: grid; min-width: 0; }
 .tcp-layer-name small, .tcp-hop-name small { color: var(--muted); font-size: 0.76rem; }
-.tcp-hop { grid-template-columns: minmax(0, 1fr); }
+.tcp-layer, .tcp-hop { grid-template-columns: minmax(0, 1fr); }
 .tcp-hop-arrow { display: none; }
 .tcp-slot { grid-column: 1 / -1; display: grid; }
 .tcp-slot:empty { display: none; }

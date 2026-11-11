@@ -62,7 +62,7 @@ export function NetworkPlayground() {
       return {
         network: starter(path.id),
         scratch: true,
-        error: `This is the “${path.name}” starter, opened from the networking path. Experiment freely: your own playground network is not changed, and nothing here is saved unless you save it under a name.`,
+        error: `This is the “${path.name}” starter, opened from the networking path. Experiment freely: your own playground network is not changed, and nothing here is saved unless you save it under a name. ${path.steps?.[0].note ?? ""}`.trim(),
       };
     const copy = scratchCopy();
     if (copy)
@@ -89,7 +89,9 @@ export function NetworkPlayground() {
     [tab, setTab] = useState<InspectorTab>("packet");
   const journey = useJourney(network),
     { trace } = journey;
-  const [action, setAction] = useState<Action>({
+  // A starter's guided steps: after one succeeds, the next is loaded into the send form.
+  const [steps, setSteps] = useState(path?.steps ?? []);
+  const [action, setAction] = useState<Action>(() => path?.steps?.[0].action ?? {
     kind: "http",
     source:
       startup.network.devices.find((d) => d.id === "pc")?.id ??
@@ -137,6 +139,11 @@ export function NetworkPlayground() {
     message = "Simulation restarted. DHCP clients need a new lease.",
   ) {
     journey.reset();
+    // A later guided step relies on state from earlier ones (such as a DHCP lease), which a reset discards.
+    if (steps.findIndex((s) => s.action === action) > 0) {
+      setAction(steps[0].action);
+      message = `${message} ${steps[0].note}`;
+    }
     setNotice(message);
   }
   function edit(next: Network, positionsOnly = false) {
@@ -156,7 +163,8 @@ export function NetworkPlayground() {
   }
   function replace(next: Network, nextAction?: Action) {
     edit(structuredClone(next));
-    setSaveBlocked(false);
+    // A practice copy never starts saving over the learner's own network, whatever it loads.
+    if (!("scratch" in startup)) setSaveBlocked(false);
     setSelected("");
     setTab("packet");
     setNotice("");
@@ -197,6 +205,13 @@ export function NetworkPlayground() {
     const result = journey.run(action);
     if (!result) return;
     setTab("packet");
+    // Only the step as given advances; once the learner changes the form, they are on their own.
+    const at = steps.findIndex((s) => s.action === action);
+    const next = at >= 0 ? steps[at + 1] : undefined;
+    if (result.success && next) {
+      setAction(next.action);
+      setNotice(next.note);
+    }
   }
   function history(undo: boolean) {
     const source = undo ? past : future;
@@ -318,8 +333,8 @@ export function NetworkPlayground() {
               onChange={(e) => setNetwork({ ...network, name: e.target.value })}
             />
             <span className="save-status">
-              <span className="live-dot" />
-              {saved}
+              {!saveBlocked && <span className="live-dot" />}
+              {saveBlocked ? ("scratch" in startup ? "Practice copy · not saved" : "Not saved") : saved}
             </span>
           </div>
           <div className="workspace-actions">
@@ -330,7 +345,10 @@ export function NetworkPlayground() {
               id="starter-network"
               value=""
               onChange={(e) => {
-                replace(starter(e.target.value));
+                const option = starterOptions.find((s) => s.id === e.target.value);
+                replace(starter(e.target.value), option?.steps?.[0].action);
+                setSteps(option?.steps ?? []);
+                if (option?.steps) setNotice(option.steps[0].note);
               }}
             >
               <option value="" disabled>
