@@ -137,6 +137,35 @@ test("the investigation mission is answered from evidence found in the journey",
   await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
 });
 
+test("the long version sends its request in two segments, resends only the lost one, and its ACK confirms only those bytes", async ({ page }) => {
+  // One earlier attempt, so this visit is version 2 of 3: the long request.
+  await page.goto("/practice/missions/missing-segment");
+  await page.evaluate(() =>
+    localStorage.setItem("kitab.network-missions.v1", JSON.stringify({ version: 1, missions: { "missing-segment": { missionVersion: "1.0.0", attempts: [{ variant: "short", startedAt: "2026-01-01T00:00:00Z", completedAt: null, diagnosis: null, evidence: false, explanation: null, prediction: null, hints: 0 }], completedAt: null, masteredAt: null } } })),
+  );
+  await page.reload();
+  await expect(page.getByText("Version 2 of 3")).toBeVisible();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: /The same bytes again, with the same sequence number/ }).click();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  const events = page.locator(".event-list");
+  // Two request segments and two response segments; one retransmission.
+  await expect(events.getByRole("button", { name: /Create TCP segment/ })).toHaveCount(4);
+  await expect(events.getByRole("button", { name: /Retransmit TCP segment/ })).toHaveCount(1);
+  await events.getByRole("button", { name: /Retransmit TCP segment/ }).click();
+  await openMissionTab(page);
+  // An ACK for the whole request is the misconception; the ACK confirms only the 96 resent bytes.
+  await page.getByLabel("Acknowledgement number").fill("1127");
+  await page.getByRole("button", { name: "Submit answer" }).click();
+  await expect(page.getByRole("region", { name: "Mission completed" })).toHaveCount(0);
+  await page.getByLabel("Acknowledgement number").fill("1097");
+  await page.getByRole("button", { name: "Submit answer" }).click();
+  await expect(steps(page)).toContainText("Correct, and the step you are showing is the retransmission evidence.");
+  await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
+});
+
 test("the playground links to the missions, earlier challenge completions are kept, and a copy opens without touching the workspace", async ({ page }) => {
   await page.goto("/practice/network");
   await page.evaluate(() => localStorage.setItem("kitab.network.challenges.v1", JSON.stringify(["subnet"])));

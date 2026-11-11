@@ -273,6 +273,40 @@ test("the investigation's answer comes from each version's own run and differs b
   }
 });
 
+test("the long version's request really spans two segments, and only the lost one is resent", () => {
+  const inv = mission("missing-segment") as InvestigateMission;
+  const tcp = (e: { layers: { name: string; fields: Record<string, unknown> }[] }) => e.layers.find((l) => l.name === "TCP segment")!.fields;
+  const run = (id: string) => {
+    const v = inv.variants.find((x) => x.id === id)!;
+    const t = runSequence(v.build(), [v.probe]);
+    assert.equal(t.success, true, t.summary);
+    const sent = t.events.filter((e) => e.title === "Create TCP segment" && e.actor === "pc" && Number(tcp(e)["Payload bytes"]) > 0).map(tcp);
+    const resent = t.events.filter((e) => e.title === "Retransmit TCP segment").map(tcp);
+    return { v, t, sent, resent, bytes: sent.reduce((n, f) => n + Number(f["Payload bytes"]), 0) };
+  };
+  const long = run("long"), short = run("short");
+  // The engine's segment size is 96 bytes; the long request is bigger, so TCP splits it.
+  assert.ok(long.bytes > 96, `request is ${long.bytes} bytes`);
+  assert.equal(long.sent.length, 2);
+  assert.deepEqual(long.sent.map((f) => Number(f["Payload bytes"])), [96, long.bytes - 96]);
+  // The first segment is lost once; exactly its bytes are resent with the same sequence number.
+  assert.equal(long.resent.length, 1);
+  assert.equal(long.resent[0].Sequence, long.sent[0].Sequence);
+  assert.equal(long.resent[0]["Payload bytes"], 96);
+  // The second segment follows the resent one, continuing the byte stream.
+  assert.equal(Number(long.sent[1].Sequence), Number(long.sent[0].Sequence) + 96);
+  // The answer confirms only the resent bytes, not the whole request.
+  const first = Number(long.sent[0].Sequence);
+  assert.equal(investigationAnswer(inv, long.v), first + 96);
+  assert.notEqual(investigationAnswer(inv, long.v), first + long.bytes);
+  assert.equal(inv.explanation.options.find((o) => o.correct)!.id, "timer");
+  // The short version's request fits in one segment, so the two traces differ in shape, not only in numbers.
+  assert.ok(short.bytes <= 96);
+  assert.equal(short.sent.length, 1);
+  assert.ok(long.t.events.length > short.t.events.length);
+  assert.match(long.v.cause, /two segments/);
+});
+
 test("predictions are computed from the engine, with distinct options", () => {
   for (const m of missions) {
     if (!m.prediction) continue;
