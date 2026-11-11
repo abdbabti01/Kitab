@@ -168,6 +168,9 @@ test("the TCP key ideas use the engine's own numbers and describe its simplifica
   assert.deepEqual([segments[0].seqStart, segments[0].seqEnd, segments[1].seqStart, segments[1].seqEnd], [1001, 2460, 2461, 3920]);
   assert.match(text, /1001–2460/);
   assert.match(text, /2461–3920/);
+  // The send-window mission's own transfer: 5,000 B at an MSS of 1,200 B.
+  assert.deepEqual(createSegments(config({ payloadBytes: 5000, mssBytes: 1200 })).map((s) => s.length), [1200, 1200, 1200, 1200, 200]);
+  assert.match(keyIdeas["tcp-send-window"][0].example, /5,000 B at an MSS of 1,200 B: four segments of 1,200 B and one of 200 B/);
   // One repeated ACK per batch, then the timer: never fast retransmit, whatever the window.
   for (const receiveWindowSegments of [3, 6]) {
     const ids = buildTcpTimeline(normalizeTcpConfig({ scenario: "loss", payloadBytes: 3500, mssBytes: 536, receiveWindowSegments })).events.map((e) => e.id);
@@ -181,4 +184,24 @@ test("the TCP key ideas use the engine's own numbers and describe its simplifica
   assert.equal(timeline.events[0].snapshot.congestionWindowSegments, 10);
   assert.equal(timeline.events.find((e) => e.id === "retransmission-timeout")!.snapshot.congestionWindowSegments, 1);
   assert.match(text, /starts at 10 segments and drops to 1 after a timeout/);
+});
+
+test("the playground's TCP key ideas use the playground's own segment numbers", async () => {
+  const { keyIdeas } = await import("../src/learning/missions/tcp-terms.ts");
+  const { missions } = await import("../src/practice/network/missions.ts");
+  const { newSession, simulate } = await import("../src/practice/network/engine.ts");
+  const text = keyIdeas["missing-segment"].map((t) => t.example).join(" ");
+  const m = missions.find((x) => x.id === "missing-segment")!;
+  for (const v of m.variants) {
+    const n = v.build();
+    const explained = simulate(n, newSession(n), v.probe).events.map((e) => e.explanation).join(" ");
+    assert.match(explained, /sequence 1001 and .* maximum payload is 96 bytes/, v.id);
+    assert.match(explained, /Resend the same bytes beginning at sequence 1001/, v.id);
+  }
+  const long = m.variants.find((v) => v.id === "long")!;
+  const n = long.build();
+  assert.match(simulate(n, newSession(n), long.probe).events.map((e) => e.explanation).join(" "), /Received 96 bytes\. ACK 1097/);
+  assert.match(text, /1001–1096/);
+  assert.match(text, /ACK 1097/);
+  assert.doesNotMatch(text, /1,460|2461/);
 });
