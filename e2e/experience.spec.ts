@@ -68,3 +68,14 @@ test("autoplay does not announce every step; manual steps are announced", async 
   await page.getByRole("button", { name: "Next step" }).click();
   await expect(live).toHaveText(/^Step \d+: /);
 });
+
+test("the TCP scene names layers without nonstandard numbers, uses port 80 for HTTP and says NAT is not shown", async ({ page }) => {
+  await page.goto("/missions/tcp-lost-segment");
+  await page.locator("label.choice", { hasText: "ACK 4501" }).click();
+  await page.getByRole("button", { name: "Test prediction" }).click();
+  const scene = page.locator(".tcp-scene");
+  await expect(scene.locator(".tcp-endpoint.server")).toContainText("203.0.113.10:80");
+  await expect(scene.locator(".tcp-endpoint.client .tcp-layer-name b")).toHaveText(["Application", "Transport", "Network", "Link"]);
+  await expect(scene).not.toContainText(/\bL[1-4]\b/);
+  await expect(scene.locator(".tcp-path")).toContainText("NAT at the client's home router is not shown");
+});
