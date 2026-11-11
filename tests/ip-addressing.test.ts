@@ -4,6 +4,8 @@ import "../src/learning/engines/index.ts";
 import { buildTrace } from "../src/learning/registry.ts";
 import { findJourney, findLesson } from "../src/learning/lessons/catalog.ts";
 import { resolveTrack, validateLessonContent } from "../src/learning/lessons/runtime.ts";
+import { ipTerms } from "../src/learning/lessons/ip-terms.ts";
+import { ipAddressing } from "../src/learning/lessons/ip-addressing.ts";
 
 test("the subnet mask changes the route to the same printer", () => {
   const wide = buildTrace("ip-addressing", { prefix: 24, target: "printer" }).outcome;
@@ -94,4 +96,23 @@ test("the lesson's /25 split and the Neighbours mission's mask mismatch follow t
   assert.equal(dev(mismatch, "server").interfaces[0].prefix, 24);
   assert.ok(!mismatch.devices.some((d) => d.kind === "router"));
   assert.equal(ping(mismatch).success, false);
+});
+
+test("the binary, AND and MAC/IP terms are arithmetically right and attached where the lesson needs them", () => {
+  const term = (id: string) => ipTerms.find((t) => t.id === id)!;
+  const bits = (n: number) => n.toString(2).padStart(8, "0");
+  const text = (id: string) => `${term(id).definition} ${term(id).purpose} ${term(id).example}`;
+  for (const n of [10, 130, 255]) assert.match(text("binary"), new RegExp(`${n} = .*${bits(n)}`));
+  assert.equal(130 & 128, 128);
+  assert.match(text("and"), new RegExp(`${bits(130)} AND ${bits(128)} = ${bits(130 & 128)} = 128`));
+  // A /25 mask's last octet is 128.
+  assert.equal(bits(0xffffff80 & 0xff), "10000000");
+  // MAC addresses are link-local and can change; they are never taught as permanent identifiers.
+  assert.doesNotMatch(text("mac"), /permanent|never changes|unique forever|burned/i);
+  assert.match(text("mac"), /random MAC/);
+  assert.match(text("mac-and-ip"), /NAT/);
+  const steps = Object.fromEntries(ipAddressing.chapters.flatMap((c) => c.steps).map((s) => [s.id, s.terms]));
+  assert.ok(steps["four-octets"].includes("binary"));
+  assert.ok(steps["apply-mask"].includes("and"));
+  assert.equal(steps["local-delivery"][0], "mac-and-ip");
 });
