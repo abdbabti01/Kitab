@@ -9,8 +9,8 @@ export const ipTerms: Lesson["glossary"] = [
   },
   {
     id: "ip-address", term: "IP address",
-    definition: "A number assigned to a network connection, such as your PC's Wi-Fi adapter.",
-    purpose: "It lets the sender say where a packet came from and where it should go.",
+    definition: "A number assigned to a network interface, such as your PC's Wi-Fi adapter, by the network it joins (often through DHCP).",
+    purpose: "It says where a packet came from and where it should go. Its network part tells routers which network to forward toward, so a packet can cross many links. The source and destination stay the same end to end, unless NAT rewrites them.",
     example: "The PC sends from 192.168.1.10. A phone can send a packet back to that address.",
   },
   {
@@ -42,6 +42,18 @@ export const ipTerms: Lesson["glossary"] = [
     definition: "A group of eight bits. Each of the four numbers in an IPv4 address is one octet.",
     purpose: "Writing the bits as four numbers makes an IPv4 address easier to read and type.",
     example: "The last octet in 192.168.1.10 is 10. Its bits are 00001010.",
+  },
+  {
+    id: "binary", term: "Binary",
+    definition: "Writing a number with only 0s and 1s (bits). In an eight-bit octet the places are worth 128, 64, 32, 16, 8, 4, 2 and 1, from left to right. Add the places that hold a 1.",
+    purpose: "Prefixes and masks are counted in bits, so reading an octet in binary shows exactly where the network part of an address ends.",
+    example: "10 = 8 + 2 = 00001010. 130 = 128 + 2 = 10000010. 255 = 11111111, all eight places.",
+  },
+  {
+    id: "and", term: "Bitwise AND",
+    definition: "Comparing two bit patterns place by place. The result has a 1 only where both have a 1, and a 0 everywhere else.",
+    purpose: "A mask has 1s for the network bits and 0s for the host bits. ANDing an address with its mask keeps the network bits and clears the host bits, which leaves the network address.",
+    example: "A /25 mask ends in 128 (10000000). 130 AND 128: 10000010 AND 10000000 = 10000000 = 128, so 192.168.1.130 is in 192.168.1.128/25.",
   },
   {
     id: "prefix", term: "Prefix length",
@@ -93,9 +105,15 @@ export const ipTerms: Lesson["glossary"] = [
   },
   {
     id: "mac", term: "MAC address",
-    definition: "An address used to deliver a frame on a local network.",
-    purpose: "It lets Wi-Fi or Ethernet deliver the frame to the next device on that local network.",
-    example: "A frame can use the router's MAC address while carrying an IP packet addressed to a website.",
+    definition: "The address of a network interface on its local link, such as Ethernet or Wi-Fi. The manufacturer sets one, but it can change: many phones use a different random MAC for each Wi-Fi network.",
+    purpose: "A switch reads the destination MAC to choose which port gets the frame; it never needs the IP address. A MAC only matters on one link: a router removes the frame and builds a new one, with new MACs, for the next link.",
+    example: "From your PC to the router, the frame's source is the PC's MAC and its destination is the router's MAC. Beyond the router, neither MAC is in the frame.",
+  },
+  {
+    id: "mac-and-ip", term: "Why both addresses",
+    definition: "Every packet travels inside a frame. The packet's IP addresses name the original sender and the final destination. The frame's MAC addresses name the two devices on the current link.",
+    purpose: "IP lets routers find a path across many networks; MAC gets the frame across each single link. A router uses the destination IP to choose the next hop, then ARP finds that hop's MAC.",
+    example: "PC to web server: the frame's MACs change at every router. The packet keeps destination 198.51.100.20 the whole way; its source stays 192.168.1.10 until the home router's NAT replaces it.",
   },
   {
     id: "packet", term: "IP packet",
