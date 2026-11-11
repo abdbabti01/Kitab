@@ -2227,6 +2227,9 @@
   gap: 12px;
   align-content: start;
 }
+.mission-steps .path-next {
+  margin-top: 0;
+}
 .mission-card.is-right {
   border-left: 4px solid var(--success);
 }

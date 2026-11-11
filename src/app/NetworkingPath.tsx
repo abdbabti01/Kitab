@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { activityState, networkingPath, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
+import { activityState, networkingPath, pathPosition, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
 import { linkProps } from "./router.ts";
 
@@ -14,6 +14,38 @@ export function recommendationLink(r: Recommendation) {
     mastery: `Work towards mastery: ${r.activity.title}`,
   }[r.kind];
   return { label, path: r.activity.path };
+}
+
+const links = (list: Activity[]) => list.map((a, i) => <span key={a.id}>{i > 0 && ", "}<a {...linkProps(a.path)}>{a.title}</a></span>);
+
+/**
+ * Where this page sits in the networking path and what follows it, in path order. It never reads progress:
+ * it only points the way, so a learner can follow the path without going back to Home.
+ */
+export function PathNext({ id }: { id: string }) {
+  const at = pathPosition(id);
+  if (!at) return null;
+  const learning = at.stage.learn.includes(at.activity);
+  return (
+    <nav className="path-next" aria-label="Networking path">
+      <p className="path-kind">Networking path · Stage {at.stageNumber} of {networkingPath.length} · {at.stage.title}</p>
+      {learning && at.stage.practise.length > 0 && <p>Practise this stage: {links(at.stage.practise)}</p>}
+      <div className="actions">
+        {at.next ? (
+          <a className="button primary" {...linkProps(at.next.path)}>Next in the path: {at.next.title} <ArrowRight aria-hidden="true" /></a>
+        ) : (
+          <span>You've reached the end of the path. Master each mission, or build freely in the <a {...linkProps("/practice/network")}>playground</a>.</span>
+        )}
+        <a className="text-button" {...linkProps("/#path")}>See the whole path</a>
+      </div>
+    </nav>
+  );
+}
+
+/** What the path does before this activity. Suggestions only: nothing is locked. */
+export function PathNeeds({ id }: { id: string }) {
+  const needs = pathPosition(id)?.needs ?? [];
+  return needs.length ? <p className="path-needs">Before you start: {links(needs)}</p> : null;
 }
 
 function kindOf(a: Activity) {
@@ -62,9 +94,11 @@ export function NetworkingPath({ evidence, recommendation }: { evidence: Evidenc
         </div>
         <div className="actions">
           <a className="button primary" {...linkProps(next.path)}>{next.label} <ArrowRight aria-hidden="true" /></a>
-          <a className="button" {...linkProps("/practice/network")}>Build freely in the playground</a>
+          {/* When the path is done, the primary action already opens the playground. */}
+          {recommendation.kind !== "done" && <a className="button" {...linkProps("/practice/network")}>Build freely in the playground</a>}
         </div>
       </div>
+      {recommendation.kind === "done" && <p className="path-note">You've mastered every mission on the networking path. Keep experimenting in the playground.</p>}
       {recommendation.kind === "suggested" && (
         <p className="path-note">Kitab doesn't record explorations or playground sessions, so this is a suggestion. If you've done it already, carry on with the next step.</p>
       )}

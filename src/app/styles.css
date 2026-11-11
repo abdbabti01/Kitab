@@ -200,4 +200,8 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .path-activity small { color: var(--ink-2); font-size: .88rem; }
 .path-kind { color: var(--muted); font: 650 .7rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .06em; }
 .path-foot { margin-top: 12px; }
+.path-next { display: grid; gap: 6px; margin-top: 16px; padding: 14px 16px; border: 1px solid var(--primary-soft-line); border-radius: var(--radius); background: var(--surface); color: var(--ink-2); }
+.path-next p { margin: 0; }
+.path-next .actions { margin-top: 6px; }
+.path-needs { color: var(--ink-2); }
 

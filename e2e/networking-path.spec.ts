@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { findLesson } from "../src/learning/lessons/catalog.ts";
+import { findMission } from "../src/learning/missions/catalog.ts";
+import { missions as networkMissions } from "../src/practice/network/missions.ts";
 
 const ip = findLesson("ip-addressing")!;
 const stage = (page: Page, title: string) => page.locator(".path-stages details", { has: page.locator("summary", { hasText: title }) });
@@ -74,4 +76,52 @@ test("the roadmap fits the screen, and the playground stays one click away with 
   await page.getByRole("link", { name: "Build freely in the playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
+});
+
+test("a path starter opens as an unsaved copy, an unknown starter opens the learner's own network, and nothing is locked", async ({ page }) => {
+  await seed(page, { "kitab.network.workspace.v1": { version: 1, name: "My home lab", devices: [], links: [] } });
+  await page.goto("/practice/network?starter=wifi");
+  await expect(page.getByLabel("Network name")).toHaveValue("A wireless home");
+  await page.getByLabel("Network name").fill("Edited starter");
+  await page.getByLabel("Network name").press("Tab");
+  await page.reload();
+  // A reload reopens the starter; edits to it were never saved over the learner's design.
+  await expect(page.getByLabel("Network name")).toHaveValue("A wireless home");
+  expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toContain("My home lab");
+  await page.goto("/practice/network?starter=not-a-starter");
+  await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
+  await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
+
+  // Advanced activities open directly, with their prerequisites as suggestions only.
+  await page.goto("/practice/missions/missing-segment");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A segment goes missing");
+  await expect(page.locator(".path-needs")).toContainText("Before you start: The ACK that wouldn't move");
+  await page.goto("/missions/tcp-lab");
+  await expect(page.locator(".path-needs")).toContainText("Before you start: The ACK that wouldn't move, How full can the pipe get?");
+});
+
+test("with everything completed the path asks for mastery; with everything mastered it says so and keeps one playground action", async ({ page }) => {
+  const lesson = { lessonVersion: ip.version, visits: 1, lastVisitedAt: "t", seen: [], total: 0, chaptersSeen: [], completedAt: "t", experimentsCompleted: [], position: null, updated: false };
+  const records = (mastered: boolean) => ({
+    "kitab.learning.v1": { version: 1, lessons: { [ip.id]: lesson } },
+    "kitab.network-missions.v1": { version: 1, missions: Object.fromEntries(networkMissions.map((m) => [m.id, { missionVersion: m.version, attempts: [], completedAt: "t", masteredAt: mastered ? "t" : null }])) },
+    "kitab.progress.v1": {
+      version: 1,
+      missions: Object.fromEntries(["tcp-lost-segment", "tcp-send-window", "tcp-lab"].map((id) => [id, {
+        missionVersion: findMission(id)!.version, visits: 1, lastVisitedAt: "t", masteredAt: mastered ? "t" : null, current: null,
+        attempts: [{ attemptId: "a", number: 1, variantId: "v", scenarioKey: "k", status: "done", predictionCorrect: true, explanationCorrect: true, reasoning: "", at: "t" }],
+      }])),
+    },
+  });
+  await seed(page, records(false));
+  await expect(page.locator(".journey-hero").getByRole("link", { name: "Work towards mastery: No connection" })).toHaveAttribute("href", "/practice/missions/no-connection");
+  await expect(stage(page, "Addresses, subnets and routes").locator("summary")).toContainText("5 of 5 completed");
+  await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
+
+  await seed(page, records(true));
+  await expect(page.locator(".path-note")).toContainText("You've mastered every mission");
+  await expect(page.locator(".path-head").getByRole("link", { name: /playground/ })).toHaveCount(1);
+  // The lesson has no mastery, so stage 3 shows 4 mastered missions of 5 completed activities.
+  await expect(stage(page, "Addresses, subnets and routes").locator("summary")).toContainText("5 of 5 completed · 4 mastered");
+  await expect(page.locator(".path-stages details[open]")).toHaveCount(0);
 });

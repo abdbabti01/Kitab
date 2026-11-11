@@ -1,4 +1,5 @@
 import { linkProps } from "../app/router.ts";
+import { PathNext } from "../app/NetworkingPath.tsx";
 import { sameConfiguration } from "./network/editing.ts";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -49,8 +50,20 @@ function scratchCopy() {
     return null;
   }
 }
+// A starter opened from the networking path (?starter=lan): like a practice copy, never saved over the workspace.
+function pathStarter() {
+  const id = new URLSearchParams(location.search).get("starter");
+  return starterOptions.find((s) => s.id === id);
+}
 export function NetworkPlayground() {
+  const [path] = useState(pathStarter);
   const [startup] = useState(() => {
+    if (path)
+      return {
+        network: starter(path.id),
+        scratch: true,
+        error: `This is the “${path.name}” starter, opened from the networking path. Experiment freely: your own playground network is not changed, and nothing here is saved unless you save it under a name.`,
+      };
     const copy = scratchCopy();
     if (copy)
       return {
@@ -520,6 +533,7 @@ export function NetworkPlayground() {
           />
         </div>
       </section>
+      {path && <PathNext id={`starter:${path.id}`} />}
       <footer className="playground-footer">
         <span>
           <span className="legend-dot application" /> App data
