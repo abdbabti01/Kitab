@@ -2,7 +2,7 @@
 // "ARP: Your PC finds 192.168.1.1" or "DNS query · Your PC → DNS server". Stages are computed
 // from the trace and never reorder it: every event belongs to exactly one stage.
 import { failures } from "./explanations.ts";
-import { narrate } from "./narration.ts";
+import { heldLease, narrate } from "./narration.ts";
 import type { Network, TraceEvent } from "./model.ts";
 
 export type Stage = {
@@ -196,7 +196,7 @@ const titles: Record<string, string> = {
   "HTTP journey complete": "Page delivered",
   "DHCP lease expired": "Lease expired",
 };
-const title = (e: TraceEvent, name: (id: string) => string) => `${titles[e.title] ?? e.title}${["Associate with Wi-Fi", "Prepare HTTP request", "Create socket and connect"].includes(e.title) ? ` · ${name(e.actor)}` : ""}`;
+const title = (e: TraceEvent, name: (id: string) => string) => `${e.title === "Associate with Wi-Fi" && heldLease(e) ? "Still on Wi-Fi" : titles[e.title] ?? e.title}${["Associate with Wi-Fi", "Prepare HTTP request", "Create socket and connect"].includes(e.title) ? ` · ${name(e.actor)}` : ""}`;
 
 /** How the stage's own packet came to be, in one sentence. */
 function made_(e: TraceEvent, name: (id: string) => string) {

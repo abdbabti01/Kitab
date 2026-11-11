@@ -3,23 +3,58 @@ import {
   type Network,
   type Device,
   type Medium,
+  type Action,
 } from "./model.ts";
-export const starterOptions = [
+/** What a starter shows first: each step's action is loaded into the send form with its note, in order. */
+export type StarterStep = { action: Action; note: string };
+export const starterOptions: { id: string; name: string; detail: string; steps?: StarterStep[] }[] = [
   {
     id: "internet",
     name: "A request across the Internet",
     detail: "Wi-Fi → home LAN → ISP → website",
+    steps: [
+      {
+        action: { kind: "dhcp", source: "phone", target: "" },
+        note: "Step 1 of 2: your phone is not on the network yet and has no IP address. Press “Configure automatically” to join the Wi-Fi network and get an address from the home router's DHCP service.",
+      },
+      {
+        action: { kind: "http", source: "phone", target: "http://kitab.test/", ttl: 64 },
+        note: "Step 2 of 2: your phone now has an IP address, a gateway and a DNS server from DHCP. Press “Send request” to load http://kitab.test/: DNS finds the server's address, then TCP and HTTP carry the page through your home router and the provider's router.",
+      },
+    ],
   },
-  { id: "lan", name: "Your first LAN", detail: "Two computers and a switch" },
+  {
+    id: "lan",
+    name: "Your first LAN",
+    detail: "Two computers and a switch",
+    steps: [
+      {
+        action: { kind: "ping", source: "pc", target: "192.168.1.20", ttl: 64 },
+        note: "Press “Send request” to ping the local server at 192.168.1.20. It is on your PC's own network, so your PC first uses ARP to learn the server's MAC address; the switch then delivers each frame to the right port.",
+      },
+    ],
+  },
   {
     id: "wifi",
     name: "A wireless home",
     detail: "Join Wi-Fi and ask DHCP for an address",
+    steps: [
+      {
+        action: { kind: "dhcp", source: "phone", target: "" },
+        note: "Press “Configure automatically”: your phone joins the Wi-Fi network at the access point, then asks the home router's DHCP service for an IP address.",
+      },
+    ],
   },
   {
     id: "routed",
     name: "Two connected LANs",
     detail: "Discover gateways and routing",
+    steps: [
+      {
+        action: { kind: "ping", source: "pc", target: "192.168.2.20", ttl: 64 },
+        note: "Press “Send request” to ping the office server at 192.168.2.20. It is outside your PC's subnet, so your PC sends the packet to its default gateway, the router, which forwards it to the other LAN.",
+      },
+    ],
   },
   {
     id: "empty",
@@ -132,6 +167,8 @@ export function starter(id: string): Network {
   link(pc, "eth0", sw, "p2");
   link(sw, "p3", router, "lan");
   if (id === "wifi") {
+    // This home has no Internet link, so the router answers DNS for the LAN, as it tells DHCP clients.
+    pc.interfaces[0].dns = "192.168.1.1";
     router.dhcp.dns = "192.168.1.1";
     router.records = { "home.test": "192.168.1.10" };
     return n;

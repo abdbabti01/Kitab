@@ -94,6 +94,10 @@ const real: Record<string, string> = {
   "Decrease TTL": "If the TTL reached zero, a real router would also send ICMP Time Exceeded to the sender; this lab does not model ICMP errors.",
 };
 
+/** A valid lease the device already holds at this event: the lab re-checks Wi-Fi on every run, but the device keeps its address. */
+export const heldLease = (e: TraceEvent) =>
+  Object.values(e.snapshot.leases).find((l) => l.device === e.actor && l.expires > e.snapshot.time);
+
 function summarize(c: Ctx): string {
   const { e, name, f, field, who, owner, dn } = c;
   const frame = e.layers.find((l) => l.kind === "link" && l.name.endsWith("frame"));
@@ -102,8 +106,12 @@ function summarize(c: Ctx): string {
   const tcp = (k: string) => field("TCP segment", k);
   const ip = (k: string) => field("IPv4 packet", k);
   switch (e.title) {
-    case "Associate with Wi-Fi":
-      return `${name} joins the Wi-Fi network “${f.SSID}” at ${f["Access point"]}. It now has a wireless link, but no IP settings from it.`;
+    case "Associate with Wi-Fi": {
+      const lease = heldLease(e);
+      return lease
+        ? `${name} is still on the Wi-Fi network “${f.SSID}” at ${f["Access point"]}; the lab checks the network name and passphrase again at the start of each run. ${name} keeps ${lease.ip} from its DHCP lease.`
+        : `${name} joins the Wi-Fi network “${f.SSID}” at ${f["Access point"]}. It now has a wireless link, but no IP settings from it.`;
+    }
     case "DHCP Discover":
       return `${name} has no IP address yet, so it broadcasts a DHCP Discover to its whole LAN, asking any DHCP server to answer.`;
     case "DHCP Offer":
