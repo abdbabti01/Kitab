@@ -22,6 +22,8 @@ import {
 import { practiceLabels } from "../learning/practice-state.ts";
 import { networkingPath } from "../learning/networking-path.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
+import { keyIdeas } from "../learning/missions/tcp-terms.ts";
+import { TermChips } from "../ui/Terms.tsx";
 import type { Action, Network, Trace } from "./network/model.ts";
 import "./practice.css";
 
@@ -405,6 +407,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         <summary>About this mission</summary>
           <p>{mission.brief}</p>
           <PathNeeds id={mission.id} />
+          {keyIdeas[mission.id] && <TermChips label="Key ideas" lead="Key ideas before you predict:" terms={keyIdeas[mission.id]} />}
           <h2>What you will practise</h2>
           <ul>
             {mission.objectives.map((o) => (
