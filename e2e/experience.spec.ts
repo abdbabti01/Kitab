@@ -79,3 +79,26 @@ test("the TCP scene names layers without nonstandard numbers, uses port 80 for H
   await expect(scene).not.toContainText(/\bL[1-4]\b/);
   await expect(scene.locator(".tcp-path")).toContainText("NAT at the client's home router is not shown");
 });
+
+test("TCP missions explain their key ideas before the prediction, and say where Kitab's model is simpler", async ({ page }) => {
+  await page.goto("/missions/tcp-lost-segment");
+  const ideas = page.getByLabel("Key ideas");
+  await expect(ideas).toContainText("Key ideas before you predict:");
+  for (const term of ["Maximum segment size (MSS)", "Sequence number", "Cumulative acknowledgment", "Duplicate ACK", "Retransmission", "Timeout recovery (Kitab's model)"]) await expect(ideas.getByText(term, { exact: true })).toBeVisible();
+  await ideas.getByText("Timeout recovery (Kitab's model)", { exact: true }).click();
+  await expect(ideas).toContainText("Kitab's model always waits for the timer");
+  // The prediction is still the next thing to do.
+  await expect(page.getByRole("button", { name: "Test prediction" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.goto("/missions/tcp-send-window");
+  await expect(page.getByLabel("Key ideas").getByText("Congestion window", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Key ideas").getByText("Duplicate ACK", { exact: true })).toHaveCount(0);
+
+  await page.goto("/practice/missions/missing-segment");
+  const brief = page.locator(".mission-brief");
+  await expect(brief.getByLabel("Key ideas")).toContainText("Cumulative acknowledgment");
+  // Missions outside TCP show none.
+  await page.goto("/practice/missions/neighbours");
+  await expect(page.getByLabel("Key ideas")).toHaveCount(0);
+});

@@ -67,3 +67,18 @@
 .facts dt .text-button { text-decoration: none; color: var(--ink-2); }
 .facts dt .text-button:hover { text-decoration: underline; color: var(--primary-strong); }
 .choice > span:last-child, .facts dd, .guide-message { min-width: 0; overflow-wrap: anywhere; }
+/* Term chips and fields: lesson steps and mission key ideas. */
+.terms { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 12px; }
+.terms-lead { align-self: center; font-size: 0.88rem; font-weight: 650; color: var(--muted); }
+.term { border: 1px solid var(--primary-soft-line); border-radius: 12px; background: var(--primary-soft); }
+.term summary { cursor: pointer; padding: 6px 12px; min-height: 36px; display: flex; align-items: center; font-weight: 650; font-size: 0.88rem; list-style: none; }
+.term summary::before { content: "＋"; margin-right: 6px; color: var(--primary-strong); }
+.term[open] summary::before { content: "－"; }
+.term p { margin: 0; padding: 0 12px 10px; font-size: 0.9rem; color: var(--ink-2); max-width: 32ch; }
+.term-fields { display: grid; gap: 7px; margin: 0; }
+.term-fields > div { display: grid; grid-template-columns: minmax(104px, .24fr) minmax(0, 1fr); gap: 4px 12px; align-items: baseline; }
+.term-fields dt { color: var(--primary-strong); font-size: .82rem; font-weight: 700; }
+.term-fields dd { margin: 0; color: var(--ink-2); font-size: .94rem; overflow-wrap: anywhere; }
+.term .term-fields { padding: 0 12px 10px; }
+.term .term-fields > div { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 600px) { .term-fields > div { grid-template-columns: minmax(0, 1fr); gap: 0; } }

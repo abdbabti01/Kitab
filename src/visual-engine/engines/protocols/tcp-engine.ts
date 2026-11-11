@@ -778,7 +778,9 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
         explanation: duplicate
           ? "Later bytes arrived, but a gap remains. The cumulative ACK still names the first missing byte."
           : "The ACK number names the next contiguous client byte the receiver expects.",
-        technical: `A cumulative ACK confirms every byte before ${ackNumber}, not only the most recent segment (${label}).`,
+        technical: duplicate
+          ? `A repeated (duplicate) ACK tells the sender later data arrived but byte ${ackNumber} is still missing. Real TCP sends one for each segment that arrives after a gap; this model shows one for the batch.`
+          : `A cumulative ACK confirms every byte before ${ackNumber}, not only the most recent segment (${label}).`,
       },
       (next) => {
         next.packet = packet(
@@ -968,7 +970,7 @@ export function buildTcpTimeline(input: TcpConfig): TcpTimeline {
         kind: "recovery",
         title: "The retransmission timer expires",
         explanation:
-          "This scenario deliberately demonstrates timeout recovery instead of assuming enough duplicate ACKs for fast retransmit.",
+          "No ACK has covered the lost segment, so when the sender's timer runs out it resends those bytes. Real TCP often resends sooner, after three duplicate ACKs (fast retransmit); Kitab's model always waits for the timer.",
         technical:
           "TCP reduces its congestion window because loss can indicate congestion on the path.",
         durationMs: Math.max(1200, transferDuration(config)),

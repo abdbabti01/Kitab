@@ -67,7 +67,7 @@ const raw: unknown[] = [
     misconceptions: {
       "ack-latest-bytes": { label: "ACKs the newest bytes", message: "The receiver does hold later bytes, but a cumulative ACK can't skip the gap. It stays at {outcome.gapStart}, the first missing byte.", target: "segment-2" },
       "ack-names-segment": { label: "ACK echoes the arriving segment", message: "An ACK doesn't echo the segment that just arrived. It names the next byte the receiver still needs: {outcome.gapStart}.", target: "segment-2" },
-      "silent-receiver": { label: "Receiver stays silent", message: "The receiver keeps acknowledging. Each later arrival produces a repeated ACK {outcome.gapStart}, which tells the sender something is missing.", target: "server" },
+      "silent-receiver": { label: "Receiver stays silent", message: "The receiver keeps acknowledging. When later segments arrive, it repeats ACK {outcome.gapStart}, which tells the sender something is missing.", target: "server" },
       "ack-counts-packets": { label: "ACK counts packets", message: "ACK numbers are byte positions. {outcome.gapStart} is the first byte of segment 2, not a packet count." },
       "router-recovery": { label: "Routers recover loss", message: "Routers forward IP packets and forget them. Only the endpoints notice the gap, through ACKs and the retransmission timer.", target: "client" },
     },
