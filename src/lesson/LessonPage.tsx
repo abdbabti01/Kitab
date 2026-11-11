@@ -225,7 +225,7 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
               const open = nav.level?.id === level.id;
               return (
                 <li key={level.id}>
-                  <button type="button" className={`level-button ${now ? "is-now" : ""} ${open ? "is-open" : ""}`} aria-current={now ? "true" : undefined} aria-expanded={open} aria-controls="level-panel" onClick={() => manual(open ? { type: "CLOSE_LEVEL", resume: "return" } : { type: "OPEN_LEVEL", levelId: level.id })}>
+                  <button type="button" className={`level-button ${now ? "is-now" : ""} ${open ? "is-open" : ""}`} aria-current={now ? "true" : undefined} aria-expanded={open} aria-controls={nav.level ? "level-panel" : undefined} onClick={() => manual(open ? { type: "CLOSE_LEVEL", resume: "return" } : { type: "OPEN_LEVEL", levelId: level.id })}>
                     <span className="level-name">{level.name}{now && <em className="level-now-tag">Now</em>}</span>
                     <small>{level.short}</small>
                   </button>

@@ -32,11 +32,11 @@ async function runToEnd(page: Page) {
 
 /** After runToEnd: steps through the run from the start until the step title matches, as a learner would. */
 async function stepTo(page: Page, title: RegExp) {
-  // Ending the run moves focus to the explain heading. Wait for that before taking the slider back, or the move
-  // can land between the focus and the Home key: Home is lost and every ArrowRight then hits the last step.
-  await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeFocused();
+  // Ending the run from the slider keeps focus on it, so the learner steps straight back through the evidence.
+  await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeVisible();
   const slider = page.getByRole("slider", { name: "Step" });
-  await slider.press("Home");
+  await expect(slider).toBeFocused();
+  await page.keyboard.press("Home");
   await expect(slider).toHaveValue("0");
   for (let i = 0; i < 80 && !title.test((await page.locator(".scene-title").textContent()) ?? ""); i++) await slider.press("ArrowRight");
   await expect(page.locator(".scene-title")).toHaveText(title);
@@ -216,7 +216,9 @@ test("keyboard-only: predict, run and explain without a pointer", async ({ page 
   await expect(page.getByRole("heading", { name: "Running the system" })).toBeFocused();
   await page.getByRole("slider", { name: "Step" }).focus();
   await page.keyboard.press("End");
-  await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeFocused();
+  await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeVisible();
+  // Ending the run from the slider leaves focus on it (no context change on input).
+  await expect(page.getByRole("slider", { name: "Step" })).toBeFocused();
   // Tab order reaches the evidence choices and the submit button.
   for (let i = 0; i < 6 && !(await page.getByRole("radio").first().evaluate((el) => el === document.activeElement)); i += 1) await page.keyboard.press("Tab");
   await page.keyboard.press("Space");

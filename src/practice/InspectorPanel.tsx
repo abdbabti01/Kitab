@@ -50,7 +50,7 @@ export function InspectorPanel({
     <aside ref={panelRef} className="network-inspector" aria-label="Network inspector">
       <div className="inspector-tabs">
         {tabs.map(([id, Icon, label]) => (
-          <button key={id} className={tab === id ? "active" : ""} onClick={() => onTab(id)}>
+          <button key={id} className={tab === id ? "active" : ""} aria-pressed={tab === id} onClick={() => onTab(id)}>
             <Icon size={15} /> {label}
           </button>
         ))}

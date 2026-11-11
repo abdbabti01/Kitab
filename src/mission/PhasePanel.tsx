@@ -146,6 +146,7 @@ export const PhasePanel = memo(function PhasePanel({
   const [explanation, setExplanation] = useState("");
   const [error, setError] = useState("");
   const heading = useRef<HTMLHeadingElement>(null);
+  const panel = useRef<HTMLElement>(null);
   // The whole mission, not just this version: until then, trying another version is the next step.
   const done = attempt.mastered && mastery.done >= mastery.required;
 
@@ -163,8 +164,14 @@ export const PhasePanel = memo(function PhasePanel({
     if (previousPhase.current === phase) return;
     previousPhase.current = phase;
     // inspect → predict happens when the learner focuses an answer; moving focus then would steal it.
+    if (phase === "predict") return;
+    // Only when the learner's control was removed or disabled (the submit button, "Next step" at the end) or was
+    // in this panel. Ending the run from the step slider keeps focus there: the evidence is found with it, and
+    // Kitab's live region already announces the result.
+    const active = document.activeElement;
+    if (active && active !== document.body && !active.matches(":disabled") && !panel.current?.contains(active)) return;
     // During the run the page scrolls to the scene instead; focus still moves here for screen readers.
-    if (phase !== "predict") heading.current?.focus({ preventScroll: phase === "run" });
+    heading.current?.focus({ preventScroll: phase === "run" });
   }, [phase]);
 
   const options = resolvePredictionOptions(mission, trace);
@@ -189,7 +196,7 @@ export const PhasePanel = memo(function PhasePanel({
   const explanationOrder = optionOrder(`${mission.id}:${attempt.id}:explain`, mission.explanation.options.map((option) => option.id));
 
   return (
-    <section className="phase card" aria-labelledby={`${ids}-heading`}>
+    <section ref={panel} className="phase card" aria-labelledby={`${ids}-heading`}>
       <Stepper phase={phase} />
       {(phase === "inspect" || phase === "predict") && (
         <form onSubmit={submit} noValidate>
