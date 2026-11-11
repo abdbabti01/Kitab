@@ -149,7 +149,6 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
   page,
 }) => {
   await page.goto("/practice/network");
-  await page.getByLabel("Starter network").selectOption("lan");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await goToEvent(page, /Create TCP segment/);
   await page.locator(".journey-card").getByRole("button", { name: "Why and how" }).click();
@@ -333,4 +332,39 @@ test("the first run starts from the diagram, and sending brings the journey into
   const zoom = page.getByLabel("Zoom to the current stage");
   if (info.project.name === "phone-390") await expect(zoom).toBeChecked();
   else await expect(zoom).not.toBeChecked();
+});
+test("each path starter opens with the action its path step promises", async ({ page }) => {
+  const starters = [
+    { id: "lan", note: "ping the local server at 192.168.1.20", kind: "ping", from: "pc", result: "Ping succeeded", first: "Send a ping", last: "Ping complete" },
+    { id: "wifi", note: "joins the Wi-Fi network at the access point", kind: "dhcp", from: "phone", result: "Your phone received 192.168.1.100", first: "Join Wi-Fi", last: "DHCP ACK" },
+    { id: "routed", note: "sends the packet to its default gateway", kind: "ping", from: "pc", result: "Ping succeeded", first: "Send a ping", last: "Ping complete" },
+  ];
+  for (const s of starters) {
+    await page.goto(`/practice/network?starter=${s.id}`);
+    await expect(page.locator(".network-notice")).toContainText(s.note);
+    await expect(page.getByLabel("Source device")).toHaveValue(s.from);
+    await expect(page.getByLabel("Traffic type")).toHaveValue(s.kind);
+    await page.locator(".send-button").click();
+    await expect(page.locator(".run-status")).toContainText(s.result);
+    await expect(page.locator(".journey-card")).toContainText(s.first);
+    await page.getByRole("button", { name: "Last event", exact: true }).click();
+    await expect(page.locator(".journey-card")).toContainText(s.last);
+  }
+});
+test("the Internet starter makes its preparation explicit: DHCP on the phone first, then the page", async ({ page }) => {
+  await page.goto("/practice/network?starter=internet");
+  const notice = page.locator(".network-notice");
+  await expect(notice).toContainText("Step 1 of 2");
+  await expect(page.getByLabel("Source device")).toHaveValue("phone");
+  await page.getByRole("button", { name: "Configure automatically", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("Your phone received 192.168.1.100");
+  await expect(notice).toContainText("Step 2 of 2");
+  await expect(page.getByLabel("Traffic type")).toHaveValue("http");
+  await expect(page.getByLabel("Destination")).toHaveValue("http://kitab.test/");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
+  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await expect(page.locator(".journey-card")).toContainText("Page delivered");
+  // The learner's own saved design is untouched by the starter.
+  expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toBeNull();
 });
