@@ -22,17 +22,22 @@ async function choose(page: Page, text: string | RegExp) {
 
 async function runToEnd(page: Page) {
   const slider = page.getByRole("slider", { name: "Step" });
+  // Starting the run moves focus to its heading (the button pressed is gone). Wait for that before taking the
+  // slider, or the move can land between the focus and the key and take the End press with it.
+  await expect(page.getByRole("heading", { name: "Running the system" })).toBeFocused();
   await expect(slider).toBeEnabled();
   await slider.focus();
   await page.keyboard.press("End");
 }
 
-/** Steps through the run from the start until the step title matches, as a learner would. */
+/** After runToEnd: steps through the run from the start until the step title matches, as a learner would. */
 async function stepTo(page: Page, title: RegExp) {
-  // Each press goes to the slider itself: when the run ends, the page moves focus to the explain heading,
-  // and on a slow machine that can land after the first key.
+  // Ending the run moves focus to the explain heading. Wait for that before taking the slider back, or the move
+  // can land between the focus and the Home key: Home is lost and every ArrowRight then hits the last step.
+  await expect(page.getByRole("heading", { name: "Explain what happened" })).toBeFocused();
   const slider = page.getByRole("slider", { name: "Step" });
   await slider.press("Home");
+  await expect(slider).toHaveValue("0");
   for (let i = 0; i < 80 && !title.test((await page.locator(".scene-title").textContent()) ?? ""); i++) await slider.press("ArrowRight");
   await expect(page.locator(".scene-title")).toHaveText(title);
 }
