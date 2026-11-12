@@ -136,3 +136,20 @@ test("every event of the two-LAN ping is drawn as the trace records it", async (
     }
   }
 });
+
+test("on a desktop the arranged rows are a choice: switching never moves or saves a device", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "The learner's own layout is the default on wide screens");
+  await page.goto("/practice/network");
+  await page.waitForFunction(() => localStorage.getItem("kitab.network.workspace.v1"));
+  const saved = await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"));
+  await expect(page.locator(".network-canvas")).not.toHaveClass(/is-stacked/);
+  await page.getByRole("button", { name: "My layout" }).click();
+  await expect(page.locator(".network-canvas")).toHaveClass(/is-stacked/);
+  expect(overlapping(await drawn(page))).toEqual([]);
+  // The choice is remembered on this device; the network itself is untouched.
+  await page.reload();
+  await expect(page.locator(".network-canvas")).toHaveClass(/is-stacked/);
+  await page.getByRole("button", { name: "Rows" }).click();
+  await expect(page.locator(".network-canvas")).not.toHaveClass(/is-stacked/);
+  expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toBe(saved);
+});

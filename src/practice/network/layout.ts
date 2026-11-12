@@ -6,7 +6,7 @@ import type { Network } from "./model.ts";
 
 /** Room for a device: its tile, name and address, the label of what it is doing, and a frame moving between rows. */
 export const COLUMN = 210;
-export const ROW = 330;
+export const ROW = 290;
 const SIDE = 110, TOP = 140, BOTTOM = 190;
 
 export type Layout = { pos: Record<string, { x: number; y: number }>; width: number; height: number; rows: string[][] };

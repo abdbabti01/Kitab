@@ -13,6 +13,7 @@ import type {
 
 /** Below this canvas width the learner's own layout cannot be drawn readably, so the stacked layout is used. */
 const NARROW = 640;
+const LAYOUT_KEY = "kitab.network.layout";
 const KIND_LABEL: Record<DeviceKind, string> = { pc: "PC", phone: "PHONE", switch: "SWITCH", router: "ROUTER", ap: "WI-FI AP", server: "SERVER" };
 
 export function NetworkCanvas({
@@ -63,11 +64,27 @@ export function NetworkCanvas({
     ox: number;
     oy: number;
   } | null>(null);
-  // The drawing area in pixels, and on a narrow one whether the learner asked for their own layout instead.
+  // The drawing area in pixels, and which layout the learner chose: rows arranged for reading, or their own. Without
+  // a choice, narrow screens get rows. The choice is a view preference on this device; no device is moved or saved.
   const [area, setArea] = useState({ w: 0, h: 0 }),
-    [own, setOwn] = useState(false);
+    [pref, setPref] = useState<"rows" | "own" | null>(() => {
+      try {
+        const v = localStorage.getItem(LAYOUT_KEY);
+        return v === "rows" || v === "own" ? v : null;
+      } catch {
+        return null;
+      }
+    });
   const narrow = area.w > 0 && area.w < NARROW;
-  const stacked = narrow && !own;
+  const stacked = area.w > 0 && (pref ? pref === "rows" : narrow);
+  function chooseLayout(next: "rows" | "own") {
+    setPref(next);
+    try {
+      localStorage.setItem(LAYOUT_KEY, next);
+    } catch {
+      // The choice still applies on this page.
+    }
+  }
   const layout = useMemo(() => stackedLayout(network), [network]);
   const bounds = () => {
     const xs = network.devices.map((d) => d.x),
@@ -102,17 +119,27 @@ export function NetworkCanvas({
     if (y1 - y0 < 300) [y0, y1] = [(y0 + y1) / 2 - 150, (y0 + y1) / 2 + 150];
     [width, height, view] = [x1 - x0, y1 - y0, { x: x0, y: y0 }];
   }
-  // The stacked layout: a fixed, readable scale and a camera over it. Two columns fill a phone's width.
-  const scale = Math.min(1.15, Math.max(0.8, area.w / 430)) * zoom;
+  // The stacked layout: a readable scale and a camera over it. Two columns fill a phone's width; a wide screen shows
+  // whole rows when it can without going below that scale.
+  const scale = Math.min(1.15, Math.max(0.8, area.w / Math.max(430, layout.width))) * zoom;
   const camW = area.w / scale || 430,
     camH = area.h / scale || 600;
   const clampCam = (c: { x: number; y: number }) => ({
     x: layout.width <= camW ? (layout.width - camW) / 2 : Math.min(layout.width - camW, Math.max(0, c.x)),
     y: layout.height <= camH ? (layout.height - camH) / 2 : Math.min(layout.height - camH, Math.max(0, c.y)),
   });
-  const [cam, setCam] = useState({ x: 0, y: 0 });
-  const camRef = useRef(cam);
-  camRef.current = cam;
+  // The camera's position lives in a ref: gliding and panning move the drawing's viewBox directly, without
+  // rendering the diagram again on every frame; it is rendered once when the move ends.
+  const camRef = useRef({ x: 0, y: 0 });
+  const [, setCamTick] = useState(0);
+  const setCam = (c: { x: number; y: number }) => {
+    camRef.current = c;
+    setCamTick((t) => t + 1);
+  };
+  const drawCam = (c: { x: number; y: number }) => {
+    camRef.current = c;
+    svg.current?.setAttribute("viewBox", `${c.x} ${c.y} ${camW} ${camH}`);
+  };
   const glide = useRef(0);
   function moveCam(target: { x: number; y: number }, animate: boolean) {
     cancelAnimationFrame(glide.current);
@@ -121,10 +148,11 @@ export function NetworkCanvas({
     if (!animate || reducedMotion() || (Math.abs(to.x - from.x) < 1 && Math.abs(to.y - from.y) < 1)) return setCam(to);
     const start = performance.now();
     const stepCam = (now: number) => {
-      const k = Math.min(1, (now - start) / 420),
+      const k = Math.min(1, (now - start) / 360),
         e = 1 - (1 - k) ** 3;
-      setCam({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e });
+      drawCam({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e });
       if (k < 1) glide.current = requestAnimationFrame(stepCam);
+      else setCam(to);
     };
     glide.current = requestAnimationFrame(stepCam);
   }
@@ -137,23 +165,32 @@ export function NetworkCanvas({
   // Following the journey: the camera moves only when the devices of this step leave the middle of the view.
   const watched = event ? [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x) : [];
   const watchKey = watched.join(" ");
-  /** Moves the camera to show these devices, only if they are not already well inside the view. */
-  function reveal(ids: string[]) {
+  /** The devices' extent, with room for their labels. */
+  const extentOf = (ids: string[]) => {
     const ps = ids.map((id) => layout.pos[id]).filter(Boolean);
-    if (!ps.length) return;
-    const [x0, x1] = [Math.min(...ps.map((p) => p.x)) - 80, Math.max(...ps.map((p) => p.x)) + 80],
-      [y0, y1] = [Math.min(...ps.map((p) => p.y)) - 90, Math.max(...ps.map((p) => p.y)) + 160];
+    return ps.length ? { x0: Math.min(...ps.map((p) => p.x)) - 80, x1: Math.max(...ps.map((p) => p.x)) + 80, y0: Math.min(...ps.map((p) => p.y)) - 90, y1: Math.max(...ps.map((p) => p.y)) + 160 } : null;
+  };
+  /**
+   * Moves the camera only when a device of this step would leave the view (its tile and name), not to keep it
+   * centred: each move repaints the whole drawing. When it has to move, it frames the whole stage if that fits, so
+   * the rest of the stage needs no further move.
+   */
+  function reveal(ids: string[], stage: string[] = []) {
+    const b = extentOf(ids);
+    if (!b) return;
     const c = camRef.current,
-      mx = camW * 0.08,
-      my = camH * 0.12;
-    const inside = x0 >= c.x + mx && x1 <= c.x + camW - mx && y0 >= c.y + my && y1 <= c.y + camH - my;
-    if (!inside) moveCam({ x: (x0 + x1) / 2 - camW / 2, y: (y0 + y1) / 2 - camH / 2 }, true);
+      seen = (p: { x: number; y: number }) => p.x - 70 >= c.x && p.x + 70 <= c.x + camW && p.y - 65 >= c.y && p.y + 110 <= c.y + camH;
+    if (ids.every((id) => !layout.pos[id] || seen(layout.pos[id]))) return;
+    const s = extentOf([...new Set([...stage, ...ids])]);
+    const t = s && s.x1 - s.x0 <= camW * 0.98 && s.y1 - s.y0 <= camH * 0.98 ? s : b;
+    moveCam({ x: (t.x0 + t.x1) / 2 - camW / 2, y: (t.y0 + t.y1) / 2 - camH / 2 }, true);
   }
+  const stageIds = focus ? [...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])] : [];
   useEffect(() => {
-    if (stacked && follow && watched.length) reveal(watched);
+    if (stacked && follow && watched.length) reveal(watched, stageIds);
   }, [watchKey, stacked, follow, layout, camW, camH]);
   if (stacked) {
-    const c = clampCam(cam);
+    const c = clampCam(camRef.current);
     [width, height, view] = [camW, camH, c];
   }
 
@@ -179,7 +216,7 @@ export function NetworkCanvas({
   function move(e: PointerEvent<SVGSVGElement>) {
     const g = gesture.current;
     if (!g) return;
-    if (stacked) return setCam(clampCam({ x: g.ox - (e.clientX - g.x) / scale, y: g.oy - (e.clientY - g.y) / scale }));
+    if (stacked) return drawCam(clampCam({ x: g.ox - (e.clientX - g.x) / scale, y: g.oy - (e.clientY - g.y) / scale }));
     const p = point(e.clientX, e.clientY);
     if (g.id)
       setDrag({
@@ -190,6 +227,7 @@ export function NetworkCanvas({
     else if (!follow) setPan({ x: g.ox + (g.x - p.x), y: g.oy + (g.y - p.y) });
   }
   function up() {
+    if (stacked && gesture.current) setCam(camRef.current);
     if (drag) onMove(drag.id, Math.round(drag.x), Math.round(drag.y));
     setDrag(null);
     gesture.current = null;
@@ -296,8 +334,8 @@ export function NetworkCanvas({
         </div>
         {children}
         <div className="canvas-tools">
-          {narrow && network.devices.length > 0 && (
-            <button className="canvas-layout" aria-pressed={stacked} onClick={() => setOwn(!own)} title={stacked ? "Show the layout you arranged" : "Arrange the devices in rows that fit this screen"}>
+          {network.devices.length > 0 && (
+            <button className="canvas-layout" aria-pressed={stacked} onClick={() => chooseLayout(stacked ? "own" : "rows")} title={stacked ? "Show the layout you arranged" : "Arrange the devices in readable rows"}>
               {stacked ? <Rows3 size={15} /> : <Shapes size={15} />} {stacked ? "Rows" : "My layout"}
             </button>
           )}
@@ -360,27 +398,13 @@ export function NetworkCanvas({
           >
             <circle cx="1" cy="1" r="1" fill="#c6d0c5" />
           </pattern>
-          <filter
-            id="device-shadow"
-            x="-30%"
-            y="-30%"
-            width="160%"
-            height="180%"
-          >
-            <feDropShadow
-              dx="0"
-              dy="5"
-              stdDeviation="8"
-              floodColor="#193a2d"
-              floodOpacity=".08"
-            />
-          </filter>
         </defs>
+        {/* The grid under everything: stacked, it covers the whole layout, so a camera glide never shows its edge. */}
         <rect
-          x={view.x}
-          y={view.y}
-          width={width}
-          height={height}
+          x={stacked ? -2000 : view.x}
+          y={stacked ? -2000 : view.y}
+          width={stacked ? layout.width + 4000 : width}
+          height={stacked ? layout.height + 4000 : height}
           fill="url(#network-grid)"
         />
         {groups.map((group, i) => {
@@ -588,6 +612,8 @@ export function NetworkCanvas({
             >
               <g transform={big ? "scale(1.15)" : undefined}>
                 <rect className="device-ring" x="-62" y="-59" width="124" height="119" rx="29" />
+                {/* A flat shadow: cheap to redraw while the view moves, unlike a filter. */}
+                <rect className="device-shadow" x="-50" y="-43" width="104" height="99" rx="22" />
                 <rect
                   className="device-tile"
                   x="-52"
@@ -595,7 +621,6 @@ export function NetworkCanvas({
                   width="104"
                   height="99"
                   rx="22"
-                  filter="url(#device-shadow)"
                 />
                 <g transform="translate(0 -7) scale(0.84)">
                   <DeviceArt kind={d.kind} />
@@ -680,7 +705,7 @@ export function NetworkCanvas({
       <div className="canvas-foot">
         <span className="canvas-hint">
           <Move size={14} />{" "}
-          {stacked ? "Arranged in rows for this screen · drag to look around · select to configure" : "Drag devices · drag background to pan · select to configure"}
+          {stacked ? "Arranged in rows for reading · drag to look around · select to configure" : "Drag devices · drag background to pan · select to configure"}
         </span>
         <span className="canvas-mode">
           <MousePointer2 size={13} /> Select & move
