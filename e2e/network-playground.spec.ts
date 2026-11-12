@@ -1,6 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
 // Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
+// Selects a device on the diagram as a keyboard user does: on a phone the view moves to it first.
+async function selectDevice(page: Page, name: string) {
+  await page.getByRole("button", { name: `Select ${name}`, exact: true }).focus();
+  await page.keyboard.press("Enter");
+}
 async function toEnd(page: Page) {
   const timeline = page.getByLabel("Journey timeline");
   await timeline.fill((await timeline.getAttribute("max")) ?? "0");
@@ -39,9 +44,7 @@ test("device settings affect delivery and designs survive reload", async ({
 }) => {
   await page.goto("/practice/network");
   await page.getByLabel("Starter network").selectOption("routed");
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
   await page.getByLabel("Default gateway").fill("192.168.1.99");
   await page
     .getByRole("button", { name: "Apply settings", exact: true })
@@ -53,9 +56,7 @@ test("device settings affect delivery and designs survive reload", async ({
   await expect(page.locator(".run-status")).toContainText("Delivery stopped");
   await expect(page.locator(".journey-card")).toContainText("ARP");
   await page.reload();
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
   await expect(page.getByLabel("Default gateway")).toHaveValue("192.168.1.99");
 });
 test("adding and undoing devices works without dragging", async ({ page }) => {
@@ -71,12 +72,8 @@ test("switching device types and adding a routed interface keeps the editor usab
   page,
 }) => {
   await page.goto("/practice/network");
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Select Home router", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
+  await selectDevice(page, "Home router");
   await page
     .getByRole("button", { name: "Add routed interface", exact: true })
     .click();
@@ -86,9 +83,7 @@ test("switching device types and adding a routed interface keeps the editor usab
   await page
     .getByRole("button", { name: "Apply settings", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Select Your phone", exact: true })
-    .click();
+  await selectDevice(page, "Your phone");
   await expect(
     page.getByRole("combobox", { name: /Interface \/ port/ }),
   ).toHaveValue("wlan0");
@@ -106,6 +101,8 @@ test("undoing a move keeps the DHCP lease and replay", async ({ page }) => {
     name: "Select Your phone",
     exact: true,
   });
+  // Moving a device applies to the learner's own layout; on a phone that is one tap away.
+  if (await page.getByRole("button", { name: "Rows" }).isVisible()) await page.getByRole("button", { name: "Rows" }).click();
   await phone.focus();
   await page.keyboard.press("ArrowRight");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -202,7 +199,7 @@ test("a typing mistake is shown at the field, not as a network failure", async (
 });
 test("a failure names its cause chain and where to look", async ({ page }) => {
   await page.goto("/practice/network");
-  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await selectDevice(page, "Home router");
   await page.getByText("Routing & NAT", { exact: true }).click();
   await page.getByLabel("Enable NAT / port translation").uncheck();
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
@@ -387,7 +384,7 @@ test("guided steps advance only on success, and a reset or edit returns to the s
   const notice = page.locator(".network-notice");
   const send = page.locator(".send-button");
   // A failed DHCP run does not advance: a wrong passphrase keeps the phone off Wi-Fi.
-  await page.getByRole("button", { name: "Select Your phone", exact: true }).click();
+  await selectDevice(page, "Your phone");
   await page.getByLabel("Wi-Fi passphrase").fill("wrong");
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await send.click();
@@ -409,7 +406,7 @@ test("guided steps advance only on success, and a reset or edit returns to the s
   await toEnd(page);
   await expect(notice).toContainText("Step 2 of 2");
   // Editing the network between steps resets the run too.
-  await page.getByRole("button", { name: "Select Your PC", exact: true }).click();
+  await selectDevice(page, "Your PC");
   await page.getByLabel("Device name").fill("Desk PC");
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await expect(notice).toContainText("Network updated");
@@ -464,7 +461,7 @@ test("the Wi-Fi starters say a real phone joins and starts DHCP by itself, and t
     await expect(page.locator(".network-notice")).toContainText("A real phone does both by itself when you choose the network.");
   }
   await page.goto("/practice/network?starter=wifi");
-  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await selectDevice(page, "Home router");
   await expect(page.locator(".dns-record").first().locator("input").first()).toHaveValue("pc.home.arpa");
 });
 

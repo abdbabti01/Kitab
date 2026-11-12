@@ -137,9 +137,9 @@ export function NetworkCanvas({
   // Following the journey: the camera moves only when the devices of this step leave the middle of the view.
   const watched = event ? [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x) : [];
   const watchKey = watched.join(" ");
-  useEffect(() => {
-    if (!stacked || !follow || !watched.length) return;
-    const ps = watched.map((id) => layout.pos[id]).filter(Boolean);
+  /** Moves the camera to show these devices, only if they are not already well inside the view. */
+  function reveal(ids: string[]) {
+    const ps = ids.map((id) => layout.pos[id]).filter(Boolean);
     if (!ps.length) return;
     const [x0, x1] = [Math.min(...ps.map((p) => p.x)) - 80, Math.max(...ps.map((p) => p.x)) + 80],
       [y0, y1] = [Math.min(...ps.map((p) => p.y)) - 90, Math.max(...ps.map((p) => p.y)) + 160];
@@ -148,6 +148,9 @@ export function NetworkCanvas({
       my = camH * 0.12;
     const inside = x0 >= c.x + mx && x1 <= c.x + camW - mx && y0 >= c.y + my && y1 <= c.y + camH - my;
     if (!inside) moveCam({ x: (x0 + x1) / 2 - camW / 2, y: (y0 + y1) / 2 - camH / 2 }, true);
+  }
+  useEffect(() => {
+    if (stacked && follow && watched.length) reveal(watched);
   }, [watchKey, stacked, follow, layout, camW, camH]);
   if (stacked) {
     const c = clampCam(cam);
@@ -538,6 +541,8 @@ export function NetworkCanvas({
               tabIndex={0}
               aria-label={`Select ${d.name}`}
               data-device={d.id}
+              // A device reached with the keyboard is brought into view.
+              onFocus={() => stacked && reveal([d.id])}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
