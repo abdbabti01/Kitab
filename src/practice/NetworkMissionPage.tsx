@@ -80,7 +80,10 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     [diagnosisFeedback, setDiagnosisFeedback] = useState(""),
     [answer, setAnswer] = useState(""),
     [answerFeedback, setAnswerFeedback] = useState(""),
-    [explained, setExplained] = useState<string | null>(null);
+    [explained, setExplained] = useState<string | null>(null),
+    // The step the learner chose as evidence. Where the diagram happens to be (after "Check my fix",
+    // "Show where and why" or a "Show me" link) never counts by itself.
+    [chosen, setChosen] = useState<{ trace: Trace; index: number } | null>(null);
   const journey = useJourney(network);
   const inspectorRef = useRef<HTMLElement>(null);
   const record = store.missions[mission.id];
@@ -147,16 +150,13 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     journey.show((failing ?? result.checks[0]).trace, (failing ?? result.checks[0]).evidence);
     if (result.completed && !attempt.completedAt) save({ ...attempt, completedAt: new Date().toISOString() });
   }
-  // The step on the diagram is the learner's evidence.
-  function evidenceNow(trace: Trace | null = journey.trace) {
-    return !!trace && evidenceShows(mission, variant, trace, journey.index);
-  }
+  const evidenceNow = () => !!chosen && evidenceShows(mission, variant, chosen.trace, chosen.index);
   function submitDiagnosis() {
     if (!guess.device || !guess.area) return;
     const result = diagnose(variant, { device: guess.device, area: guess.area }, network);
     const evidence = evidenceNow();
     setDiagnosisFeedback(
-      `${result.message}${evidence ? " The step you are showing is good evidence." : " To count as evidence, show a step of a failing run where the problem appears (for example where it stopped)."}`,
+      `${result.message}${evidence ? " The step you chose is good evidence." : chosen ? " The step you chose does not show this problem. Evidence is a step of a failing run where the problem appears, such as where it stopped." : " To record evidence, find a step of a failing run that shows the problem and choose it with \"Use this step as evidence\"."}`,
     );
     const diagnosis = result.correct ? (attempt.diagnosis === null ? "first-try" : attempt.diagnosis === "wrong" ? "later" : attempt.diagnosis) : attempt.diagnosis ?? "wrong";
     save({ ...attempt, diagnosis, evidence: attempt.evidence || (result.correct && evidence) });
@@ -169,8 +169,8 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     setAnswerFeedback(
       right
         ? evidence
-          ? "Correct, and the step you are showing is the retransmission evidence."
-          : "Correct. Now show the retransmitted segment on the diagram (step to it) and submit again to record your evidence."
+          ? "Correct, and the step you chose is the evidence."
+          : "Correct. Now find the step that shows the recovery, choose it with \"Use this step as evidence\", and submit again to record your evidence."
         : `Not ${answer}. ${mission.question.explain}`,
     );
     save({
@@ -194,6 +194,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     setAnswer("");
     setAnswerFeedback("");
     setExplained(null);
+    setChosen(null);
     setSelected("");
     save(next, n);
   }
@@ -241,7 +242,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         <>
           <section className="mission-card" aria-label="Diagnose">
             <h2>Name the cause <small>(for mastery; you can fix it without this)</small></h2>
-            <p>Pick the device and the kind of setting at fault, and show a step of a failing run on the diagram as your evidence.</p>
+            <p>Pick the device and the kind of setting at fault. For evidence, find a step of a failing run that shows the problem and choose it.</p>
             <div className="mission-fields">
               <label>
                 <span>Device</span>
@@ -269,9 +270,22 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
                 Submit diagnosis
               </button>
             </div>
-            <p className="mission-evidence-now">
-              Evidence shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send something first"}
-            </p>
+            <div className="mission-evidence-now">
+              <p>
+                Step shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send something first"}{" "}
+                <button className="text-button" disabled={!journey.trace} onClick={() => journey.trace && setChosen({ trace: journey.trace, index: journey.index })}>
+                  Use this step as evidence
+                </button>
+              </p>
+              {chosen && (
+                <p>
+                  Your evidence: step {chosen.index + 1}, {chosen.trace.events[chosen.index].title}{" "}
+                  <button className="text-button" onClick={() => journey.show(chosen.trace, chosen.index)}>
+                    Show it
+                  </button>
+                </p>
+              )}
+            </div>
             {diagnosisFeedback && (
               <p className="mission-feedback" role="status">
                 {diagnosisFeedback}
@@ -307,7 +321,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       ) : (
         <section className="mission-card" aria-label="Investigate">
           <h2>{mission.question.prompt}</h2>
-          <p>Send the request, find the evidence in the journey, then answer. Leave the diagram on the step that proves it.</p>
+          <p>Send the request, find the evidence in the journey and choose the step that proves it, then answer.</p>
           <div className="mission-fields">
             <label>
               <span>Acknowledgement number</span>
@@ -317,9 +331,22 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
               Submit answer
             </button>
           </div>
-          <p className="mission-evidence-now">
-            Evidence shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send the request first"}
-          </p>
+          <div className="mission-evidence-now">
+            <p>
+              Step shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send the request first"}{" "}
+              <button className="text-button" disabled={!journey.trace} onClick={() => journey.trace && setChosen({ trace: journey.trace, index: journey.index })}>
+                Use this step as evidence
+              </button>
+            </p>
+            {chosen && (
+              <p>
+                Your evidence: step {chosen.index + 1}, {chosen.trace.events[chosen.index].title}{" "}
+                <button className="text-button" onClick={() => journey.show(chosen.trace, chosen.index)}>
+                  Show it
+                </button>
+              </p>
+            )}
+          </div>
           {answerFeedback && (
             <p className="mission-feedback" role="status">
               {answerFeedback}

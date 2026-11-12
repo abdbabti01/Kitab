@@ -262,21 +262,71 @@ test("a diagnosis is judged against the version's actual cause, with feedback th
     }
 });
 
-test("evidence must be a step that shows the problem in a run that failed", () => {
-  for (const m of fixMissions)
+// The steps that show each version's fault in its own broken run, as "actor: title". Nothing else counts:
+// not the faulty device's other steps, and not frames merely sent to or from it.
+const expectedEvidence: Record<string, string[]> = {
+  "no-connection/cable": ["pc: Delivery stopped"],
+  "no-connection/port": ["pc: Delivery stopped"],
+  "no-connection/switches": ["pc: Delivery stopped"],
+  "no-connection/wifi": ["phone: Delivery stopped"],
+  "neighbours/pc-mask": ["pc: Delivery stopped"],
+  "neighbours/pc-address": ["pc: Delivery stopped"],
+  "neighbours/server-mask": ["server: Delivery stopped"],
+  "join-and-address/passphrase": ["phone: Delivery stopped"],
+  "join-and-address/ssid": ["phone: Delivery stopped"],
+  "join-and-address/static": ["phone: Delivery stopped"],
+  // The router received the Discover and offered nothing.
+  "join-and-address/dhcp-off": ["router: Receive frame", "phone: Delivery stopped"],
+  "join-and-address/pool": ["router: Receive frame", "router: Delivery stopped"],
+  "leave-the-lan/no-gateway": ["pc: Delivery stopped"],
+  // The PC's route decision names the gateway nobody owns.
+  "leave-the-lan/wrong-gateway": ["pc: Choose a route", "pc: Delivery stopped"],
+  "leave-the-lan/server-gateway": ["server: Delivery stopped"],
+  "leave-the-lan/router-route": ["router: Delivery stopped"],
+  // The request leaves the home router still from 192.168.1.10: the missing translation, then the failed return.
+  "bring-reply-home/nat-off": ["router: Transmit over Ethernet", "isp: Delivery stopped"],
+  "bring-reply-home/nat-swapped": ["router: Transmit over Ethernet", "isp: Delivery stopped"],
+  "bring-reply-home/no-default": ["router: Delivery stopped"],
+  "missing-segment/short": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+  "missing-segment/long": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+  "missing-segment/internet": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+};
+
+test("evidence is only a step that shows this version's fault, in every version", () => {
+  const seen = new Set<string>();
+  for (const m of missions)
     for (const v of m.variants) {
+      const key = `${m.id}/${v.id}`;
+      seen.add(key);
       const t = runSequence(v.build(), [v.probe]);
-      assert.equal(evidenceShows(m, v, t, t.events.length - 1), true, `${m.id}/${v.id}: the stop is evidence`);
-      const fixed = runSequence(apply(v, cases[m.id][v.id].fix), [v.probe]);
-      assert.equal(evidenceShows(m, v, fixed, fixed.events.length - 1), false, "a working run shows no problem");
+      const shown = t.events.flatMap((e, i) => (evidenceShows(m, v, t, i) ? [`${e.actor}: ${e.title}`] : []));
+      assert.deepEqual(shown, expectedEvidence[key], key);
+      // Superficially related steps are refused: anything else the faulty device did, or a frame to or from it.
+      const devices = v.faults.map((f) => f.device);
+      t.events.forEach((e, i) => {
+        if (expectedEvidence[key].includes(`${e.actor}: ${e.title}`)) return;
+        if (devices.includes(e.actor) || devices.includes(e.hop?.from ?? "") || devices.includes(e.hop?.to ?? ""))
+          assert.equal(evidenceShows(m, v, t, i), false, `${key}: step ${i} (${e.actor}: ${e.title}) is only near the fault`);
+      });
+      if (m.kind === "fix") {
+        // A working run shows no problem, even at the same kind of step.
+        const fixed = runSequence(apply(v, cases[m.id][v.id].fix), [v.probe]);
+        fixed.events.forEach((_, i) => assert.equal(evidenceShows(m, v, fixed, i), false, `${key}: working run step ${i}`));
+      }
     }
-  const inv = mission("missing-segment") as InvestigateMission;
-  for (const v of inv.variants) {
-    const t = runSequence(v.build(), [v.probe]);
-    const retransmit = t.events.findIndex((e) => e.title === "Retransmit TCP segment");
-    assert.equal(evidenceShows(inv, v, t, retransmit), true);
-    assert.equal(evidenceShows(inv, v, t, 0), false);
-  }
+  assert.deepEqual([...seen].sort(), Object.keys(expectedEvidence).sort());
+});
+
+test("a stop caused by a different fault is not evidence for this one", () => {
+  // No connection, server unplugged: unplugging the PC as well stops the run at the PC for its own reason.
+  const m = mission("no-connection");
+  const v = m.variants.find((x) => x.id === "cable")!;
+  const n = v.build();
+  dev(n, "pc").interfaces[0].enabled = false;
+  const t = runSequence(n, [v.probe]);
+  assert.equal(t.success, false);
+  assert.notEqual(t.reason, runSequence(v.build(), [v.probe]).reason);
+  t.events.forEach((_, i) => assert.equal(evidenceShows(m, v, t, i), false, `step ${i}: ${t.events[i].title}`));
 });
 
 test("the investigation's answer comes from each version's own run and differs between versions", () => {

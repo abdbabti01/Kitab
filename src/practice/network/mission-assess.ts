@@ -1,6 +1,6 @@
 // Judging a mission attempt from the network the learner built and the runs it produces.
 // Pure and deterministic: no UI state, no text matching on what the learner typed.
-import { newSession, simulate } from "./engine.ts";
+import { isPrivate, newSession, simulate } from "./engine.ts";
 import { failures } from "./explanations.ts";
 import type { Device, Network, Trace } from "./model.ts";
 import type { Area, Aspect, FixMission, InvestigateMission, Lock, NetworkMission, Variant } from "./missions.ts";
@@ -120,16 +120,31 @@ export function diagnose(variant: Variant, guess: Diagnosis, network: Network) {
 }
 
 /**
- * Whether an event shows the problem: in a run that failed, the step where it stopped or any step taken
- * by, or sent to, the device at fault. For an investigation, one of the mission's evidence events.
+ * Whether an event shows this version's fault, in a run that failed. Only two kinds of step do:
+ * - the stop, when the engine puts it down to this fault: the same reason as the version's own broken run,
+ *   or a failure at a faulty device;
+ * - the faulty device's decision that exposes the faulty setting: its route choice (address, mask, gateway,
+ *   routes), a DHCP Discover it received and never answered, or a packet it sent from a private source to a
+ *   public destination, which NAT should have translated.
+ * Any other step by the faulty device does not, however close to the problem. For an investigation, one of
+ * the mission's evidence events.
  */
 export function evidenceShows(mission: NetworkMission, variant: Variant, trace: Trace, index: number) {
   const e = trace.events[index];
   if (!e) return false;
   if (mission.kind === "investigate") return (mission as InvestigateMission).evidence(trace.events).includes(index);
   if (trace.success) return false;
-  const devices = variant.faults.map((f) => f.device);
-  return e.error === true || devices.includes(e.actor) || (!!e.hop && (devices.includes(e.hop.from) || devices.includes(e.hop.to)));
+  const faulty = (device: string | undefined, areas: Area[] = []) =>
+    variant.faults.some((f) => f.device === device && (!areas.length || areas.includes(f.area)));
+  if (e.error)
+    return e.reason === runSequence(variant.build(), [variant.probe]).reason || faulty(e.failure?.device) || faulty(e.failure?.cause?.device);
+  if (e.title === "Choose a route") return faulty(e.actor, ["address", "mask", "gateway", "routes"]);
+  if (e.title === "Receive frame" && e.packet?.startsWith("dhcp-")) return faulty(e.actor, ["dhcp"]);
+  const ip = e.layers.find((l) => l.kind === "network")?.fields;
+  return (
+    !!e.hop && e.hop.from === e.actor && faulty(e.actor, ["nat"]) &&
+    !!ip && isPrivate(String(ip["Source IP"])) && !isPrivate(String(ip["Destination IP"]))
+  );
 }
 
 /**

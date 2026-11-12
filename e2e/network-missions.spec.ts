@@ -44,12 +44,28 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   await expect(page.locator(".journey-card h2")).toHaveText("The next hop cannot be reached on this LAN");
 
-  // Diagnose, using the step on the diagram as evidence.
+  // Diagnose. The step "Show where and why" placed on the diagram is not evidence until the learner chooses it.
   await openMissionTab(page);
   await page.getByLabel("Faulty device").selectOption("server");
   await page.getByLabel("Faulty setting").selectOption("link");
   await page.getByRole("button", { name: "Submit diagnosis" }).click();
-  await expect(steps(page)).toContainText("Yes: the problem is File server's setting. The step you are showing is good evidence.");
+  await expect(steps(page)).toContainText(`Yes: the problem is File server's setting. To record evidence, find a step of a failing run that shows the problem and choose it with "Use this step as evidence".`);
+  // A step that is only near the problem is refused.
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Create ICMP echo request/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText("The step you chose does not show this problem.");
+  // The step where delivery stopped, chosen deliberately, is evidence.
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await expect(steps(page)).toContainText("Your evidence: step 7, Delivery stopped");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText("Yes: the problem is File server's setting. The step you chose is good evidence.");
 
   // Fix it in the Device tab: connect the server's cable.
   await selectDevice(page, "File server");
@@ -142,9 +158,10 @@ test("the investigation mission is answered from evidence found in the journey",
   await page.getByRole("button", { name: "Steps", exact: true }).click();
   await page.locator(".event-list").getByRole("button", { name: /Retransmit TCP segment/ }).click();
   await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
   await page.getByLabel("Acknowledgement number").fill(ack);
   await page.getByRole("button", { name: "Submit answer" }).click();
-  await expect(steps(page)).toContainText("Correct, and the step you are showing is the retransmission evidence.");
+  await expect(steps(page)).toContainText("Correct, and the step you chose is the evidence.");
   await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
 });
 
@@ -167,13 +184,14 @@ test("the long version sends its request in two segments, resends only the lost 
   await expect(events.getByRole("button", { name: /Retransmit TCP segment/ })).toHaveCount(1);
   await events.getByRole("button", { name: /Retransmit TCP segment/ }).click();
   await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
   // An ACK for the whole request is the misconception; the ACK confirms only the 96 resent bytes.
   await page.getByLabel("Acknowledgement number").fill("1127");
   await page.getByRole("button", { name: "Submit answer" }).click();
   await expect(page.getByRole("region", { name: "Mission completed" })).toHaveCount(0);
   await page.getByLabel("Acknowledgement number").fill("1097");
   await page.getByRole("button", { name: "Submit answer" }).click();
-  await expect(steps(page)).toContainText("Correct, and the step you are showing is the retransmission evidence.");
+  await expect(steps(page)).toContainText("Correct, and the step you chose is the evidence.");
   await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
 });
 

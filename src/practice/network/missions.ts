@@ -897,11 +897,12 @@ export const missions: NetworkMission[] = [
       },
       explain: "The resent segment starts at its sequence number and carries a number of bytes; the receiver then expects the byte right after them, and says so in its ACK.",
     },
+    // The lost segment, its retransmission, and the cumulative ACK that confirms the resent bytes.
     evidence: (events) => {
       const at = events.findIndex((e) => e.title === "Retransmit TCP segment");
       if (at < 0) return [];
-      const packet = events.slice(at + 1).find((e) => e.packet?.startsWith("ip-"))?.packet;
-      return events.flatMap((e, i) => (i === at || (packet && e.packet === packet) ? [i] : []));
+      const ack = events.findIndex((e, i) => i > at && e.title === "Acknowledge received bytes");
+      return events.flatMap((e, i) => (e.title === "Drop TCP data segment" || i === at || i === ack ? [i] : []));
     },
     explanation: {
       prompt: "How did the connection recover the lost bytes?",

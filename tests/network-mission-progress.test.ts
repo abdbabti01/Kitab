@@ -96,3 +96,28 @@ test("TCP missions use the same four states", () => {
   assert.equal(practiceState(p({ "tcp-lab": { ...base, attempts: [done] } }), "tcp-lab", "1.0.0"), "completed");
   assert.equal(practiceState(p({ "tcp-lab": { ...base, attempts: [done], masteredAt: "x" } }), "tcp-lab", "1.0.0"), "mastered");
 });
+
+test("progress saved under the earlier evidence rule keeps its completion and mastery", () => {
+  // A record as the earlier rule saved it: two strong attempts whose evidence was any step near the fault.
+  const saved = {
+    version: 1,
+    missions: {
+      [join.id]: {
+        missionVersion: join.version,
+        attempts: [strong("passphrase", "2026-11-01T10:00:00Z"), strong("dhcp-off", "2026-11-02T10:00:00Z")],
+        completedAt: "2026-11-01T10:05:00Z",
+        masteredAt: "2026-11-02T10:05:00Z",
+      },
+    },
+  };
+  let s = loadMissionStore(memory({ [MISSIONS_KEY]: JSON.stringify(saved) }));
+  assert.equal(missionState(s.missions[join.id], join), "mastered");
+  assert.deepEqual(masteredVariants(s.missions[join.id], join), ["passphrase", "dhcp-off"]);
+  // A new attempt judged by the stricter rule, without evidence, neither removes nor rewrites the old ones.
+  s = recordAttempt(s, join, { ...strong("static", "2026-11-12T10:00:00Z"), evidence: false });
+  const r = s.missions[join.id];
+  assert.equal(missionState(r, join), "mastered");
+  assert.equal(r.masteredAt, "2026-11-02T10:05:00Z");
+  assert.equal(r.completedAt, "2026-11-01T10:05:00Z");
+  assert.deepEqual(r.attempts.slice(0, 2), saved.missions[join.id].attempts);
+});
