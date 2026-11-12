@@ -1,10 +1,11 @@
 // The diagram with Follow the Journey on it: canvas, controls, explanation card and view options.
 // Shared by the playground and missions; it reads everything from one useJourney() state.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Globe2 } from "lucide-react";
 import { NetworkCanvas } from "./NetworkCanvas.tsx";
 import { JourneyCard, JourneyControls } from "./Journey.tsx";
 import { DeviceCloseup } from "./PacketInspector.tsx";
+import { motionAt } from "./network/motion.ts";
 import type { Journey } from "./useJourney.ts";
 import type { DeviceKind, Network } from "./network/model.ts";
 
@@ -34,6 +35,11 @@ export function JourneyStage({
   onInspect: () => void;
 }) {
   const [inside, setInside] = useState(false);
+  // A hop takes most of one playback step, so the frame arrives before the next event is shown.
+  const motion = useMemo(
+    () => (j.trace ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, 1100 / j.speed) * 0.8) } : undefined),
+    [j.trace, j.index, j.speed, network],
+  );
   return (
     <>
       <div className="journey-stage" ref={j.journeyRef}>
@@ -48,6 +54,11 @@ export function JourneyStage({
           onMove={onMove}
           onAdd={onAdd}
           follow={j.follow}
+          motion={motion}
+          onPacket={() => {
+            j.setPlaying(false);
+            onInspect();
+          }}
         >
           {!j.trace && start && (
             <button className="button primary journey-start" disabled={start.disabled} onClick={start.onClick}>

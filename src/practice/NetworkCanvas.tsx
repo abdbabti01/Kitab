@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useLayoutEffect, type PointerEvent, type R
 import { Maximize, Minus, Plus, Move, MousePointer2 } from "lucide-react";
 import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
+import type { Motion } from "./network/motion.ts";
 import type {
   Network,
   Session,
@@ -19,8 +20,14 @@ export function NetworkCanvas({
   follow,
   focus,
   onPositions,
+  motion,
+  onPacket,
   children,
 }: {
+  /** What moves at this step, read from the trace (see motion.ts), and how long a hop takes in ms. */
+  motion?: Motion & { ms: number };
+  /** Opens the current message's headers. */
+  onPacket?: () => void;
   /** Overlays drawn on the canvas, such as the first-run start button. */
   children?: ReactNode;
   network: Network;
@@ -88,7 +95,7 @@ export function NetworkCanvas({
     return new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
   }
   function down(e: PointerEvent<SVGSVGElement>) {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || (e.target as Element).closest("[data-packet]")) return;
     const target = (e.target as Element).closest("[data-device]");
     const id = target?.getAttribute("data-device") ?? "";
     const p = point(e.clientX, e.clientY);
@@ -266,13 +273,13 @@ export function NetworkCanvas({
             return null;
           const pa = displayPosition(a),
             pb = displayPosition(b);
-          const path = cable(pa, pb),
-            active = event?.hop?.link === l.id;
+          const active = event?.hop?.link === l.id;
+          const forwarding = motion?.forward?.links.includes(l.id) ? `is-${motion.forward.kind}` : "";
           return (
             <g key={l.id}>
               <path
-                d={path}
-                className={`network-wire ${l.medium} ${active ? "active" : ""} ${onPath.has(l.id) ? "in-path" : ""}`}
+                d={cable(pa, pb)}
+                className={`network-wire ${l.medium} ${active ? "active" : ""} ${onPath.has(l.id) ? "in-path" : ""} ${forwarding}`}
               />
               <text
                 className="link-label"
@@ -281,24 +288,6 @@ export function NetworkCanvas({
               >
                 {l.medium === "wifi" ? "Wi-Fi" : "Ethernet"}
               </text>
-              {active && (
-                <g>
-                  <circle r="8" className="traveling-packet">
-                    <animateMotion
-                      key={event?.id}
-                      dur="1.4s"
-                      repeatCount="indefinite"
-                      path={event.hop?.from === a.id ? path : cable(pb, pa)}
-                    />
-                  </circle>
-                  <circle
-                    cx={(pa.x + pb.x) / 2}
-                    cy={(pa.y + pb.y) / 2}
-                    r="7"
-                    className="static-packet"
-                  />
-                </g>
-              )}
             </g>
           );
         })}
@@ -441,6 +430,18 @@ export function NetworkCanvas({
             </g>
           );
         })}
+        {motion && (
+          <PacketLayer
+            motion={motion}
+            eventId={event?.id ?? 0}
+            place={(id) => {
+              const d = devices.find((x) => x.id === id);
+              return d && displayPosition(d);
+            }}
+            name={(id) => network.devices.find((d) => d.id === id)?.name ?? id}
+            onPacket={onPacket}
+          />
+        )}
         {!network.devices.length && (
           <g className="empty-canvas">
             <text x="750" y="255" textAnchor="middle">
@@ -494,5 +495,124 @@ export function NetworkCanvas({
         <MousePointer2 size={13} /> Select & move
       </span>
     </div>
+  );
+}
+
+type Point = { x: number; y: number };
+/** A point on the cable drawn between two devices (the same cubic curve as cable()). */
+const along = (a: Point, b: Point, t: number): Point => {
+  const m = (a.x + b.x) / 2,
+    u = 1 - t;
+  return { x: u ** 3 * a.x + 3 * u * u * t * m + 3 * u * t * t * m + t ** 3 * b.x, y: u ** 3 * a.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t ** 3 * b.y };
+};
+const reducedMotion = () => {
+  try {
+    return matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch {
+    return false;
+  }
+};
+
+/** The message on the diagram: crossing its link once, held at the device working on it, or stopped. */
+function PacketLayer({
+  motion,
+  eventId,
+  place,
+  name,
+  onPacket,
+}: {
+  motion: Motion & { ms: number };
+  eventId: number;
+  place: (id: string) => Point | undefined;
+  name: (id: string) => string;
+  onPacket?: () => void;
+}) {
+  const { packet, held, halt } = motion;
+  let token: ReactNode = null;
+  const select = {
+    role: "button",
+    tabIndex: 0,
+    "data-packet": "",
+    onClick: onPacket,
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onPacket?.();
+      }
+    },
+  };
+  const badge = (kind: string, label: string, broadcast = false) => {
+    const w = label.length * 7 + 18;
+    return (
+      <>
+        <circle r="26" className="packet-hit" />
+        {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y="-15" width={w + 10} height="30" rx="15" />}
+        <rect className="packet-shape" x={-w / 2} y="-10" width={w} height="20" rx={kind === "ip" ? 10 : kind === "arp" ? 2 : 6} />
+        <text className="packet-label" y="4" textAnchor="middle">
+          {label}
+        </text>
+      </>
+    );
+  };
+  if (packet) {
+    const a = place(packet.from),
+      b = place(packet.to);
+    if (a && b) {
+      // Leave the sender's tile and stop at the receiver's edge, or halfway where the frame was lost.
+      const t0 = Math.min(0.45, 70 / (Math.hypot(b.x - a.x, b.y - a.y) || 1));
+      const t1 = packet.lost ? 0.5 : 1 - t0;
+      const points = Array.from({ length: 13 }, (_, i) => along(a, b, t0 + ((t1 - t0) * i) / 12));
+      const end = points.at(-1)!;
+      const still = reducedMotion() || motion.ms <= 0;
+      token = (
+        <g
+          key={eventId}
+          className={`packet-token kind-${packet.kind}${packet.lost ? " is-lost" : ""}`}
+          transform={still ? `translate(${end.x} ${end.y})` : undefined}
+          aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}. Inspect its headers`}
+          {...select}
+        >
+          {!still && (
+            <animateMotion
+              ref={(el) => (el as SVGAnimationElement | null)?.beginElement()}
+              begin="indefinite"
+              dur={`${motion.ms}ms`}
+              fill="freeze"
+              values={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(";")}
+            />
+          )}
+          {badge(packet.kind, packet.label, packet.broadcast)}
+          {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform="translate(0 -24)" />}
+        </g>
+      );
+    }
+  } else if (held) {
+    const at = place(held.device);
+    if (at)
+      token = (
+        <g
+          className={`packet-token is-held kind-${held.kind}`}
+          transform={`translate(${at.x + 44} ${at.y - 52})`}
+          aria-label={`${held.label} message at ${name(held.device)}. Inspect its headers`}
+          {...select}
+        >
+          {badge(held.kind, held.label)}
+        </g>
+      );
+  }
+  const stop = halt && place(halt.device);
+  return (
+    <>
+      {token}
+      {stop && (
+        <g className={`packet-halt is-${halt!.kind}`} transform={`translate(${stop.x + 44} ${stop.y - 52})`} aria-hidden="true">
+          <circle r="13" />
+          <path d="M-5 -5 L5 5 M5 -5 L-5 5" />
+          <text y="-19" textAnchor="middle">
+            {halt!.kind === "stopped" ? "Stopped" : "Discarded"}
+          </text>
+        </g>
+      )}
+    </>
   );
 }

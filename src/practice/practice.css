@@ -396,17 +396,87 @@
 .device-led.off {
   fill: #b5b9b2;
 }
-.traveling-packet {
-  fill: #e7ad54;
-  stroke: white;
-  stroke-width: 3;
-  filter: drop-shadow(0 0 6px #c89756);
+/* The message at this step: kind by shape and label (ARP square, DHCP rounded, IP pill), coloured by the
+   layer that defines it as in the legend (darker shades, so white labels stay readable). */
+.packet-token {
+  cursor: pointer;
 }
-.static-packet {
-  display: none;
-  fill: #bd8033;
+.packet-token:focus {
+  outline: none;
+}
+.packet-token:focus-visible .packet-shape {
+  stroke: #17324a;
+  stroke-width: 3;
+}
+.packet-hit {
+  fill: transparent;
+}
+.packet-shape {
   stroke: white;
   stroke-width: 2;
+  filter: drop-shadow(0 1px 3px #0003);
+}
+.packet-label {
+  fill: white;
+  font: 700 10px var(--mono);
+  pointer-events: none;
+}
+.kind-ip .packet-shape {
+  fill: #3a6595;
+}
+.kind-arp .packet-shape {
+  fill: #23675f;
+}
+.kind-dhcp .packet-shape {
+  fill: #8f5a17;
+}
+.packet-broadcast {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  color: #6c7c70;
+}
+.packet-token.is-held .packet-shape {
+  opacity: 0.85;
+}
+.packet-cross,
+.packet-halt path {
+  stroke: #b3261e;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.packet-halt circle {
+  fill: #fff4f2;
+  stroke: #b3261e;
+  stroke-width: 2;
+}
+.packet-halt.is-discarded circle {
+  fill: #f6f3ea;
+  stroke: #8a7957;
+}
+.packet-halt.is-discarded path {
+  stroke: #8a7957;
+}
+.packet-halt text {
+  font: 700 10px var(--font);
+  fill: #7a1f19;
+  paint-order: stroke;
+  stroke: #f5f7ef;
+  stroke-width: 4px;
+}
+.packet-halt.is-discarded text {
+  fill: #5f513a;
+}
+/* A bridge's decision: the one link its MAC table chose, or every link of a flood. */
+.network-wire.is-forward {
+  stroke: #2f7a5c;
+  stroke-width: 5;
+}
+.network-wire.is-flood {
+  stroke: #b36b12;
+  stroke-width: 4;
+  stroke-dasharray: 10 5;
 }
 .canvas-hint {
   position: absolute;
@@ -1456,12 +1526,6 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .traveling-packet {
-    display: none;
-  }
-  .static-packet {
-    display: block;
-  }
   .network-playground * {
     transition: none !important;
     animation: none !important;
