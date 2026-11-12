@@ -101,6 +101,7 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
         <p role="status">
           <b>What happened:</b> {text(done, done.answer)}.
         </p>
+        {done.options.find((o) => o.id === pick)?.why && <p className="predict-miss">{done.options.find((o) => o.id === pick)!.why}</p>}
         <p className="predict-why">{done.explain}</p>
         <div className="predict-actions">
           <button className="button primary" onClick={next}>

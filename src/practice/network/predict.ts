@@ -17,13 +17,20 @@ export type Checkpoint = {
   /** Where the decision is made. */
   device: string;
   question: string;
-  options: { id: string; text: string }[];
+  /** `why`: for some wrong choices, what that choice mixes up, from the same recorded values. */
+  options: { id: string; text: string; why?: string }[];
   answer: string;
   /** What happened and why, from the recorded events. */
   explain: string;
 };
 /** `ips`: the choices are addresses, labelled with their device only when every one of them has one. */
-type Draft = Omit<Checkpoint, "id" | "options" | "answer"> & { right: string; wrong: (string | false | undefined)[]; ips?: boolean };
+type Draft = Omit<Checkpoint, "id" | "options" | "answer"> & {
+  right: string;
+  wrong: (string | false | undefined)[];
+  ips?: boolean;
+  /** Why a particular wrong choice is wrong, keyed by that choice. */
+  whyNot?: Record<string, string>;
+};
 
 const field = (e: TraceEvent | undefined, layer: string, name: string) => e?.layers.find((l) => l.name === layer)?.fields[name];
 const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
@@ -33,8 +40,11 @@ function make(d: Draft): Checkpoint | null {
   if (texts.length < 2 || d.ask < 0 || d.at <= d.ask) return null;
   const id = `${d.kind}:${d.at}`;
   const ids = texts.map((_, k) => String.fromCharCode(97 + k));
-  const options = optionOrder(id, ids).map((o) => ({ id: o, text: texts[ids.indexOf(o)] }));
-  const { right, wrong, ips, ...rest } = d;
+  const options = optionOrder(id, ids).map((o) => {
+    const text = texts[ids.indexOf(o)];
+    return d.whyNot?.[text] && text !== d.right ? { id: o, text, why: d.whyNot[text] } : { id: o, text };
+  });
+  const { right, wrong, ips, whyNot, ...rest } = d;
   return { ...rest, id, options, answer: "a" };
 }
 
@@ -58,7 +68,12 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
     if (!d.ips) return d;
     const all = [d.right, ...d.wrong].filter((w): w is string => !!w);
     const label = (ip: string) => (all.every((x) => owner(x)) ? `${ip} (${owner(ip)!.name})` : ip);
-    return { ...d, right: label(d.right), wrong: d.wrong.map((w) => w && label(w)) };
+    return {
+      ...d,
+      right: label(d.right),
+      wrong: d.wrong.map((w) => w && label(w)),
+      whyNot: d.whyNot && Object.fromEntries(Object.entries(d.whyNot).map(([k, v]) => [label(k), v])),
+    };
   };
 
   // Which next hop a device chooses: the first host, and the first router.
@@ -78,6 +93,9 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
       right: nh,
       wrong: [dest, ...known.filter((ip) => ip && ip !== nh)].slice(0, 3),
       ips: true,
+      whyNot: {
+        [dest]: `${dest} is the destination address. It stays in the packet's IPv4 header all the way, but ${name(e.actor)} sends the frame only as far as the next hop on its link, ${addr(nh)}.`,
+      },
       explain:
         nh === dest
           ? `${dest} is on a network ${name(e.actor)} is connected to (route "${e.facts!.Route}"), so it sends the packet straight to it.`
@@ -95,6 +113,9 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
     const heard = [...new Set(ev.filter((e) => e.packet === id && e.title === "Receive frame" && !["switch", "ap"].includes(kind(e.actor))).map((e) => e.actor))];
     const holder = owner(who)?.id;
     const nobody = `No device: nobody on this LAN replies for ${who}`;
+    // The reply's frame, as recorded: addressed to one device, not to everyone.
+    const replyFrame = ev.find((e) => e.packet === `${id}-reply` && e.frame);
+    const unicast = !!replyFrame && field(replyFrame, "Ethernet frame", "Destination MAC") !== undefined && field(replyFrame, "Ethernet frame", "Destination MAC") !== "ff:ff:ff:ff:ff:ff";
     const others = [...new Set([...heard, ...(holder ? [holder] : [])])].filter((x) => x !== asker);
     if (reply >= 0)
       drafts.push({
@@ -105,6 +126,14 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
         question: `${name(asker)} broadcasts "Who has ${who}?" to every device on its LAN. Which device answers?`,
         right: name(ev[reply].actor),
         wrong: [...others.filter((x) => x !== ev[reply].actor).slice(0, 2).map(name), nobody],
+        whyNot: Object.fromEntries(
+          heard
+            .filter((x) => x !== ev[reply].actor && x !== asker)
+            .map((x) => [
+              name(x),
+              `${name(x)} received the broadcast, as every device on the LAN does, but it does not have ${who}, so it stays silent.${unicast ? ` Only ${name(ev[reply].actor)} replies, and its reply is sent to ${name(asker)} alone, not broadcast.` : ""}`,
+            ]),
+        ),
         explain: `${name(ev[reply].actor)} has the address ${who}, so it alone replies with its MAC address ${field(ev[reply], "ARP reply", "Sender MAC")}. Every other device that hears the broadcast ignores it.`,
       });
     else if (failure?.reason?.startsWith("ARP_") && failure.failure)
@@ -271,6 +300,13 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
         right: after,
         wrong: [before, lan(r)],
         ips: true,
+        whyNot:
+          t >= 0
+            ? {
+                [before]: `${before} is the private source the packet arrived with. Private addresses are not routed on the internet, so ${name(r)} rewrites the source, not the destination, before the packet leaves.`,
+                ...(lan(r) ? { [lan(r)!]: `${lan(r)} is ${name(r)}'s address on the home network. Replies from the internet must reach the router's public side, so that is the source it uses.` } : {}),
+              }
+            : undefined,
         explain:
           t >= 0
             ? `${name(r)} uses NAT: it replaced the private source ${ev[t].facts?.Inside} with its public address ${ev[t].facts?.Outside}, and remembers that mapping so the reply can find its way back.`
@@ -292,6 +328,9 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
         right: after,
         wrong: [before, lan(r)],
         ips: true,
+        whyNot: {
+          [before]: `${before} is ${name(r)}'s own public address, where the reply arrived. To pass it on to the device that asked, ${name(r)} uses its NAT mapping to rewrite the destination back to that device's private address.`,
+        },
         explain: `${name(r)} found the NAT mapping it made for the outgoing packet (${ev[back].facts?.Outside} → ${ev[back].facts?.Inside}) and restored the private destination.`,
       });
   }
@@ -314,6 +353,11 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
         question: `${name(rv)} has received ${bytes} bytes starting at sequence number ${seq}. What acknowledgement number will it send back?`,
         right: String(ack),
         wrong: [String(seq), String(seq + bytes - 1), String(ack + 1)],
+        whyNot: {
+          [String(seq)]: `${seq} is the sequence number of the first byte that arrived. An acknowledgement names the next byte expected, here ${ack}, not the first one received.`,
+          [String(seq + bytes - 1)]: `${seq + bytes - 1} is the last byte that arrived. An acknowledgement names the next byte expected, here ${ack}.`,
+          [String(ack + 1)]: `One too many: ${ack - 1} is the last byte ${name(rv)} has, so the next byte it expects is ${ack}.`,
+        },
         explain: `An acknowledgement number is the next byte expected. ${name(rv)} has every byte up to ${ack - 1}, so it sends ${ack}: one number that acknowledges all the bytes before it.`,
       });
   }

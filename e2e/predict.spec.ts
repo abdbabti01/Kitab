@@ -42,6 +42,8 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   await pick(page, "198.51.100.53 (DNS server)");
   await expect(result(page).getByRole("heading")).toHaveText("Not quite. You predicted: 198.51.100.53 (DNS server).");
   await expect(result(page)).toContainText("What happened: 192.168.1.1 (Home router).");
+  // What the wrong choice mixed up: the destination address with the next hop.
+  await expect(result(page).locator(".predict-miss")).toHaveText("198.51.100.53 is the destination address. It stays in the packet's IPv4 header all the way, but Your PC sends the frame only as far as the next hop on its link, 192.168.1.1 (Home router).");
   await expect(result(page)).toContainText('the route "Default gateway" sends it to 192.168.1.1 (Home router) first');
   await expect(page.locator(".journey-position b")).toContainText("Look up the name");
   await page.getByRole("radio", { name: "Every event" }).click();

@@ -159,3 +159,24 @@ test("every starter's own journey has something to predict, and checkpoints are 
   assert.ok(ms < 100, `${ms} ms`);
   console.log(`# checkpoints of ${largest.name}: ${largest.trace.events.length} events in ${ms.toFixed(1)} ms`);
 });
+
+test("a wrong choice can say what it mixes up, using the same recorded values", () => {
+  for (const { name, network, trace } of runs)
+    for (const c of checkpointsOf(trace, network))
+      for (const o of c.options.filter((x) => x.why)) {
+        const where = `${name} ${c.id} ${o.text}`;
+        assert.notEqual(o.id, c.answer, where);
+        if (c.kind === "ack") assert.ok(o.why!.includes(right(c)), `${where}: names the real ACK`);
+        if (c.kind === "next-hop") assert.ok(o.why!.includes(ip(right(c))), `${where}: names the real next hop`);
+        if (c.kind === "arp-answer" && o.why!.includes("not broadcast")) {
+          const reply = trace.events.find((e) => e.packet?.endsWith("-reply") && e.frame && e.layers.some((l) => l.name === "ARP reply"))!;
+          assert.notEqual(field(reply, "Ethernet frame", "Destination MAC"), "ff:ff:ff:ff:ff:ff", where);
+        }
+      }
+  const { cs } = run("internet: HTTP by name");
+  const why = (kind: string, text: string) => cs.find((c) => c.kind === kind)!.options.find((o) => o.text === text)?.why;
+  assert.match(why("next-hop", "198.51.100.53 (DNS server)")!, /is the destination address\. It stays in the packet's IPv4 header/);
+  assert.match(why("arp-answer", "Your phone")!, /received the broadcast.*its reply is sent to Your PC alone, not broadcast/);
+  assert.match(why("ack", "1001")!, /sequence number of the first byte that arrived/);
+  assert.match(why("nat-out", "192.168.1.10 (Your PC)")!, /rewrites the source, not the destination/);
+});

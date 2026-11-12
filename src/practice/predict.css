@@ -85,3 +85,8 @@
   font-size: 12px;
   color: var(--muted);
 }
+.predict-miss {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--danger-soft);
+}
