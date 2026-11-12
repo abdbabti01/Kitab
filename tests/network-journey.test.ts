@@ -29,11 +29,11 @@ test("Summary moves by stage end, Every event by one event, both on the one even
 test("the card is placed beside its device when that is clear, and never over a stage device when another spot is", () => {
   const box = { w: 300, h: 200 }, area = { w: 1000, h: 480 };
   const beside = place({ x: 100, y: 240 }, box, area, [], []);
-  assert.deepEqual([beside.x, beside.y], [166, 140]);
+  assert.deepEqual([beside.x, beside.y], [176, 140]);
   assert.ok(beside.score < 1, "nothing covered");
-  // A device tile reaches 60 units sideways, 50 up and 97 down (its name): the card covers none of it.
+  // A device tile reaches 70 units sideways, 58 up and 120 down (its name): the card covers none of it.
   const tile = (p: { x: number; y: number }, c: { x: number; y: number }) =>
-    p.x + 60 > c.x && p.x - 60 < c.x + box.w && p.y + 97 > c.y && p.y - 50 < c.y + box.h;
+    p.x + 70 > c.x && p.x - 70 < c.x + box.w && p.y + 120 > c.y && p.y - 58 < c.y + box.h;
   const spot = place({ x: 100, y: 240 }, box, area, [{ x: 250, y: 240 }], []);
   assert.ok(!tile({ x: 250, y: 240 }, spot));
   assert.ok(spot.score < 10);

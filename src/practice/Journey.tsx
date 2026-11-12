@@ -199,7 +199,14 @@ export function JourneyCard({
   const [details, setDetails] = useState(false);
   // A shorter card when no clear spot exists for the full one; tried again at every step.
   const [compact, setCompact] = useState(false);
-  useLayoutEffect(() => setCompact(false), [index]);
+  // Under the diagram when even the shorter card would cover a device. While a stage plays this holds for the whole
+  // stage, so the page below does not jump at every event.
+  const [docked, setDocked] = useState(false);
+  const placeKey = playing && mode !== "events" ? `stage ${stageAt(stages, index)}` : `event ${index}`;
+  useLayoutEffect(() => {
+    setCompact(false);
+    setDocked(false);
+  }, [placeKey]);
   const k = stageAt(stages, index);
   const stage = stages[k];
   // Playing a stage, the card stays on the latest event of it that did something new; routine repeats pass by
@@ -217,7 +224,7 @@ export function JourneyCard({
     const el = card.current,
       area = el?.parentElement?.querySelector(".network-canvas");
     const origin = area?.getBoundingClientRect();
-    // The canvas's own buttons must stay reachable.
+    // The canvas's own buttons must stay reachable; its bars are kept clear by placing the card between them.
     const controls = [...(area?.querySelectorAll(".canvas-zoom, .internet-toggle") ?? [])].map((c) => {
       const r = c.getBoundingClientRect();
       return { x: r.left - origin!.left, y: r.top - origin!.top, w: r.width, h: r.height };
@@ -233,9 +240,14 @@ export function JourneyCard({
       controls,
       Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
       scale,
+      {
+        top: area.querySelector<HTMLElement>(".canvas-bar")?.offsetHeight ?? 0,
+        bottom: area.querySelector<HTMLElement>(".canvas-foot")?.offsetHeight ?? 0,
+      },
     );
     // Covering any device (even one outside the stage) makes the card compact first: devices must stay clickable.
     if (next.score >= 2 && !compact && !details) return setCompact(true);
+    if (next.score >= 2 && !details) return setDocked(true);
     setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : { x: next.x, y: next.y }));
   });
   const [room, setRoom] = useState(0);
@@ -263,7 +275,7 @@ export function JourneyCard({
   return (
     <section
       ref={card}
-      className={`journey-card ${event.error ? "is-error" : ""} ${spot ? "is-placed" : ""} ${details ? "has-details" : ""} ${compact ? "is-compact" : ""}`}
+      className={`journey-card ${event.error ? "is-error" : ""} ${spot ? "is-placed" : ""} ${details ? "has-details" : ""} ${compact ? "is-compact" : ""} ${docked ? "is-docked" : ""}`}
       style={style}
       aria-label="Explanation of the current step"
     >

@@ -37,7 +37,7 @@ export function JourneyStage({
   selected: string;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
-  onAdd: (kind: DeviceKind, x: number, y: number) => void;
+  onAdd: (kind: DeviceKind, x?: number, y?: number) => void;
   /** The first-run button shown on the diagram before anything has been sent. */
   start?: { label: string; disabled: boolean; onClick: () => void };
   onAbout: (id: string) => void;

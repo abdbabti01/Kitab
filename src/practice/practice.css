@@ -272,22 +272,61 @@
   font: normal 22px var(--display);
   color: var(--ink);
 }
+/* The diagram is the centre of the page: a bar of its own controls, the drawing, and a hint line. */
 .network-canvas {
-  height: 480px;
+  height: 600px;
   position: relative;
   background: #f5f7ef;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .topology-svg {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   touch-action: none;
   user-select: none;
 }
+.canvas-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e3e8dc;
+  background: #f9faf4;
+  position: relative;
+  z-index: 2;
+}
+.canvas-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.canvas-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 16px;
+  border-top: 1px solid #e3e8dc;
+  background: #f9faf4;
+}
+.canvas-layout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--primary);
+}
 .canvas-caption {
-  position: absolute;
-  top: 17px;
-  left: 21px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -377,7 +416,7 @@
   }
   to {
     opacity: 0;
-    transform: scale(1.8);
+    transform: scale(1.45);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -386,7 +425,7 @@
   }
 }
 .link-label {
-  font: 10px var(--mono);
+  font: 11px var(--mono);
   fill: #6c7c70;
   paint-order: stroke;
   stroke: #f5f7ef;
@@ -425,11 +464,19 @@
 }
 .device-name {
   fill: var(--ink);
-  font: 600 13px var(--font);
+  font: 600 17px var(--font);
+  paint-order: stroke;
+  stroke: #f5f7ef;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .device-ip {
-  fill: #637466;
-  font: 10px var(--mono);
+  fill: #586b5b;
+  font: 13px var(--mono);
+  paint-order: stroke;
+  stroke: #f5f7ef;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .device-led {
   fill: #619f77;
@@ -522,9 +569,6 @@
   stroke-dasharray: 10 5;
 }
 .canvas-hint {
-  position: absolute;
-  bottom: 16px;
-  left: 20px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -533,9 +577,6 @@
   pointer-events: none;
 }
 .canvas-zoom {
-  position: absolute;
-  bottom: 12px;
-  right: 14px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -548,8 +589,8 @@
 .canvas-zoom button {
   border: 0;
   background: transparent;
-  width: 28px;
-  height: 27px;
+  width: 34px;
+  height: 32px;
   color: var(--muted);
   display: grid;
   place-items: center;
@@ -560,9 +601,6 @@
   text-align: center;
 }
 .canvas-mode {
-  position: absolute;
-  right: 16px;
-  top: 15px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1297,7 +1335,7 @@
 }
 @media (min-width: 1600px) {
   .network-canvas {
-    height: 560px;
+    height: 680px;
   }
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr) 370px;
@@ -1327,10 +1365,9 @@
     padding: 7px;
   }
   .network-canvas {
-    height: 400px;
+    height: 540px;
   }
   .canvas-hint {
-    max-width: 58%;
     line-height: 1.6;
   }
   .view-options > span {
@@ -1363,7 +1400,7 @@
     margin: auto;
   }
   .network-canvas {
-    height: 430px;
+    height: 540px;
   }
   .workspace-toolbar {
     flex-wrap: wrap;
@@ -1458,7 +1495,7 @@
     margin-left: 0;
   }
   .network-canvas {
-    height: 340px;
+    height: 520px;
   }
   .canvas-caption {
     left: 13px;
@@ -1589,14 +1626,12 @@
   }
 }
 .internet-toggle {
-  position: absolute;
-  top: 46px;
-  right: 16px;
+  min-height: 34px;
   border: 1px solid var(--line);
   background: #fffef9dd;
-  border-radius: 6px;
-  padding: 6px 9px;
-  font-size: 9px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
   color: var(--primary);
 }
 
@@ -2265,11 +2300,6 @@
 }
 /* Before the first run: the one action that starts the journey, at the top of the diagram, where it is seen first. */
 .network-canvas .journey-start {
-  position: absolute;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  z-index: 2;
   min-height: 40px;
   padding: 9px 18px;
   box-shadow: 0 6px 18px #193a2d33;
@@ -2669,5 +2699,143 @@
   .layer-box.is-added,
   .layer-box.is-removed {
     animation: none;
+  }
+}
+/* ---- Phase 4 diagram: what each device is, what it is doing, and where the message goes. ---- */
+/* On a narrow screen the diagram is arranged in rows and gets the height to show two or three of them. */
+.network-canvas.is-stacked {
+  height: min(74vh, 660px);
+}
+.is-stacked .device-name {
+  font-size: 15.5px;
+}
+.is-stacked .device-ip {
+  font-size: 12px;
+}
+/* Each kind of device has its own ink, for its drawing and the small label of its kind. */
+.network-device.kind-pc,
+.network-device.kind-phone {
+  color: #2f6c53;
+}
+.network-device.kind-switch {
+  color: #2d5f88;
+}
+.network-device.kind-router {
+  color: #6a4a8c;
+}
+.network-device.kind-ap {
+  color: #8a5a16;
+}
+.network-device.kind-server {
+  color: #7a4e2b;
+}
+.device-kind {
+  fill: currentColor;
+  font: 700 9px var(--font);
+  letter-spacing: 1px;
+}
+/* A ring around the tile says what the device does at this step; nothing flashes. */
+.device-ring {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 3;
+}
+.network-device.is-working .device-ring {
+  stroke: #1f5a3f;
+  stroke-dasharray: 7 5;
+}
+.network-device.is-sender .device-ring {
+  stroke: #b57729;
+}
+.network-device.is-receiver .device-ring {
+  stroke: #357a60;
+  stroke-dasharray: 6 5;
+}
+/* The receiver lights up when the frame arrives, at the end of its hop. */
+.network-device.is-receiver .device-tile {
+  animation: device-arrive 0.01s linear var(--arrive, 0ms) both;
+}
+@keyframes device-arrive {
+  to {
+    fill: #eef7f0;
+    stroke: #2a7a56;
+    stroke-width: 4;
+    stroke-dasharray: none;
+  }
+}
+.network-device.is-forwarding .device-ring {
+  stroke: #2d5f88;
+  stroke-width: 4;
+}
+.network-device.is-stopped .device-ring {
+  stroke: #b3261e;
+  stroke-width: 4;
+}
+.network-device.is-stopped .device-tile {
+  fill: #fff4f2;
+  stroke: #b3261e;
+}
+.network-device.is-discarded .device-ring {
+  stroke: #8a7957;
+  stroke-dasharray: 3 4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .network-device.is-receiver .device-tile {
+    animation-delay: 0ms;
+  }
+}
+/* What the acting device is doing, under it: the step, and the decision the trace recorded. */
+.action-tag rect {
+  fill: #1a2721;
+}
+.action-tag.is-stopped rect {
+  fill: #a0352c;
+}
+.action-title {
+  fill: #fffef9;
+  font: 600 12.5px var(--font);
+}
+.action-detail {
+  fill: #cfe3d4;
+  font: 11.5px var(--mono);
+}
+/* The link a routing decision chose, before the frame is sent on it. */
+.network-wire.is-chosen {
+  stroke: #2a7a56;
+  stroke-width: 4;
+  stroke-dasharray: 8 6;
+}
+/* The link a frame was lost on. */
+.network-wire.active.is-lost {
+  stroke: #b3261e;
+  stroke-dasharray: 6 5;
+}
+.canvas-bar .journey-start {
+  order: 1;
+}
+/* No clear place on the diagram: the card waits under it rather than cover a device. */
+.journey-card.is-docked {
+  position: static;
+  width: auto;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border-width: 1px 0 0 4px;
+  box-shadow: none;
+  visibility: visible;
+}
+@media (max-width: 500px) {
+  .canvas-bar {
+    padding: 8px 10px;
+  }
+  .canvas-caption > span:last-child {
+    display: none;
+  }
+  .canvas-foot .canvas-mode {
+    display: none;
+  }
+  .canvas-bar .journey-start {
+    order: 3;
+    width: 100%;
   }
 }

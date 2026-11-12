@@ -33,22 +33,27 @@ export function place(
   others: Point[] = [],
   /** Pixels per diagram unit: device tiles shrink and grow with the canvas. */
   scale = 1,
+  /** The drawing's band inside the area: the canvas's own bars above and below it are not places for the card. */
+  band = { top: 0, bottom: 0 },
 ): Point & { score: number } {
-  const gap = 66;
+  // Clear of the tile, which reaches 70 units to each side.
+  const gap = 76;
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-  const right = area.w - box.w - 8,
-    bottom = area.h - box.h - 8;
-  const grid = [0, 0.25, 0.5, 0.75, 1].flatMap((fx) => [0, 0.5, 1].map((fy) => ({ x: 8 + fx * (right - 8), y: 8 + fy * (bottom - 8) })));
+  const top = band.top + 8,
+    right = area.w - box.w - 8,
+    bottom = Math.max(top, area.h - band.bottom - box.h - 8);
+  const grid = [0, 0.25, 0.5, 0.75, 1].flatMap((fx) => [0, 0.5, 1].map((fy) => ({ x: 8 + fx * (right - 8), y: top + fy * (bottom - top) })));
   const candidates = [
     { x: anchor.x + gap, y: anchor.y - box.h / 2 },
     { x: anchor.x - gap - box.w, y: anchor.y - box.h / 2 },
     { x: anchor.x - box.w / 2, y: anchor.y + gap + 30 },
     { x: anchor.x - box.w / 2, y: anchor.y - gap - box.h },
     ...grid,
-  ].map((c) => ({ x: clamp(c.x, 8, right), y: clamp(c.y, 8, bottom) }));
+  ].map((c) => ({ x: clamp(c.x, 8, right), y: clamp(c.y, top, bottom) }));
   // A device tile spans 60 units either side of its centre, 50 above it and 97 below (its name and address).
+  // (Drawn 15% larger since the diagram redesign: 70 either side, 58 above and 120 below.)
   const covers = (c: Point, p: Point) =>
-    p.x + 60 * scale > c.x && p.x - 60 * scale < c.x + box.w && p.y + 97 * scale > c.y && p.y - 50 * scale < c.y + box.h;
+    p.x + 70 * scale > c.x && p.x - 70 * scale < c.x + box.w && p.y + 120 * scale > c.y && p.y - 58 * scale < c.y + box.h;
   const overlaps = (c: Point, r: Rect) => c.x < r.x + r.w && c.x + box.w > r.x && c.y < r.y + r.h && c.y + box.h > r.y;
   // Beside the device wins whenever it is clear; grid spots are fallbacks, nearest first.
   const score = (c: Point, i: number) =>

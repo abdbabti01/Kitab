@@ -96,3 +96,27 @@ export function durationsOf(events: TraceEvent[], network: Network, stages: { st
   }
   return out;
 }
+
+/**
+ * What a device is doing at this step, for the label beside it: the step's title and, where the trace records the
+ * decision, its result (the next hop, a NAT translation, a DNS answer). `link` is the link a routing decision chose,
+ * only when the trace records its interface. Nothing here is inferred beyond the event's own facts.
+ */
+export function actionAt(e: TraceEvent, network: Network): { device: string; title: string; detail?: string; link?: string } {
+  const f = e.facts ?? {};
+  const named = (ip: string | number) => {
+    const d = network.devices.find((d) => d.interfaces.some((p) => p.ip === ip));
+    return d ? `${ip} (${d.name})` : String(ip);
+  };
+  let detail: string | undefined;
+  if (f["Next hop"] !== undefined) detail = `Next hop ${named(f["Next hop"])}`;
+  else if (f.Name !== undefined && f.Address !== undefined) detail = `${f.Name} is ${f.Address}`;
+  else if (f.Inside !== undefined && f.Outside !== undefined) detail = e.title.startsWith("Restore") ? `${f.Outside} → ${f.Inside}` : `${f.Inside} → ${f.Outside}`;
+  else if (f.MAC !== undefined && f.Port !== undefined) detail = e.title.startsWith("Learn") ? `${f.MAC} is on port ${f.Port}` : `Out of port ${f.Port}`;
+  else if (f.IP !== undefined && f.MAC !== undefined) detail = `${f.IP} is at ${f.MAC}`;
+  else if (f.Server !== undefined) detail = `Asks ${named(f.Server)}`;
+  else if (f.Remote !== undefined) detail = `To ${f.Remote}`;
+  const port = f.Interface;
+  const link = port === undefined ? undefined : network.links.find((l) => [l.a, l.b].some((p) => p.device === e.actor && p.port === port))?.id;
+  return { device: e.actor, title: e.title, detail, link };
+}
