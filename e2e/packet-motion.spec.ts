@@ -67,3 +67,24 @@ test("with reduced motion the frame is drawn at the receiver without moving", as
   await expect(token(page).locator("animateMotion")).toHaveCount(0);
   await expect(token(page)).toHaveAttribute("transform", /^translate\(/);
 });
+
+test("the frame has a finger-sized touch area that never takes taps from the device beside it", async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await goToEvent(page, /Transmit over Ethernet/);
+  await page.locator(".journey-stage").scrollIntoViewIfNeeded();
+  const hit = await page.locator(".packet-hit").boundingBox();
+  expect(hit!.width).toBeGreaterThanOrEqual(43);
+  const box = (await token(page).locator(".packet-shape").boundingBox())!;
+  // Just below the drawn frame: outside its shape, inside its touch area.
+  const tap = { x: box.x + box.width / 2, y: box.y + box.height + 8 };
+  const tapAt = (p: { x: number; y: number }) => (info.project.use.hasTouch ? page.touchscreen.tap(p.x, p.y) : page.mouse.click(p.x, p.y));
+  await tapAt(tap);
+  await expect(page.locator(".packet-inspector")).toContainText("ARP request");
+  // The receiving switch's own tile still selects the switch.
+  await page.locator(".journey-stage").scrollIntoViewIfNeeded();
+  const sw = (await page.locator('[data-device="switch"] .device-tile').boundingBox())!;
+  await tapAt({ x: sw.x + sw.width / 2, y: sw.y + sw.height / 2 });
+  await expect(page.locator('[data-device="switch"]')).toHaveClass(/selected/);
+});

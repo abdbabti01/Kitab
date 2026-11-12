@@ -78,7 +78,9 @@ export function NetworkCanvas({
   let view = { x: pan.x, y: pan.y };
   // Following the journey frames the current stage's devices when the whole network would be too small
   // to read (below 0.4 px per unit: tiles under ~40 px); otherwise every device stays in view and reachable.
-  const [canvasWidth, setCanvasWidth] = useState(0);
+  const [canvasWidth, setCanvasWidth] = useState(0),
+    // Screen pixels per diagram unit, to size touch areas in pixels.
+    [unitPx, setUnitPx] = useState(1);
   const framed = follow && focus && canvasWidth > 0 && canvasWidth / extent.width < 0.4
     ? network.devices.filter((d) => focus.devices.includes(d.id) || focus.hops.some((h) => h.from === d.id || h.to === d.id))
     : [];
@@ -153,6 +155,7 @@ export function NetworkCanvas({
       if (w && w !== canvasWidth) setCanvasWidth(w);
       const m = svg.current?.getScreenCTM(),
         box = wrap.current?.getBoundingClientRect();
+      if (m && m.a !== unitPx) setUnitPx(m.a);
       if (!m || !box || !onPositions) return;
       const out: Record<string, { x: number; y: number }> = {};
       for (const d of devices) {
@@ -170,6 +173,10 @@ export function NetworkCanvas({
     if (wrap.current) observer.observe(wrap.current);
     return () => observer.disconnect();
   });
+  const place = (id: string) => {
+    const d = devices.find((x) => x.id === id);
+    return d && displayPosition(d);
+  };
   const onPath = new Set(focus?.hops.map((h) => h.link));
   const involved = focus && new Set([...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])]);
   const cable = (
@@ -339,161 +346,176 @@ export function NetworkCanvas({
             </text>
           </g>
         )}
-        {visibleDevices.map((d) => {
-          const p = d.interfaces
-            .map((p) => effectiveInterface(d, p, session))
-            .find((p) => p.ip);
-          const active = event?.actor === d.id;
-          return (
-            <g
-              key={d.id}
-              transform={`translate(${d.x} ${d.y})`}
-              className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${event?.hop?.from === d.id ? "is-sender" : ""} ${event?.hop?.to === d.id ? "is-receiver" : ""} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}`}
-              role="button"
-              tabIndex={0}
-              aria-label={`Select ${d.name}`}
-              data-device={d.id}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  onSelect(d.id);
-                }
-                if (
-                  ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
-                    e.key,
-                  )
-                ) {
-                  e.preventDefault();
-                  onMove(
-                    d.id,
-                    Math.max(
-                      60,
-                      Math.min(
-                        2940,
-                        d.x +
-                          (e.key === "ArrowRight"
-                            ? 20
-                            : e.key === "ArrowLeft"
-                              ? -20
-                              : 0),
-                      ),
+        {/* The message's touch area: about 44 px wherever it rests, drawn under the devices so a device still
+            gets taps on its own tile. */}
+        {motion && (() => {
+          const spot = restingSpot(motion, place);
+        return (
+          spot && (
+            <circle
+              className="packet-hit"
+              cx={spot.at.x}
+              cy={spot.at.y}
+              r={Math.min(60, Math.max(26, 22 / unitPx))}
+              data-packet=""
+              aria-hidden="true"
+              onClick={onPacket}
+            />
+          )
+        );
+      })()}
+      {visibleDevices.map((d) => {
+        const p = d.interfaces
+          .map((p) => effectiveInterface(d, p, session))
+          .find((p) => p.ip);
+        const active = event?.actor === d.id;
+        return (
+          <g
+            key={d.id}
+            transform={`translate(${d.x} ${d.y})`}
+            className={`network-device ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${event?.hop?.from === d.id ? "is-sender" : ""} ${event?.hop?.to === d.id ? "is-receiver" : ""} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Select ${d.name}`}
+            data-device={d.id}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(d.id);
+              }
+              if (
+                ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(
+                  e.key,
+                )
+              ) {
+                e.preventDefault();
+                onMove(
+                  d.id,
+                  Math.max(
+                    60,
+                    Math.min(
+                      2940,
+                      d.x +
+                        (e.key === "ArrowRight"
+                          ? 20
+                          : e.key === "ArrowLeft"
+                            ? -20
+                            : 0),
                     ),
-                    Math.max(
-                      85,
-                      Math.min(
-                        1930,
-                        d.y +
-                          (e.key === "ArrowDown"
-                            ? 20
-                            : e.key === "ArrowUp"
-                              ? -20
-                              : 0),
-                      ),
+                  ),
+                  Math.max(
+                    85,
+                    Math.min(
+                      1930,
+                      d.y +
+                        (e.key === "ArrowDown"
+                          ? 20
+                          : e.key === "ArrowUp"
+                            ? -20
+                            : 0),
                     ),
-                  );
-                }
-              }}
-            >
-              <rect
-                className="device-tile"
-                x="-52"
-                y="-49"
-                width="104"
-                height="99"
-                rx="22"
-                filter="url(#device-shadow)"
-              />
-              <DeviceArt kind={d.kind} />
-              <circle
-                cx="42"
-                cy="-39"
-                r="5"
-                className={
-                  d.interfaces.some((p) => p.enabled)
-                    ? "device-led"
-                    : "device-led off"
-                }
-              />
-              <text className="device-name" y="72" textAnchor="middle">
-                {d.name.length > 24 ? `${d.name.slice(0, 22)}…` : d.name}
-              </text>
-              <text className="device-ip" y="91" textAnchor="middle">
-                {p?.ip ??
-                  (d.kind === "phone"
-                    ? "DHCP · awaiting address"
-                    : d.kind === "switch"
-                      ? "MAC forwarding"
-                      : d.kind === "ap"
-                        ? d.ssid
-                        : "Unconfigured")}
-              </text>
-            </g>
-          );
-        })}
-        {motion && (
-          <PacketLayer
-            motion={motion}
-            eventId={event?.id ?? 0}
-            place={(id) => {
-              const d = devices.find((x) => x.id === id);
-              return d && displayPosition(d);
+                  ),
+                );
+              }
             }}
-            name={(id) => network.devices.find((d) => d.id === id)?.name ?? id}
-            onPacket={onPacket}
-          />
-        )}
-        {!network.devices.length && (
-          <g className="empty-canvas">
-            <text x="750" y="255" textAnchor="middle">
-              Every network starts with a connection.
+          >
+            <rect
+              className="device-tile"
+              x="-52"
+              y="-49"
+              width="104"
+              height="99"
+              rx="22"
+              filter="url(#device-shadow)"
+            />
+            <DeviceArt kind={d.kind} />
+            <circle
+              cx="42"
+              cy="-39"
+              r="5"
+              className={
+                d.interfaces.some((p) => p.enabled)
+                  ? "device-led"
+                  : "device-led off"
+              }
+            />
+            <text className="device-name" y="72" textAnchor="middle">
+              {d.name.length > 24 ? `${d.name.slice(0, 22)}…` : d.name}
             </text>
-            <text x="750" y="290" textAnchor="middle" className="small">
-              Add a device from the tray above, then connect its ports.
+            <text className="device-ip" y="91" textAnchor="middle">
+              {p?.ip ??
+                (d.kind === "phone"
+                  ? "DHCP · awaiting address"
+                  : d.kind === "switch"
+                    ? "MAC forwarding"
+                    : d.kind === "ap"
+                      ? d.ssid
+                      : "Unconfigured")}
             </text>
           </g>
-        )}
-      </svg>
-      <div className="canvas-hint">
-        <Move size={14} /> Drag devices · drag background to pan · select to
-        configure
-      </div>
-      <div className="canvas-zoom">
-        <button
-          aria-label="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-        >
-          <Minus size={16} />
-        </button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <button
-          aria-label="Zoom in"
-          onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-        >
-          <Plus size={16} />
-        </button>
-        <button
-          aria-label="Fit network"
-          onClick={() => {
-            setExtent(bounds());
-            setZoom(1);
-            setPan({ x: 0, y: 0 });
-          }}
-        >
-          <Maximize size={16} />
-        </button>
-      </div>
-      {internetIds.size > 0 && (
-        <button
-          className="internet-toggle"
-          onClick={() => setCollapsedInternet((v) => !v)}
-        >
-          {collapsedInternet ? "Expand Internet" : "Collapse Internet"}
-        </button>
+        );
+      })}
+      {motion && (
+        <PacketLayer
+          motion={motion}
+          eventId={event?.id ?? 0}
+          place={place}
+          name={(id) => network.devices.find((d) => d.id === id)?.name ?? id}
+          onPacket={onPacket}
+        />
       )}
-      {children}
-      <span className="canvas-mode">
-        <MousePointer2 size={13} /> Select & move
-      </span>
+      {!network.devices.length && (
+        <g className="empty-canvas">
+          <text x="750" y="255" textAnchor="middle">
+            Every network starts with a connection.
+          </text>
+          <text x="750" y="290" textAnchor="middle" className="small">
+            Add a device from the tray above, then connect its ports.
+          </text>
+        </g>
+      )}
+    </svg>
+    <div className="canvas-hint">
+      <Move size={14} /> Drag devices · drag background to pan · select to
+      configure
+    </div>
+    <div className="canvas-zoom">
+      <button
+        aria-label="Zoom out"
+        onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+      >
+        <Minus size={16} />
+      </button>
+      <span>{Math.round(zoom * 100)}%</span>
+      <button
+        aria-label="Zoom in"
+        onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+      >
+        <Plus size={16} />
+      </button>
+      <button
+        aria-label="Fit network"
+        onClick={() => {
+          setExtent(bounds());
+          setZoom(1);
+          setPan({ x: 0, y: 0 });
+        }}
+      >
+        <Maximize size={16} />
+      </button>
+    </div>
+    {internetIds.size > 0 && (
+      <button
+        className="internet-toggle"
+        onClick={() => setCollapsedInternet((v) => !v)}
+      >
+        {collapsedInternet ? "Expand Internet" : "Collapse Internet"}
+      </button>
+    )}
+    {children}
+    <span className="canvas-mode">
+      <MousePointer2 size={13} /> Select & move
+    </span>
     </div>
   );
 }
@@ -505,6 +527,22 @@ const along = (a: Point, b: Point, t: number): Point => {
     u = 1 - t;
   return { x: u ** 3 * a.x + 3 * u * u * t * m + 3 * u * t * t * m + t ** 3 * b.x, y: u ** 3 * a.y + 3 * u * u * t * a.y + 3 * u * t * t * b.y + t ** 3 * b.y };
 };
+/** Where the message rests at this step: at the receiver's edge of its link (halfway if lost), with the path
+ * there, or beside the device working on it. */
+function restingSpot({ packet, held }: Motion, place: (id: string) => Point | undefined): { at: Point; points?: Point[] } | null {
+  if (packet) {
+    const a = place(packet.from),
+    b = place(packet.to);
+    if (!a || !b) return null;
+    // Leave the sender's tile and stop at the receiver's edge, or halfway where the frame was lost.
+    const t0 = Math.min(0.45, 70 / (Math.hypot(b.x - a.x, b.y - a.y) || 1));
+    const t1 = packet.lost ? 0.5 : 1 - t0;
+    const points = Array.from({ length: 13 }, (_, i) => along(a, b, t0 + ((t1 - t0) * i) / 12));
+    return { at: points.at(-1)!, points };
+  }
+  const at = held && place(held.device);
+  return at ? { at: { x: at.x + 44, y: at.y - 52 } } : null;
+}
 const reducedMotion = () => {
   try {
     return matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -535,70 +573,60 @@ function PacketLayer({
     "data-packet": "",
     onClick: onPacket,
     onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onPacket?.();
-      }
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onPacket?.();
+    }
     },
   };
   const badge = (kind: string, label: string, broadcast = false) => {
     const w = label.length * 7 + 18;
     return (
-      <>
-        <circle r="26" className="packet-hit" />
-        {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y="-15" width={w + 10} height="30" rx="15" />}
-        <rect className="packet-shape" x={-w / 2} y="-10" width={w} height="20" rx={kind === "ip" ? 10 : kind === "arp" ? 2 : 6} />
-        <text className="packet-label" y="4" textAnchor="middle">
-          {label}
-        </text>
-      </>
+    <>
+      {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y="-15" width={w + 10} height="30" rx="15" />}
+      <rect className="packet-shape" x={-w / 2} y="-10" width={w} height="20" rx={kind === "ip" ? 10 : kind === "arp" ? 2 : 6} />
+      <text className="packet-label" y="4" textAnchor="middle">
+        {label}
+      </text>
+    </>
     );
   };
-  if (packet) {
-    const a = place(packet.from),
-      b = place(packet.to);
-    if (a && b) {
-      // Leave the sender's tile and stop at the receiver's edge, or halfway where the frame was lost.
-      const t0 = Math.min(0.45, 70 / (Math.hypot(b.x - a.x, b.y - a.y) || 1));
-      const t1 = packet.lost ? 0.5 : 1 - t0;
-      const points = Array.from({ length: 13 }, (_, i) => along(a, b, t0 + ((t1 - t0) * i) / 12));
-      const end = points.at(-1)!;
-      const still = reducedMotion() || motion.ms <= 0;
-      token = (
-        <g
-          key={eventId}
-          className={`packet-token kind-${packet.kind}${packet.lost ? " is-lost" : ""}`}
-          transform={still ? `translate(${end.x} ${end.y})` : undefined}
-          aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}. Inspect its headers`}
-          {...select}
-        >
-          {!still && (
-            <animateMotion
-              ref={(el) => (el as SVGAnimationElement | null)?.beginElement()}
-              begin="indefinite"
-              dur={`${motion.ms}ms`}
-              fill="freeze"
-              values={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(";")}
-            />
-          )}
-          {badge(packet.kind, packet.label, packet.broadcast)}
-          {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform="translate(0 -24)" />}
-        </g>
-      );
-    }
-  } else if (held) {
-    const at = place(held.device);
-    if (at)
-      token = (
-        <g
-          className={`packet-token is-held kind-${held.kind}`}
-          transform={`translate(${at.x + 44} ${at.y - 52})`}
-          aria-label={`${held.label} message at ${name(held.device)}. Inspect its headers`}
-          {...select}
-        >
-          {badge(held.kind, held.label)}
-        </g>
-      );
+  const spot = restingSpot(motion, place);
+  if (packet && spot?.points) {
+    const { at: end, points } = spot;
+    const still = reducedMotion() || motion.ms <= 0;
+    token = (
+      <g
+        key={eventId}
+        className={`packet-token kind-${packet.kind}${packet.lost ? " is-lost" : ""}`}
+        transform={still ? `translate(${end.x} ${end.y})` : undefined}
+        aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}. Inspect its headers`}
+        {...select}
+      >
+        {!still && (
+          <animateMotion
+            ref={(el) => (el as SVGAnimationElement | null)?.beginElement()}
+            begin="indefinite"
+            dur={`${motion.ms}ms`}
+            fill="freeze"
+            values={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(";")}
+          />
+        )}
+        {badge(packet.kind, packet.label, packet.broadcast)}
+        {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform="translate(0 -24)" />}
+      </g>
+    );
+  } else if (held && spot) {
+    token = (
+      <g
+        className={`packet-token is-held kind-${held.kind}`}
+        transform={`translate(${spot.at.x} ${spot.at.y})`}
+        aria-label={`${held.label} message at ${name(held.device)}. Inspect its headers`}
+        {...select}
+      >
+        {badge(held.kind, held.label)}
+      </g>
+    );
   }
   const stop = halt && place(halt.device);
   return (
