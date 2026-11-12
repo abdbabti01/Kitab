@@ -140,7 +140,7 @@ export function evidenceShows(mission: NetworkMission, variant: Variant, trace: 
     return e.reason === runSequence(variant.build(), [variant.probe]).reason || faulty(e.failure?.device) || faulty(e.failure?.cause?.device);
   if (e.title === "Choose a route") return faulty(e.actor, ["address", "mask", "gateway", "routes"]);
   if (e.title === "Receive frame" && e.packet?.startsWith("dhcp-")) return faulty(e.actor, ["dhcp"]);
-  const ip = e.layers.find((l) => l.kind === "network")?.fields;
+  const ip = e.layers.find((l) => l.name === "IPv4 packet")?.fields;
   return (
     !!e.hop && e.hop.from === e.actor && faulty(e.actor, ["nat"]) &&
     !!ip && isPrivate(String(ip["Source IP"])) && !isPrivate(String(ip["Destination IP"]))

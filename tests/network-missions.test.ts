@@ -317,6 +317,14 @@ test("evidence is only a step that shows this version's fault, in every version"
   assert.deepEqual([...seen].sort(), Object.keys(expectedEvidence).sort());
 });
 
+test("the untranslated packet is evidence whatever the learner sent: a ping as well as a page request", () => {
+  const m = mission("bring-reply-home");
+  const v = m.variants.find((x) => x.id === "nat-off")!;
+  const t = runSequence(v.build(), [{ kind: "ping", source: "pc", target: "198.51.100.20", ttl: 64 }]);
+  const shown = t.events.flatMap((e, i) => (evidenceShows(m, v, t, i) ? [`${e.actor}: ${e.title}`] : []));
+  assert.ok(shown.includes("router: Transmit over Ethernet"), shown.join(" | "));
+});
+
 test("a stop caused by a different fault is not evidence for this one", () => {
   // No connection, server unplugged: unplugging the PC as well stops the run at the PC for its own reason.
   const m = mission("no-connection");
