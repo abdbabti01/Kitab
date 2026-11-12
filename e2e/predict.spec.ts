@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps, openExchange } from "./track.ts";
 
 // Predict as you go, on the internet starter's web request: the first questions are the PC's next hop
 // (192.168.1.1, the home router) and who answers its ARP broadcast (the home router).
@@ -33,12 +34,14 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   await expect(page.getByRole("button", { name: "Next stage" })).toBeDisabled();
   // The counter gives the visible step, never a total that would make the hidden run look finished.
   await expect(page.locator(".journey-position small")).not.toContainText(" of ");
-  for (const view of ["Every event", "Exchange", "Summary"]) await page.getByRole("radio", { name: view }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  for (const view of ["Every event", "Summary"]) await page.getByRole("radio", { name: view }).click();
+  await toLast(page);
+  await openSteps(page);
   await expect(page.locator(".steps-list h2")).toHaveText("2 stages");
   await page.getByRole("radio", { name: "Every event" }).click();
   await expect(page.locator(".event-list button")).toHaveText([/Prepare HTTP request/, /DNS query/]);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await page.getByRole("radio", { name: "Summary" }).click();
+  await openExchange(page);
   await expect(exchange(page)).toContainText("No message has been sent yet.");
   await expect(page.locator(".network-inspector")).not.toContainText("Choose a route");
   await expect(question(page)).toBeVisible();
@@ -55,7 +58,7 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   // The next question: the DNS query waits for ARP, and the ARP request is created; neither is sent yet, no reply is shown.
   await result(page).getByRole("button", { name: "Continue" }).click();
   await expect(question(page).getByRole("heading")).toHaveText('Your PC broadcasts "Who has 192.168.1.1?" to every device on its LAN. Which device answers?');
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   await expect(exchange(page).locator(".exchange-row")).toHaveText([/^DNS query.*not sent yet/, /^ARP request.*not sent yet/]);
   await expect(exchange(page)).not.toContainText("ARP reply");
   await pick(page, "Home router");

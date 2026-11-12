@@ -1,8 +1,8 @@
 // Pure parts of Follow the Journey: where Previous/Next go, and where the card is placed.
 import { stageAt, type Stage } from "./network/stages.ts";
 
-/** Exchange moves by stage like Summary and adds the sequence diagram under the controls. */
-export type JourneyMode = "summary" | "events" | "exchange";
+/** Summary moves a stage at a time, Every event one event at a time. (The exchange is the track, under both.) */
+export type JourneyMode = "summary" | "events";
 export const MODE_KEY = "kitab.network.journeyMode";
 export type Point = { x: number; y: number };
 

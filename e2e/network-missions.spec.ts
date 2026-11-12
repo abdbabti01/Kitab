@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 const steps = (page: Page) => page.locator(".mission-steps");
 async function openMissionTab(page: Page) {
@@ -52,14 +53,16 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await expect(steps(page)).toContainText(`Yes: the problem is File server's setting. To record evidence, find a step of a failing run that shows the problem and choose it with "Use this step as evidence".`);
   // A step that is only near the problem is refused.
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /Create ICMP echo request/ }).click();
   await openMissionTab(page);
   await page.getByRole("button", { name: "Use this step as evidence" }).click();
   await page.getByRole("button", { name: "Submit diagnosis" }).click();
   await expect(steps(page)).toContainText("The step you chose does not show this problem.");
   // The step where delivery stopped, chosen deliberately, is evidence.
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
   await openMissionTab(page);
   await page.getByRole("button", { name: "Use this step as evidence" }).click();
@@ -152,11 +155,13 @@ test("the investigation mission is answered from evidence found in the journey",
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   // Find the ACK that follows the retransmission and read it in the Packet tab, as a learner would.
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /Acknowledge received bytes/ }).first().click();
   await page.getByRole("button", { name: "Packet", exact: true }).click();
   const ack = await page.locator(".packet-layer.layer-transport dl > div").filter({ hasText: "Acknowledgement" }).locator("dd").first().innerText();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /Retransmit TCP segment/ }).click();
   await openMissionTab(page);
   await page.getByRole("button", { name: "Use this step as evidence" }).click();
@@ -178,7 +183,8 @@ test("the long version sends its request in two segments, resends only the lost 
   await page.getByRole("button", { name: /The same bytes again, with the same sequence number/ }).click();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   const events = page.locator(".event-list");
   // Two request segments and two response segments; one retransmission.
   await expect(events.getByRole("button", { name: /Create TCP segment/ })).toHaveCount(4);
@@ -282,7 +288,8 @@ test("evidence found independently counts; assistance afterwards, or for the sam
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   // The learner finds the stop in the step list, without "Show where and why", and chooses it.
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
   await openMissionTab(page);
   await page.getByRole("button", { name: "Use this step as evidence" }).click();

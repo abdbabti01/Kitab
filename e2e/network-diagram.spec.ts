@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 // The redesigned diagram: readable on a phone without zooming, what each device is doing, and the packet's movement
 // matching the trace event by event.
@@ -118,7 +119,8 @@ test("every event of the two-LAN ping is drawn as the trace records it", async (
   await page.locator(".journey-start").click();
   await page.getByRole("button", { name: "Pause playback" }).click();
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   const titles = await page.locator(".event-list button b").allTextContents();
   const actors = await page.locator(".event-list button small").allTextContents();
   expect(titles).toHaveLength(39);

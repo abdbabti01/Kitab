@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 // Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
 async function toEnd(page: Page) {
@@ -9,7 +10,8 @@ async function toEnd(page: Page) {
 /** Shows every event, then selects one from the Steps tab by title. */
 async function goToEvent(page: Page, name: RegExp) {
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name }).first().click();
 }
 const token = (page: Page) => page.locator(".packet-token");
@@ -79,7 +81,7 @@ test("the frame has a finger-sized touch area that never takes taps from the dev
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await goToEvent(page, /Transmit over Ethernet/);
-  await page.locator(".journey-stage").scrollIntoViewIfNeeded();
+  await page.locator(".network-canvas").scrollIntoViewIfNeeded();
   const hit = await page.locator(".packet-hit").boundingBox();
   expect(hit!.width).toBeGreaterThanOrEqual(43);
   const box = (await token(page).locator(".packet-shape").boundingBox())!;
@@ -89,7 +91,7 @@ test("the frame has a finger-sized touch area that never takes taps from the dev
   await tapAt(tap);
   await expect(page.locator(".packet-inspector")).toContainText("ARP request");
   // The receiving switch's own tile still selects the switch.
-  await page.locator(".journey-stage").scrollIntoViewIfNeeded();
+  await page.locator(".network-canvas").scrollIntoViewIfNeeded();
   const sw = (await page.locator('[data-device="switch"] .device-tile').boundingBox())!;
   await tapAt({ x: sw.x + sw.width / 2, y: sw.y + sw.height / 2 });
   await expect(page.locator('[data-device="switch"]')).toHaveClass(/selected/);

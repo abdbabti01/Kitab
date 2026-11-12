@@ -10,7 +10,8 @@ import { capsuleAt } from "./network/packets.ts";
 import type { Journey } from "./useJourney.ts";
 import type { DeviceKind, Network } from "./network/model.ts";
 
-// The sequence diagram is only downloaded when the learner picks the Exchange view.
+import { Track } from "./Track.tsx";
+// The full exchange table is only downloaded when the learner opens it.
 const ExchangeView = lazy(() => import("./ExchangeView.tsx"));
 
 export function JourneyStage({
@@ -27,7 +28,10 @@ export function JourneyStage({
   prompt,
   options,
   explainBelow = false,
+  onPickStep,
 }: {
+  /** A step was chosen from the track's list of steps (the playground then shows Now). */
+  onPickStep?: () => void;
   /** Missions: the explanation sits under the diagram, because the side panel holds the mission itself. Elsewhere it
    * is the panel's Now tab (NowCard). */
   explainBelow?: boolean;
@@ -106,6 +110,7 @@ export function JourneyStage({
           onShowStop={j.showStop}
           outcomeHidden={j.gated}
           outcomeShown={j.revealed}
+          track={<Track journey={j} network={network} onDevice={onSelect} onInspect={() => onInspect(true)} onPickStep={onPickStep} />}
         />
         {prompt}
         {explainBelow && <NowCard journey={j} network={network} onAbout={onAbout} onInspect={() => onInspect(true)} advice={advice} />}
@@ -113,11 +118,12 @@ export function JourneyStage({
           {j.announcement}
         </p>
       </div>
-      {/* Always mounted, so choosing Exchange (a transition) keeps the page as it is until the view has loaded. */}
+      {/* The full exchange table, on request under the track. Always mounted, so opening it (a transition) keeps the page
+          as it is until it has loaded. Like the track, it shows only what has happened until the result may be shown. */}
       <Suspense fallback={<p className="exchange-loading">Loading the exchange…</p>}>
-        {j.mode === "exchange" && j.trace && (
+        {j.fullExchange && j.trace && (
           <ExchangeView
-            trace={j.trace}
+            trace={j.revealed ? j.trace : { ...j.trace, events: j.trace.events.slice(0, j.index + 1) }}
             index={j.index}
             network={network}
             onSelect={(i) => {
@@ -125,7 +131,7 @@ export function JourneyStage({
               onInspect(false);
             }}
             onInspect={() => onInspect(true)}
-            partial={j.gated}
+            partial={j.gated || !j.revealed}
           />
         )}
       </Suspense>

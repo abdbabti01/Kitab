@@ -5,6 +5,7 @@ import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
 import { beatsOf, durationsOf, type Beat } from "./network/motion.ts";
 import { MODE_KEY, type JourneyMode } from "./journey-nav.ts";
+const EXCHANGE_KEY = "kitab.network.fullExchange";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 
 export type InputError = { field: "source" | "target"; message: string };
@@ -35,10 +36,17 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
       try {
-        const saved = localStorage.getItem(MODE_KEY);
-        return saved === "events" || saved === "exchange" ? saved : "summary";
+        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
       } catch {
         return "summary";
+      }
+    }),
+    // The full exchange table under the track, remembered; a learner who had chosen the old Exchange view finds it open.
+    [fullExchange, setFullExchange] = useState(() => {
+      try {
+        return localStorage.getItem(EXCHANGE_KEY) === "open" || localStorage.getItem(MODE_KEY) === "exchange";
+      } catch {
+        return false;
       }
     });
   const journeyRef = useRef<HTMLDivElement>(null);
@@ -180,6 +188,15 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     clearInputError: () => setInputError(null),
     mode,
     chooseMode,
+    fullExchange,
+    setFullExchange: (open: boolean) => {
+      try {
+        localStorage.setItem(EXCHANGE_KEY, open ? "open" : "closed");
+      } catch {
+        /* Not remembered in a private window. */
+      }
+      startTransition(() => setFullExchange(open));
+    },
     stages,
     stage,
     event,

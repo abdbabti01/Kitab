@@ -2,15 +2,14 @@
 // and why), Packet (what the message carries and what changed), Device (a device's role, state and settings), and
 // every Step. Every view reads the one journey state; selecting the packet or a device opens its view.
 import type { ReactNode, RefObject } from "react";
-import { Flag, Layers, ListOrdered, Monitor, PlayCircle, Settings2 } from "lucide-react";
+import { Flag, Layers, Monitor, PlayCircle, Settings2 } from "lucide-react";
 import { DeviceInspector } from "./DeviceInspector.tsx";
 import { PacketInspector, StateTables } from "./PacketInspector.tsx";
-import { StepsList } from "./Journey.tsx";
 import { NowCard } from "./JourneyStage.tsx";
 import type { Journey } from "./useJourney.ts";
 import type { Device, Endpoint, Medium, Network } from "./network/model.ts";
 
-export type InspectorTab = "mission" | "now" | "packet" | "device" | "steps";
+export type InspectorTab = "mission" | "now" | "packet" | "device";
 /** How the selected device may be changed. */
 export type DeviceEditor = {
   onApply: (device: Device) => void;
@@ -49,7 +48,6 @@ export function InspectorPanel({
     ...(now ? [["now", PlayCircle, "Now"] as [InspectorTab, typeof Settings2, string]] : []),
     ["packet", Layers, "Packet"],
     ["device", Settings2, "Device"],
-    ["steps", ListOrdered, "Steps"],
   ];
   return (
     <aside ref={panelRef} className="network-inspector" aria-label="Network inspector">
@@ -97,27 +95,6 @@ export function InspectorPanel({
               <Monitor size={32} />
               <h2>Select a device</h2>
               <p>Click a device on the canvas to see what it does, configure its interfaces and connect it to your network.</p>
-            </div>
-          )
-        ) : tab === "steps" ? (
-          j.trace ? (
-            <StepsList
-              trace={j.trace}
-              stages={j.stages}
-              index={j.index}
-              mode={j.mode}
-              network={network}
-              // Choosing a step shows what happens at it.
-              onStep={(i) => {
-                j.step(i);
-                if (now) onTab("now");
-              }}
-            />
-          ) : (
-            <div className="inspector-empty">
-              <ListOrdered size={32} />
-              <h2>No journey yet</h2>
-              <p>Send something. Every step it takes will be listed here.</p>
             </div>
           )
         ) : (

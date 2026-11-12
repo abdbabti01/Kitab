@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 // Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
 // Selects a device on the diagram as a keyboard user does: on a phone the view moves to it first.
@@ -13,7 +14,8 @@ async function toEnd(page: Page) {
 /** Shows every event, then selects one from the Steps tab by title (and device). */
 async function goToEvent(page: Page, name: RegExp) {
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name }).first().click();
 }
 test("practice workspace runs and rewinds a real HTTP journey", async ({
@@ -132,7 +134,8 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     page.getByRole("button", { name: "Play journey", exact: true }),
   ).toBeVisible();
   // Device names distinguish repeated receive events and must remain visible on phones.
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await expect(page.locator(".event-list small").filter({ hasText: "Your PC" }).first()).toBeVisible();
   await page
     .locator(".event-list")
@@ -143,7 +146,8 @@ test("step explanations pause playback and explain DHCP recipients", async ({
   await expect(page.locator(".step-guide")).toContainText("does not answer");
   await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(page.locator(".step-guide")).toContainText("port 68 → 67");
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /DHCP Offer/ }).first().click();
   await expect(page.locator(".step-guide")).toContainText(
     "not simply because it is a router",
@@ -172,7 +176,8 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
 test("no playground control is clipped or pushed off screen", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   // Checks real clipping: a control wider than the viewport or than its nearest overflow-clipping ancestor.
   const clipped = await page.evaluate(() => {
     const out: string[] = [];

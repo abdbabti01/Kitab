@@ -1,6 +1,6 @@
 // Follow the Journey on the diagram: a card beside the active device, compact controls under the
 // canvas, and the full list of steps. All of it reads one position: the current event index.
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Check,
   ChevronLeft,
@@ -38,7 +38,10 @@ export function JourneyControls({
   onShowStop,
   outcomeHidden = false,
   outcomeShown = true,
+  track,
 }: {
+  /** The track under the controls: the timeline's slider, the stages and the exchange (Track.tsx). */
+  track: ReactNode;
   /** The result is kept back until playback reaches it (or the learner goes to the end). */
   outcomeShown?: boolean;
   /** Later events are hidden (Predict as you go): the outcome is not given away. */
@@ -108,9 +111,9 @@ export function JourneyControls({
         )}
       </div>
       <div className="journey-mode" role="radiogroup" aria-label="Timeline view">
-        {(["summary", "events", "exchange"] as const).map((m) => (
+        {(["summary", "events"] as const).map((m) => (
           <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => onMode(m)}>
-            {m === "summary" ? "Summary" : m === "events" ? "Every event" : "Exchange"}
+            {m === "summary" ? "Summary" : "Every event"}
           </button>
         ))}
       </div>
@@ -121,17 +124,7 @@ export function JourneyControls({
           </option>
         ))}
       </select>
-      <input
-        className="timeline-slider"
-        type="range"
-        aria-label="Journey timeline"
-        min={0}
-        max={Math.max(1, last)}
-        value={index}
-        disabled={!trace}
-        aria-valuetext={trace ? (outcomeHidden ? `Step ${index + 1}, later steps hidden` : `Event ${index + 1} of ${last + 1}`) : undefined}
-        onChange={(e) => onStep(Math.min(last, Number(e.target.value)))}
-      />
+      {track}
       {trace && outcomeHidden && (
         <div className="run-status" role="status">
           <span>The rest of this run appears once you answer the prediction or choose Show me.</span>

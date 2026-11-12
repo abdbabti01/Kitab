@@ -3035,3 +3035,272 @@
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+
+/* The track under the controls: stages over the timeline, then one lane per device with an arrow per link crossing. */
+.journey-controls .track {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  min-width: 0;
+}
+.track .timeline-slider {
+  width: 100%;
+  accent-color: var(--primary);
+  margin: 2px 0 0;
+}
+.track-band {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0 6px;
+  height: 22px;
+}
+.track-stage {
+  min-width: 3px;
+  border-radius: 3px;
+  background: var(--line);
+  opacity: 0.55;
+  cursor: pointer;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 22px;
+  padding: 0 4px;
+  color: #fff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.track-stage b {
+  font-weight: 600;
+}
+.track-stage.is-past,
+.track-stage.is-current {
+  opacity: 1;
+}
+.track-stage.is-current {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.track-stage.kind-ip {
+  background: #3a6595;
+}
+.track-stage.kind-arp {
+  background: #23675f;
+}
+.track-stage.kind-dhcp {
+  background: #8f5a17;
+}
+.track-stage.kind-stop {
+  background: var(--danger);
+}
+.track-stage.kind-none {
+  background: var(--muted);
+}
+.track-lanes {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.track-names {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line);
+}
+.track-names li {
+  display: flex;
+  align-items: center;
+}
+.track-names button {
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 24px;
+}
+.track-names button.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+.track-plot {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.track-plot:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+.track-plot svg {
+  display: block;
+  cursor: pointer;
+}
+.track-lane {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.track-tick {
+  fill: var(--muted);
+}
+.track-arrow line {
+  stroke-width: 2;
+}
+.track-arrow.kind-ip {
+  --k: #3a6595;
+}
+.track-arrow.kind-arp {
+  --k: #23675f;
+}
+.track-arrow.kind-dhcp {
+  --k: #8f5a17;
+}
+.track-arrow line {
+  stroke: var(--k);
+}
+.track-arrow path,
+.track-arrow .track-origin {
+  fill: var(--k);
+  stroke: var(--k);
+}
+/* Broadcasts dashed; a device sending on what it received has a hollow origin; a lost frame ends in a red cross. */
+.track-arrow.is-broadcast line {
+  stroke-dasharray: 3 2;
+}
+.track-arrow.is-forwarded .track-origin {
+  fill: var(--surface);
+  stroke-width: 1.5;
+}
+.track-arrow.is-lost line {
+  stroke: var(--danger);
+}
+.track-arrow .track-lost {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2.5;
+}
+.track-resent {
+  fill: var(--k);
+  font: 700 11px var(--font);
+}
+.track-arrow.is-current line {
+  stroke-width: 4;
+}
+.track-mark circle {
+  fill: var(--surface);
+  stroke-width: 1.5;
+}
+.track-mark path {
+  fill: none;
+  stroke-width: 2;
+}
+.track-mark.is-delivered circle,
+.track-mark.is-delivered path {
+  stroke: var(--success);
+}
+.track-mark.is-discarded circle,
+.track-mark.is-discarded path {
+  stroke: var(--muted);
+}
+.track-mark.is-stopped circle,
+.track-mark.is-stopped path {
+  stroke: var(--danger);
+}
+.track-playhead {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+.track-gate,
+.track-ahead {
+  fill: url(#track-hidden);
+}
+.track-hatch {
+  stroke: var(--line);
+  stroke-width: 3;
+}
+.track-gate-text {
+  fill: var(--muted);
+  font: 600 11px var(--font);
+}
+.track-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.track-range {
+  font-variant-numeric: tabular-nums;
+}
+.track-key {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.track-key i {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px solid #3a6595;
+  position: relative;
+  margin-left: 4px;
+}
+.track-key .k-fwd::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -5px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid #3a6595;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.track-key .k-bc {
+  border-top-style: dashed;
+}
+.track-key .k-lost {
+  color: var(--danger);
+}
+.track-key .k-ok {
+  color: var(--success);
+}
+.track-foot .text-button {
+  margin-left: auto;
+  min-height: 32px;
+}
+.track-steps {
+  margin-top: 4px;
+}
+.track-steps > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--primary);
+  padding: 6px 0;
+  min-height: 32px;
+}
+.track-steps[open] > :not(summary) {
+  max-height: 420px;
+  overflow-y: auto;
+}
+@container journey (max-width: 760px) {
+  .journey-controls .track {
+    order: 4;
+  }
+  /* On a phone the lanes scroll inside the track, never the page. */
+  .track-lanes {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+}

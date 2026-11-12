@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { openExchange, toLast } from "./track.ts";
 
 const exchange = (page: Page) => page.getByRole("region", { name: "Protocol exchange" });
 const rows = (page: Page) => exchange(page).locator(".exchange-row");
@@ -15,7 +16,11 @@ test("the exchange is loaded on demand and shows ARP, DNS and TCP as the trace r
   await send(page);
   await expect(page.getByRole("radio", { name: "Summary" })).toBeVisible();
   expect(loaded).toEqual([]);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  // While the run plays for the first time, the table holds only what has been sent so far.
+  await page.getByRole("button", { name: "Open full exchange" }).click();
+  await page.getByRole("button", { name: "First event", exact: true }).click();
+  await expect(rows(page)).toHaveCount(0);
+  await openExchange(page);
   await expect(rows(page)).toHaveCount(23);
   expect(loaded.length).toBeGreaterThan(0);
   await expect(rows(page).nth(0)).toHaveAccessibleName(
@@ -25,17 +30,18 @@ test("the exchange is loaded on demand and shows ARP, DNS and TCP as the trace r
   await expect(rows(page).nth(2)).toHaveAccessibleName(/^Message 3 of 23: DNS query from Your PC, delivered to DNS server, sent on by Home switch, Home router, ISP router and Datacenter switch\.$/);
   await expect(rows(page).filter({ hasText: /^TCP SYN Seq/ })).toHaveCount(1);
   await expect(rows(page).filter({ hasText: "TCP SYN-ACK" })).toHaveAccessibleName(/from kitab\.test, delivered to Your PC/);
-  // The choice is remembered like the other views.
+  // Opening it is remembered.
   await page.reload();
   await send(page);
-  await expect(page.getByRole("radio", { name: "Exchange" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "Close full exchange" })).toHaveAttribute("aria-expanded", "true");
+  await toLast(page);
   await expect(rows(page)).toHaveCount(23);
 });
 
 test("selecting a message moves the Journey to its real event and opens its packet; the Journey moves the highlight", async ({ page }) => {
   await page.goto("/practice/network");
   await send(page);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   await rows(page).filter({ hasText: "DNS query" }).click();
   // The Journey is on the DNS query's first transmission (Your PC sends it), the Packet tab shows that packet.
   await expect(page.locator(".network-device.is-sender")).toHaveAttribute("aria-label", "Select Your PC");
@@ -72,7 +78,7 @@ test("a lost segment is marked and linked to its retransmission", async ({ page 
   await page.goto("/practice/network");
   await page.getByLabel("Drop one data segment").check();
   await send(page);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   const lost = rows(page).filter({ hasText: "lost" });
   await expect(lost).toHaveAccessibleName(/HTTP request · TCP PSH, ACK from Your PC, lost on the link from Your PC to Home switch\.$/);
   await expect(lost.locator(".exchange-line.is-lost")).toHaveCount(1);
@@ -89,7 +95,7 @@ test("broadcast DHCP reaches every host, and a failed run ends with where it sto
   await page.getByLabel("Source device").selectOption("phone");
   await page.getByLabel("Traffic type").selectOption("dhcp");
   await page.getByRole("button", { name: "Configure automatically", exact: true }).click();
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   await expect(rows(page)).toHaveText([/^DHCP Discover/, /^DHCP Offer/, /^DHCP Request/, /^DHCP ACK/]);
   await expect(rows(page).nth(3)).toHaveAccessibleName(/broadcast DHCP ACK from Home router, delivered to Your phone; received by Your PC/);
   await expect(rows(page).nth(0).locator(".exchange-head")).toHaveCount(2);
@@ -97,6 +103,7 @@ test("broadcast DHCP reaches every host, and a failed run ends with where it sto
   await page.getByLabel("Source device").selectOption("pc");
   await page.getByLabel("Traffic type").selectOption("ping");
   await send(page, "192.168.1.77");
+  await toLast(page);
   await expect(exchange(page).locator(".exchange-stop")).toContainText("Delivery stopped at Your PC");
 });
 
@@ -104,7 +111,7 @@ test("messages are reachable by keyboard with a visible focus, and the page neve
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/practice/network");
   await send(page);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   await rows(page).first().focus();
   await expect(rows(page).first()).toBeFocused();
   await page.keyboard.press("ArrowDown");

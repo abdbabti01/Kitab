@@ -559,6 +559,7 @@ export function NetworkPlayground() {
                 onClick: run,
               }}
               onAbout={select}
+              onPickStep={() => setTab("now")}
               onInspect={inspectPacket}
               prompt={experiment ? null : <PredictCard predict={predict} journey={journey} network={shown} />}
               options={<PredictSwitch predict={predict} journey={journey} network={shown} />}

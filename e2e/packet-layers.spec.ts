@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 // The packet on the diagram is its recorded layers, and the panel beside the diagram explains the step (Now), the
 // message (Packet) and a device (Device). Indexes below are events of the starters' own runs.
@@ -17,7 +18,8 @@ async function sendAndHold(page: Page) {
 const goTo = (page: Page, i: number) => page.getByLabel("Journey timeline").fill(String(i));
 /** The index of the first event with this title, read from the Steps list. */
 async function indexOf(page: Page, title: string) {
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   const titles = await page.locator(".event-list button b").allTextContents();
   await page.getByRole("button", { name: "Now", exact: true }).click();
   return titles.indexOf(title);
