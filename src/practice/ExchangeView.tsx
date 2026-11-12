@@ -6,7 +6,10 @@ import type { Network, Trace } from "./network/model.ts";
 import "./exchange.css";
 
 const list = (names: string[]) => (names.length < 2 ? names.join("") : `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`);
-const reachWords: Record<Reach["how"], string> = {
+/** "so-far": the run is shown only up to now (Predict as you go), so a message on its way is not stopped. */
+type How = Reach["how"] | "so-far";
+const reachWords: Record<How, string> = {
+  "so-far": "has so far reached",
   delivered: "delivered to",
   received: "received by",
   discarded: "discarded by",
@@ -21,7 +24,10 @@ export default function ExchangeView({
   network,
   onSelect,
   onInspect,
+  partial = false,
 }: {
+  /** Later events are hidden: describe what happened so far, not how messages ended. */
+  partial?: boolean;
   trace: Trace;
   index: number;
   network: Network;
@@ -31,7 +37,12 @@ export default function ExchangeView({
   onInspect: () => void;
 }) {
   const events = trace.events;
-  const x = useMemo(() => exchangeOf(events, network), [events, network]);
+  const x = useMemo(() => {
+    const whole = exchangeOf(events, network);
+    if (!partial) return whole;
+    const reached = (r: Reach) => (r.how === "no-further" ? { ...r, how: "so-far" as unknown as Reach["how"] } : r);
+    return { ...whole, messages: whole.messages.map((m) => ({ ...m, reached: m.reached.map(reached) })) };
+  }, [events, network, partial]);
   const active = activeMessage(x, events, index);
   const [all, setAll] = useState("");
   const scroller = useRef<HTMLDivElement>(null);
@@ -61,15 +72,17 @@ export default function ExchangeView({
 
   function said(m: Message) {
     const what = `${m.broadcast ? "broadcast " : ""}${m.label} from ${name(m.from)}`;
-    const ends = (["delivered", "received", "discarded", "no-further"] as const).flatMap((how) => {
-      const at = m.reached.filter((r) => r.how === how).map((r) => name(r.device));
+    const ends = (["delivered", "received", "discarded", "no-further", "so-far"] as const).flatMap((how) => {
+      const at = m.reached.filter((r) => (r.how as How) === how).map((r) => name(r.device));
       return at.length ? [`${reachWords[how]} ${list(at)}`] : [];
     });
     const fate = m.lost
       ? `lost on the link from ${name(m.lost.from)} to ${name(m.lost.to)}`
       : m.hops.length
         ? ends.join("; ")
-        : "created but not sent";
+        : partial
+          ? "created, not sent yet"
+          : "created but not sent";
     const via = m.via.length ? `, sent on by ${list(m.via.map(name))}` : "";
     const again = m.resends ? `. It resends message ${position(x.messages.find((o) => o.id === m.resends)!)}, which was lost` : "";
     return `Message ${position(m)} of ${x.messages.length}: ${what}, ${fate}${via}${again}.`;
@@ -89,7 +102,7 @@ export default function ExchangeView({
       }),
       ...m.reached.map((r) => ({
         at: r.at,
-        text: r.how === "no-further" ? `It went no further than ${name(r.device)}` : `${name(r.device)} ${r.how === "delivered" ? "delivered it" : r.how === "received" ? "received it" : "discarded it: it was not addressed to it"}`,
+        text: (r.how as How) === "so-far" ? `It has reached ${name(r.device)} so far` : r.how === "no-further" ? `It went no further than ${name(r.device)}` : `${name(r.device)} ${r.how === "delivered" ? "delivered it" : r.how === "received" ? "received it" : "discarded it: it was not addressed to it"}`,
         kind: r.how,
       })),
     ];
@@ -123,7 +136,7 @@ export default function ExchangeView({
       m.lost && "lost",
       m.resends && "resent",
       m.loops && "loop",
-      !m.hops.length && "not sent",
+      !m.hops.length && (partial ? "not sent yet" : "not sent"),
       m.reached.some((r) => r.how === "no-further") && "went no further",
     ].filter(Boolean) as string[];
     const isActive = m === active;
@@ -214,7 +227,9 @@ export default function ExchangeView({
       <p className="exchange-intro">
         {x.messages.length
           ? `${x.messages.length} ${x.messages.length === 1 ? "message" : "messages"} between ${n} devices, in the order they were sent. Each arrow runs from the device that created the message to the devices it reached. Select one to follow it on the diagram.`
-          : "No message was sent in this run."}
+          : partial
+            ? "No message has been sent yet."
+            : "No message was sent in this run."}
       </p>
       <div className="exchange-scroll" ref={scroller} style={{ "--cols": n } as CSSProperties}>
         <ol className="exchange-heads" aria-hidden="true">

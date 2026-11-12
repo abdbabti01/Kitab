@@ -31,6 +31,7 @@ import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
 import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
 import { missions } from "./network/missions.ts";
 import { loadMissionStore, missionState } from "./network/mission-progress.ts";
+import { PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import "./practice.css";
 const deviceTypes = [
   { kind: "pc", label: "PC", icon: Monitor },
@@ -87,8 +88,8 @@ export function NetworkPlayground() {
     [saved, setSaved] = useState("Saved on this device");
   const [selected, setSelected] = useState(""),
     [tab, setTab] = useState<InspectorTab>("packet");
-  const journey = useJourney(network),
-    { trace } = journey;
+  const predict = usePredictions(network);
+  const journey = useJourney(network, undefined, predict.limit);
   // A starter's guided steps: after one succeeds, the next is loaded into the send form.
   const [steps, setSteps] = useState(path?.steps ?? []);
   const [action, setAction] = useState<Action>(() => path?.steps?.[0].action ?? {
@@ -509,6 +510,8 @@ export function NetworkPlayground() {
               }}
               onAbout={select}
               onInspect={inspectPacket}
+              prompt={<PredictCard predict={predict} journey={journey} network={network} />}
+              options={<PredictSwitch predict={predict} journey={journey} network={network} />}
             />
             <SendPanel
               network={network}

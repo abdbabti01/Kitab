@@ -1,6 +1,6 @@
 // The diagram with Follow the Journey on it: canvas, controls, explanation card and view options.
 // Shared by the playground and missions; it reads everything from one useJourney() state.
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState, type ReactNode } from "react";
 import { Globe2 } from "lucide-react";
 import { NetworkCanvas } from "./NetworkCanvas.tsx";
 import { JourneyCard, JourneyControls } from "./Journey.tsx";
@@ -23,7 +23,13 @@ export function JourneyStage({
   onAbout,
   onInspect,
   advice = true,
+  prompt,
+  options,
 }: {
+  /** Shown under the controls, e.g. a prediction question. */
+  prompt?: ReactNode;
+  /** Extra view options, e.g. the Predict as you go switch. */
+  options?: ReactNode;
   /** False in missions: failure advice is left for the learner to work out. */
   advice?: boolean;
   journey: Journey;
@@ -83,7 +89,9 @@ export function JourneyStage({
           onMode={j.chooseMode}
           onSpeed={j.setSpeed}
           onShowStop={j.showStop}
+          outcomeHidden={j.gated}
         />
+        {prompt}
         {j.trace && (
           <JourneyCard
             trace={j.trace}
@@ -122,10 +130,12 @@ export function JourneyStage({
               onInspect(false);
             }}
             onInspect={() => onInspect(true)}
+            partial={j.gated}
           />
         )}
       </Suspense>
       <div className="view-options">
+        {options}
         <label className="network-check">
           <input type="checkbox" checked={j.follow} onChange={(e) => j.setFollow(e.target.checked)} /> Zoom to the current stage
         </label>

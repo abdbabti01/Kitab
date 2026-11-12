@@ -8,11 +8,15 @@ import type { Action, Network, Session, Trace } from "./network/model.ts";
 
 export type InputError = { field: "source" | "target"; message: string };
 
-/** `onShowStop` hears when "Show where and why" puts the stop on the diagram (missions track it as assistance). */
-export function useJourney(network: Network, onShowStop?: (trace: Trace, index: number) => void) {
+/**
+ * `onShowStop` hears when "Show where and why" puts the stop on the diagram (missions track it as assistance).
+ * `limit` hides the rest of a run after one event (Predict as you go): every view then receives the run only
+ * up to that event, so nothing later can be seen, scrubbed to or played until the limit moves on.
+ */
+export function useJourney(network: Network, onShowStop?: (trace: Trace, index: number) => void, limit?: (trace: Trace) => number | undefined) {
   const [session, setSession] = useState<Session>(newSession),
-    [trace, setTrace] = useState<Trace | null>(null),
-    [index, setIndex] = useState(0),
+    [full, setTrace] = useState<Trace | null>(null),
+    [wanted, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [speed, setSpeed] = useState(1),
     // On narrow screens the whole network is too small to read, so the camera follows the journey.
@@ -37,6 +41,15 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
       }
     });
   const journeyRef = useRef<HTMLDivElement>(null);
+  const gate = full && limit ? limit(full) : undefined;
+  const trace = useMemo(
+    () => (full && gate !== undefined && gate < full.events.length - 1 ? { ...full, events: full.events.slice(0, gate + 1) } : full),
+    [full, gate],
+  );
+  /** Later events exist but are hidden. */
+  const gated = trace !== full;
+  // Steps may be asked for beyond the limit (an answer moves it on in the same moment); they are shown once visible.
+  const index = Math.min(wanted, (trace?.events.length ?? 1) - 1);
   const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
   const stage = trace ? stages[stageAt(stages, index)] : undefined;
   const event = trace?.events[index];
@@ -47,7 +60,7 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
         setIndex((i) => {
           if (i >= trace.events.length - 1) {
             setPlaying(false);
-            return i;
+            return Math.min(i, trace.events.length - 1);
           }
           return i + 1;
         }),
@@ -95,10 +108,14 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
   }
   function step(next: number) {
     setPlaying(false);
-    setIndex(Math.max(0, Math.min((trace?.events.length ?? 1) - 1, next)));
+    setIndex(Math.max(0, Math.min((full?.events.length ?? 1) - 1, next)));
   }
   function play() {
-    if (trace && index >= trace.events.length - 1) setIndex(0);
+    if (trace && index >= trace.events.length - 1) {
+      // At a hidden part there is nothing further to play; at the real end, play from the start.
+      if (gated) return setPlaying(false);
+      setIndex(0);
+    }
     setPlaying((p) => !p);
   }
   function chooseMode(next: JourneyMode) {
@@ -111,7 +128,7 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     }
   }
   // The failing step holds the full explanation; status lines only point to it.
-  const stoppedAt = trace && !trace.success ? trace.events.length - 1 : -1;
+  const stoppedAt = trace && !trace.success && !gated ? trace.events.length - 1 : -1;
   const stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name ?? "" : "";
   function showStop() {
     if (trace) onShowStop?.(trace, stoppedAt);
@@ -128,6 +145,9 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     session,
     shownSession: event?.snapshot ?? session,
     trace,
+    /** The whole run, including any part hidden by `limit`. */
+    fullTrace: full,
+    gated,
     index,
     playing,
     setPlaying,
