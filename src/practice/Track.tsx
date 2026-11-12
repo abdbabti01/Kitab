@@ -56,10 +56,9 @@ export function Track({
   const arrows = (seen?.arrows ?? []).filter((r) => inWindow(r.index));
   const marks = (seen?.marks ?? []).filter((m) => inWindow(m.index));
   const ticks = trace ? trace.events.slice(a, Math.min(b, until) + 1).map((e, k) => ({ i: a + k, actor: e.actor, hop: !!e.hop })) : [];
-  // Lanes for the devices that do something in this window, in the exchange's order.
-  const active = new Set([...arrows.flatMap((r) => [r.from, r.to]), ...marks.map((m) => m.device), ...ticks.map((t) => t.actor)]);
-  const lanes = (seen?.lanes ?? []).filter((d) => active.has(d));
-  for (const d of active) if (!lanes.includes(d)) lanes.push(d);
+  // A lane for every device the run has reached so far, in the order it reached them: the lanes stay put while the
+  // window moves, so the track keeps its height and the learner's eye keeps its place.
+  const lanes = seen?.lanes ?? [];
   const y = (d: string) => 6 + lanes.indexOf(d) * laneH + laneH / 2;
   const h = Math.max(1, lanes.length) * laneH + 12;
   // Keys move between link crossings of the whole (possibly gated) trace: moving on shows the next one, as the slider does.
