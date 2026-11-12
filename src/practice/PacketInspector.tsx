@@ -1,7 +1,7 @@
 import { ArrowDown, Layers, Info } from "lucide-react";
 import { effectiveInterface } from "./network/engine.ts";
 import { subnet } from "./network/topology.ts";
-import { changesAt, glossary, layerStep, packetNumber, resends, shown, trip, type LayerChange } from "./network/packets.ts";
+import { changesAt, glossary, layerStep, layerTag, packetNumber, resends, shown, tagMeaning, trip, type LayerChange } from "./network/packets.ts";
 import type { TraceEvent, Session, Network, Layer } from "./network/model.ts";
 
 const kindOf = (packet: string) =>
@@ -58,6 +58,7 @@ export function PacketInspector({
           )}
         </section>
       )}
+      {event && event.layers.length > 0 && <PacketKey event={event} />}
       {event && event.layers.length > 0 && <Addresses event={event} network={network} />}
       {event && event.layers.length > 0 && <LayerView events={events} index={index} network={network} />}
       {event?.hop && (
@@ -377,6 +378,37 @@ export function DeviceCloseup({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * The short tags on the diagram's packet, for this message only: each with the layer name the simulator recorded,
+ * what the protocol is called in full, and what it does.
+ */
+function PacketKey({ event }: { event: TraceEvent }) {
+  return (
+    <section className="packet-key" aria-label="Reading this packet">
+      <h3>Reading this packet</h3>
+      <ul>
+        {[...event.layers].reverse().map((l) => {
+          const tag = layerTag(l.name),
+            m = tagMeaning[tag];
+          return (
+            <li key={l.name}>
+              <span className={`layer-chip layer-${l.kind}`}>{tag}</span>
+              <span>
+                <b>{l.name}</b>
+                {m && (
+                  <>
+                    {m.stands !== tag && ` (${m.stands})`}: {m.does}.
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

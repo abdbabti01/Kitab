@@ -63,21 +63,23 @@ export function changesAt(events: TraceEvent[], index: number, network: Network)
     .map((field) => ({ field, before: before.fields[field], after: now.fields[field], why: why(field) }));
 }
 
+// A run's dropped segments, found once per run: resends() is asked about every segment of a long run.
+const dropped = new WeakMap<TraceEvent[], number[]>();
+const dropsOf = (events: TraceEvent[]) => {
+  let found = dropped.get(events);
+  if (!found) dropped.set(events, (found = events.flatMap((x, i) => (x.packet && x.title === "Drop TCP data segment" ? [i] : []))));
+  return found;
+};
 /** For a TCP segment: the earlier segment it resends (same direction, same sequence number), if any. */
 export function resends(events: TraceEvent[], index: number) {
   const e = events[index];
   const tcp = (x: TraceEvent) => x.layers.find((l) => l.name === "TCP segment")?.fields;
   const mine = tcp(e);
   if (!mine || !e.packet || !Number(mine["Payload bytes"])) return undefined;
-  const first = events.findIndex(
-    (x) =>
-      x.packet &&
-      x.packet !== e.packet &&
-      x.title === "Drop TCP data segment" &&
-      tcp(x)?.Sequence === mine.Sequence &&
-      tcp(x)?.["Source port"] === mine["Source port"],
+  const first = dropsOf(events).find(
+    (i) => events[i].packet !== e.packet && tcp(events[i])?.Sequence === mine.Sequence && tcp(events[i])?.["Source port"] === mine["Source port"],
   );
-  return first >= 0 && first < index ? first : undefined;
+  return first !== undefined && first < index ? first : undefined;
 }
 
 /** Packets in order of creation, numbered from 1, so learners can say "packet 7". */
@@ -258,3 +260,22 @@ export function capsuleAt(events: TraceEvent[], index: number): Capsule {
   for (const f of fields) if (!used.has(f)) notes.push(`${fieldTag[f.field] ?? f.field} ${f.before}→${f.after}`);
   return { segments, gone, notes };
 }
+
+/**
+ * What each short tag on the packet stands for and does, for a beginner. Keyed by tag; the full name shown with it
+ * is always the layer name the simulator recorded ("HTTP response", "DHCP Offer"), so no packet is described with
+ * layers it does not have.
+ */
+export const tagMeaning: Record<string, { stands: string; does: string }> = {
+  Eth: { stands: "Ethernet", does: "carries it across this one link, from one MAC address to the next" },
+  "Wi-Fi": { stands: "Wi-Fi (IEEE 802.11)", does: "carries it over the radio link, from one MAC address to the next" },
+  ARP: { stands: "Address Resolution Protocol", does: "asks which MAC address has an IP address on this network, or answers" },
+  IP: { stands: "Internet Protocol, version 4", does: "carries it from its source to its destination, across networks" },
+  ICMP: { stands: "Internet Control Message Protocol", does: "network control messages, such as a ping and its reply" },
+  UDP: { stands: "User Datagram Protocol", does: "delivers it to a program's port, without a connection" },
+  TCP: { stands: "Transmission Control Protocol", does: "a reliable, ordered stream of bytes between two programs" },
+  HTTP: { stands: "Hypertext Transfer Protocol", does: "the web request or response itself" },
+  DNS: { stands: "Domain Name System", does: "asks for the address of a name, or answers" },
+  DHCP: { stands: "Dynamic Host Configuration Protocol", does: "asks for an IP address and settings, or gives them" },
+  Echo: { stands: "ICMP echo", does: "the ping's own data, sent back by the device that receives it" },
+};

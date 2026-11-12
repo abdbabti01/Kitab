@@ -2955,6 +2955,56 @@
   margin: 18px 0 8px;
   color: var(--ink);
 }
+/* The packet's short tags, as on the diagram, with their names (Now) and meanings (Packet). */
+.layer-chip {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 4px;
+  font: 700 10.5px/1.6 var(--mono);
+  color: #fff;
+}
+.layer-chip.layer-link {
+  background: #2a6f67;
+}
+.layer-chip.layer-network {
+  background: #3a6595;
+}
+.layer-chip.layer-transport {
+  background: #654d97;
+}
+.layer-chip.layer-application {
+  background: #8f5a17;
+}
+.journey-carrying {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.packet-key {
+  margin: 0 0 16px;
+}
+.packet-key h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.packet-key ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.packet-key li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.packet-key .layer-chip {
+  justify-self: start;
+}
 .packet-addresses {
   margin: 0 0 16px;
   padding: 12px 14px;

@@ -57,3 +57,10 @@ test("a router takes the frame off, lowers the TTL and sends the packet on in a 
   assert.equal(layerTag("Wi-Fi frame"), "Wi-Fi");
   assert.equal(layerTag("DHCP Discover"), "DHCP");
 });
+
+test("every tag the packet can show is explained, under the layer name the simulator recorded", async () => {
+  const { tagMeaning } = await import("../src/practice/network/packets.ts");
+  for (const [name, t] of runs())
+    for (const e of t.events)
+      for (const l of e.layers) assert.ok(tagMeaning[layerTag(l.name)], `${name}: "${l.name}" (${layerTag(l.name)}) has no explanation`);
+});

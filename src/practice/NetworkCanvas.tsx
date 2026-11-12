@@ -4,7 +4,7 @@ import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
 import { actionAt, type Motion } from "./network/motion.ts";
 import { stackedLayout } from "./network/layout.ts";
-import type { Capsule } from "./network/packets.ts";
+import { tagMeaning, type Capsule } from "./network/packets.ts";
 import type {
   Network,
   Session,
@@ -106,8 +106,6 @@ export function NetworkCanvas({
   let width = extent.width / zoom,
     height = extent.height / zoom;
   let view = { x: pan.x, y: pan.y };
-  // Screen pixels per diagram unit, to size touch areas and the message in pixels.
-  const [unitPx, setUnitPx] = useState(1);
   const framed = !stacked && follow && focus && area.w > 0 && area.w / extent.width < 0.4
     ? network.devices.filter((d) => focus.devices.includes(d.id) || focus.hops.some((h) => h.from === d.id || h.to === d.id))
     : [];
@@ -162,7 +160,9 @@ export function NetworkCanvas({
     if (stacked) moveCam({ x: (layout.width - camW) / 2, y: 0 }, false);
   }, [stacked, rowsKey, area.w]);
   // Following the journey: the camera moves only when the devices of this step leave the middle of the view.
-  const watched = event ? [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x) : [];
+  // A broadcast is copied to many devices at once: the camera keeps its sender in view rather than chasing each copy
+  // across a large network (the copies still leave along their lit links).
+  const watched = !event ? [] : motion?.packet?.broadcast ? [motion.packet.from] : [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x);
   const watchKey = watched.join(" ");
   /** The devices' extent, with room for their labels. */
   const extentOf = (ids: string[]) => {
@@ -259,24 +259,25 @@ export function NetworkCanvas({
     return !visibleDevices.some((d) => d.group !== group && d.x > x0 && d.x < x1 && d.y > y0 && d.y < y1);
   });
   const wrap = useRef<HTMLDivElement>(null);
-  // Measure the drawing area and its scale after layout and whenever its size changes.
+  // Measure the drawing area once and whenever its size changes; never on every render, which would force a layout
+  // at each step of playback.
   useLayoutEffect(() => {
     const report = () => {
       const r = svg.current?.getBoundingClientRect();
-      if (r && (Math.round(r.width) !== area.w || Math.round(r.height) !== area.h)) setArea({ w: Math.round(r.width), h: Math.round(r.height) });
-      const m = svg.current?.getScreenCTM();
-      if (m && m.a !== unitPx) setUnitPx(m.a);
+      if (r) setArea((a) => (Math.round(r.width) === a.w && Math.round(r.height) === a.h ? a : { w: Math.round(r.width), h: Math.round(r.height) }));
     };
     report();
     const observer = new ResizeObserver(report);
-    if (wrap.current) observer.observe(wrap.current);
+    if (svg.current) observer.observe(svg.current);
     return () => observer.disconnect();
-  });
+  }, []);
   const place = (id: string) => {
     const d = devices.find((x) => x.id === id);
     return d && displayPosition(d);
   };
   const onPath = new Set(focus?.hops.map((h) => h.link));
+  // Screen pixels per diagram unit, from the view itself (the drawing is scaled to fit its area, keeping its shape).
+  const unitPx = area.w && area.h ? Math.min(area.w / width, area.h / height) : 1;
   // The message is about 20 px tall on screen however far the diagram is zoomed out, without outgrowing the devices.
   const tokenScale = Math.min(2, Math.max(1, 20 / (CAPSULE_H * unitPx)));
   // Half its drawn size, so its path stops clear of tiles and labels.
@@ -291,6 +292,21 @@ export function NetworkCanvas({
   };
   // What the acting device is doing, and the link its routing decision chose, as recorded in the trace.
   const action = event && !motion?.packet ? actionAt(event, network) : event?.hop ? { ...actionAt(event, network), device: event.hop.from } : undefined;
+  /** A device's name and address under its tile (drawn larger, and so lower, in the learner's own layout). */
+  const labels = (d: (typeof devices)[number]) => {
+    const p = d.interfaces.map((p) => effectiveInterface(d, p, session)).find((p) => p.ip);
+    const max = stacked ? 21 : 24;
+    return (
+      <>
+        <text className="device-name" y={stacked ? 76 : 92} textAnchor="middle">
+          {d.name.length > max ? `${d.name.slice(0, max - 2)}…` : d.name}
+        </text>
+        <text className="device-ip" y={stacked ? 96 : 112} textAnchor="middle">
+          {p?.ip ?? (d.kind === "phone" ? "DHCP · awaiting address" : d.kind === "switch" ? "MAC forwarding" : d.kind === "ap" ? d.ssid : "Unconfigured")}
+        </text>
+      </>
+    );
+  };
   const chosen = action && !motion?.packet ? action.link : undefined;
   const actor = event?.actor;
   const stopped = event?.error ? actor : undefined;
@@ -519,9 +535,6 @@ export function NetworkCanvas({
           );
         })()}
         {visibleDevices.map((d) => {
-          const p = d.interfaces
-            .map((p) => effectiveInterface(d, p, session))
-            .find((p) => p.ip);
           const active = actor === d.id;
           const sender = event?.hop?.from === d.id,
             receiver = event?.hop?.to === d.id;
@@ -539,7 +552,6 @@ export function NetworkCanvas({
                     : active
                       ? "is-working"
                       : "";
-          const name = stacked ? 21 : 24;
           // In the learner's own layout the tile is drawn larger, the labels move down with it.
           const big = !stacked;
           return (
@@ -627,19 +639,7 @@ export function NetworkCanvas({
                   }
                 />
               </g>
-              <text className="device-name" y={big ? 92 : 76} textAnchor="middle">
-                {d.name.length > name ? `${d.name.slice(0, name - 2)}…` : d.name}
-              </text>
-              <text className="device-ip" y={big ? 112 : 96} textAnchor="middle">
-                {p?.ip ??
-                  (d.kind === "phone"
-                    ? "DHCP · awaiting address"
-                    : d.kind === "switch"
-                      ? "MAC forwarding"
-                      : d.kind === "ap"
-                        ? d.ssid
-                        : "Unconfigured")}
-              </text>
+              {labels(d)}
             </g>
           );
         })}
@@ -680,6 +680,17 @@ export function NetworkCanvas({
             pad={pad}
           />
         )}
+        {/* While a frame crosses a link, the two devices' names and addresses are drawn above it: on a short link of a
+            crowded layout it passes behind their text rather than over it. */}
+        {motion?.packet &&
+          [motion.packet.from, motion.packet.to].map((id) => {
+            const d = visibleDevices.find((x) => x.id === id);
+            return d ? (
+              <g key={`over ${id}`} className="labels-over" data-labels-for={id} transform={`translate(${d.x} ${d.y})`} aria-hidden="true">
+                {labels(d)}
+              </g>
+            ) : null;
+          })}
         {!network.devices.length && (
           <g className="empty-canvas">
             <text x={view.x + width / 2} y={view.y + height / 2 - 18} textAnchor="middle">
@@ -748,10 +759,13 @@ function restingSpot(
       t1 = 1;
     while (t0 < 0.5 && covers(c.at(t0), a)) t0 += 0.02;
     while (t1 > 0.5 && covers(c.at(t1), b)) t1 -= 0.02;
-    // Devices too close for that: leave and stop just off the tiles, as before.
+    // Devices too close for that (a crowded layout of the learner's own): leave and stop just off the tiles, except
+    // on the side where a device's name and address are (below it): there the frame starts and rests on the tile's
+    // edge instead, so it never sits on the text.
     if (t1 - t0 < 0.15) {
-      t0 = Math.min(0.45, 70 / (Math.hypot(b.x - a.x, b.y - a.y) || 1));
-      t1 = 1 - t0;
+      const len = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      t0 = Math.min(0.45, ((b.y - a.y) / len > 0.5 ? 40 : 70) / len);
+      t1 = 1 - Math.min(0.45, ((a.y - b.y) / len > 0.5 ? 40 : 70) / len);
     }
     if (packet.lost) t1 = (t0 + t1) / 2;
     const points = Array.from({ length: 13 }, (_, i) => c.at(t0 + ((t1 - t0) * i) / 12));
@@ -846,6 +860,7 @@ function PacketLayer({
           const sw = segWidth(s.tag);
           const g = (
             <g key={s.name} className={`packet-seg layer-${s.kind}${s.mark ? ` is-${s.mark}` : ""}`}>
+              <title>{`${s.tag}: ${s.name}${tagMeaning[s.tag] && tagMeaning[s.tag].stands !== s.tag ? ` (${tagMeaning[s.tag].stands})` : ""}`}</title>
               <rect x={x} y={-CAPSULE_H / 2} width={sw} height={CAPSULE_H} rx={i === 0 || i === segs.length - 1 ? 6 : 1} />
               <text className="packet-label" x={x + sw / 2} y="4" textAnchor="middle">
                 {s.tag}

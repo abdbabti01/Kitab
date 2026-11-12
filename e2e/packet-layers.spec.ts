@@ -34,7 +34,7 @@ test("an ARP frame carries no IP, TCP or UDP; a router takes the frame off, lowe
   await goTo(page, 12);
   expect(await segments(page)).toEqual(["IP", "ICMP", "Echo"]);
   await expect(note(page)).toHaveText("− Eth  TTL 64→63");
-  await expect(page.locator(".packet-token .packet-seg.is-changed")).toHaveText("IP");
+  await expect(page.locator(".packet-token .packet-seg.is-changed text")).toHaveText("IP");
   // Event 23: the same packet leaves for the office server in a new frame.
   await goTo(page, 22);
   expect(await segments(page)).toEqual(["Eth", "IP", "ICMP", "Echo"]);
@@ -138,4 +138,43 @@ test("on a phone the panel sits right under the diagram, and the packet opens it
   const token = (await page.locator(".packet-token .packet-shape").boundingBox())!;
   const svg = (await page.locator(".topology-svg").boundingBox())!;
   expect(token.width).toBeLessThan(svg.width * 0.45);
+});
+
+test("the short tags are explained beside the network, with the names this packet's layers were recorded with", async ({ page }) => {
+  await everyEvent(page, "?starter=routed");
+  await sendAndHold(page);
+  // An ARP broadcast: Now names its two layers; Packet says what each tag stands for and does. No TCP or UDP anywhere.
+  await goTo(page, 3);
+  await expect(page.locator(".journey-carrying")).toHaveText("Eth Ethernet frame › ARP ARP request");
+  await page.locator(".packet-token").click({ force: true });
+  const key = page.getByRole("region", { name: "Reading this packet" });
+  await expect(key.locator("li")).toHaveCount(2);
+  await expect(key).toContainText("Ethernet frame (Ethernet): carries it across this one link");
+  await expect(key).toContainText("ARP request (Address Resolution Protocol)");
+  await expect(key).not.toContainText(/TCP|UDP/);
+  // At the router the frame is gone: IP, ICMP and the echo request, each explained.
+  await goTo(page, 12);
+  await expect(key.locator("li")).toHaveCount(3);
+  await expect(key).toContainText("IPv4 packet (Internet Protocol, version 4)");
+  await expect(key).toContainText("Echo request (ICMP echo)");
+});
+
+test("while a frame crosses a link, the two devices' names are drawn above it", async ({ page }) => {
+  await everyEvent(page, "?starter=wifi");
+  await sendAndHold(page);
+  for (let i = 0; i < 30; i++) {
+    await goTo(page, i);
+    const label = await page.evaluate(() => document.querySelector(".packet-token:not(.is-held)")?.getAttribute("aria-label") ?? "");
+    const m = /frame from (.+) to (.+?)(,|:|\.)/.exec(label);
+    if (!m) continue;
+    const over = await page.locator("[data-labels-for]").evaluateAll((gs) => gs.map((g) => g.querySelector(".device-name")!.textContent));
+    expect(over.sort()).toEqual([m[1], m[2]].sort());
+    // Drawn after the packet, so above it.
+    expect(await page.evaluate(() => {
+      const tok = document.querySelector(".packet-token")!, over = document.querySelector("[data-labels-for]")!;
+      return !!(tok.compareDocumentPosition(over) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
+    return;
+  }
+  throw new Error("no frame crossed a link");
 });

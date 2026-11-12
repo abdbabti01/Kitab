@@ -18,6 +18,7 @@ import { failureText } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
 import { actionAt, type Beat } from "./network/motion.ts";
+import { layerTag } from "./network/packets.ts";
 import { neighbours, type JourneyMode } from "./journey-nav.ts";
 export { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
 import type { Network, Trace } from "./network/model.ts";
@@ -248,6 +249,17 @@ export function JourneyCard({
       )}
       <p className="journey-summary">{text}</p>
       {where && <p className="journey-where">{where}</p>}
+      {/* The diagram's short tags with the names the simulator recorded; Packet explains each one. */}
+      {event.layers.length > 0 && (
+        <p className="journey-carrying">
+          {[...event.layers].reverse().map((l, i) => (
+            <span key={l.name}>
+              {i > 0 && " › "}
+              <span className={`layer-chip layer-${l.kind}`}>{layerTag(l.name)}</span> {l.name}
+            </span>
+          ))}
+        </p>
+      )}
       {!details && n.cause && !event.error && (
         <p className="journey-why">
           <b>Why:</b> {n.cause.text}
