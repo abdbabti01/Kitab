@@ -115,7 +115,8 @@ test("recommend: honest next steps from recorded progress", () => {
   assert.deepEqual([r.kind, r.activity.id], ["next", "join-and-address"]);
   for (const id of ["join-and-address", "leave-the-lan", "bring-reply-home"]) netDone(e, id);
   r = recommend(e);
-  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["suggested", "starter:internet", "internet"]);
+  // DNS is met as a concept before the first activity that looks up a name.
+  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["suggested", "concept:dns", "internet"]);
 
   for (const id of ["tcp-lost-segment", "tcp-send-window", "tcp-lab"]) tcpDone(e, id);
   netDone(e, "missing-segment");
@@ -139,7 +140,9 @@ test("pathPosition gives the stage, the next activity in order and prerequisites
   assert.equal(p.next?.id, "leave-the-lan");
   assert.deepEqual(p.needs.map((a) => a.id), ["starter:wifi", "ip-addressing"]);
   assert.equal(pathPosition("connections")!.next?.id, "starter:lan");
-  assert.equal(pathPosition("bring-reply-home")!.next?.id, "starter:internet");
+  assert.equal(pathPosition("bring-reply-home")!.next?.id, "concept:dns");
+  assert.equal(pathPosition("concept:dns")!.next?.id, "starter:internet");
+  assert.equal(pathPosition("concept:dns")!.activity.path, "/concepts/dns");
   assert.equal(pathPosition("tcp-lab")!.next, undefined);
   assert.equal(pathPosition("array-insert"), undefined);
 });

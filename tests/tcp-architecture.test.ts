@@ -152,3 +152,54 @@ test("the TCP timeline describes plain HTTP on port 80 and discloses that NAT is
     assert.match(ready.technical ?? "", /leaves out NAT/);
   }
 });
+
+test("the TCP key ideas use the engine's own numbers and describe its simplifications truthfully", async () => {
+  const { keyIdeas } = await import("../src/learning/missions/tcp-terms.ts");
+  const { pathPosition } = await import("../src/learning/networking-path.ts");
+  // Every TCP prediction mission in the path explains its ideas before the learner predicts.
+  for (const id of ["tcp-lost-segment", "tcp-send-window", "tcp-lab", "missing-segment"]) {
+    assert.ok(pathPosition(id), id);
+    assert.ok(keyIdeas[id]?.length >= 4, id);
+  }
+  const text = Object.values(keyIdeas).flat().map((t) => `${t.definition} ${t.purpose} ${t.example}`).join(" ");
+  // 3,500 B at an MSS of 1,460 B: 1,460 + 1,460 + 580, segment 2 from byte 2461 to 3920.
+  const segments = createSegments(config({ payloadBytes: 3500, mssBytes: 1460 }));
+  assert.deepEqual(segments.map((s) => s.length), [1460, 1460, 580]);
+  assert.deepEqual([segments[0].seqStart, segments[0].seqEnd, segments[1].seqStart, segments[1].seqEnd], [1001, 2460, 2461, 3920]);
+  assert.match(text, /1001–2460/);
+  assert.match(text, /2461–3920/);
+  // The send-window mission's own transfer: 5,000 B at an MSS of 1,200 B.
+  assert.deepEqual(createSegments(config({ payloadBytes: 5000, mssBytes: 1200 })).map((s) => s.length), [1200, 1200, 1200, 1200, 200]);
+  assert.match(keyIdeas["tcp-send-window"][0].example ?? "", /5,000 B at an MSS of 1,200 B: four segments of 1,200 B and one of 200 B/);
+  // One repeated ACK per batch, then the timer: never fast retransmit, whatever the window.
+  for (const receiveWindowSegments of [3, 6]) {
+    const ids = buildTcpTimeline(normalizeTcpConfig({ scenario: "loss", payloadBytes: 3500, mssBytes: 536, receiveWindowSegments })).events.map((e) => e.id);
+    assert.equal(ids.filter((id) => /^ack-.*-duplicate-created$/.test(id)).length, 1);
+    assert.ok(ids.indexOf("retransmission-timeout") < ids.indexOf("segment-2-retransmitted"));
+  }
+  assert.match(text, /Kitab shows one for each batch/);
+  assert.match(text, /Kitab's model always waits for the timer/);
+  // The congestion window starts at 10 segments and drops to 1 after a timeout.
+  const timeline = buildTcpTimeline(normalizeTcpConfig({ scenario: "loss" }));
+  assert.equal(timeline.events[0].snapshot.congestionWindowSegments, 10);
+  assert.equal(timeline.events.find((e) => e.id === "retransmission-timeout")!.snapshot.congestionWindowSegments, 1);
+  assert.match(text, /starts at 10 segments and drops to 1 after a timeout/);
+});
+
+test("the playground's TCP key ideas use the playground's own segment numbers", async () => {
+  const { keyIdeas } = await import("../src/learning/missions/tcp-terms.ts");
+  const { missions } = await import("../src/practice/network/missions.ts");
+  const { runSequence } = await import("../src/practice/network/mission-assess.ts");
+  const text = keyIdeas["missing-segment"].map((t) => t.example).join(" ");
+  const m = missions.find((x) => x.id === "missing-segment")!;
+  const explain = (v: (typeof m.variants)[number]) => runSequence(v.build(), [v.probe]).events.map((e) => e.explanation).join(" ");
+  for (const v of m.variants) {
+    const explained = explain(v);
+    assert.match(explained, /sequence 1001 and .* maximum payload is 96 bytes/, v.id);
+    assert.match(explained, /Resend the same bytes beginning at sequence 1001/, v.id);
+  }
+  assert.match(explain(m.variants.find((v) => v.id === "long")!), /Received 96 bytes\. ACK 1097/);
+  assert.match(text, /1001–1096/);
+  assert.match(text, /ACK 1097/);
+  assert.doesNotMatch(text, /1,460|2461/);
+});

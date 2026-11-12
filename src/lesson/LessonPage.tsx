@@ -18,6 +18,7 @@ import { useFlip, useReducedMotion } from "../mission/motion.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
 import type { GuideMood } from "../learning/guide.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
+import { TermChips, TermFields } from "../ui/Terms.tsx";
 import "./lesson.css";
 
 const storage = safeStorage();
@@ -304,16 +305,7 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
                 <ul className="delta">{delta.map((line) => <li key={line}>{line}</li>)}</ul>
               </>
             )}
-            {relatedTerms.length > 0 && (
-              <div className="terms" aria-label="New terms">
-                {relatedTerms.map((term) => (
-                  <details className="term" key={term.id}>
-                    <summary>{term.term}</summary>
-                    {term.purpose ? <TermFields term={term} /> : <p>{term.definition}</p>}
-                  </details>
-                ))}
-              </div>
-            )}
+            {relatedTerms.length > 0 && <TermChips label="New terms" terms={relatedTerms} />}
             <p className="connection">
               {previous && <span><small>Before:</small> {previous.title}</span>}
               {following && <span><small>Next:</small> {following.title}</span>}
@@ -357,16 +349,6 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
         </aside>
       </main>
     </div>
-  );
-}
-
-function TermFields({ term }: { term: Lesson["glossary"][number] }) {
-  return (
-    <dl className="term-fields">
-      <div><dt>What it is</dt><dd>{term.definition}</dd></div>
-      {term.purpose && <div><dt>Why we use it</dt><dd>{term.purpose}</dd></div>}
-      {term.example && <div><dt>Example</dt><dd>{term.example}</dd></div>}
-    </dl>
   );
 }
 

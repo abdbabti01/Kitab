@@ -436,3 +436,13 @@ test("a starter copy says it is not saved, and switching starters inside it neve
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
   await expect(page.locator(".save-status")).toHaveText("Saved on this device");
 });
+
+test("the Wi-Fi starters say a real phone joins and starts DHCP by itself, and the home router names the PC", async ({ page }) => {
+  for (const s of ["wifi", "internet"]) {
+    await page.goto(`/practice/network?starter=${s}`);
+    await expect(page.locator(".network-notice")).toContainText("A real phone does both by itself when you choose the network.");
+  }
+  await page.goto("/practice/network?starter=wifi");
+  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await expect(page.locator(".dns-record").first().locator("input").first()).toHaveValue("pc.home.arpa");
+});

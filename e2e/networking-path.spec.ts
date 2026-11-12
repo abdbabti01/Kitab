@@ -63,7 +63,7 @@ test("stages open and close with the keyboard", async ({ page }) => {
   await page.keyboard.press("Enter");
   await expect(stage(page, "Across the Internet")).toHaveAttribute("open", "");
   await page.keyboard.press("Tab");
-  await expect(page.locator(".path-activity", { hasText: "A request across the Internet" })).toBeFocused();
+  await expect(page.locator(".path-activity", { hasText: "DNS resolution" })).toBeFocused();
   await summary.focus();
   await page.keyboard.press("Enter");
   await expect(stage(page, "Across the Internet")).not.toHaveAttribute("open", "");
@@ -124,4 +124,31 @@ test("with everything completed the path asks for mastery; with everything maste
   // The lesson has no mastery, so stage 3 shows 4 mastered missions of 5 completed activities.
   await expect(stage(page, "Addresses, subnets and routes").locator("summary")).toContainText("5 of 5 completed · 4 mastered");
   await expect(page.locator(".path-stages details[open]")).toHaveCount(0);
+});
+
+test("DNS is introduced as a concept between the NAT mission and the first activity that looks up a name", async ({ page }) => {
+  await seed(page, {});
+  const internet = stage(page, "Across the Internet");
+  await internet.locator("summary").click();
+  const activities = internet.locator(".path-activity");
+  await expect(activities.first()).toContainText("Concept");
+  await expect(activities.first()).toContainText("DNS resolution");
+  await expect(activities.nth(1)).toContainText("A request across the Internet");
+  await activities.first().click();
+  await expect(page).toHaveURL(/\/concepts\/dns$/);
+  await expect(page.getByRole("navigation", { name: "Networking path" })).toContainText("Stage 4 of 5");
+  await page.getByRole("link", { name: /Next in the path: A request across the Internet/ }).click();
+  await expect(page).toHaveURL(/\/practice\/network\?starter=internet$/);
+  // A concept outside the path gets no path navigation.
+  await page.goto("/concepts/tcp");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
+  // The NAT mission before it requests the web server by address, so no name lookup runs.
+  await page.goto("/practice/missions/bring-reply-home");
+  await expect(page.locator(".mission-brief")).toContainText("no DNS lookup is involved");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
+  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  await expect(page.locator(".journey-card")).toContainText("received the request, but its reply could not get back");
+  await expect(page.locator("main")).not.toContainText("Look up the name");
 });

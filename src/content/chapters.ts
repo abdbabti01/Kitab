@@ -205,7 +205,7 @@ export const chapters: Chapter[] = [
       {
         title: "Recursive resolver",
         detail:
-          "Your configured resolver takes responsibility for finding the final answer.",
+          "Your configured resolver takes responsibility for finding the final answer. In Kitab's network playground, the DNS server plays this role but answers straight from its own records.",
         state: "Recursive query",
       },
       {

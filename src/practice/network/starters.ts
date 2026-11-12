@@ -15,11 +15,11 @@ export const starterOptions: { id: string; name: string; detail: string; steps?:
     steps: [
       {
         action: { kind: "dhcp", source: "phone", target: "" },
-        note: "Step 1 of 2: your phone is not on the network yet and has no IP address. Press “Configure automatically” to join the Wi-Fi network and get an address from the home router's DHCP service.",
+        note: "Step 1 of 2: your phone is not on the network yet and has no IP address. Press “Configure automatically” to join the Wi-Fi network and get an address from the home router's DHCP service. A real phone does both by itself when you choose the network.",
       },
       {
         action: { kind: "http", source: "phone", target: "http://kitab.test/", ttl: 64 },
-        note: "Step 2 of 2: your phone now has an IP address, a gateway and a DNS server from DHCP. Press “Send request” to load http://kitab.test/: DNS finds the server's address, then TCP and HTTP carry the page through your home router and the provider's router.",
+        note: "Step 2 of 2: your phone now has an IP address, a gateway and a DNS server from DHCP. Press “Send request” to load http://kitab.test/: DNS finds the server's address (this DNS server answers from its own records; a real resolver may first ask other DNS servers), then TCP and HTTP carry the page through your home router and the provider's router.",
       },
     ],
   },
@@ -41,7 +41,7 @@ export const starterOptions: { id: string; name: string; detail: string; steps?:
     steps: [
       {
         action: { kind: "dhcp", source: "phone", target: "" },
-        note: "Press “Configure automatically”: your phone joins the Wi-Fi network at the access point, then asks the home router's DHCP service for an IP address.",
+        note: "Press “Configure automatically”: your phone joins the Wi-Fi network at the access point, then asks the home router's DHCP service for an IP address. A real phone does both by itself when you choose the network.",
       },
     ],
   },
@@ -167,10 +167,11 @@ export function starter(id: string): Network {
   link(pc, "eth0", sw, "p2");
   link(sw, "p3", router, "lan");
   if (id === "wifi") {
-    // This home has no Internet link, so the router answers DNS for the LAN, as it tells DHCP clients.
+    // This home has no Internet link, so the router answers DNS for the LAN, as it tells DHCP clients. Like many home
+    // routers it knows names for devices at home; home.arpa is the domain reserved for home networks (RFC 8375).
     pc.interfaces[0].dns = "192.168.1.1";
     router.dhcp.dns = "192.168.1.1";
-    router.records = { "home.test": "192.168.1.10" };
+    router.records = { "pc.home.arpa": "192.168.1.10" };
     return n;
   }
   const isp = add("router", "isp", "ISP router", 830, 300, "ISP · routed WAN");

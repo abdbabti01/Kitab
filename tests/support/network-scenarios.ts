@@ -66,7 +66,7 @@ export function scenarios(): Scenario[] {
     one("wifi: phone DHCP", "wifi", dhcp()),
     chain("wifi: DHCP renewal", "wifi", [dhcp(), dhcp()], (n) => void (dev(n, "router").dhcp.start = dev(n, "router").dhcp.end = "192.168.1.100")),
     chain("wifi: DHCP then ping by phone", "wifi", [dhcp(), ping("192.168.1.10", "phone")]),
-    chain("wifi: DHCP then HTTP home.test", "wifi", [dhcp(), http("phone", "http://home.test/")], (n) => void (dev(n, "pc").web.enabled = true)),
+    chain("wifi: DHCP then HTTP pc.home.arpa", "wifi", [dhcp(), http("phone", "http://pc.home.arpa/")], (n) => void (dev(n, "pc").web.enabled = true)),
     one("routed: ping", "routed", ping("192.168.2.20")),
     one("routed: HTTP", "routed", http("pc", "http://192.168.2.20/")),
     one("isp source: HTTP by name", "internet", http("isp"), (n) => {

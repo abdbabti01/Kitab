@@ -28,3 +28,26 @@ test("networking terms explain their meaning and purpose before the calculations
   await expect(glossary.getByRole("heading", { name: "Default gateway", exact: true })).toBeVisible();
   await expect(glossary.getByRole("heading", { name: "ARP", exact: true })).toBeVisible();
 });
+
+test("binary, AND and the two kinds of address are explained at the steps that use them", async ({ page }) => {
+  await page.goto("/learn/ip-addressing");
+  const term = page.locator(".key-concept");
+  const chips = page.getByLabel("New terms");
+  await page.locator(".chapter-pill", { hasText: "Read an address" }).click();
+  await chips.getByText("Binary", { exact: true }).click();
+  await expect(chips).toContainText("128, 64, 32, 16, 8, 4, 2 and 1");
+  await expect(chips).toContainText("10 = 8 + 2 = 00001010");
+  await page.locator(".lesson-controls .next-button").click();
+  await expect(term.getByRole("heading", { name: "Subnet mask", exact: true })).toBeVisible();
+  await chips.getByText("Bitwise AND", { exact: true }).click();
+  await expect(chips).toContainText("10000010 AND 10000000 = 10000000 = 128");
+
+  await page.locator(".chapter-pill", { hasText: "Choose a route" }).click();
+  await page.locator(".lesson-controls .next-button").click();
+  await expect(term.getByRole("heading", { name: "Why both addresses", exact: true })).toBeVisible();
+  await expect(term).toContainText("The frame's MAC addresses name the two devices on the current link");
+  await expect(page.locator(".step-why")).toContainText("the MACs change at every hop while the IP destination stays the same");
+  await chips.getByText("MAC address", { exact: true }).click();
+  await expect(chips).toContainText("random MAC for each Wi-Fi network");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});

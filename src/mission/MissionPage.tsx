@@ -14,6 +14,8 @@ import { askTutor, sendLearningEvent } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
 import { pathPosition } from "../learning/networking-path.ts";
+import { keyIdeas } from "../learning/missions/tcp-terms.ts";
+import { TermChips } from "../ui/Terms.tsx";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { KitabGuide, type GuideAction } from "./KitabGuide.tsx";
@@ -281,6 +283,7 @@ export function MissionPage({ mission }: { mission: Mission }) {
               <p className="learn-first" key={lesson.id}>New to this? <a {...linkProps(`/learn/${lesson.id}`)}>Follow the walkthrough first: {lesson.title}</a></p>
             ))}
             {!firstLessons.length && <PathNeeds id={mission.id} />}
+            {keyIdeas[mission.id] && <TermChips label="Key ideas" lead="Key ideas before you predict:" terms={keyIdeas[mission.id]} />}
           </div>
           <section className="scene card" aria-label="Interactive scene">
             <div className="scene-head">

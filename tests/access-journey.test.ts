@@ -36,3 +36,11 @@ test("technology explorer route resolves", () =>
   assert.deepEqual(parseRoute("/practice/connections"), {
     name: "access-explorer",
   }));
+
+test("the NAT mapping is recorded when the connection's SYN leaves home, and reused by the request", () => {
+  const stages = accessJourney("fiber", "wifi", false), get = (id: string) => stages.find((s) => s.id === id)!;
+  assert.ok(stages.findIndex((s) => s.id === "tcp") < stages.findIndex((s) => s.id === "route"));
+  assert.match(get("tcp").why, /As the SYN leaves home, the router's NAT records the mapping/);
+  assert.match(get("route").why, /using the mapping it recorded when this connection's SYN went out/);
+  assert.doesNotMatch(get("route").why, /NAT records a mapping/);
+});
