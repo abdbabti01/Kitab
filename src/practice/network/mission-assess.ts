@@ -147,8 +147,13 @@ export function evidenceShows(mission: NetworkMission, variant: Variant, trace: 
   );
 }
 
-/** A step by what happened, not by which run it is in: the same step in a rerun has the same key. */
-export const stepKey = (e: TraceEvent) => JSON.stringify([e.actor, e.title, e.reason ?? "", e.hop ? [e.hop.from, e.hop.to] : [], e.facts ?? {}]);
+/**
+ * A step by what happened, not by which run it is in: the same step in a rerun has the same key. The message's
+ * layers and header fields are part of it, so an ARP request and an IP packet on the same link, or two ACKs with
+ * different numbers, are different steps.
+ */
+export const stepKey = (e: TraceEvent) =>
+  JSON.stringify([e.actor, e.title, e.reason ?? "", e.hop ? [e.hop.from, e.hop.to] : [], e.facts ?? {}, e.layers.map((l) => [l.name, l.fields])]);
 /** A step an assistance action ("Show where and why", "Check my fix", a "Show me" link) put on the diagram. */
 export type Reveal = { step: string; by: "show-stop" | "check" | "show-me"; at: string };
 
