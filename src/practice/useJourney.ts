@@ -1,6 +1,6 @@
 // One run of the simulation and the learner's place in it: shared by the playground and missions.
 // There is exactly one playback state; every view reads the current event index from here.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
 import { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
@@ -30,7 +30,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
       try {
-        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
+        const saved = localStorage.getItem(MODE_KEY);
+        return saved === "events" || saved === "exchange" ? saved : "summary";
       } catch {
         return "summary";
       }
@@ -101,7 +102,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setPlaying((p) => !p);
   }
   function chooseMode(next: JourneyMode) {
-    setMode(next);
+    // A transition keeps the current view on screen while the Exchange view loads, instead of a fallback.
+    startTransition(() => setMode(next));
     try {
       localStorage.setItem(MODE_KEY, next);
     } catch {

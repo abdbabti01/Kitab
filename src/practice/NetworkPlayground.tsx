@@ -242,10 +242,10 @@ export function NetworkPlayground() {
     a.click();
     URL.revokeObjectURL(url);
   }
-  function inspectPacket() {
+  function inspectPacket(scroll = true) {
     journey.setPlaying(false);
     setTab("packet");
-    if (window.matchMedia("(max-width: 850px)").matches)
+    if (scroll && window.matchMedia("(max-width: 850px)").matches)
       inspectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   const select = (id: string) => {

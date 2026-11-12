@@ -51,7 +51,7 @@ export function JourneyControls({
   const last = (trace?.events.length ?? 1) - 1;
   const k = stageAt(stages, index);
   const { prev, next } = neighbours(mode, stages, index, last);
-  const unit = mode === "summary" ? "stage" : "event";
+  const unit = mode !== "events" ? "stage" : "event";
   const stoppedBy = trace && !trace.success ? network.devices.find((d) => d.id === trace.events[last].actor)?.name : "";
   return (
     <div className="journey-controls" aria-label="Journey controls" role="group">
@@ -75,9 +75,9 @@ export function JourneyControls({
       <div className="journey-position">
         {trace ? (
           <>
-            <b>{mode === "summary" ? stages[k]?.title : trace.events[index].title}</b>
+            <b>{mode !== "events" ? stages[k]?.title : trace.events[index].title}</b>
             <small>
-              {mode === "summary"
+              {mode !== "events"
                 ? `Stage ${k + 1} of ${stages.length} · event ${index + 1} of ${last + 1}`
                 : `Event ${index + 1} of ${last + 1} · stage ${k + 1} of ${stages.length}`}
             </small>
@@ -90,9 +90,9 @@ export function JourneyControls({
         )}
       </div>
       <div className="journey-mode" role="radiogroup" aria-label="Timeline view">
-        {(["summary", "events"] as const).map((m) => (
+        {(["summary", "events", "exchange"] as const).map((m) => (
           <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "active" : ""} onClick={() => onMode(m)}>
-            {m === "summary" ? "Summary" : "Every event"}
+            {m === "summary" ? "Summary" : m === "events" ? "Every event" : "Exchange"}
           </button>
         ))}
       </div>
@@ -180,7 +180,7 @@ export function JourneyCard({
   const n = narrate(trace.events, index, network);
   const name = (id: string) => network.devices.find((d) => d.id === id)?.name ?? id;
   // During playback the card stays with the stage instead of jumping with every event.
-  const anchorId = playing || mode === "summary" ? trace.events[stage.end].actor : event.actor;
+  const anchorId = playing || mode !== "events" ? trace.events[stage.end].actor : event.actor;
   const complete = index === stage.end;
   const avoidIds = [...new Set([...stage.devices, ...stage.hops.flatMap((h) => [h.from, h.to])])];
   useLayoutEffect(() => {
@@ -223,11 +223,11 @@ export function JourneyCard({
         <Maximize2 size={14} /> Explain this step
       </button>
     );
-  const title = mode === "summary" ? stage.title : event.title;
+  const title = mode !== "events" ? stage.title : event.title;
   // A stage's summary is only shown once all of its events have happened.
   const text = event.error
     ? failureText(event, advice)
-    : mode === "summary" && complete
+    : mode !== "events" && complete
       ? stage.summary
       : n.summary;
   return (
@@ -239,7 +239,7 @@ export function JourneyCard({
     >
       <header>
         <span className="eyebrow">
-          {mode === "summary" ? "Now at " : ""}
+          {mode !== "events" ? "Now at " : ""}
           {name(event.actor)} · {event.location}
         </span>
         <button className="icon-button" aria-label="Hide the explanation" onClick={() => onOpen(false)}>
@@ -247,7 +247,7 @@ export function JourneyCard({
         </button>
       </header>
       <h2>{n.failure?.title ?? title}</h2>
-      {mode === "summary" && !complete && (
+      {mode !== "events" && !complete && (
         <p className="journey-progress">
           In progress: event {index - stage.start + 1} of {stage.end - stage.start + 1} in this stage.
         </p>
@@ -318,10 +318,10 @@ export function StepsList({
     <div className="steps-list">
       <div className="inspector-intro">
         <span className="eyebrow">THE WHOLE JOURNEY</span>
-        <h2>{mode === "summary" ? `${stages.length} stages` : `${trace.events.length} events`}</h2>
+        <h2>{mode !== "events" ? `${stages.length} stages` : `${trace.events.length} events`}</h2>
         <p>Select a step to show it on the diagram. Every recorded event is here.</p>
       </div>
-      {mode === "summary" ? (
+      {mode !== "events" ? (
         <ol className="stage-list">
           {stages.map((s, k) => (
             <li key={s.start} className={s.error ? "is-error" : ""}>

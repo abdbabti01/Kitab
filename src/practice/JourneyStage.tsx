@@ -1,6 +1,6 @@
 // The diagram with Follow the Journey on it: canvas, controls, explanation card and view options.
 // Shared by the playground and missions; it reads everything from one useJourney() state.
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Globe2 } from "lucide-react";
 import { NetworkCanvas } from "./NetworkCanvas.tsx";
 import { JourneyCard, JourneyControls } from "./Journey.tsx";
@@ -8,6 +8,9 @@ import { DeviceCloseup } from "./PacketInspector.tsx";
 import { motionAt } from "./network/motion.ts";
 import type { Journey } from "./useJourney.ts";
 import type { DeviceKind, Network } from "./network/model.ts";
+
+// The sequence diagram is only downloaded when the learner picks the Exchange view.
+const ExchangeView = lazy(() => import("./ExchangeView.tsx"));
 
 export function JourneyStage({
   journey: j,
@@ -32,7 +35,8 @@ export function JourneyStage({
   /** The first-run button shown on the diagram before anything has been sent. */
   start?: { label: string; disabled: boolean; onClick: () => void };
   onAbout: (id: string) => void;
-  onInspect: () => void;
+  /** Opens the Packet tab; `scroll` false keeps a narrow page where it is. */
+  onInspect: (scroll?: boolean) => void;
 }) {
   const [inside, setInside] = useState(false);
   // A hop takes most of one playback step, so the frame arrives before the next event is shown.
@@ -57,7 +61,7 @@ export function JourneyStage({
           motion={motion}
           onPacket={() => {
             j.setPlaying(false);
-            onInspect();
+            onInspect(true);
           }}
         >
           {!j.trace && start && (
@@ -97,7 +101,7 @@ export function JourneyStage({
             open={j.cardOpen}
             onOpen={j.setCardOpen}
             onStep={j.step}
-            onInspect={onInspect}
+            onInspect={() => onInspect(true)}
             onReadDetails={() => j.setPlaying(false)}
             advice={advice}
           />
@@ -106,6 +110,21 @@ export function JourneyStage({
           {j.announcement}
         </p>
       </div>
+      {/* Always mounted, so choosing Exchange (a transition) keeps the page as it is until the view has loaded. */}
+      <Suspense fallback={<p className="exchange-loading">Loading the exchange…</p>}>
+        {j.mode === "exchange" && j.trace && (
+          <ExchangeView
+            trace={j.trace}
+            index={j.index}
+            network={network}
+            onSelect={(i) => {
+              j.step(i);
+              onInspect(false);
+            }}
+            onInspect={() => onInspect(true)}
+          />
+        )}
+      </Suspense>
       <div className="view-options">
         <label className="network-check">
           <input type="checkbox" checked={j.follow} onChange={(e) => j.setFollow(e.target.checked)} /> Zoom to the current stage
