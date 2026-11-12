@@ -26,7 +26,10 @@ const attempt = z
     completedAt: z.string().max(40).nullable(),
     /** First diagnosis right, later right, or never right; null if not diagnosed. */
     diagnosis: z.enum(["first-try", "later", "wrong"]).nullable(),
-    /** The learner pointed at an event that shows the problem. */
+    /**
+     * The learner chose a step that shows the problem. For attempts made since assistance is tracked, only a
+     * step they found without an assistance action showing it to them; earlier attempts keep what was saved.
+     */
     evidence: z.boolean(),
     explanation: z.boolean().nullable(),
     prediction: z.boolean().nullable(),
@@ -84,7 +87,7 @@ export function masteryGaps(a: MissionAttempt, mission: NetworkMission): string[
   const gaps: string[] = [];
   if (!a.completedAt) gaps.push(mission.kind === "fix" ? "Fix the network so every check passes." : "Answer the question about the retransmission.");
   if (mission.kind === "fix" && a.diagnosis !== "first-try") gaps.push("Name the faulty device and setting correctly on your first try.");
-  if (!a.evidence) gaps.push("Point to the step in the journey that shows the problem.");
+  if (!a.evidence) gaps.push("Choose a step that shows the problem, one you found yourself rather than one a Show button pointed to.");
   if (a.explanation !== true) gaps.push("Choose the explanation of why it works.");
   if (a.hints >= 3) gaps.push("Solve it without the last hint.");
   return gaps;

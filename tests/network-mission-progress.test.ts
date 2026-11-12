@@ -39,7 +39,7 @@ test("fixing the network completes a mission even without a diagnosis; mastery n
   assert.equal(missionState(s.missions[join.id], join), "completed");
   const why = notYetMastered(s.missions[join.id], join).join(" ");
   assert.match(why, /first try/);
-  assert.match(why, /step in the journey/);
+  assert.match(why, /a step that shows the problem, one you found yourself/);
   assert.match(why, /explanation/);
   assert.match(why, /two versions with different causes/);
 });

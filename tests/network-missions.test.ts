@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { missions, variantFor, type FixMission, type InvestigateMission, type Variant } from "../src/practice/network/missions.ts";
-import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, misconceptionStep, runSequence } from "../src/practice/network/mission-assess.ts";
+import { assessFix, diagnose, evidenceCredit, evidenceShows, stepKey, type Reveal, investigationAnswer, lockBroken, misconceptionStep, runSequence } from "../src/practice/network/mission-assess.ts";
 import { connect } from "../src/practice/network/topology.ts";
 import { failures } from "../src/practice/network/explanations.ts";
 import { scenarios } from "./support/network-scenarios.ts";
@@ -483,4 +483,30 @@ test("a misconception's “show this step” points to an event that really happ
         assert.equal(misconceptionStep(m, v, network, "no-such-misconception"), null);
       }
     }
+});
+
+test("evidence the learner found counts towards mastery; a step assistance showed them first does not", () => {
+  const m = mission("no-connection");
+  const v = m.variants.find((x) => x.id === "cable")!;
+  const t = runSequence(v.build(), [v.probe]);
+  const stop = t.events.length - 1;
+  const shown = (trace: typeof t, i: number, by: Reveal["by"] = "show-stop"): Reveal => ({ step: stepKey(trace.events[i]), by, at: "2026-11-12T10:00:00Z" });
+  // Independent: nothing was shown before the choice.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, []), { credit: "independent" });
+  // Assisted: "Show where and why" showed the stop, then the learner chose it.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, [shown(t, stop)]), { credit: "assisted", by: "show-stop" });
+  // Moving away and back, or rerunning the same request, is still the same step: still assisted.
+  const rerun = runSequence(v.build(), [v.probe]);
+  assert.notEqual(rerun, t);
+  assert.deepEqual(evidenceCredit(m, v, rerun, rerun.events.length - 1, [shown(t, stop, "check")]), { credit: "assisted", by: "check" });
+  // Assistance that showed a different step does not take away a step the learner found.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, [shown(t, 0, "show-me")]), { credit: "independent" });
+  // A step that does not show the problem is not evidence, assisted or not.
+  assert.deepEqual(evidenceCredit(m, v, t, 0, [shown(t, 0)]), { credit: "invalid" });
+  // In the wrong-gateway version, being shown the stop still leaves the route choice (also evidence) to find.
+  const l = mission("leave-the-lan");
+  const w = l.variants.find((x) => x.id === "wrong-gateway")!;
+  const lt = runSequence(w.build(), [w.probe]);
+  const route = lt.events.findIndex((e) => e.title === "Choose a route");
+  assert.deepEqual(evidenceCredit(l, w, lt, route, [shown(lt, lt.events.length - 1)]), { credit: "independent" });
 });

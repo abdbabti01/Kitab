@@ -2,7 +2,7 @@
 // Pure and deterministic: no UI state, no text matching on what the learner typed.
 import { isPrivate, newSession, simulate } from "./engine.ts";
 import { failures } from "./explanations.ts";
-import type { Device, Network, Trace } from "./model.ts";
+import type { Device, Network, Trace, TraceEvent } from "./model.ts";
 import type { Area, Aspect, FixMission, InvestigateMission, Lock, NetworkMission, Variant } from "./missions.ts";
 
 export type CheckResult = {
@@ -145,6 +145,23 @@ export function evidenceShows(mission: NetworkMission, variant: Variant, trace: 
     !!e.hop && e.hop.from === e.actor && faulty(e.actor, ["nat"]) &&
     !!ip && isPrivate(String(ip["Source IP"])) && !isPrivate(String(ip["Destination IP"]))
   );
+}
+
+/** A step by what happened, not by which run it is in: the same step in a rerun has the same key. */
+export const stepKey = (e: TraceEvent) => JSON.stringify([e.actor, e.title, e.reason ?? "", e.hop ? [e.hop.from, e.hop.to] : [], e.facts ?? {}]);
+/** A step an assistance action ("Show where and why", "Check my fix", a "Show me" link) put on the diagram. */
+export type Reveal = { step: string; by: "show-stop" | "check" | "show-me"; at: string };
+
+/**
+ * How a chosen step counts. Valid evidence is the learner's own unless an assistance action had already shown
+ * that same step, in this run or any other, before they chose it; then it is assisted and does not count
+ * towards mastery. Assistance that showed other steps does not matter.
+ */
+export function evidenceCredit(mission: NetworkMission, variant: Variant, trace: Trace, index: number, revealedBefore: Reveal[]) {
+  if (!evidenceShows(mission, variant, trace, index)) return { credit: "invalid" as const };
+  const key = stepKey(trace.events[index]);
+  const by = revealedBefore.find((r) => r.step === key)?.by;
+  return by ? { credit: "assisted" as const, by } : { credit: "independent" as const };
 }
 
 /**

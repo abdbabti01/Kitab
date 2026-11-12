@@ -8,7 +8,8 @@ import type { Action, Network, Session, Trace } from "./network/model.ts";
 
 export type InputError = { field: "source" | "target"; message: string };
 
-export function useJourney(network: Network) {
+/** `onShowStop` hears when "Show where and why" puts the stop on the diagram (missions track it as assistance). */
+export function useJourney(network: Network, onShowStop?: (trace: Trace, index: number) => void) {
   const [session, setSession] = useState<Session>(newSession),
     [trace, setTrace] = useState<Trace | null>(null),
     [index, setIndex] = useState(0),
@@ -111,6 +112,7 @@ export function useJourney(network: Network) {
   const stoppedAt = trace && !trace.success ? trace.events.length - 1 : -1;
   const stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name ?? "" : "";
   function showStop() {
+    if (trace) onShowStop?.(trace, stoppedAt);
     step(stoppedAt);
     setCardOpen(true);
   }

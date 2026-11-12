@@ -65,7 +65,8 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await page.getByRole("button", { name: "Use this step as evidence" }).click();
   await expect(steps(page)).toContainText("Your evidence: step 7, Delivery stopped");
   await page.getByRole("button", { name: "Submit diagnosis" }).click();
-  await expect(steps(page)).toContainText("Yes: the problem is File server's setting. The step you chose is good evidence.");
+  // "Show where and why" showed this step first: it completes, but does not count towards mastery.
+  await expect(steps(page)).toContainText('"Show where and why" showed it to you first, so it does not count towards mastery.');
 
   // Fix it in the Device tab: connect the server's cable.
   await selectDevice(page, "File server");
@@ -274,4 +275,35 @@ test("a mission failure is explained once, at the failing step, and shortcuts ar
   const results = page.getByRole("list", { name: "Check results" });
   await expect(results).toContainText("Real providers do not route private addresses (RFC 1918)");
   await expect(page.getByRole("region", { name: "Mission completed" })).toHaveCount(0);
+});
+
+test("evidence found independently counts; assistance afterwards, or for the same step, is handled per step", async ({ page }) => {
+  await page.goto("/practice/missions/no-connection");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // The learner finds the stop in the step list, without "Show where and why", and chooses it.
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  // Assistance after the choice does not change it.
+  await page.getByRole("button", { name: "First event", exact: true }).click();
+  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  await page.getByLabel("Faulty device").selectOption("server");
+  await page.getByLabel("Faulty setting").selectOption("link");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText("The step you chose is good evidence.");
+  // The stop has now been shown by assistance; choosing it again, even after moving away and back and
+  // reloading, is assisted (the recorded independent evidence stays).
+  await page.reload();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // A new run starts at its first step: away from the stop. Then back to it.
+  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await page.getByLabel("Faulty device").selectOption("server");
+  await page.getByLabel("Faulty setting").selectOption("link");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText('"Show where and why" showed it to you first');
+  await expect(steps(page)).not.toContainText("Choose a step that shows the problem");
 });
