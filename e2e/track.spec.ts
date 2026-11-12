@@ -61,10 +61,13 @@ test("choosing an arrow, a key or a step moves the one Journey: diagram, Now and
   const from = await first.getAttribute("data-from");
   expect(await page.locator(`.network-device[data-device="${from}"]`).getAttribute("class")).toMatch(/is-sender/);
   // The keyboard moves to the next message; Enter opens its packet.
-  const next = (await shown(page)).map(([n]) => n).find((n) => n > i)!;
   await plot(page).focus();
   await page.keyboard.press("ArrowRight");
-  await expect(timeline(page)).toHaveValue(String(next));
+  // The next message may sit in the next window (on a phone); either way it is the current arrow.
+  await expect(timeline(page)).not.toHaveValue(String(i));
+  const next = await timeline(page).inputValue();
+  expect(Number(next)).toBeGreaterThan(i);
+  await expect(page.locator(".track-arrow.is-current")).toHaveAttribute("data-index", next);
   await expect(plot(page)).toBeFocused();
   expect(await plot(page).evaluate((el) => getComputedStyle(el).outlineStyle)).toBe("solid");
   await page.keyboard.press("Enter");
