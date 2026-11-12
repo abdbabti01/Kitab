@@ -340,7 +340,50 @@
 }
 .network-wire.active {
   stroke: #357a60;
-  stroke-width: 4;
+  stroke-width: 5;
+}
+/* The link a frame is crossing, in the colour of its message (as the packet token). */
+.network-wire.active.kind-ip {
+  stroke: #3a6595;
+}
+.network-wire.active.kind-arp {
+  stroke: #23675f;
+}
+.network-wire.active.kind-dhcp {
+  stroke: #8f5a17;
+}
+.packet-locate {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: packet-locate 0.7s ease-out 1;
+}
+.kind-ip .packet-locate {
+  color: #3a6595;
+}
+.kind-arp .packet-locate {
+  color: #23675f;
+}
+.kind-dhcp .packet-locate {
+  color: #8f5a17;
+}
+@keyframes packet-locate {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet-locate {
+    animation: none;
+  }
 }
 .link-label {
   font: 10px var(--mono);
@@ -1681,12 +1724,49 @@
 }
 .network-device.is-sender .device-tile {
   stroke: #b57729;
-  stroke-width: 3;
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px #b5772966);
 }
 .network-device.is-receiver .device-tile {
   stroke: #357a60;
-  stroke-width: 3;
-  stroke-dasharray: 5 4;
+  stroke-width: 4;
+  stroke-dasharray: 6 4;
+  filter: drop-shadow(0 0 8px #357a6055);
+}
+/* Playing, paused, complete, stopped or waiting for a prediction, before the position. */
+.playback-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: #e6ebe0;
+  color: #39463d;
+}
+.playback-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.playback-state.is-playing {
+  background: #e3efe6;
+  color: #1f5a3f;
+}
+.playback-state.is-complete {
+  background: #e3efe6;
+  color: #246044;
+}
+.playback-state.is-stopped {
+  background: #f9e9e3;
+  color: #a0352c;
+}
+.playback-state.is-waiting {
+  background: #f9eed8;
+  color: #6d4510;
 }
 .network-wire.in-path {
   stroke: #6f9c84;

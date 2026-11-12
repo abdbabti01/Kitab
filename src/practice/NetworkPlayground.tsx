@@ -234,7 +234,8 @@ export function NetworkPlayground() {
   function run() {
     if (locked()) return;
     setNotice("");
-    const result = journey.run(action);
+    // Send plays the journey straight away; pause, step and scrub stay available throughout.
+    const result = journey.run(action, undefined, { play: true });
     if (!result) return;
     setTab("packet");
     // Only the step as given advances; once the learner changes the form, they are on their own.

@@ -178,6 +178,8 @@ export function NetworkCanvas({
     return d && displayPosition(d);
   };
   const onPath = new Set(focus?.hops.map((h) => h.link));
+  // The message is about 26 px tall on screen however far the diagram is zoomed out, without outgrowing the devices.
+  const tokenScale = Math.min(2.2, Math.max(1, 26 / (20 * unitPx)));
   const involved = focus && new Set([...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])]);
   const cable = (
     from: { x: number; y: number },
@@ -282,11 +284,13 @@ export function NetworkCanvas({
             pb = displayPosition(b);
           const active = event?.hop?.link === l.id;
           const forwarding = motion?.forward?.links.includes(l.id) ? `is-${motion.forward.kind}` : "";
+          // The link a frame is crossing takes the colour of what it carries.
+          const carrying = active && motion?.packet ? `kind-${motion.packet.kind}` : "";
           return (
             <g key={l.id}>
               <path
                 d={cable(pa, pb)}
-                className={`network-wire ${l.medium} ${active ? "active" : ""} ${onPath.has(l.id) ? "in-path" : ""} ${forwarding}`}
+                className={`network-wire ${l.medium} ${active ? "active" : ""} ${carrying} ${onPath.has(l.id) ? "in-path" : ""} ${forwarding}`}
               />
               <text
                 className="link-label"
@@ -350,13 +354,14 @@ export function NetworkCanvas({
             gets taps on its own tile. */}
         {motion && (() => {
           const spot = restingSpot(motion, place);
+          // At least about 44 px, and always 16 px beyond the drawn frame however large it is drawn.
         return (
           spot && (
             <circle
               className="packet-hit"
               cx={spot.at.x}
               cy={spot.at.y}
-              r={Math.min(60, Math.max(26, 22 / unitPx))}
+              r={Math.max(Math.min(60, Math.max(26, 22 / unitPx)), 10 * tokenScale + 16 / unitPx)}
               data-packet=""
               aria-hidden="true"
               onClick={onPacket}
@@ -462,6 +467,7 @@ export function NetworkCanvas({
           place={place}
           name={(id) => network.devices.find((d) => d.id === id)?.name ?? id}
           onPacket={onPacket}
+          scale={tokenScale}
         />
       )}
       {!network.devices.length && (
@@ -558,7 +564,10 @@ function PacketLayer({
   place,
   name,
   onPacket,
+  scale = 1,
 }: {
+  /** Drawn size of the message, so it stays easy to find on a small or zoomed-out diagram. */
+  scale?: number;
   motion: Motion & { ms: number };
   eventId: number;
   place: (id: string) => Point | undefined;
@@ -579,16 +588,18 @@ function PacketLayer({
     }
     },
   };
-  const badge = (kind: string, label: string, broadcast = false) => {
+  const badge = (kind: string, label: string, broadcast = false, moving = false) => {
     const w = label.length * 7 + 18;
     return (
-    <>
+    <g transform={scale === 1 ? undefined : `scale(${scale.toFixed(2)})`}>
+      {/* A short pulse as a hop begins, so the eye finds the frame that is about to move. */}
+      {moving && <rect className="packet-locate" x={-w / 2 - 6} y="-16" width={w + 12} height="32" rx="16" />}
       {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y="-15" width={w + 10} height="30" rx="15" />}
       <rect className="packet-shape" x={-w / 2} y="-10" width={w} height="20" rx={kind === "ip" ? 10 : kind === "arp" ? 2 : 6} />
       <text className="packet-label" y="4" textAnchor="middle">
         {label}
       </text>
-    </>
+    </g>
     );
   };
   const spot = restingSpot(motion, place);
@@ -612,8 +623,8 @@ function PacketLayer({
             values={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(";")}
           />
         )}
-        {badge(packet.kind, packet.label, packet.broadcast)}
-        {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform="translate(0 -24)" />}
+        {badge(packet.kind, packet.label, packet.broadcast, !still)}
+        {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform={`translate(0 ${-24 * scale}) scale(${scale})`} />}
       </g>
     );
   } else if (held && spot) {

@@ -17,6 +17,7 @@ import { StepExplanation } from "./StepExplanation.tsx";
 import { failureText } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
+import type { Beat } from "./network/motion.ts";
 import { neighbours, place, type JourneyMode, type Point } from "./journey-nav.ts";
 export { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
 import type { Network, Trace } from "./network/model.ts";
@@ -56,6 +57,8 @@ export function JourneyControls({
   const { prev, next } = neighbours(mode, stages, index, last);
   const unit = mode !== "events" ? "stage" : "event";
   const stoppedBy = trace && !trace.success ? network.devices.find((d) => d.id === trace.events[last].actor)?.name : "";
+  // What playback is doing. At the end of a run whose outcome is hidden it waits for the prediction.
+  const state = !trace ? null : outcomeHidden && index >= last ? "waiting" : playing ? "playing" : index < last ? "paused" : trace.success ? "complete" : "stopped";
   return (
     <div className="journey-controls" aria-label="Journey controls" role="group">
       <div className="journey-buttons">
@@ -80,9 +83,17 @@ export function JourneyControls({
           <>
             <b>{mode !== "events" ? stages[k]?.title : trace.events[index].title}</b>
             <small>
-              {mode !== "events"
-                ? `Stage ${k + 1} of ${stages.length} · event ${index + 1} of ${last + 1}`
-                : `Event ${index + 1} of ${last + 1} · stage ${k + 1} of ${stages.length}`}
+              {state && (
+                <span className={`playback-state is-${state}`}>
+                  {{ playing: "Playing", paused: "Paused", complete: "Complete", stopped: "Delivery stopped", waiting: "Waiting for your prediction" }[state]}
+                </span>
+              )}{" "}
+              {/* With the rest of the run hidden, its length is too: only the visible step is counted. */}
+              {outcomeHidden
+                ? `Step ${index + 1}${index < last ? " · the rest appears after your prediction" : ""}`
+                : mode !== "events"
+                  ? `Stage ${k + 1} of ${stages.length} · event ${index + 1} of ${last + 1}`
+                  : `Event ${index + 1} of ${last + 1} · stage ${k + 1} of ${stages.length}`}
             </small>
           </>
         ) : (
@@ -114,7 +125,8 @@ export function JourneyControls({
         max={Math.max(1, last)}
         value={index}
         disabled={!trace}
-        onChange={(e) => onStep(Number(e.target.value))}
+        aria-valuetext={trace ? (outcomeHidden ? `Step ${index + 1}, later steps hidden` : `Event ${index + 1} of ${last + 1}`) : undefined}
+        onChange={(e) => onStep(Math.min(last, Number(e.target.value)))}
       />
       {trace && outcomeHidden && (
         <div className="run-status" role="status">
@@ -158,7 +170,10 @@ export function JourneyCard({
   onAbout,
   onReadDetails,
   advice = true,
+  beats = [],
 }: {
+  /** What each event shows (motion.ts): while playing a stage, routine repeats are not narrated one by one. */
+  beats?: Beat[];
   trace: Trace;
   stages: Stage[];
   index: number;
@@ -182,10 +197,14 @@ export function JourneyCard({
   // A shorter card when no clear spot exists for the full one; tried again at every step.
   const [compact, setCompact] = useState(false);
   useLayoutEffect(() => setCompact(false), [index]);
-  const event = trace.events[index];
   const k = stageAt(stages, index);
   const stage = stages[k];
-  const n = narrate(trace.events, index, network);
+  // Playing a stage, the card stays on the latest event of it that did something new; routine repeats pass by
+  // in a fraction of a second and would only flicker. Stepping, or in Every event, it shows each event.
+  let shown = index;
+  if (playing && mode !== "events") while (shown > stage.start && beats[shown] === "routine") shown -= 1;
+  const event = trace.events[shown];
+  const n = narrate(trace.events, shown, network);
   const name = (id: string) => network.devices.find((d) => d.id === id)?.name ?? id;
   // During playback the card stays with the stage instead of jumping with every event.
   const anchorId = playing || mode !== "events" ? trace.events[stage.end].actor : event.actor;

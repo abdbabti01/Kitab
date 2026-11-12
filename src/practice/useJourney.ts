@@ -3,6 +3,7 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
+import { beatsOf, durationsOf, type Beat } from "./network/motion.ts";
 import { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 
@@ -53,21 +54,24 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
   const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
   const stage = trace ? stages[stageAt(stages, index)] : undefined;
   const event = trace?.events[index];
+  // Playback time per event, read from the whole run (so hiding its end changes nothing), and what each event shows.
+  const { durations, beats } = useMemo(() => {
+    if (!full) return { durations: [] as number[], beats: [] as Beat[] };
+    return { durations: durationsOf(full.events, network, stagesOf(full.events, network)), beats: beatsOf(full.events, network) };
+  }, [full, network]);
   useEffect(() => {
     if (!playing || !trace) return;
-    const timer = window.setInterval(
-      () =>
-        setIndex((i) => {
-          if (i >= trace.events.length - 1) {
-            setPlaying(false);
-            return Math.min(i, trace.events.length - 1);
-          }
-          return i + 1;
-        }),
-      Math.max(120, 1100 / speed),
-    );
-    return () => clearInterval(timer);
-  }, [playing, speed, trace]);
+    // The end of what can be seen: the run's last event, or the last one before a hidden part.
+    if (index >= trace.events.length - 1) return setPlaying(false);
+    const timer = window.setTimeout(() => setIndex(index + 1), Math.max(60, (durations[index] ?? 1100) / speed));
+    return () => clearTimeout(timer);
+  }, [playing, speed, trace, index, durations]);
+  // Playback does not carry on unseen in a background tab.
+  useEffect(() => {
+    const away = () => document.hidden && setPlaying(false);
+    document.addEventListener("visibilitychange", away);
+    return () => document.removeEventListener("visibilitychange", away);
+  }, []);
 
   /** Forgets the run and any acquired state such as DHCP leases. */
   function reset() {
@@ -76,8 +80,9 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setIndex(0);
     setPlaying(false);
   }
-  /** Runs an action on the current session. A typing mistake is shown at the form and returns null. */
-  function run(action: Action, on: Network = network): Trace | null {
+  /** Runs an action on the current session. A typing mistake is shown at the form and returns null. With `play`
+   * the journey starts playing at once (the playground's Send); otherwise it waits on the first event. */
+  function run(action: Action, on: Network = network, { play = false } = {}): Trace | null {
     setPlaying(false);
     const result = simulate(on, session, action);
     if (result.reason?.startsWith("INPUT_")) {
@@ -97,6 +102,7 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setSession(result.session);
     setTrace(result);
     setIndex(0);
+    setPlaying(play);
     return result;
   }
   /** Shows a run that was made elsewhere (e.g. a mission check), at a chosen event. The session is kept. */
@@ -136,11 +142,12 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setCardOpen(true);
   }
   // Announce stage changes; when stepping by hand in Every event, announce each event.
+  // With the rest of the run hidden, so is its length.
   const announcement = !trace
     ? ""
     : mode === "events" && !playing
-      ? `Event ${index + 1} of ${trace.events.length}: ${trace.events[index].title}`
-      : `Stage ${stageAt(stages, index) + 1} of ${stages.length}: ${stage?.title}`;
+      ? `Event ${index + 1}${gated ? "" : ` of ${trace.events.length}`}: ${trace.events[index].title}`
+      : `Stage ${stageAt(stages, index) + 1}${gated ? "" : ` of ${stages.length}`}: ${stage?.title}`;
   return {
     session,
     shownSession: event?.snapshot ?? session,
@@ -151,6 +158,9 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     index,
     playing,
     setPlaying,
+    /** Milliseconds at 1× for each event of the whole run, and what each event shows (motion.ts). */
+    durations,
+    beats,
     speed,
     setSpeed,
     follow,

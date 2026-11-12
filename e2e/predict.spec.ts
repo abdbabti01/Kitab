@@ -9,8 +9,8 @@ async function start(page: Page) {
   await page.goto("/practice/network");
   await page.getByLabel("Predict as you go").check();
   await page.getByLabel("Destination").fill("http://kitab.test/");
+  // Send plays the journey, which stops at the first question by itself.
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Play journey" }).click();
   await expect(question(page)).toBeVisible();
 }
 async function pick(page: Page, text: string | RegExp, hasTouch?: boolean) {
@@ -23,12 +23,16 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   await start(page);
   await expect(question(page).getByRole("heading")).toHaveText("Your PC has a packet for 198.51.100.53. Which address will it send it to first?");
   await expect(question(page).getByRole("radio")).toHaveCount(2);
+  // Playback waits for the answer, and the counter shows the visible step without the run's length.
+  await expect(page.locator(".playback-state")).toHaveText("Waiting for your prediction");
+  await expect(page.locator(".journey-position small")).toHaveText(/Waiting for your prediction Step 2$/);
   // The Journey waits before the route is chosen: two events, no outcome, nothing further to scrub or play to.
   await expect(page.getByLabel("Journey timeline")).toHaveAttribute("max", "1");
   await expect(page.locator(".run-status")).toHaveText("The rest of this run appears once you answer the prediction or choose Show me.");
   await expect(page.getByRole("button", { name: "Last event", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Next stage" })).toBeDisabled();
-  await expect(page.locator(".journey-position small")).toContainText("event 2 of 2");
+  // The counter gives the visible step, never a total that would make the hidden run look finished.
+  await expect(page.locator(".journey-position small")).not.toContainText(" of ");
   for (const view of ["Every event", "Exchange", "Summary"]) await page.getByRole("radio", { name: view }).click();
   await page.getByRole("button", { name: "Steps", exact: true }).click();
   await expect(page.locator(".steps-list h2")).toHaveText("2 stages");
@@ -86,7 +90,6 @@ test("by keyboard and touch, with reduced motion; practice changes no saved netw
   const before = await page.evaluate(() => ({ workspace: localStorage.getItem("kitab.network.workspace.v1"), saves: localStorage.getItem("kitab.network.saves.v1") }));
   await page.getByLabel("Predict as you go").check();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Play journey" }).click();
   // The question takes the focus; Tab reaches the choices, arrow keys move between them, Enter checks.
   await expect(question(page).getByRole("heading")).toBeFocused();
   await page.keyboard.press("Tab");

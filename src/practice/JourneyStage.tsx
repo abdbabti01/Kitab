@@ -45,10 +45,10 @@ export function JourneyStage({
   onInspect: (scroll?: boolean) => void;
 }) {
   const [inside, setInside] = useState(false);
-  // A hop takes most of one playback step, so the frame arrives before the next event is shown.
+  // A hop takes most of its playback step, so the frame arrives before the next event is shown.
   const motion = useMemo(
-    () => (j.trace ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, 1100 / j.speed) * 0.8) } : undefined),
-    [j.trace, j.index, j.speed, network],
+    () => (j.trace ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, (j.durations[j.index] ?? 1100) / j.speed) * 0.8) } : undefined),
+    [j.trace, j.index, j.speed, j.durations, network],
   );
   return (
     <>
@@ -71,7 +71,15 @@ export function JourneyStage({
           }}
         >
           {!j.trace && start && (
-            <button className="button primary journey-start" disabled={start.disabled} onClick={start.onClick}>
+            <button
+              className="button primary journey-start"
+              disabled={start.disabled}
+              onClick={() => {
+                start.onClick();
+                // This button goes once the run starts: the focus moves to Pause, so playback can be stopped at once.
+                requestAnimationFrame(() => j.journeyRef.current?.querySelector<HTMLButtonElement>(".play-button")?.focus({ preventScroll: true }));
+              }}
+            >
               {start.label}
             </button>
           )}
@@ -112,6 +120,7 @@ export function JourneyStage({
             onInspect={() => onInspect(true)}
             onReadDetails={() => j.setPlaying(false)}
             advice={advice}
+            beats={j.beats}
           />
         )}
         <p className="sr-only" aria-live="polite">

@@ -229,6 +229,8 @@ test("a step links to the earlier step that caused it and cites its rule", async
 test("Follow the journey: the card explains each stage beside the diagram and both views share one position", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // Send plays the journey; going back to the first event pauses it there.
+  await page.getByRole("button", { name: "First event", exact: true }).click();
   const card = page.locator(".journey-card");
   const position = page.locator(".journey-position");
   // Summary is the first-visit view: Next moves a whole stage.
@@ -251,6 +253,7 @@ test("Follow the journey: the card explains each stage beside the diagram and bo
   // The view is remembered on this device.
   await page.reload();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "First event", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Every event" })).toHaveAttribute("aria-checked", "true");
   // The card can be hidden and brought back, and the step is announced for screen readers.
   await card.getByRole("button", { name: "Hide the explanation" }).click();
@@ -445,4 +448,24 @@ test("the Wi-Fi starters say a real phone joins and starts DHCP by itself, and t
   await page.goto("/practice/network?starter=wifi");
   await page.getByRole("button", { name: "Select Home router", exact: true }).click();
   await expect(page.locator(".dns-record").first().locator("input").first()).toHaveValue("pc.home.arpa");
+});
+
+test("Send plays the journey at once; pause holds it, and the end says how it finished", async ({ page }) => {
+  await page.goto("/practice/network?starter=routed");
+  await page.locator(".journey-start").click();
+  // Nothing else to press: playback runs, the focus is on Pause, and a frame crosses a link within seconds.
+  await expect(page.locator(".playback-state")).toHaveText("Playing");
+  await expect(page.getByRole("button", { name: "Pause playback" })).toBeFocused();
+  await expect(page.locator(".packet-token animateMotion")).toHaveCount(1, { timeout: 8000 });
+  await expect(page.locator(".network-wire.active")).toHaveClass(/kind-/);
+  await page.getByRole("button", { name: "Pause playback" }).click();
+  await expect(page.locator(".playback-state")).toHaveText("Paused");
+  const at = await page.locator(".journey-position small").innerText();
+  await page.waitForTimeout(2500);
+  await expect(page.locator(".journey-position small")).toHaveText(at);
+  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await expect(page.locator(".playback-state")).toHaveText("Complete");
+  // Play at the end replays from the start.
+  await page.getByRole("button", { name: "Play journey" }).click();
+  await expect(page.locator(".journey-position small")).toContainText(/event [12] of 39/);
 });
