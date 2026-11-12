@@ -36,7 +36,10 @@ export function JourneyControls({
   onSpeed,
   onShowStop,
   outcomeHidden = false,
+  outcomeShown = true,
 }: {
+  /** The result is kept back until playback reaches it (or the learner goes to the end). */
+  outcomeShown?: boolean;
   /** Later events are hidden (Predict as you go): the outcome is not given away. */
   outcomeHidden?: boolean;
   trace: Trace | null;
@@ -133,7 +136,7 @@ export function JourneyControls({
           <span>The rest of this run appears once you answer the prediction or choose Show me.</span>
         </div>
       )}
-      {trace && !outcomeHidden && (
+      {trace && !outcomeHidden && outcomeShown && (
         <div className={`run-status ${trace.success ? "success" : "failure"}`} role="status">
           {trace.success ? <Check size={14} /> : <span aria-hidden="true">!</span>}
           {trace.success ? (

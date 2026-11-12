@@ -98,6 +98,7 @@ export function JourneyStage({
           onSpeed={j.setSpeed}
           onShowStop={j.showStop}
           outcomeHidden={j.gated}
+          outcomeShown={j.revealed}
         />
         {prompt}
         {j.trace && (

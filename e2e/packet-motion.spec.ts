@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
+async function toEnd(page: Page) {
+  const timeline = page.getByLabel("Journey timeline");
+  await timeline.fill((await timeline.getAttribute("max")) ?? "0");
+}
+
 /** Shows every event, then selects one from the Steps tab by title. */
 async function goToEvent(page: Page, name: RegExp) {
   await page.getByRole("radio", { name: "Every event" }).click();
@@ -44,7 +50,7 @@ test("bridge decisions highlight the chosen port or every flooded copy, and a st
   await page.getByLabel("Default gateway").fill("192.168.1.99");
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  await toEnd(page);
   await expect(page.locator(".packet-halt.is-stopped")).toHaveCount(1);
   await expect(page.locator(".packet-halt text")).toHaveText("Stopped");
 });

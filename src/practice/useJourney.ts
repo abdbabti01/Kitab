@@ -29,6 +29,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
       }
     }),
     [cardOpen, setCardOpen] = useState(true),
+    // Whether the run's result may be shown: not while Send's playback is on its way to it.
+    [revealed, setRevealed] = useState(true),
     [positions, setPositions] = useState<Record<string, Point>>({}),
     [scale, setScale] = useState(1),
     [inputError, setInputError] = useState<InputError | null>(null),
@@ -66,6 +68,10 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     const timer = window.setTimeout(() => setIndex(index + 1), Math.max(60, (durations[index] ?? 1100) / speed));
     return () => clearTimeout(timer);
   }, [playing, speed, trace, index, durations]);
+  // The result is shown once the run reaches its last event, by playing there or by going there.
+  useEffect(() => {
+    if (full && !gated && index >= full.events.length - 1) setRevealed(true);
+  }, [full, gated, index]);
   // Playback does not carry on unseen in a background tab.
   useEffect(() => {
     const away = () => document.hidden && setPlaying(false);
@@ -103,6 +109,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setTrace(result);
     setIndex(0);
     setPlaying(play);
+    // Played from the start, the result waits for the end; a run that is not played shows it at once (missions).
+    setRevealed(!play);
     return result;
   }
   /** Shows a run that was made elsewhere (e.g. a mission check), at a chosen event. The session is kept. */
@@ -110,6 +118,7 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setPlaying(false);
     setTrace(result);
     setIndex(Math.max(0, Math.min(result.events.length - 1, at)));
+    setRevealed(true);
     setCardOpen(true);
   }
   function step(next: number) {
@@ -155,6 +164,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     /** The whole run, including any part hidden by `limit`. */
     fullTrace: full,
     gated,
+    /** The result may be shown: the run has reached its end, or was opened or shown rather than played. */
+    revealed: revealed && !gated,
     index,
     playing,
     setPlaying,

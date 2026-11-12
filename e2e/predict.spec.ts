@@ -78,8 +78,10 @@ test("Show me, trying again, and turning predictions off", async ({ page }) => {
   // Nobody is trapped: turning predictions off shows the whole run and its outcome.
   await page.getByLabel("Predict as you go").uncheck();
   await expect(result(page)).toHaveCount(0);
-  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
+  // The result still waits for the end of the run.
+  await expect(page.locator(".run-status")).toHaveCount(0);
   await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
   await expect(page.locator(".journey-position small")).toContainText(/event 489 of 489/);
 });
 

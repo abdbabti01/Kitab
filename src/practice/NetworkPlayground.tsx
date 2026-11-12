@@ -33,6 +33,7 @@ import { missions } from "./network/missions.ts";
 import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import { PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import type { Experiment } from "./network/experiments.ts";
+import type { Trace } from "./network/model.ts";
 import { checkpointsFor } from "./network/predict.ts";
 import type { Side } from "./BreakCompare.tsx";
 
@@ -238,14 +239,19 @@ export function NetworkPlayground() {
     const result = journey.run(action, undefined, { play: true });
     if (!result) return;
     setTab("packet");
-    // Only the step as given advances; once the learner changes the form, they are on their own.
+    // Only the step as given advances; once the learner changes the form, they are on their own. The next step
+    // is offered when this run's result is shown, so it does not give the result away.
     const at = steps.findIndex((s) => s.action === action);
     const next = at >= 0 ? steps[at + 1] : undefined;
-    if (result.success && next) {
-      setAction(next.action);
-      setNotice(next.note);
-    }
+    setNextStep(result.success && next ? { trace: result, step: next } : null);
   }
+  const [nextStep, setNextStep] = useState<{ trace: Trace; step: (typeof steps)[number] } | null>(null);
+  useEffect(() => {
+    if (!nextStep || !journey.revealed || journey.fullTrace !== nextStep.trace) return;
+    setAction(nextStep.step.action);
+    setNotice(nextStep.step.note);
+    setNextStep(null);
+  }, [nextStep, journey.revealed, journey.fullTrace]);
   function history(undo: boolean) {
     if (locked()) return;
     const source = undo ? past : future;

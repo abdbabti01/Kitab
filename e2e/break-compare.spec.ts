@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
+// Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
+async function toEnd(page: Page) {
+  const timeline = page.getByLabel("Journey timeline");
+  await timeline.fill((await timeline.getAttribute("max")) ?? "0");
+}
+
 const panel = (page: Page) => page.getByRole("region", { name: "Break and compare" });
 const banner = (page: Page) => page.locator(".experiment-banner");
 const workspace = (page: Page) => page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"));
@@ -72,6 +78,7 @@ test("a temporary copy: nothing is edited or sent, Restore brings back the learn
   expect(await workspace(page)).toBe(saved);
   expect(await page.evaluate(() => localStorage.getItem("kitab.network-missions.v1"))).toBeNull();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Ping");
 });
 
