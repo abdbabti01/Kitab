@@ -1,8 +1,8 @@
 // Break and compare (playground, loaded on demand): break one setting on a copy of the learner's network, run the
 // same action on both with the real engine, and show where the runs first differ. The learner's network is never
 // changed; the broken copy exists only while the experiment is open.
-import { useEffect, useState } from "react";
-import { experimentsFor, type Experiment } from "./network/experiments.ts";
+import { useEffect, useRef, useState } from "react";
+import { findExperiments, type Experiment, type Found } from "./network/experiments.ts";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 import "./compare.css";
 
@@ -29,12 +29,34 @@ export default function BreakCompare({
   onRestore: () => void;
 }) {
   // Both runs of every candidate fault, computed once the request stops changing (not on every keystroke).
-  const [found, setFound] = useState<{ for: unknown[]; result: ReturnType<typeof experimentsFor> } | null>(null);
+  // One engine run at a time, letting the browser handle input in between; a change of request cancels the search.
+  const [found, setFound] = useState<{ for: unknown[]; result: Found } | null>(null);
   useEffect(() => {
-    const t = setTimeout(() => setFound({ for: [network, action, session], result: experimentsFor(network, action, session) }), 150);
+    const steps = findExperiments(network, action, session);
+    let t = setTimeout(function next() {
+      const step = steps.next();
+      if (step.done) setFound({ for: [network, action, session], result: step.value });
+      else t = setTimeout(next);
+    }, 150);
     return () => clearTimeout(t);
   }, [network, action, session]);
   const [choice, setChoice] = useState("");
+  // Opening the panel, or starting or ending a comparison, replaces the controls that had the focus: move it to
+  // the panel's heading.
+  const heading = useRef<HTMLHeadingElement>(null);
+  const shownId = active?.fault.id ?? "";
+  useEffect(() => heading.current?.focus(), [shownId]);
+  // What both runs start from: state kept from earlier runs, which can make a run shorter than a first one.
+  const known = [
+    [Object.keys(session.leases).length, "DHCP lease", "DHCP leases"],
+    [Object.keys(session.arp).length, "ARP entry", "ARP entries"],
+    [Object.keys(session.dns).length, "DNS answer", "DNS answers"],
+  ]
+    .filter(([count]) => count)
+    .map(([count, one, many]) => `${count} ${count === 1 ? one : many}`);
+  const startsFrom = known.length
+    ? `Both runs start from the simulator's current state, which already holds ${known.join(", ")} from earlier runs, so they can be shorter than a first run. Restart simulation (under the send form) empties it.`
+    : "Both runs start from a fresh simulator state.";
   // Results for an earlier request are never offered.
   const current = found && found.for[0] === network && found.for[1] === action && found.for[2] === session ? found.result : null;
   const start = current?.working,
@@ -45,7 +67,9 @@ export default function BreakCompare({
   if (!active) {
     return (
       <section className="compare" aria-label="Break and compare">
-        <h2>Break and compare</h2>
+        <h2 ref={heading} tabIndex={-1}>
+          Break and compare
+        </h2>
         <p className="compare-intro">
           Break one setting on a copy of your network, run {what} on both, and see exactly where the runs first differ. Your own network is not changed.
         </p>
@@ -121,10 +145,13 @@ export default function BreakCompare({
   };
   return (
     <section className="compare" aria-label="Break and compare">
-      <h2>Break and compare</h2>
+      <h2 ref={heading} tabIndex={-1}>
+        Break and compare
+      </h2>
       <p className="compare-changed" role="status">
         <b>One change:</b> {fault.setting} on {name(fault.device)}, {fault.before} → {fault.after}. This copy is temporary; your network is unchanged.
       </p>
+      <p className="compare-start">{startsFrom}</p>
       <div className="compare-grid">
         {run("working", working, d?.working)}
         {run("broken", broken, d?.broken)}

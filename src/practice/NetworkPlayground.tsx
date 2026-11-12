@@ -33,6 +33,7 @@ import { missions } from "./network/missions.ts";
 import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import { PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import type { Experiment } from "./network/experiments.ts";
+import { checkpointsFor } from "./network/predict.ts";
 import type { Side } from "./BreakCompare.tsx";
 
 // Break and compare runs the engine for every fault it could offer, so it is only downloaded when opened.
@@ -98,7 +99,8 @@ export function NetworkPlayground() {
     [experiment, setExperiment] = useState<{ x: Experiment; side: Side } | null>(null);
   const shown = experiment?.side === "broken" ? experiment.x.network : network;
   const predict = usePredictions(shown);
-  const journey = useJourney(shown, undefined, predict.limit);
+  // Predictions apply to the learner's own runs, not to the two runs of an experiment.
+  const journey = useJourney(shown, undefined, experiment ? undefined : predict.limit);
   /** While an experiment is open nothing is edited or sent: the learner restores their network first. */
   function locked() {
     if (experiment) setNotice("This is a temporary experiment. Choose Restore my network to change or send anything.");
@@ -107,8 +109,13 @@ export function NetworkPlayground() {
   function restore() {
     const x = experiment?.x;
     setExperiment(null);
-    // Back to the learner's own network, showing its run at the same place as the comparison.
-    if (x) journey.show(x.working, x.divergence?.working ?? 0);
+    // Back to the learner's own network, showing its run at the same place as the comparison. With predictions on,
+    // the questions before that place count as passed (as when predictions are turned on mid-run).
+    if (!x) return;
+    const at = x.divergence?.working ?? 0;
+    if (predict.on)
+      predict.setPicks({ trace: x.working, by: Object.fromEntries(checkpointsFor(x.working, network).filter((c) => c.ask < at).map((c) => [c.id, "seen"])) });
+    journey.show(x.working, at);
   }
   // A starter's guided steps: after one succeeds, the next is loaded into the send form.
   const [steps, setSteps] = useState(path?.steps ?? []);
@@ -545,7 +552,7 @@ export function NetworkPlayground() {
               }}
               onAbout={select}
               onInspect={inspectPacket}
-              prompt={<PredictCard predict={predict} journey={journey} network={shown} />}
+              prompt={experiment ? null : <PredictCard predict={predict} journey={journey} network={shown} />}
               options={<PredictSwitch predict={predict} journey={journey} network={shown} />}
             />
             <SendPanel
@@ -586,7 +593,11 @@ export function NetworkPlayground() {
                     if (!experiment) return;
                     setExperiment({ ...experiment, side });
                     journey.show(side === "broken" ? experiment.x.broken : experiment.x.working, index);
-                    if (inspect) inspectPacket();
+                    if (inspect) return inspectPacket();
+                    // The panel sits below the diagram on narrow screens: bring the Journey into view if it is off screen.
+                    const box = journey.journeyRef.current?.getBoundingClientRect();
+                    if (box && (box.bottom < 0 || box.top > innerHeight))
+                      journey.journeyRef.current!.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
                   }}
                   onRestore={restore}
                 />

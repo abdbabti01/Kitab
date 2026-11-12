@@ -104,3 +104,41 @@ test("by keyboard and touch, with reduced motion, stacked on narrow screens", as
   await panel(page).getByRole("button", { name: "Restore my network" }).click();
   await expect(banner(page)).toHaveCount(0);
 });
+
+test("with predictions on, an experiment's runs are not gated; focus follows the panel; the starting state is stated", async ({ page }) => {
+  await open(page);
+  await page.getByLabel("Predict as you go").check();
+  await expect(panel(page).locator(".compare-option")).toHaveCount(6);
+  await expect(panel(page).getByRole("heading", { name: "Break and compare" })).toBeFocused();
+  await panel(page).getByRole("radio", { name: /Turn off NAT/ }).check();
+  await panel(page).getByRole("button", { name: "Run both and compare" }).click();
+  await expect(panel(page).getByRole("heading", { name: "Break and compare" })).toBeFocused();
+  await expect(panel(page).locator(".compare-start")).toHaveText("Both runs start from a fresh simulator state.");
+  // No question covers the comparison, and both runs can be shown at their first difference.
+  await expect(page.getByRole("region", { name: "Prediction", exact: true })).toHaveCount(0);
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await expect(page.locator(".journey-position b")).toHaveText("ARP: discover the next-hop MAC");
+  await panel(page).locator(".compare-run.is-working").getByRole("button", { name: "Show it in the Journey" }).click();
+  await expect(page.locator(".journey-position b")).toHaveText("Translate source with NAT");
+  await banner(page).getByRole("button", { name: "Restore my network" }).click();
+  await expect(panel(page).getByRole("heading", { name: "Break and compare" })).toBeFocused();
+  // After a run, the experiment starts from what that run left behind, and says so.
+  await page.getByLabel("Predict as you go").uncheck();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(panel(page).locator(".compare-option")).toHaveCount(6);
+  await panel(page).getByRole("radio", { name: /Turn off NAT/ }).check();
+  await panel(page).getByRole("button", { name: "Run both and compare" }).click();
+  await expect(panel(page).locator(".compare-start")).toHaveText(/^Both runs start from the simulator's current state, which already holds \d+ ARP entries, 1 DNS answer from earlier runs/);
+});
+
+test("on a phone, showing a run brings the Journey into view", async ({ page }, info) => {
+  test.skip((info.project.use.viewport?.width ?? 1440) > 500, "phone layout only");
+  await open(page);
+  await panel(page).getByRole("radio", { name: /Turn off NAT/ }).check();
+  await panel(page).getByRole("button", { name: "Run both and compare" }).click();
+  const show = panel(page).locator(".compare-run.is-working").getByRole("button", { name: "Show it in the Journey" });
+  await show.scrollIntoViewIfNeeded();
+  await expect(page.locator(".journey-stage")).not.toBeInViewport();
+  await show.click();
+  await expect(page.locator(".journey-stage")).toBeInViewport();
+});

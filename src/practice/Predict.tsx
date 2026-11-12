@@ -43,6 +43,8 @@ export function PredictSwitch({ predict: p, journey: j, network }: { predict: Pr
 export function PredictCard({ predict: p, journey: j, network }: { predict: Predictions; journey: Journey; network: Network }) {
   const t = j.fullTrace;
   const [choice, setChoice] = useState("");
+  // Replaying a revealed outcome ("Watch it happen") stops when the outcome is reached.
+  const [watching, setWatching] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const cs = p.on && t ? checkpointsFor(t, network) : [];
   const by = t ? p.answers(t) : {};
@@ -60,6 +62,12 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
     heading.current?.focus({ preventScroll: true });
     heading.current?.closest(".predict-card")?.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [key]);
+  const reached = watching && !!done && j.index >= done.at;
+  useEffect(() => {
+    if (!reached) return;
+    j.setPlaying(false);
+    setWatching(false);
+  }, [reached]);
   if (!p.on || !t) return null;
   if (!cs.length)
     return <p className="predict-note">This run has no decision to predict, so it plays as usual.</p>;
@@ -79,6 +87,12 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
     p.setPicks({ trace: t, by: keep });
     p.setResult(null);
     j.step(c.ask);
+  }
+  function watch(c: Checkpoint) {
+    // The result stays on screen while the Journey plays from the question to the outcome.
+    j.step(c.ask);
+    j.play();
+    setWatching(true);
   }
   function next() {
     p.setResult(null);
@@ -107,6 +121,11 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
           <button className="button primary" onClick={next}>
             Continue
           </button>
+          {done.at - done.ask > 1 && j.index === done.at && (
+            <button className="text-button" onClick={() => watch(done)}>
+              Watch it happen
+            </button>
+          )}
           <button className="text-button" onClick={() => again(done)}>
             Try this one again
           </button>

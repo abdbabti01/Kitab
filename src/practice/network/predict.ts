@@ -267,7 +267,7 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
       wrong: [forward, keep, drop].filter((o) => o !== outcome[0]),
       explain:
         outcome[0] === forward
-          ? `${dest} is not ${name(r)}'s own address, so it lowered the TTL to ${ttl} and chose the next hop ${addr(ev[route].facts?.["Next hop"])} (route "${ev[route].facts?.Route}").`
+          ? `${dest} is not ${name(r)}'s own address, so it lowered the TTL to ${ttl} and chose the next hop ${addr(ev[route].facts?.["Next hop"])} using the route "${ev[route].facts?.Route}".`
           : outcome[0] === keep
             ? `${dest} is ${name(r)}'s own address, so it delivered the packet to itself.`
             : (failure?.failure?.message ?? ""),

@@ -159,3 +159,14 @@
 .compare .text-button {
   font-size: 13px;
 }
+.compare h2:focus {
+  outline: none;
+}
+.compare h2:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.compare-start {
+  color: var(--muted);
+  font-size: 12px;
+}

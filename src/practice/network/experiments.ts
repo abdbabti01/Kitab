@@ -155,12 +155,24 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
  * The experiments for this network and action: at most one per kind of fault, each a single changed setting whose
  * broken run the engine shows ends differently from the working run. None when the working run itself fails.
  */
-export function experimentsFor(network: Network, action: Action, session: Session = newSession()): { working: Trace; experiments: Experiment[] } {
+export function experimentsFor(network: Network, action: Action, session: Session = newSession()): Found {
+  const steps = findExperiments(network, action, session);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+}
+export type Found = { working: Trace; experiments: Experiment[] };
+/**
+ * The same search, one engine run per step, so a page can let the browser respond between runs (a long run takes
+ * tens of milliseconds to simulate, and a search runs up to ten of them).
+ */
+export function* findExperiments(network: Network, action: Action, session: Session = newSession()): Generator<void, Found> {
   const working = simulate(network, session, action);
   if (!working.success) return { working, experiments: [] };
   const found: Experiment[] = [];
   for (const fault of candidates(network, action, working)) {
     if (found.some((x) => x.fault.kind === fault.kind)) continue;
+    yield;
     const broken = structuredClone(network);
     fault.apply(broken);
     const result = simulate(broken, session, action);

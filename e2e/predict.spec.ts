@@ -135,3 +135,21 @@ test("a lost segment: predict what TCP does, then see the retransmission", async
   await page.getByRole("radio", { name: "Every event" }).click();
   await expect(page.locator(".journey-position b")).toHaveText("Retransmit TCP segment");
 });
+
+test("after a prediction, the learner can watch the outcome happen, and the replay stops at the outcome", async ({ page }) => {
+  await page.goto("/practice/network?starter=wifi");
+  await page.getByLabel("Predict as you go").check();
+  await page.locator(".journey-start").click();
+  await page.getByRole("button", { name: "Play journey" }).click();
+  await expect(question(page).getByRole("heading")).toHaveText("Your phone has no address yet and broadcasts a DHCP Discover. Will it get an address?");
+  await question(page).getByRole("button", { name: "Show me" }).click();
+  // The answer jumps to the lease being applied; the whole DHCP exchange in between can be watched.
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await expect(page.locator(".journey-position b")).toHaveText("Apply DHCP lease");
+  await page.getByLabel("Playback speed").selectOption("8");
+  await result(page).getByRole("button", { name: "Watch it happen" }).click();
+  await expect(page.locator(".journey-position b")).not.toHaveText("Apply DHCP lease");
+  await expect(page.locator(".journey-position b")).toHaveText("Apply DHCP lease", { timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Play journey" })).toBeVisible();
+  await expect(result(page)).toBeVisible();
+});
