@@ -160,9 +160,11 @@ export function NetworkCanvas({
     if (stacked) moveCam({ x: (layout.width - camW) / 2, y: 0 }, false);
   }, [stacked, rowsKey, area.w]);
   // Following the journey: the camera moves only when the devices of this step leave the middle of the view.
-  // A broadcast is copied to many devices at once: the camera keeps its sender in view rather than chasing each copy
-  // across a large network (the copies still leave along their lit links).
-  const watched = !event ? [] : motion?.packet?.broadcast ? [motion.packet.from] : [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x);
+  // A switch or access point copies a broadcast to many devices at once: the camera keeps that device in view rather
+  // than chasing each copy across a large network (the copies still leave along their lit links). Any other frame,
+  // including a host's own broadcast to its first hop, is followed to its receiver.
+  const flooding = motion?.packet?.broadcast && ["switch", "ap"].includes(network.devices.find((d) => d.id === motion.packet!.from)?.kind ?? "");
+  const watched = !event ? [] : flooding ? [motion!.packet!.from] : [event.actor, event.hop?.from, event.hop?.to].filter((x): x is string => !!x);
   const watchKey = watched.join(" ");
   /** The devices' extent, with room for their labels. */
   const extentOf = (ids: string[]) => {
