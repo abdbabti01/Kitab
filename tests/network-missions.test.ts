@@ -5,7 +5,7 @@ import { assessFix, diagnose, evidenceCredit, evidenceShows, stepKey, type Revea
 import { connect } from "../src/practice/network/topology.ts";
 import { failures } from "../src/practice/network/explanations.ts";
 import { scenarios } from "./support/network-scenarios.ts";
-import type { Failure, Network } from "../src/practice/network/model.ts";
+import type { Failure, Network, TraceEvent } from "../src/practice/network/model.ts";
 
 const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
 const mission = (id: string) => missions.find((m) => m.id === id)!;
@@ -509,4 +509,45 @@ test("evidence the learner found counts towards mastery; a step assistance showe
   const lt = runSequence(w.build(), [w.probe]);
   const route = lt.events.findIndex((e) => e.title === "Choose a route");
   assert.deepEqual(evidenceCredit(l, w, lt, route, [shown(lt, lt.events.length - 1)]), { credit: "independent" });
+});
+
+test("the assisted-evidence fingerprint tells similar steps apart and keeps the same step across reruns", () => {
+  const reveal = (e: TraceEvent): Reveal => ({ step: stepKey(e), by: "show-me", at: "2026-11-12T10:00:00Z" });
+  // Every evidence step in every version has a fingerprint no other event of its run shares,
+  // and the same fingerprint when the run is repeated.
+  for (const m of missions)
+    for (const v of m.variants) {
+      const t = runSequence(v.build(), [v.probe]),
+        again = runSequence(v.build(), [v.probe]);
+      t.events.forEach((e, i) => {
+        if (!evidenceShows(m, v, t, i)) return;
+        const where = `${m.id}/${v.id} step ${i} (${e.title})`;
+        assert.ok(t.events.every((x, j) => j === i || stepKey(x) !== stepKey(e)), where);
+        assert.equal(stepKey(again.events[i]), stepKey(e), where);
+      });
+    }
+  // The router's ARP request and the leaking IP packet cross the same link with the same title: different steps.
+  const b = mission("bring-reply-home");
+  const nat = b.variants.find((x) => x.id === "nat-off")!;
+  const nt = runSequence(nat.build(), [nat.probe]);
+  const leak = nt.events.findIndex((e, i) => evidenceShows(b, nat, nt, i) && !!e.hop);
+  const arp = nt.events.findIndex((e) => e.packet?.startsWith("arp-") && e.title === nt.events[leak].title && e.hop?.from === nt.events[leak].hop!.from && e.hop?.to === nt.events[leak].hop!.to);
+  assert.ok(leak >= 0 && arp >= 0);
+  assert.deepEqual(evidenceCredit(b, nat, nt, leak, [reveal(nt.events[arp])]), { credit: "independent" });
+  assert.deepEqual(evidenceCredit(b, nat, nt, leak, [reveal(nt.events[leak])]), { credit: "assisted", by: "show-me" });
+  // Two acknowledgements by the same device differ by their numbers: showing a later one leaves the first to find.
+  const s = mission("missing-segment");
+  const long = s.variants.find((x) => x.id === "long")!;
+  const st = runSequence(long.build(), [long.probe]);
+  const acks = st.events.flatMap((e, i) => (e.title === "Acknowledge received bytes" ? [i] : []));
+  const first = acks.find((i) => evidenceShows(s, long, st, i))!;
+  const later = acks.find((i) => i > first && st.events[i].actor === st.events[first].actor)!;
+  assert.ok(later > first);
+  assert.deepEqual(evidenceCredit(s, long, st, first, [reveal(st.events[later])]), { credit: "independent" });
+  // Credit is judged against the assistance recorded before the choice: what is shown afterwards does not revoke it.
+  const log = [reveal(st.events[later])],
+    seen = log.length;
+  log.push(reveal(st.events[first]));
+  assert.deepEqual(evidenceCredit(s, long, st, first, log.slice(0, seen)), { credit: "independent" });
+  assert.deepEqual(evidenceCredit(s, long, st, first, log), { credit: "assisted", by: "show-me" });
 });
