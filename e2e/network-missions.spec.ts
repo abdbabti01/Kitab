@@ -67,10 +67,21 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await expect(results.locator(".is-failed")).toHaveCount(0);
   const done = page.getByRole("region", { name: "Mission completed" });
   await expect(done).toContainText("What was wrong: The file server had no cable to the switch");
-  await done.getByRole("button", { name: /An address only says where a device is/ }).click();
+  // The choices keep this attempt's order through a reload.
+  const order = await done.locator(".mission-options button").allInnerTexts();
+  await page.reload();
+  await openMissionTab(page);
+  await expect(done.locator(".mission-options button")).toHaveText(order);
+  // A wrong explanation gets feedback about that idea, with the step that contradicts it.
+  await done.getByRole("button", { name: /ARP requests are answered by a router/ }).click();
+  await expect(done).toContainText("the ARP reply comes from the file server itself");
+  await done.getByRole("button", { name: "Show this step on the diagram" }).click();
+  await expect(page.locator(".journey-position b")).toContainText("ARP");
+  await done.getByRole("button", { name: /An address doesn.t create a path/ }).click();
   await expect(done).toContainText("Yes, that is the rule at work.");
   await expect(page.locator(".mission-meta .state-pill")).toHaveText("Completed");
-  await expect(steps(page)).toContainText("Solve one more version with a different cause");
+  // The first explanation chosen is the one recorded, so this attempt does not count towards mastery.
+  await expect(steps(page)).toContainText("Choose the explanation of why it works.");
 
   // Reload: the attempt and its network are kept.
   await page.reload();
@@ -204,7 +215,17 @@ test("a mission can be worked with the keyboard alone", async ({ page }) => {
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check my fix" }).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
+  const done = page.getByRole("region", { name: "Mission completed" });
+  await expect(done).toBeVisible();
+  // Explaining works by keyboard too; the chosen answer is announced as pressed, and its feedback as status.
+  const wrong = done.getByRole("button", { name: /a router already knows every network/ });
+  await wrong.focus();
+  await page.keyboard.press("Enter");
+  await expect(wrong).toHaveAttribute("aria-pressed", "true");
+  await expect(done.getByRole("status")).toContainText("A router knows only the networks it is connected to");
+  await done.getByRole("button", { name: "Show this step on the diagram" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".journey-card h2")).toContainText(/route/i);
 });
 
 test("a mission failure is explained once, at the failing step, and shortcuts are refused with the reason", async ({ page }) => {

@@ -132,6 +132,24 @@ export function evidenceShows(mission: NetworkMission, variant: Variant, trace: 
   return e.error === true || devices.includes(e.actor) || (!!e.hop && (devices.includes(e.hop.from) || devices.includes(e.hop.to)));
 }
 
+/**
+ * The run and step a misconception's message points to, from real runs: the mission's checks on the learner's
+ * network (an investigation's own run), or the version's broken first run. Null when no such event happened.
+ */
+export function misconceptionStep(mission: NetworkMission, variant: Variant, network: Network, id: string): { trace: Trace; index: number } | null {
+  const see = mission.misconceptions[id]?.see;
+  if (!see) return null;
+  const traces =
+    see.run === "start" || mission.kind === "investigate"
+      ? [runSequence(variant.build(), [variant.probe])]
+      : runChecks(mission, variant, network).map((c) => c.trace);
+  for (const trace of traces) {
+    const index = trace.events.findIndex((e) => e.title === see.title && (!see.actor || e.actor === see.actor));
+    if (index >= 0) return { trace, index };
+  }
+  return null;
+}
+
 /** The answer to an investigation's question, computed from the variant's own run. */
 export function investigationAnswer(mission: InvestigateMission, variant: Variant) {
   const trace = simulate(variant.build(), newSession(), variant.probe);

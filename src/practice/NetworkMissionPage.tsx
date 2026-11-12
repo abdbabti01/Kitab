@@ -10,7 +10,8 @@ import { useJourney } from "./useJourney.ts";
 import { connect, validateNetwork } from "./network/topology.ts";
 import { SCRATCH_KEY } from "./network/storage.ts";
 import { areaLabels, aspectLabels, findNetworkMission, missions, variantFor, type Area, type NetworkMission } from "./network/missions.ts";
-import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, type Assessment } from "./network/mission-assess.ts";
+import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, misconceptionStep, type Assessment } from "./network/mission-assess.ts";
+import { optionOrder } from "../learning/assessment.ts";
 import {
   loadMissionStore,
   missionState,
@@ -121,6 +122,16 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           : mission.kind === "fix" && !attempt.completedAt
       : false;
   const correctPrediction = useMemo(() => prediction?.answer(variant.build(), variant), [prediction, variant]);
+  // Choices appear in an order fixed for this attempt (by when it started), so position never gives the answer away.
+  const inAttemptOrder = <T extends { id: string }>(items: T[], what: string) =>
+    optionOrder(`${mission.id}:${attempt.startedAt}:${what}`, items.map((o) => o.id)).map((id) => items.find((o) => o.id === id)!);
+  const explainedOption = mission.explanation.options.find((o) => o.id === explained);
+  const misconception = explainedOption?.misconception;
+  // Only a step that happened in a real run is offered as evidence against the chosen explanation.
+  const counter = useMemo(
+    () => (misconception ? misconceptionStep(mission, variant, network, misconception) : null),
+    [mission, variant, network, misconception],
+  );
 
   function send() {
     setNotice("");
@@ -205,7 +216,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           <h2>Predict first</h2>
           <p>{prediction.prompt}</p>
           <div className="mission-options">
-            {prediction.options(network).map((o) => (
+            {inAttemptOrder(prediction.options(network), "predict").map((o) => (
               <button
                 key={o.id}
                 className="small-button"
@@ -336,10 +347,11 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           </p>
           <h2>{mission.explanation.prompt}</h2>
           <div className="mission-options">
-            {mission.explanation.options.map((o) => (
+            {inAttemptOrder(mission.explanation.options, "explain").map((o) => (
               <button
                 key={o.id}
                 className={`small-button ${explained === o.id ? (o.correct ? "is-right" : "is-wrong") : ""}`}
+                aria-pressed={explained === o.id}
                 disabled={explained !== null && attempt.explanation === true}
                 onClick={() => {
                   setExplained(o.id);
@@ -350,10 +362,17 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
               </button>
             ))}
           </div>
-          {explained && (
-            <p className="mission-feedback">
-              {mission.explanation.options.find((o) => o.id === explained)!.correct ? "Yes, that is the rule at work." : "That is a common misconception; read the step explanations on the diagram and try another answer."}
+          {explainedOption && (
+            <p className="mission-feedback" role="status">
+              {explainedOption.correct
+                ? "Yes, that is the rule at work."
+                : `${(misconception && mission.misconceptions[misconception]?.message) || "That is a common misconception; read the step explanations on the diagram."} Try another answer.`}
             </p>
+          )}
+          {explainedOption && !explainedOption.correct && counter && (
+            <button className="text-button" onClick={() => journey.show(counter.trace, counter.index)}>
+              Show this step on the diagram
+            </button>
           )}
         </section>
       )}

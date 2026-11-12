@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { missions, variantFor, type FixMission, type InvestigateMission, type Variant } from "../src/practice/network/missions.ts";
-import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, runSequence } from "../src/practice/network/mission-assess.ts";
+import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, misconceptionStep, runSequence } from "../src/practice/network/mission-assess.ts";
 import { connect } from "../src/practice/network/topology.ts";
 import { failures } from "../src/practice/network/explanations.ts";
 import { scenarios } from "./support/network-scenarios.ts";
@@ -403,5 +403,26 @@ test("missions show the observation only: no simulator diagnosis or repair advic
       const probe = runSequence(v.build(), [v.probe]).failure;
       for (const c of assessFix(m, v, v.build()).checks)
         for (const extra of [probe?.detail, probe?.advice]) if (extra) assert.ok(!c.message.includes(extra), `${m.id}/${v.id}: ${c.message}`);
+    }
+});
+
+test("a misconception's “show this step” points to an event that really happens, in every version", () => {
+  for (const m of missions)
+    for (const v of m.variants) {
+      // After a fix (an investigation needs none), every grounded misconception finds its event.
+      const network = m.kind === "fix" ? apply(v, cases[m.id][v.id].fix) : v.build();
+      for (const o of m.explanation.options.filter((x) => !x.correct)) {
+        const see = m.misconceptions[o.misconception!]?.see;
+        if (!see) continue;
+        const step = misconceptionStep(m, v, network, o.misconception!);
+        assert.ok(step, `${m.id}/${v.id}: no “${see.title}”${see.actor ? ` by ${see.actor}` : ""} for ${o.misconception}`);
+        const e = step.trace.events[step.index];
+        assert.equal(e.title, see.title);
+        if (see.actor) assert.equal(e.actor, see.actor);
+        // Outside the version's broken first run, the step comes from a run that worked, as the explanation assumes.
+        if (see.run !== "start" && m.kind === "fix") assert.ok(step.trace.success, `${m.id}/${v.id}: ${o.misconception} points into a failed run`);
+        // Without a matching event there is no link at all, rather than a nearby one.
+        assert.equal(misconceptionStep(m, v, network, "no-such-misconception"), null);
+      }
     }
 });

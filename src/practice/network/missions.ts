@@ -99,6 +99,11 @@ type Base = {
   /** Hint levels 1 and 2; level 3 is the variant's focus. */
   hints: [string, string];
   explanation: { prompt: string; options: (Choice & { correct: boolean; misconception?: string })[] };
+  /**
+   * Why each wrong explanation conflicts with what the runs show. `see` names the event that shows it: in the
+   * runs of the mission's checks on the learner's network, or with run "start" in the version's broken first run.
+   */
+  misconceptions: Record<string, { message: string; see?: { title: string; actor?: string; run?: "start" } }>;
   /** Shown on completion: the rule the learner demonstrated. */
   proved: string;
 };
@@ -254,11 +259,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "Why did nothing reach the file server, even though both addresses were correct?",
       options: [
-        { id: "path", text: "An address only says where a device is. Frames still need a working link: ARP's broadcast reached only the devices connected to the sender.", correct: true },
-        { id: "arp-router", text: "ARP needs a router to answer, and there was no router.", correct: false, misconception: "arp-needs-router" },
-        { id: "address-path", text: "Devices with addresses in the same subnet can always reach each other.", correct: false, misconception: "address-is-path" },
-        { id: "server-off", text: "The file server ignores pings from devices it has not seen before.", correct: false, misconception: "server-filters" },
+        { id: "path", text: "An address doesn't create a path: ARP's broadcast reaches only devices with a working link to the sender.", correct: true },
+        { id: "arp-router", text: "ARP requests are answered by a router, and this LAN had no router to answer for the server.", correct: false, misconception: "arp-needs-router" },
+        { id: "address-path", text: "Devices with addresses in the same subnet reach each other directly, whatever the cabling between the two of them.", correct: false, misconception: "address-is-path" },
+        { id: "server-off", text: "The file server ignores pings from devices it hasn't seen before, so the first request was dropped.", correct: false, misconception: "server-filters" },
       ],
+    },
+    misconceptions: {
+      "arp-needs-router": {
+        message: "Whoever owns the address answers ARP. In the working run, the ARP reply comes from the file server itself; no router takes part on this LAN.",
+        see: { title: "ARP reply", actor: "server" },
+      },
+      "address-is-path": {
+        message: "Both addresses were right, yet the first run stopped: the ARP broadcast never reached the file server. A matching subnet tells a device to deliver locally; only a working link carries the frames.",
+        see: { title: "Delivery stopped", run: "start" },
+      },
+      "server-filters": {
+        message: "Nothing filtered the ping. The broken run never reached the server at all, and once the link worked the server answered the very first request. (Real firewalls can block pings; this one was never asked.)",
+        see: { title: "Create ICMP echo reply", actor: "server" },
+      },
     },
     proved:
       "Your ping crossed a working path: ARP found the server's MAC address, and the request and reply crossed every link between them. Addresses only matter once a link exists.",
@@ -367,11 +386,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "Why could two devices on the same switch not reach each other?",
       options: [
-        { id: "masks", text: "Each device used its own address and mask to decide whether the other was local; one of them concluded the other was remote and had no gateway to use.", correct: true },
-        { id: "switch-ip", text: "The switch blocks traffic between different IP addresses.", correct: false, misconception: "switch-routes" },
-        { id: "symmetric", text: "If one device can reach the other, the reply always works too.", correct: false, misconception: "symmetric-path" },
-        { id: "mask-security", text: "The mask is a password that both devices must share before talking.", correct: false, misconception: "mask-is-secret" },
+        { id: "masks", text: "Each device compared addresses using its own mask; one concluded the other was remote and had no gateway.", correct: true },
+        { id: "switch-ip", text: "The switch compared the two IP addresses and refused to forward frames between different subnets.", correct: false, misconception: "switch-routes" },
+        { id: "symmetric", text: "Only the sender's mask matters: if the request is delivered locally, the reply is always sent back the same way.", correct: false, misconception: "symmetric-path" },
+        { id: "mask-security", text: "The mask works like a shared password: devices with different masks refuse each other's frames.", correct: false, misconception: "mask-is-secret" },
       ],
+    },
+    misconceptions: {
+      "switch-routes": {
+        message: "A switch never reads IP addresses. In the run, it forwards each frame using its MAC table; the decision that failed was a device's own route choice.",
+        see: { title: "Forward using MAC table", actor: "switch" },
+      },
+      "symmetric-path": {
+        message: "The reply is a new packet, and the server makes its own route choice with its own mask. A wrong mask there breaks the reply even when the request arrived.",
+        see: { title: "Choose a route", actor: "server" },
+      },
+      "mask-is-secret": {
+        message: "The other side never checks a mask. A device uses its own mask only to decide whether a destination is local, as Your PC's route choice shows.",
+        see: { title: "Choose a route", actor: "pc" },
+      },
     },
     proved:
       "Both devices now agree on one subnet, so each treats the other as local and finds it with ARP. A mask mismatch on either side makes a neighbour look remote, for the request or for the reply.",
@@ -504,11 +537,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "What did the phone need, and in what order?",
       options: [
-        { id: "both", text: "A Wi-Fi link first (matching network name and passphrase), then a DHCP exchange with a server that has a free address in the LAN's subnet.", correct: true },
-        { id: "ap-dhcp", text: "Joining Wi-Fi gives the phone its IP address from the access point.", correct: false, misconception: "ap-assigns-addresses" },
-        { id: "any-router", text: "Any router answers DHCP automatically because it is a router.", correct: false, misconception: "router-always-dhcp" },
-        { id: "static-faster", text: "A static address set on the phone is collected by DHCP and confirmed.", correct: false, misconception: "dhcp-confirms-static" },
+        { id: "both", text: "A Wi-Fi link first, then a DHCP exchange with a server that has a free address in the LAN's subnet.", correct: true },
+        { id: "ap-dhcp", text: "Only a Wi-Fi link: the access point hands the phone its IP address as part of joining.", correct: false, misconception: "ap-assigns-addresses" },
+        { id: "any-router", text: "A Wi-Fi link, then any router: every router answers DHCP requests, whatever its settings.", correct: false, misconception: "router-always-dhcp" },
+        { id: "static-faster", text: "A Wi-Fi link, then a static address typed on the phone, which DHCP collects and confirms for the LAN.", correct: false, misconception: "dhcp-confirms-static" },
       ],
+    },
+    misconceptions: {
+      "ap-assigns-addresses": {
+        message: "The access point only bridges the phone's frames onto the LAN. In the run, the DHCP Offer comes from the home router's DHCP service, not the access point.",
+        see: { title: "DHCP Offer", actor: "router" },
+      },
+      "router-always-dhcp": {
+        message: "A router answers DHCP only when its DHCP service is on and has free addresses in its own subnet. In the run, the ACK comes from a router whose service is set up that way.",
+        see: { title: "DHCP ACK", actor: "router" },
+      },
+      "dhcp-confirms-static": {
+        message: "With a static address the phone never asks DHCP. In the working run, the exchange starts with the phone's Discover, because its interface obtains its address automatically.",
+        see: { title: "DHCP Discover", actor: "phone" },
+      },
     },
     proved:
       "The phone joined the Wi-Fi network, then completed Discover, Offer, Request and ACK with the router's DHCP service and used the lease to reach the PC. A link and an address are separate steps.",
@@ -629,11 +676,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "What has to be true for a ping to another network to succeed?",
       options: [
-        { id: "both-ways", text: "Each device needs a way to reach the other network (a gateway or route), every router on the way needs a matching route, and the reply makes its own trip back.", correct: true },
-        { id: "router-knows", text: "A router automatically knows every network in the building.", correct: false, misconception: "router-knows-all" },
-        { id: "reverse", text: "The reply retraces the request's path automatically, so only the sender's settings matter.", correct: false, misconception: "reply-retraces" },
-        { id: "same-subnet", text: "Both devices must be in the same subnet for routing to work.", correct: false, misconception: "routing-needs-same-subnet" },
+        { id: "both-ways", text: "Every device and router on the way needs a gateway or route, and the reply finds its own way back.", correct: true },
+        { id: "router-knows", text: "Only the sender needs a gateway; a router already knows every network in the building.", correct: false, misconception: "router-knows-all" },
+        { id: "reverse", text: "Only the sender's settings matter, because the reply automatically retraces the path the request took.", correct: false, misconception: "reply-retraces" },
+        { id: "same-subnet", text: "Both devices must share one subnet, or the routers on the way cannot forward between them.", correct: false, misconception: "routing-needs-same-subnet" },
       ],
+    },
+    misconceptions: {
+      "router-knows-all": {
+        message: "A router knows only the networks it is connected to and the routes it is given. In the run, it chooses each next hop from its routing table.",
+        see: { title: "Choose a route", actor: "router" },
+      },
+      "reply-retraces": {
+        message: "The reply is a new packet with its own route decision. In the run, the server chooses its own way back, using its own gateway or routes.",
+        see: { title: "Choose a route", actor: "server" },
+      },
+      "routing-needs-same-subnet": {
+        message: "Routing exists for devices in different subnets. In the run, the router decreases the TTL and forwards the packet from one network to another.",
+        see: { title: "Decrease TTL", actor: "router" },
+      },
     },
     proved:
       "The request left your LAN through its gateway, every router on the way had a route, and the reply found its own way back. Routing works one hop and one direction at a time.",
@@ -744,11 +805,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "Why did the page need NAT on the home router?",
       options: [
-        { id: "nat", text: "Private addresses are not routed on the Internet, so replies can only come back to the router's public address; NAT records each mapping and restores the private destination.", correct: true },
-        { id: "nat-security", text: "NAT encrypts the request so the provider can carry it.", correct: false, misconception: "nat-encrypts" },
-        { id: "nat-dns", text: "NAT is what turns kitab.test into an address.", correct: false, misconception: "nat-is-dns" },
-        { id: "isp-route", text: "Without NAT, the provider just needs a route to each home's private network.", correct: false, misconception: "isp-routes-private" },
+        { id: "nat", text: "Private addresses aren't routed on the Internet, so the router sends from its public address and maps replies back.", correct: true },
+        { id: "nat-security", text: "NAT encrypts the request at the home router, so the provider can't read the private addresses inside it.", correct: false, misconception: "nat-encrypts" },
+        { id: "nat-dns", text: "NAT turns the server's name into an address, so the request knows where to go on the Internet.", correct: false, misconception: "nat-is-dns" },
+        { id: "isp-route", text: "Without NAT, the provider would add a route to each home's private network and deliver replies there.", correct: false, misconception: "isp-routes-private" },
       ],
+    },
+    misconceptions: {
+      "nat-encrypts": {
+        message: "NAT rewrites addresses and ports, nothing else. Compare the packet before and after the translation: only the source address and port change, and everything else is carried as it was, unencrypted.",
+        see: { title: "Translate source with NAT", actor: "router" },
+      },
+      "nat-is-dns": {
+        message: "This request used the server's IP address, so no DNS lookup ran at all. NAT never sees names; at this step it only replaces the source address and port.",
+        see: { title: "Translate source with NAT", actor: "router" },
+      },
+      "isp-routes-private": {
+        message: "Many homes use the same private ranges, such as 192.168.1.0/24, so a provider route to one of them would be ambiguous; private addresses aren't routed on the Internet (RFC 1918). In the run, the reply comes back to the router's public address.",
+        see: { title: "Restore reply destination", actor: "router" },
+      },
     },
     proved:
       "Your page left home from the router's public address and came back to it, and the router's NAT table delivered each reply to your PC. Private addresses stay private. You used the server's IP address to test NAT on its own. Starting from a name such as kitab.test adds a separate DNS exchange first; this home's DNS server is on the Internet, so that query needs NAT too. A DNS server inside the home would not.",
@@ -831,11 +906,25 @@ export const missions: NetworkMission[] = [
     explanation: {
       prompt: "How did the connection recover the lost bytes?",
       options: [
-        { id: "timer", text: "No acknowledgement arrived before the sender's timer ran out, so TCP resent the same bytes with the same sequence number; the receiver's ACK then moved past them.", correct: true },
-        { id: "router", text: "The router noticed the loss and resent its copy of the packet.", correct: false, misconception: "router-recovery" },
-        { id: "restart", text: "TCP restarted the connection with a new handshake.", correct: false, misconception: "tcp-restarts" },
-        { id: "count", text: "The ACK number counts how many segments have arrived.", correct: false, misconception: "ack-counts-packets" },
+        { id: "timer", text: "With no ACK before the sender's timer ran out, TCP resent the same bytes with the same sequence number.", correct: true },
+        { id: "router", text: "The router that dropped the packet kept a copy and resent it once the link was clear again.", correct: false, misconception: "router-recovery" },
+        { id: "restart", text: "TCP opened a new connection with a fresh handshake and sent the whole request again from the start.", correct: false, misconception: "tcp-restarts" },
+        { id: "count", text: "The ACK number counts the segments that arrived, so the sender resent the one segment missing from that count.", correct: false, misconception: "ack-counts-packets" },
       ],
+    },
+    misconceptions: {
+      "router-recovery": {
+        message: "Routers forward packets and keep no copies. In the run, the retransmission comes from Your PC, the sender, after its timer ran out.",
+        see: { title: "Retransmit TCP segment", actor: "pc" },
+      },
+      "tcp-restarts": {
+        message: "The run has only one handshake. The retransmission travels on the same connection and carries the lost segment's original sequence number.",
+        see: { title: "Retransmit TCP segment", actor: "pc" },
+      },
+      "ack-counts-packets": {
+        message: "ACK numbers are byte positions. The resent segment starts at its sequence number; the ACK that confirms it is that number plus the bytes it carried.",
+        see: { title: "Retransmit TCP segment", actor: "pc" },
+      },
     },
     proved:
       "You found the retransmission and the acknowledgement that confirmed it: TCP resends exactly the missing bytes, and an ACK names the next byte the receiver expects.",

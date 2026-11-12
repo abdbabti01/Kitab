@@ -112,7 +112,7 @@ test("blank answers and watch-only runs never grant mastery", async ({ page }) =
   await runToEnd(page);
   await page.getByRole("button", { name: "Check explanation" }).click();
   await expect(page.getByRole("alert")).toHaveText("Choose the evidence first.");
-  await choose(page, /Slots are contiguous/);
+  await choose(page, /Index i always lives at 0x1000/);
   await page.getByRole("button", { name: "Check explanation" }).click();
   await expect(page.getByRole("heading", { name: "Not mastered yet" })).toBeVisible();
   await expect(page.getByText("No prediction (watched only)")).toBeVisible();
