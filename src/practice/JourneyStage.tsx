@@ -28,9 +28,16 @@ export function JourneyStage({
   prompt,
   tools,
   ask,
+  changed,
+  run,
+  marker,
   explainBelow = false,
   onPickStep,
 }: {
+  /** Break and compare: the changed devices on the diagram, which run the track shows, and its first difference. */
+  changed?: Parameters<typeof NetworkCanvas>[0]["changed"];
+  run?: Parameters<typeof Track>[0]["run"];
+  marker?: Parameters<typeof Track>[0]["marker"];
   /** An open prediction question, drawn on the diagram (NetworkCanvas). */
   ask?: Parameters<typeof NetworkCanvas>[0]["ask"];
   /** A step was chosen from the track's list of steps (the playground then shows Now). */
@@ -80,6 +87,7 @@ export function JourneyStage({
           follow={j.follow}
           motion={motion}
           ask={ask}
+          changed={changed}
           onPacket={() => {
             j.setPlaying(false);
             onInspect(true);
@@ -115,7 +123,7 @@ export function JourneyStage({
           onShowStop={j.showStop}
           outcomeHidden={j.gated}
           outcomeShown={j.revealed}
-          track={<Track journey={j} network={network} onDevice={onSelect} onInspect={() => onInspect(true)} onPickStep={onPickStep} />}
+          track={<Track journey={j} network={network} onDevice={onSelect} onInspect={() => onInspect(true)} onPickStep={onPickStep} run={run} marker={marker} />}
         />
         {prompt}
         {explainBelow && <NowCard journey={j} network={network} onAbout={onAbout} onInspect={() => onInspect(true)} advice={advice} />}

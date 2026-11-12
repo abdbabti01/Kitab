@@ -7,13 +7,15 @@ async function toEnd(page: Page) {
 }
 
 const panel = (page: Page) => page.getByRole("region", { name: "Break and compare" });
+const now = (page: Page) => page.getByRole("region", { name: "What the experiment shows" });
 const banner = (page: Page) => page.locator(".experiment-banner");
 const workspace = (page: Page) => page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"));
 async function open(page: Page, destination = "http://kitab.test/") {
   await page.goto("/practice/network");
   await page.waitForFunction(() => localStorage.getItem("kitab.network.workspace.v1"));
   await page.getByLabel("Destination").fill(destination);
-  await page.getByRole("button", { name: "Break and compare…" }).click();
+  // Break and compare opens from the top of the lab, beside Predict as you go.
+  await page.locator(".canvas-bar").getByRole("button", { name: "Break and compare…" }).click();
 }
 
 test("loaded on demand; only faults that change this request are offered; both runs and their first difference", async ({ page }) => {
@@ -22,7 +24,6 @@ test("loaded on demand; only faults that change this request are offered; both r
   await page.goto("/practice/network");
   await page.getByLabel("Destination").fill("http://kitab.test/");
   expect(loaded).toEqual([]);
-  await page.getByLabel("Destination").fill("http://kitab.test/");
   await page.getByRole("button", { name: "Break and compare…" }).click();
   await expect(panel(page).getByRole("radio")).toHaveCount(6);
   expect(loaded.length).toBeGreaterThan(0);
@@ -37,13 +38,14 @@ test("loaded on demand; only faults that change this request are offered; both r
   await panel(page).getByRole("radio", { name: /Turn off NAT on Home router/ }).check();
   await panel(page).getByRole("button", { name: "Run both and compare" }).click();
   await expect(banner(page)).toContainText("Temporary experiment. Showing the broken copy: Turn off NAT on Home router. Your saved network is unchanged.");
-  await expect(panel(page).locator(".compare-changed")).toHaveText("One change: NAT on Home router, on → off. This copy is temporary; your network is unchanged.");
+  // The explanation, in Now: the one change, where the runs part, and the engine's own reason.
+  await expect(now(page)).toContainText("What changed. NAT on Home router: on → off. Nothing else differs between the two copies.");
   await expect(panel(page).locator(".compare-run.is-working")).toContainText("Works. HTTP 200 OK");
   await expect(panel(page).locator(".compare-run.is-broken")).toContainText("Stops. Delivery stopped at ISP router.");
-  await expect(panel(page).locator(".compare-why")).toContainText("Why it stops: DNS server answered the DNS query, but the reply could not get back to Your PC.");
+  await expect(now(page)).toContainText("Why it fails. DNS server answered the DNS query, but the reply could not get back to Your PC.");
   await expect(panel(page).locator(".compare-run.is-working .compare-event")).toContainText("Step 35: Translate source with NAT");
   await expect(panel(page).locator(".compare-run.is-broken .compare-event")).toContainText("Step 35: ARP: discover the next-hop MAC");
-  await expect(panel(page).locator("tbody tr")).toHaveText([/Step\s*Translate source with NAT\s*ARP: discover the next-hop MAC/]);
+  await expect(now(page).locator("tbody tr")).toHaveText([/Step\s*Translate source with NAT\s*ARP: discover the next-hop MAC/]);
   // The Journey shows the broken run at its first difference; each side can be shown and its packet inspected.
   await page.getByRole("radio", { name: "Every event" }).click();
   await expect(page.locator(".journey-position b")).toHaveText("ARP: discover the next-hop MAC");
@@ -66,14 +68,18 @@ test("a temporary copy: nothing is edited or sent, Restore brings back the learn
   const wires = page.locator(".network-canvas .network-wire");
   const all = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.network.workspace.v1")!).links.length);
   await expect(wires).toHaveCount(all - 1);
+  // Both ends of the unplugged cable are marked.
+  await expect(page.locator(".network-device.is-changed")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Select Your PC, changed in this experiment: Cable unplugged" })).toBeVisible();
   // Sending or editing is refused while the experiment is open.
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(page.locator(".network-notice")).toContainText("This is a temporary experiment. Choose Restore my network to change or send anything.");
   expect(await workspace(page)).toBe(saved);
-  // Restore: the learner's network, as saved, with its run shown at the same point.
+  // Restore: the learner's network, as saved.
   await banner(page).getByRole("button", { name: "Restore my network" }).click();
   await expect(banner(page)).toHaveCount(0);
   await expect(wires).toHaveCount(all);
+  await expect(page.locator(".network-device.is-changed")).toHaveCount(0);
   await expect(panel(page).getByRole("radio").first()).toBeVisible();
   expect(await workspace(page)).toBe(saved);
   expect(await page.evaluate(() => localStorage.getItem("kitab.network-missions.v1"))).toBeNull();
@@ -102,7 +108,17 @@ test("by keyboard and touch, with reduced motion, stacked on narrow screens", as
   else await panel(page).getByRole("radio").nth(5).check();
   await panel(page).getByRole("button", { name: "Run both and compare" }).focus();
   await page.keyboard.press("Enter");
-  await expect(panel(page).locator(".compare-changed")).toHaveAttribute("role", "status");
+  await expect(banner(page).getByRole("status")).toContainText("Temporary experiment.");
+  // The run shown is switched from the banner, by keyboard or touch, with targets a finger can use.
+  const sides = banner(page).getByRole("radiogroup", { name: "Run shown" });
+  await expect(sides.getByRole("radio", { name: "With the fault" })).toHaveAttribute("aria-checked", "true");
+  for (const h of await sides.getByRole("radio").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(40);
+  if (info.project.use.hasTouch) await sides.getByRole("radio", { name: "Your network" }).tap();
+  else {
+    await sides.getByRole("radio", { name: "Your network" }).focus();
+    await page.keyboard.press("Enter");
+  }
+  await expect(sides.getByRole("radio", { name: "Your network" })).toHaveAttribute("aria-checked", "true");
   const columns = await panel(page).locator(".compare-grid").evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
   expect(columns).toBe((info.project.use.viewport?.width ?? 1440) <= 640 ? 1 : 2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
@@ -138,14 +154,14 @@ test("with predictions on, an experiment's runs are not gated; focus follows the
   await expect(panel(page).locator(".compare-start")).toHaveText(/^Both runs start from the simulator's current state, which already holds \d+ ARP entries, 1 DNS answer from earlier runs/);
 });
 
-test("on a phone, showing a run brings the Journey into view", async ({ page }, info) => {
+test("on a phone, showing a run brings the diagram into view", async ({ page }, info) => {
   test.skip((info.project.use.viewport?.width ?? 1440) > 500, "phone layout only");
   await open(page);
   await panel(page).getByRole("radio", { name: /Turn off NAT/ }).check();
   await panel(page).getByRole("button", { name: "Run both and compare" }).click();
   const show = panel(page).locator(".compare-run.is-working").getByRole("button", { name: "Show it in the Journey" });
   await show.scrollIntoViewIfNeeded();
-  await expect(page.locator(".journey-stage")).not.toBeInViewport();
+  await expect(page.locator(".network-canvas")).not.toBeInViewport();
   await show.click();
-  await expect(page.locator(".journey-stage")).toBeInViewport();
+  await expect(page.locator(".network-canvas")).toBeInViewport();
 });

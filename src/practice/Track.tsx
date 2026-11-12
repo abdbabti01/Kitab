@@ -15,7 +15,13 @@ export function Track({
   onDevice,
   onInspect,
   onPickStep,
+  run,
+  marker,
 }: {
+  /** Which run the track shows when there is more than one (Break and compare). */
+  run?: { label: string; tone: "working" | "broken" };
+  /** An event to mark on the track, e.g. where two runs first differ. */
+  marker?: { index: number; label: string };
   journey: Journey;
   network: Network;
   /** A lane's device was chosen. */
@@ -151,7 +157,8 @@ export function Track({
   // The step list and its stages, up to what has been shown.
   const listTrace = trace && until < last ? { ...trace, events: trace.events.slice(0, until + 1) } : trace;
   return (
-    <div className="track" ref={box}>
+    <div className={`track${run ? ` is-${run.tone}` : ""}`} ref={box}>
+      {run && <p className={`track-run is-${run.tone}`}>{run.label}</p>}
       <input
         className="timeline-slider"
         type="range"
@@ -197,7 +204,7 @@ export function Track({
               className="track-plot"
               role="group"
               tabIndex={0}
-              aria-label={`Messages, events ${a + 1} to ${Math.min(b, until) + 1}${current ? `. Selected: ${describe(current)}` : ""}. Left and right arrows move between messages; Enter opens the packet.`}
+              aria-label={`${run ? `${run.label}. ` : ""}Messages, events ${a + 1} to ${Math.min(b, until) + 1}${current ? `. Selected: ${describe(current)}` : ""}${marker && marker.index === j.index ? `. ${marker.label}` : ""}. Left and right arrows move between messages; Enter opens the packet.`}
               onKeyDown={onKey}
             >
               <svg
@@ -267,6 +274,13 @@ export function Track({
                     <path d={m.how === "delivered" ? "M-3 0 L-1 2.5 L3.5 -2.5" : "M-2.5 -2.5 L2.5 2.5 M2.5 -2.5 L-2.5 2.5"} />
                   </g>
                 ))}
+                {marker && inWindow(marker.index) && (
+                  <g className="track-marker" transform={`translate(${x(marker.index)} 0)`}>
+                    <line y1="0" y2={h} />
+                    <path d="M-6 0 H6 L0 9 Z" />
+                    <title>{`Event ${marker.index + 1}: ${marker.label}`}</title>
+                  </g>
+                )}
                 {j.index >= a && j.index <= b && <line className="track-playhead" x1={x(j.index)} x2={x(j.index)} y1="0" y2={h} />}
               </svg>
             </div>
@@ -310,6 +324,12 @@ export function Track({
             <span className="track-key" aria-hidden="true">
               <i className="k-send" /> sends <i className="k-fwd" /> forwards <i className="k-bc" /> broadcast <b className="k-lost">✕</b> lost <b>↻</b> resent{" "}
               <b className="k-ok">✓</b> delivered
+              {marker && (
+                <>
+                  {" "}
+                  <b className="k-diverge">▼</b> first difference
+                </>
+              )}
             </span>
             <button className="text-button" aria-expanded={j.fullExchange} onClick={() => j.setFullExchange(!j.fullExchange)}>
               {j.fullExchange ? "Close full exchange" : "Open full exchange"}

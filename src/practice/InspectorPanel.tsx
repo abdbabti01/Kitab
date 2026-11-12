@@ -28,11 +28,14 @@ export function InspectorPanel({
   panelRef,
   mission,
   now,
+  nowExtra,
 }: {
   /** A mission page's own tab, shown first. */
   mission?: ReactNode;
   /** The Now tab, where the playground explains the current step (missions explain it under the diagram). */
   now?: { onAbout: (id: string) => void; onInspect: () => void };
+  /** Shown at the top of Now, above the current step: what an open experiment shows (Break and compare). */
+  nowExtra?: ReactNode;
   journey: Journey;
   network: Network;
   selected: string;
@@ -62,6 +65,7 @@ export function InspectorPanel({
         {/* Now stays mounted while another view is shown, so what the learner opened in it stays open. */}
         {now && (
           <div hidden={tab !== "now"}>
+            {nowExtra}
             {j.trace ? (
               <NowCard journey={j} network={network} onAbout={now.onAbout} onInspect={now.onInspect} />
             ) : (

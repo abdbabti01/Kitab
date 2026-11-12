@@ -154,7 +154,8 @@
   stroke-dasharray: none;
 }
 .ask-badge circle,
-.answer-badge circle {
+.answer-badge circle,
+.answer-badge rect {
   fill: #24302a;
   stroke: #fff;
   stroke-width: 3;

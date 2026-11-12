@@ -51,13 +51,17 @@ export function askingOf(p: Predictions, j: Journey, network: Network): Asking |
 }
 
 /** The switch, at the top of the lab. Turning it on mid-run asks only from the current step onwards. */
-export function PredictSwitch({ predict: p, journey: j, network }: { predict: Predictions; journey: Journey; network: Network }) {
+export function PredictSwitch({ predict: p, journey: j, network, disabled = false }: { predict: Predictions; journey: Journey; network: Network; disabled?: boolean }) {
   return (
-    <label className={`predict-switch${p.on ? " is-on" : ""}`} title="The Journey stops before each decision so you can predict it">
+    <label
+      className={`predict-switch${p.on ? " is-on" : ""}${disabled ? " is-disabled" : ""}`}
+      title={disabled ? "Restore your network to turn predictions on or off" : "The Journey stops before each decision so you can predict it"}
+    >
       <HelpCircle size={15} aria-hidden="true" />
       <input
         type="checkbox"
         checked={p.on}
+        disabled={disabled}
         onChange={(e) => {
           const t = j.fullTrace;
           if (e.target.checked && t) p.setPicks({ trace: t, by: Object.fromEntries(checkpointsFor(t, network).filter((c) => c.ask < j.index).map((c) => [c.id, "seen"])) });

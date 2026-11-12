@@ -3365,3 +3365,26 @@
   margin-top: 4px;
   min-height: 36px;
 }
+
+/* Break and compare opens from the top of the lab, beside Predict as you go. */
+.compare-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffef9;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a5a00;
+}
+.compare-switch.is-on {
+  border-color: #c99a1d;
+  background: #fff3c4;
+}
+.predict-switch.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

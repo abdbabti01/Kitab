@@ -30,8 +30,11 @@ export function NetworkCanvas({
   motion,
   onPacket,
   ask,
+  changed,
   children,
 }: {
+  /** Break and compare: the devices the experiment's one change touches, and that setting's value in the run shown. */
+  changed?: { devices: string[]; text: string };
   /** An open prediction question: the device that decides is marked, and devices named in the choices are lettered
    * answers that choose that option when tapped (the card's "Check my prediction" still submits it). */
   ask?: { device: string; answers: { device: string; option: string; letter: string; text: string }[]; chosen: string; onAnswer: (option: string) => void };
@@ -267,6 +270,8 @@ export function NetworkCanvas({
           .map((d) => d.id),
   );
   const collapsed = collapsedInternet && !stacked;
+  /** A prediction's lettered answers that a collapsed Internet hides. */
+  const hiddenAnswers = collapsed ? (ask?.answers ?? []).filter((a) => internetIds.has(a.device)).sort((x, y) => x.letter.localeCompare(y.letter)) : [];
   const cloud = { x: 1060, y: 290 };
   const displayPosition = (d: (typeof devices)[number]) =>
     collapsed && internetIds.has(d.id) ? { ...d, ...cloud } : d;
@@ -520,7 +525,7 @@ export function NetworkCanvas({
             className={`network-device ${event && internetIds.has(event.actor) ? "is-active" : ""}`}
             role="button"
             tabIndex={0}
-            aria-label="Expand simulated Internet"
+            aria-label={`Expand simulated Internet${hiddenAnswers.length ? `, which holds ${hiddenAnswers.length === 1 ? "answer" : "answers"} ${hiddenAnswers.map((a) => a.letter).join(" and ")}` : ""}`}
             onClick={() => setCollapsedInternet(false)}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
@@ -539,6 +544,15 @@ export function NetworkCanvas({
             <text textAnchor="middle" className="device-ip" y="20">
               {internetIds.size} devices · click to expand
             </text>
+            {/* A question's answers that are inside: their letters, all alike, so nothing says which is right. */}
+            {hiddenAnswers.length > 0 && (
+              <g className="answer-badge" transform="translate(-92 -40)" aria-hidden="true">
+                <rect x={-17} y={-17} width={hiddenAnswers.length * 22 + 12} height="34" rx="17" />
+                <text x={hiddenAnswers.length * 11 - 11} y="6.5" textAnchor="middle">
+                  {hiddenAnswers.map((a) => a.letter).join(" ")}
+                </text>
+              </g>
+            )}
           </g>
         )}
         {/* The message's touch area: about 44 px wherever it rests, drawn under the devices so a device still
@@ -581,16 +595,17 @@ export function NetworkCanvas({
           const big = !stacked;
           const answer = ask?.answers.find((a) => a.device === d.id);
           const asking = ask?.device === d.id;
+          const isChanged = !!changed?.devices.includes(d.id);
           return (
             <g
               key={d.id}
               transform={`translate(${d.x} ${d.y})`}
-              className={`network-device kind-${d.kind} ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${state} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}${asking ? " is-asking" : ""}${answer ? ` is-answer${ask!.chosen === answer.option ? " is-chosen" : ""}` : ""}`}
+              className={`network-device kind-${d.kind} ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${state} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}${asking ? " is-asking" : ""}${answer ? ` is-answer${ask!.chosen === answer.option ? " is-chosen" : ""}` : ""}${isChanged ? " is-changed" : ""}`}
               // A frame arrives when its hop ends: the receiver lights up then, not before.
               style={receiver && motion ? ({ "--arrive": `${motion.ms}ms` } as React.CSSProperties) : undefined}
               role="button"
               tabIndex={0}
-              aria-label={answer ? `Answer ${answer.letter}: ${answer.text}` : `Select ${d.name}${asking ? ", where the question is asked" : ""}`}
+              aria-label={answer ? `Answer ${answer.letter}: ${answer.text}` : `Select ${d.name}${asking ? ", where the question is asked" : ""}${isChanged ? `, changed in this experiment: ${changed!.text}` : ""}`}
               aria-pressed={answer ? ask!.chosen === answer.option : undefined}
               data-device={d.id}
               // A device reached with the keyboard is brought into view.
@@ -677,6 +692,15 @@ export function NetworkCanvas({
                   </g>
                 )}
               </g>
+              {/* The experiment's one change, on the device it touches, as it is in the run shown. */}
+              {isChanged && (
+                <g className="changed-tag" transform={`translate(0 ${big ? -92 : -82})`} aria-hidden="true">
+                  <rect x={-(changed!.text.length * 3.6 + 16)} y="-14" width={changed!.text.length * 7.2 + 32} height="26" rx="13" />
+                  <text y="4.5" textAnchor="middle">
+                    {changed!.text}
+                  </text>
+                </g>
+              )}
               {labels(d)}
             </g>
           );

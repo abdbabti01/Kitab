@@ -11,6 +11,8 @@ export type Fault = {
   kind: FaultKind;
   /** The device whose setting changes (for a cable, the device it is unplugged from). */
   device: string;
+  /** Every device the change touches: the device, or both ends of an unplugged cable. */
+  devices: string[];
   /** The setting, and its value before and after, as the learner would read them. */
   setting: string;
   before: string;
@@ -45,6 +47,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
         id: `mask:${source.id}:${prefix}`,
         kind: "mask",
         device: source.id,
+        devices: [source.id],
         setting: "Subnet mask",
         before: `/${port.prefix} (${dotted(mask(port.prefix))})`,
         after: `/${prefix} (${dotted(mask(prefix))})`,
@@ -56,6 +59,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
         id: `no-gateway:${source.id}`,
         kind: "no-gateway",
         device: source.id,
+        devices: [source.id],
         setting: "Default gateway",
         before: port.gateway,
         after: "none",
@@ -73,6 +77,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
           id: `wrong-gateway:${source.id}`,
           kind: "wrong-gateway",
           device: source.id,
+          devices: [source.id],
           setting: "Default gateway",
           before: port.gateway,
           after: unused,
@@ -90,6 +95,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
       id: `cable:${id}`,
       kind: "cable",
       device: l.b.device,
+      devices: [l.a.device, l.b.device],
       setting: "Cable",
       before: `${name(l.a.device)} ${l.a.port} ↔ ${name(l.b.device)} ${l.b.port}`,
       after: "unplugged",
@@ -110,6 +116,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
         id: `dhcp-pool:${server.id}`,
         kind: "dhcp-pool",
         device: server.id,
+        devices: [server.id],
         setting: "DHCP pool",
         before: `${server.dhcp.start} – ${server.dhcp.end}`,
         after: `${taken.ip} – ${taken.ip}`,
@@ -128,6 +135,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
       id: `route:${r.id}:${route.network}/${route.prefix}`,
       kind: "route",
       device: r.id,
+      devices: [r.id],
       setting: "Static route",
       before: `${route.network}/${route.prefix} via ${route.via}`,
       after: "removed",
@@ -142,6 +150,7 @@ function candidates(network: Network, action: Action, working: Trace): Fault[] {
       id: `nat:${nat.actor}`,
       kind: "nat",
       device: nat.actor,
+      devices: [nat.actor],
       setting: "NAT",
       before: "on",
       after: "off",
@@ -215,6 +224,25 @@ export function divergence(working: Trace, broken: Trace): Divergence | null {
   const wi = w.get(best.device)?.[best.k],
     bi = b.get(best.device)?.[best.k];
   return { device: best.device, working: wi, broken: bi, differences: compare(wi === undefined ? undefined : working.events[wi], bi === undefined ? undefined : broken.events[bi]) };
+}
+
+/**
+ * What the broken run does after its first difference, read from its own recorded events: how many more steps it
+ * records, which devices act in them (in the order they first act), and its last event. The divergence and the
+ * failure can be at different devices: a router that stops translating does not fail itself, the reply later has
+ * no way back. Null when there is no first difference to start from.
+ */
+export function aftermath(x: Experiment): { steps: number; devices: string[]; last: TraceEvent; stopsAt?: string } | null {
+  const d = x.divergence;
+  if (!d) return null;
+  const from = d.broken ?? -1;
+  const after = x.broken.events.slice(from + 1);
+  return {
+    steps: after.length,
+    devices: [...new Set(after.map((e) => e.actor))],
+    last: x.broken.events[x.broken.events.length - 1],
+    stopsAt: x.broken.success ? undefined : (x.broken.failure?.device ?? x.broken.events[x.broken.events.length - 1].actor),
+  };
 }
 
 /** What differs between two recorded events of one device, field by field. */

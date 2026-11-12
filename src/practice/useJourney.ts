@@ -8,6 +8,8 @@ import { MODE_KEY, type JourneyMode } from "./journey-nav.ts";
 const EXCHANGE_KEY = "kitab.network.fullExchange";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 
+/** The learner's place in a run: the run itself, the event, and whether its result had been shown. */
+export type JourneySnapshot = { trace: Trace | null; index: number; revealed: boolean };
 export type InputError = { field: "source" | "target"; message: string };
 
 /**
@@ -119,6 +121,18 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setRevealed(!play);
     return result;
   }
+  /** The learner's place in their own run, to come back to after something temporary (Break and compare). */
+  function snapshot(): JourneySnapshot {
+    return { trace: full, index: wanted, revealed };
+  }
+  /** Returns to a place taken with snapshot(): the same run object (so answered predictions still apply to it), the
+   * same event, and the result shown only if it had been. */
+  function resume(s: JourneySnapshot) {
+    setPlaying(false);
+    setTrace(s.trace);
+    setIndex(s.index);
+    setRevealed(s.revealed);
+  }
   /** Shows a run that was made elsewhere (e.g. a mission check), at a chosen event. The session is kept. */
   function show(result: Trace, at: number) {
     setPlaying(false);
@@ -204,6 +218,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     reset,
     run,
     show,
+    snapshot,
+    resume,
     step,
     play,
     stoppedAt,

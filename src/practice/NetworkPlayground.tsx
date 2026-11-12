@@ -7,6 +7,7 @@ import {
   BookOpen,
   Download,
   GraduationCap,
+  FlaskConical,
   HardDrive,
   Layers,
   Monitor,
@@ -34,11 +35,13 @@ import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import { askingOf, PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import type { Experiment } from "./network/experiments.ts";
 import type { Trace } from "./network/model.ts";
-import { checkpointsFor } from "./network/predict.ts";
 import type { Side } from "./BreakCompare.tsx";
+import type { JourneySnapshot } from "./useJourney.ts";
 
 // Break and compare runs the engine for every fault it could offer, so it is only downloaded when opened.
 const BreakCompare = lazy(() => import("./BreakCompare.tsx"));
+const CompareNow = lazy(() => import("./BreakCompare.tsx").then((m) => ({ default: m.CompareNow })));
+const SIDE_LABEL: Record<Side, string> = { working: "Your network", broken: "With the fault" };
 import "./practice.css";
 const deviceTypes = [
   { kind: "pc", label: "PC", icon: Monitor },
@@ -97,7 +100,9 @@ export function NetworkPlayground() {
     [tab, setTab] = useState<InspectorTab>("now");
   // Break and compare: a temporary broken copy, shown instead of the learner's network while it is open.
   const [comparing, setComparing] = useState(false),
-    [experiment, setExperiment] = useState<{ x: Experiment; side: Side } | null>(null);
+    // Each run keeps its own place (an event of one run is never looked up in the other), and `back` is the
+    // learner's own place in their own run, to return to.
+    [experiment, setExperiment] = useState<{ x: Experiment; side: Side; at: Record<Side, number>; back: JourneySnapshot } | null>(null);
   const shown = experiment?.side === "broken" ? experiment.x.network : network;
   const predict = usePredictions(shown);
   // Predictions apply to the learner's own runs, not to the two runs of an experiment.
@@ -107,17 +112,49 @@ export function NetworkPlayground() {
     if (experiment) setNotice("This is a temporary experiment. Choose Restore my network to change or send anything.");
     return !!experiment;
   }
+  /** Back to the learner's own network and their own run, where they were: the same run object, so the predictions
+   * they answered still apply and nothing the experiment showed opens their run further. */
   function restore() {
-    const x = experiment?.x;
+    const e = experiment;
     setExperiment(null);
-    // Back to the learner's own network, showing its run at the same place as the comparison. With predictions on,
-    // the questions before that place count as passed (as when predictions are turned on mid-run).
-    if (!x) return;
-    const at = x.divergence?.working ?? 0;
-    if (predict.on)
-      predict.setPicks({ trace: x.working, by: Object.fromEntries(checkpointsFor(x.working, network).filter((c) => c.ask < at).map((c) => [c.id, "seen"])) });
-    journey.show(x.working, at);
+    if (e) journey.resume(e.back);
   }
+  function startExperiment(x: Experiment) {
+    setNotice("");
+    const at = { working: x.divergence?.working ?? x.working.events.length - 1, broken: x.divergence?.broken ?? x.broken.events.length - 1 };
+    setExperiment({ x, side: "broken", at, back: experiment?.back ?? journey.snapshot() });
+    journey.show(x.broken, at.broken);
+    setTab("now");
+  }
+  /** Shows one run of the experiment: at `index`, or where that run was last left. */
+  function showSide(side: Side, index?: number) {
+    if (!experiment) return;
+    const at = { ...experiment.at, [experiment.side]: journey.index, ...(index === undefined ? {} : { [side]: index }) };
+    setExperiment({ ...experiment, side, at });
+    journey.show(side === "broken" ? experiment.x.broken : experiment.x.working, at[side]);
+  }
+  function showFromCompare(side: Side, index: number, inspect: boolean) {
+    showSide(side, index);
+    if (inspect) return inspectPacket();
+    setTab("now");
+    // The comparison sits below the diagram: bring the diagram into view if it is off screen.
+    const canvas = journey.journeyRef.current?.querySelector(".network-canvas");
+    const box = canvas?.getBoundingClientRect();
+    if (box && (box.bottom < 0 || box.top > innerHeight))
+      canvas!.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  }
+  const compareToggle = (
+    <button
+      className={`compare-switch${comparing ? " is-on" : ""}`}
+      aria-expanded={comparing}
+      onClick={() => {
+        if (comparing) restore();
+        setComparing(!comparing);
+      }}
+    >
+      <FlaskConical size={15} aria-hidden="true" /> {comparing ? "Close Break and compare" : "Break and compare…"}
+    </button>
+  );
   // A starter's guided steps: after one succeeds, the next is loaded into the send form.
   const [steps, setSteps] = useState(path?.steps ?? []);
   const [action, setAction] = useState<Action>(() => path?.steps?.[0].action ?? {
@@ -535,11 +572,19 @@ export function NetworkPlayground() {
         <div className="workspace-grid">
           <div className="workspace-stage">
             {experiment && (
-              <div className="experiment-banner" role="status">
-                <span>
+              <div className={`experiment-banner is-${experiment.side}`}>
+                <span role="status">
                   <b>Temporary experiment.</b> Showing {experiment.side === "broken" ? "the broken copy" : "your network"}: {experiment.x.fault.label}. Your saved network is unchanged.
                 </span>
-                <button className="button" onClick={restore}>
+                {/* Which run the diagram, the track and the panels show: always one of the two, always named. */}
+                <div className="experiment-sides" role="radiogroup" aria-label="Run shown">
+                  {(["working", "broken"] as const).map((s) => (
+                    <button key={s} role="radio" aria-checked={experiment.side === s} className={`is-${s}`} onClick={() => experiment.side !== s && showSide(s)}>
+                      {SIDE_LABEL[s]}
+                    </button>
+                  ))}
+                </div>
+                <button className="button primary" onClick={restore}>
                   Restore my network
                 </button>
               </div>
@@ -561,9 +606,47 @@ export function NetworkPlayground() {
               onAbout={select}
               onPickStep={() => setTab("now")}
               onInspect={inspectPacket}
-              prompt={experiment ? null : <PredictCard predict={predict} journey={journey} network={shown} />}
-              tools={<PredictSwitch predict={predict} journey={journey} network={shown} />}
+              prompt={
+                <>
+                  {!experiment && <PredictCard predict={predict} journey={journey} network={shown} />}
+                  {comparing && (
+                    <Suspense fallback={<p className="compare-loading">Loading Break and compare…</p>}>
+                      <BreakCompare
+                        network={network}
+                        action={action}
+                        session={journey.session}
+                        active={experiment?.x ?? null}
+                        side={experiment?.side ?? "broken"}
+                        at={experiment?.at ?? { working: 0, broken: 0 }}
+                        onStart={startExperiment}
+                        onShow={showFromCompare}
+                        onRestore={restore}
+                      />
+                    </Suspense>
+                  )}
+                </>
+              }
+              tools={
+                <>
+                  <PredictSwitch predict={predict} journey={journey} network={shown} disabled={!!experiment} />
+                  {compareToggle}
+                </>
+              }
               ask={experiment ? undefined : askingOf(predict, journey, shown)}
+              changed={
+                experiment ? {
+                  devices: experiment.x.fault.devices,
+                  text:
+                    experiment.x.fault.kind === "cable"
+                      ? experiment.side === "broken" ? "Cable unplugged" : "Cable connected"
+                      : `${experiment.x.fault.setting}: ${experiment.side === "broken" ? experiment.x.fault.after : experiment.x.fault.before}`,
+                } : undefined
+              }
+              run={experiment ? { label: experiment.side === "broken" ? "With the fault (temporary copy)" : "Your network", tone: experiment.side } : undefined}
+              marker={(() => {
+                const at = experiment?.x.divergence?.[experiment.side];
+                return at === undefined ? undefined : { index: at, label: `First difference, at ${shown.devices.find((d) => d.id === experiment!.x.divergence!.device)?.name ?? ""}` };
+              })()}
             />
             <SendPanel
               network={network}
@@ -574,51 +657,19 @@ export function NetworkPlayground() {
               onClearError={journey.clearInputError}
               onRestart={() => resetSession()}
             />
-            <div className="compare-toggle">
-              <button
-                className="button"
-                aria-expanded={comparing}
-                onClick={() => {
-                  if (comparing) restore();
-                  setComparing(!comparing);
-                }}
-              >
-                {comparing ? "Close Break and compare" : "Break and compare…"}
-              </button>
-            </div>
-            {comparing && (
-              <Suspense fallback={<p className="compare-loading">Loading Break and compare…</p>}>
-                <BreakCompare
-                  network={network}
-                  action={action}
-                  session={journey.session}
-                  active={experiment?.x ?? null}
-                  side={experiment?.side ?? "broken"}
-                  onStart={(x) => {
-                    setNotice("");
-                    setExperiment({ x, side: "broken" });
-                    journey.show(x.broken, x.divergence?.broken ?? x.broken.events.length - 1);
-                  }}
-                  onShow={(side, index, inspect) => {
-                    if (!experiment) return;
-                    setExperiment({ ...experiment, side });
-                    journey.show(side === "broken" ? experiment.x.broken : experiment.x.working, index);
-                    if (inspect) return inspectPacket();
-                    // The panel sits below the diagram on narrow screens: bring the Journey into view if it is off screen.
-                    const box = journey.journeyRef.current?.getBoundingClientRect();
-                    if (box && (box.bottom < 0 || box.top > innerHeight))
-                      journey.journeyRef.current!.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-                  }}
-                  onRestore={restore}
-                />
-              </Suspense>
-            )}
           </div>
           <InspectorPanel
             journey={journey}
             network={shown}
             selected={selected}
             now={{ onAbout: select, onInspect: () => inspectPacket() }}
+            nowExtra={
+              experiment && (
+                <Suspense fallback={null}>
+                  <CompareNow x={experiment.x} side={experiment.side} network={network} onShow={showFromCompare} onRestore={restore} />
+                </Suspense>
+              )
+            }
             tab={tab}
             onTab={setTab}
             panelRef={inspectorRef}

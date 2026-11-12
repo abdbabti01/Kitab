@@ -82,3 +82,20 @@ test("experiments and missions are unchanged: no lettered devices outside a ques
   await page.goto("/practice/missions/no-connection");
   await expect(page.getByLabel("Predict as you go")).toHaveCount(0);
 });
+
+test("answers inside a collapsed Internet are shown by their letters on it, without saying which is right", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "The Internet collapses in the learner's own layout, on wide screens");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/practice/network");
+  await page.getByRole("button", { name: "Collapse Internet" }).click();
+  await page.locator(".canvas-bar").getByLabel("Predict as you go").check();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await expect(question(page)).toBeVisible();
+  // The DNS server is a choice and is inside the Internet: its letter is on the cloud; the home router's is on it.
+  const dns = (await question(page).locator(".predict-option", { hasText: "DNS server" }).locator(".predict-letter").textContent())!;
+  await expect(page.getByRole("button", { name: `Expand simulated Internet, which holds answer ${dns}` })).toBeVisible();
+  await expect(answers(page)).toHaveCount(1);
+  // Every choice is still in the list, and nothing expanded by itself.
+  await expect(question(page).getByRole("radio")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Expand Internet" })).toBeVisible();
+});
