@@ -133,10 +133,17 @@ export function NetworkCanvas({
     camRef.current = c;
     setCamTick((t) => t + 1);
   };
+  // While the camera moves, one transform on the whole scene moves the drawing: changing the viewBox every frame would
+  // make the browser lay out every device again on each frame. The final position is rendered once, at the end.
+  const scene = useRef<SVGGElement>(null),
+    shown = useRef({ x: 0, y: 0 });
   const drawCam = (c: { x: number; y: number }) => {
     camRef.current = c;
-    svg.current?.setAttribute("viewBox", `${c.x} ${c.y} ${camW} ${camH}`);
+    scene.current?.setAttribute("transform", `translate(${shown.current.x - c.x} ${shown.current.y - c.y})`);
   };
+  useLayoutEffect(() => {
+    scene.current?.removeAttribute("transform");
+  });
   const glide = useRef(0);
   function moveCam(target: { x: number; y: number }, animate: boolean) {
     cancelAnimationFrame(glide.current);
@@ -193,6 +200,7 @@ export function NetworkCanvas({
   if (stacked) {
     const c = clampCam(camRef.current);
     [width, height, view] = [camW, camH, c];
+    shown.current = c;
   }
 
   function point(clientX: number, clientY: number) {
@@ -405,6 +413,7 @@ export function NetworkCanvas({
             <circle cx="1" cy="1" r="1" fill="#c6d0c5" />
           </pattern>
         </defs>
+        <g ref={scene}>
         {/* The grid under everything: stacked, it covers the whole layout, so a camera glide never shows its edge. */}
         <rect
           x={stacked ? -2000 : view.x}
@@ -703,6 +712,7 @@ export function NetworkCanvas({
             </text>
           </g>
         )}
+        </g>
       </svg>
       <div className="canvas-foot">
         <span className="canvas-hint">
