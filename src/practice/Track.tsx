@@ -125,7 +125,7 @@ export function Track({
             })}
           </div>
           <div className="track-lanes">
-            <ul className="track-names" aria-label="Devices in this part of the run" style={{ width: labelW }}>
+            <ul className="track-names" aria-label="Devices in this run" style={{ width: labelW }}>
               {lanes.map((d) => (
                 <li key={d} style={{ height: laneH }}>
                   <button className={d === trace.events[j.index]?.actor ? "is-active" : ""} onClick={() => onDevice(d)} title={name(d)}>
