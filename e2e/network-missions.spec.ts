@@ -44,12 +44,29 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   await expect(page.locator(".journey-card h2")).toHaveText("The next hop cannot be reached on this LAN");
 
-  // Diagnose, using the step on the diagram as evidence.
+  // Diagnose. The step "Show where and why" placed on the diagram is not evidence until the learner chooses it.
   await openMissionTab(page);
   await page.getByLabel("Faulty device").selectOption("server");
   await page.getByLabel("Faulty setting").selectOption("link");
   await page.getByRole("button", { name: "Submit diagnosis" }).click();
-  await expect(steps(page)).toContainText("Yes: the problem is File server's setting. The step you are showing is good evidence.");
+  await expect(steps(page)).toContainText(`Yes: the problem is File server's setting. To record evidence, find a step of a failing run that shows the problem and choose it with "Use this step as evidence".`);
+  // A step that is only near the problem is refused.
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Create ICMP echo request/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText("The step you chose does not show this problem.");
+  // The step where delivery stopped, chosen deliberately, is evidence.
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await expect(steps(page)).toContainText("Your evidence: step 7, Delivery stopped");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  // "Show where and why" showed this step first: it completes, but does not count towards mastery.
+  await expect(steps(page)).toContainText('"Show where and why" showed it to you first, so it does not count towards mastery.');
 
   // Fix it in the Device tab: connect the server's cable.
   await selectDevice(page, "File server");
@@ -67,10 +84,21 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await expect(results.locator(".is-failed")).toHaveCount(0);
   const done = page.getByRole("region", { name: "Mission completed" });
   await expect(done).toContainText("What was wrong: The file server had no cable to the switch");
-  await done.getByRole("button", { name: /An address only says where a device is/ }).click();
+  // The choices keep this attempt's order through a reload.
+  const order = await done.locator(".mission-options button").allInnerTexts();
+  await page.reload();
+  await openMissionTab(page);
+  await expect(done.locator(".mission-options button")).toHaveText(order);
+  // A wrong explanation gets feedback about that idea, with the step that contradicts it.
+  await done.getByRole("button", { name: /ARP requests are answered by a router/ }).click();
+  await expect(done).toContainText("the ARP reply comes from the file server itself");
+  await done.getByRole("button", { name: "Show this step on the diagram" }).click();
+  await expect(page.locator(".journey-position b")).toContainText("ARP");
+  await done.getByRole("button", { name: /An address doesn.t create a path/ }).click();
   await expect(done).toContainText("Yes, that is the rule at work.");
   await expect(page.locator(".mission-meta .state-pill")).toHaveText("Completed");
-  await expect(steps(page)).toContainText("Solve one more version with a different cause");
+  // The first explanation chosen is the one recorded, so this attempt does not count towards mastery.
+  await expect(steps(page)).toContainText("Choose the explanation of why it works.");
 
   // Reload: the attempt and its network are kept.
   await page.reload();
@@ -131,9 +159,10 @@ test("the investigation mission is answered from evidence found in the journey",
   await page.getByRole("button", { name: "Steps", exact: true }).click();
   await page.locator(".event-list").getByRole("button", { name: /Retransmit TCP segment/ }).click();
   await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
   await page.getByLabel("Acknowledgement number").fill(ack);
   await page.getByRole("button", { name: "Submit answer" }).click();
-  await expect(steps(page)).toContainText("Correct, and the step you are showing is the retransmission evidence.");
+  await expect(steps(page)).toContainText("Correct, and the step you chose is the evidence.");
   await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
 });
 
@@ -156,13 +185,14 @@ test("the long version sends its request in two segments, resends only the lost 
   await expect(events.getByRole("button", { name: /Retransmit TCP segment/ })).toHaveCount(1);
   await events.getByRole("button", { name: /Retransmit TCP segment/ }).click();
   await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
   // An ACK for the whole request is the misconception; the ACK confirms only the 96 resent bytes.
   await page.getByLabel("Acknowledgement number").fill("1127");
   await page.getByRole("button", { name: "Submit answer" }).click();
   await expect(page.getByRole("region", { name: "Mission completed" })).toHaveCount(0);
   await page.getByLabel("Acknowledgement number").fill("1097");
   await page.getByRole("button", { name: "Submit answer" }).click();
-  await expect(steps(page)).toContainText("Correct, and the step you are showing is the retransmission evidence.");
+  await expect(steps(page)).toContainText("Correct, and the step you chose is the evidence.");
   await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
 });
 
@@ -204,7 +234,17 @@ test("a mission can be worked with the keyboard alone", async ({ page }) => {
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check my fix" }).focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("region", { name: "Mission completed" })).toBeVisible();
+  const done = page.getByRole("region", { name: "Mission completed" });
+  await expect(done).toBeVisible();
+  // Explaining works by keyboard too; the chosen answer is announced as pressed, and its feedback as status.
+  const wrong = done.getByRole("button", { name: /a router already knows every network/ });
+  await wrong.focus();
+  await page.keyboard.press("Enter");
+  await expect(wrong).toHaveAttribute("aria-pressed", "true");
+  await expect(done.getByRole("status")).toContainText("A router knows only the networks it is connected to");
+  await done.getByRole("button", { name: "Show this step on the diagram" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".journey-card h2")).toContainText(/route/i);
 });
 
 test("a mission failure is explained once, at the failing step, and shortcuts are refused with the reason", async ({ page }) => {
@@ -235,4 +275,35 @@ test("a mission failure is explained once, at the failing step, and shortcuts ar
   const results = page.getByRole("list", { name: "Check results" });
   await expect(results).toContainText("Real providers do not route private addresses (RFC 1918)");
   await expect(page.getByRole("region", { name: "Mission completed" })).toHaveCount(0);
+});
+
+test("evidence found independently counts; assistance afterwards, or for the same step, is handled per step", async ({ page }) => {
+  await page.goto("/practice/missions/no-connection");
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // The learner finds the stop in the step list, without "Show where and why", and chooses it.
+  await page.getByRole("radio", { name: "Every event" }).click();
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await page.locator(".event-list").getByRole("button", { name: /Delivery stopped/ }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  // Assistance after the choice does not change it.
+  await page.getByRole("button", { name: "First event", exact: true }).click();
+  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
+  await page.getByLabel("Faulty device").selectOption("server");
+  await page.getByLabel("Faulty setting").selectOption("link");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText("The step you chose is good evidence.");
+  // The stop has now been shown by assistance; choosing it again, even after moving away and back and
+  // reloading, is assisted (the recorded independent evidence stays).
+  await page.reload();
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // A new run starts at its first step: away from the stop. Then back to it.
+  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await openMissionTab(page);
+  await page.getByRole("button", { name: "Use this step as evidence" }).click();
+  await page.getByLabel("Faulty device").selectOption("server");
+  await page.getByLabel("Faulty setting").selectOption("link");
+  await page.getByRole("button", { name: "Submit diagnosis" }).click();
+  await expect(steps(page)).toContainText('"Show where and why" showed it to you first');
+  await expect(steps(page)).not.toContainText("Choose a step that shows the problem");
 });

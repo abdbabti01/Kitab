@@ -1,8 +1,8 @@
 // Judging a mission attempt from the network the learner built and the runs it produces.
 // Pure and deterministic: no UI state, no text matching on what the learner typed.
-import { newSession, simulate } from "./engine.ts";
+import { isPrivate, newSession, simulate } from "./engine.ts";
 import { failures } from "./explanations.ts";
-import type { Device, Network, Trace } from "./model.ts";
+import type { Device, Network, Trace, TraceEvent } from "./model.ts";
 import type { Area, Aspect, FixMission, InvestigateMission, Lock, NetworkMission, Variant } from "./missions.ts";
 
 export type CheckResult = {
@@ -120,16 +120,71 @@ export function diagnose(variant: Variant, guess: Diagnosis, network: Network) {
 }
 
 /**
- * Whether an event shows the problem: in a run that failed, the step where it stopped or any step taken
- * by, or sent to, the device at fault. For an investigation, one of the mission's evidence events.
+ * Whether an event shows this version's fault, in a run that failed. Only two kinds of step do:
+ * - the stop, when the engine puts it down to this fault: the same reason as the version's own broken run,
+ *   or a failure at a faulty device;
+ * - the faulty device's decision that exposes the faulty setting: its route choice (address, mask, gateway,
+ *   routes), a DHCP Discover it received and never answered, or a packet it sent from a private source to a
+ *   public destination, which NAT should have translated.
+ * Any other step by the faulty device does not, however close to the problem. For an investigation, one of
+ * the mission's evidence events.
  */
 export function evidenceShows(mission: NetworkMission, variant: Variant, trace: Trace, index: number) {
   const e = trace.events[index];
   if (!e) return false;
   if (mission.kind === "investigate") return (mission as InvestigateMission).evidence(trace.events).includes(index);
   if (trace.success) return false;
-  const devices = variant.faults.map((f) => f.device);
-  return e.error === true || devices.includes(e.actor) || (!!e.hop && (devices.includes(e.hop.from) || devices.includes(e.hop.to)));
+  const faulty = (device: string | undefined, areas: Area[] = []) =>
+    variant.faults.some((f) => f.device === device && (!areas.length || areas.includes(f.area)));
+  if (e.error)
+    return e.reason === runSequence(variant.build(), [variant.probe]).reason || faulty(e.failure?.device) || faulty(e.failure?.cause?.device);
+  if (e.title === "Choose a route") return faulty(e.actor, ["address", "mask", "gateway", "routes"]);
+  if (e.title === "Receive frame" && e.packet?.startsWith("dhcp-")) return faulty(e.actor, ["dhcp"]);
+  const ip = e.layers.find((l) => l.name === "IPv4 packet")?.fields;
+  return (
+    !!e.hop && e.hop.from === e.actor && faulty(e.actor, ["nat"]) &&
+    !!ip && isPrivate(String(ip["Source IP"])) && !isPrivate(String(ip["Destination IP"]))
+  );
+}
+
+/**
+ * A step by what happened, not by which run it is in: the same step in a rerun has the same key. The message's
+ * layers and header fields are part of it, so an ARP request and an IP packet on the same link, or two ACKs with
+ * different numbers, are different steps.
+ */
+export const stepKey = (e: TraceEvent) =>
+  JSON.stringify([e.actor, e.title, e.reason ?? "", e.hop ? [e.hop.from, e.hop.to] : [], e.facts ?? {}, e.layers.map((l) => [l.name, l.fields])]);
+/** A step an assistance action ("Show where and why", "Check my fix", a "Show me" link) put on the diagram. */
+export type Reveal = { step: string; by: "show-stop" | "check" | "show-me"; at: string };
+
+/**
+ * How a chosen step counts. Valid evidence is the learner's own unless an assistance action had already shown
+ * that same step, in this run or any other, before they chose it; then it is assisted and does not count
+ * towards mastery. Assistance that showed other steps does not matter.
+ */
+export function evidenceCredit(mission: NetworkMission, variant: Variant, trace: Trace, index: number, revealedBefore: Reveal[]) {
+  if (!evidenceShows(mission, variant, trace, index)) return { credit: "invalid" as const };
+  const key = stepKey(trace.events[index]);
+  const by = revealedBefore.find((r) => r.step === key)?.by;
+  return by ? { credit: "assisted" as const, by } : { credit: "independent" as const };
+}
+
+/**
+ * The run and step a misconception's message points to, from real runs: the mission's checks on the learner's
+ * network (an investigation's own run), or the version's broken first run. Null when no such event happened.
+ */
+export function misconceptionStep(mission: NetworkMission, variant: Variant, network: Network, id: string): { trace: Trace; index: number } | null {
+  const see = mission.misconceptions[id]?.see;
+  if (!see) return null;
+  const traces =
+    see.run === "start" || mission.kind === "investigate"
+      ? [runSequence(variant.build(), [variant.probe])]
+      : runChecks(mission, variant, network).map((c) => c.trace);
+  for (const trace of traces) {
+    const index = trace.events.findIndex((e) => e.title === see.title && (!see.actor || e.actor === see.actor));
+    if (index >= 0) return { trace, index };
+  }
+  return null;
 }
 
 /** The answer to an investigation's question, computed from the variant's own run. */

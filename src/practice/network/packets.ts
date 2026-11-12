@@ -131,3 +131,78 @@ export function shown(field: string, value: string | number) {
   if (field === "Protocol") return ({ TCP: "TCP (6)", UDP: "UDP (17)", ICMP: "ICMP (1)" } as Record<string, string>)[String(value)] ?? String(value);
   return String(value);
 }
+
+export type LayerChange =
+  | { kind: "added" | "removed"; layer: string; layerKind: Layer["kind"] }
+  /** The link layer this message leaves on is not the one it arrived in. */
+  | { kind: "replaced"; from: string; to: string; fields: Change[] }
+  /** It leaves in the same frame it arrived in. */
+  | { kind: "kept"; layer: string }
+  | { kind: "field"; layer: string; field: string; before: string | number; after: string | number };
+export type LayerStep = {
+  /** The step compared with, or none when the trace records nothing earlier to compare. */
+  basis?: number;
+  /** The message first appears here; how its layers were built is not recorded step by step. */
+  origin: boolean;
+  /** The device that made the changes. */
+  by: string;
+  changes: LayerChange[];
+};
+
+// Bridge decisions are recorded without the frame (the engine passes only what is inside it), so they are
+// never compared with: a switch does not unwrap frames.
+const bridgeDecision = (e: TraceEvent) => e.title === "Forward broadcast on LAN" || e.title === "Forward using MAC table" || e.title.startsWith("Unknown MAC");
+const names = (e: TraceEvent) => e.layers.map((l) => l.name);
+const isPrefix = (a: string[], b: string[]) => a.length <= b.length && a.every((n, i) => n === b[i]);
+const linkOf = (e: TraceEvent) => e.layers.find((l) => /frame$/.test(l.name));
+
+/**
+ * How the layers of this step's message differ from the same message's previous step at the same device (or
+ * the link that brought it there), from the trace alone. Before a message has its id, a step counts as the
+ * same message only when it directly follows a step by the same device whose layers it extends. Nothing is
+ * inferred where the trace does not record it: such steps have no basis and no changes.
+ */
+export function layerStep(events: TraceEvent[], index: number): LayerStep {
+  const e = events[index];
+  const none = { origin: false, by: e?.actor ?? "", changes: [] };
+  if (!e || !e.layers.length || bridgeDecision(e)) return none;
+  const here = (x: TraceEvent) => x.actor === e.actor || x.hop?.to === e.actor;
+  let basis = -1;
+  if (e.packet)
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const x = events[i];
+      if (x.packet === e.packet && here(x) && x.layers.length && !bridgeDecision(x)) {
+        basis = i;
+        break;
+      }
+    }
+  const before = events[index - 1];
+  if (basis < 0 && before && before.actor === e.actor && !before.packet && before.layers.length && isPrefix(names(before), names(e))) basis = index - 1;
+  if (basis < 0) return { ...none, origin: !!e.packet && !events.slice(0, index).some((x) => x.packet === e.packet) };
+  const b = events[basis];
+  const changes: LayerChange[] = [];
+  for (const l of b.layers) if (!names(e).includes(l.name)) changes.push({ kind: "removed", layer: l.name, layerKind: l.kind });
+  for (const l of e.layers) if (!names(b).includes(l.name)) changes.push({ kind: "added", layer: l.name, layerKind: l.kind });
+  for (const l of e.layers) {
+    const old = b.layers.find((x) => x.name === l.name);
+    if (old && l.kind !== "link")
+      for (const [field, after] of Object.entries(l.fields))
+        if (!context.has(field) && field in old.fields && old.fields[field] !== after) changes.push({ kind: "field", layer: l.name, field, before: old.fields[field], after });
+  }
+  // Leaving on a link: compare its frame with the frame the message arrived in at this device.
+  const out = linkOf(e);
+  if (e.hop?.from === e.actor && out) {
+    let arrived: TraceEvent | undefined;
+    for (let i = index - 1; i >= 0 && !arrived; i -= 1) if (events[i].packet === e.packet && events[i].hop?.to === e.actor) arrived = events[i];
+    const inFrame = arrived && linkOf(arrived);
+    if (inFrame) {
+      const fields = Object.keys(out.fields)
+        .filter((k) => !context.has(k) && k in inFrame.fields && inFrame.fields[k] !== out.fields[k])
+        .map((field) => ({ field, before: inFrame.fields[field], after: out.fields[field], why: "" }));
+      const rest = changes.filter((c) => !((c.kind === "added" || c.kind === "removed") && c.layerKind === "link"));
+      changes.length = 0;
+      changes.push(...rest, inFrame.name === out.name && !fields.length ? { kind: "kept", layer: out.name } : { kind: "replaced", from: inFrame.name, to: out.name, fields });
+    }
+  }
+  return { basis, origin: false, by: e.actor, changes };
+}

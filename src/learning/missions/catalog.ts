@@ -54,9 +54,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Which evidence in the trace supports that acknowledgment?",
       options: [
-        { id: "buffered", text: "While segment 2 is missing, “next byte expected” stays at {outcome.gapStart} and the later segments are marked buffered.", correct: true },
-        { id: "count", text: "The ACK number counts how many segments have arrived so far.", correct: false, misconception: "ack-counts-packets" },
-        { id: "router", text: "A router noticed the loss and told the sender which packet to resend.", correct: false, misconception: "router-recovery" },
+        { id: "buffered", text: "“Next byte expected” stays at {outcome.gapStart} while segment 2 is missing; the later segments wait in the buffer.", correct: true },
+        { id: "count", text: "Each arriving segment raises the ACK number by one, so the ACK shows how many segments got through.", correct: false, misconception: "ack-counts-packets" },
+        { id: "router", text: "A router noticed the gap and told the sender which packet to resend next.", correct: false, misconception: "router-recovery" },
       ],
     },
     hints: [
@@ -107,9 +107,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "What decides when the sender may transmit the next segment?",
       options: [
-        { id: "ledger", text: "A segment stays in the sender's unacknowledged list until its ACK arrives back; the list never grows beyond min(congestion window, receive window).", correct: true },
-        { id: "receipt", text: "A window slot frees as soon as the receiver stores the segment.", correct: false, misconception: "receipt-frees-window" },
-        { id: "app", text: "The receive window limits how quickly the server application reads, not what the sender transmits.", correct: false, misconception: "ignores-window" },
+        { id: "ledger", text: "A segment holds a window slot until its ACK reaches the sender; at most min(congestion window, receive window) are unacknowledged.", correct: true },
+        { id: "receipt", text: "A window slot frees the moment the receiver stores the segment, before any ACK travels back to the sender.", correct: false, misconception: "receipt-frees-window" },
+        { id: "app", text: "The receive window only limits how fast the server application reads its buffer; the sender may transmit everything at once.", correct: false, misconception: "ignores-window" },
       ],
     },
     hints: [
@@ -162,8 +162,8 @@ const raw: unknown[] = [
       prompt: "Which rule produced that count?",
       options: [
         { id: "once", text: "Each segment is sent once; a lost segment is sent again with its original byte range.", correct: true },
-        { id: "after-gap", text: "A loss makes TCP resend every segment after the gap.", correct: false, misconception: "resend-after-gap" },
-        { id: "reorder", text: "Out-of-order arrival forces the sender to retransmit the late segment.", correct: false, misconception: "reorder-retransmits" },
+        { id: "after-gap", text: "After a loss, TCP resends the missing segment and every segment sent after it, even those that arrived.", correct: false, misconception: "resend-after-gap" },
+        { id: "reorder", text: "A segment that arrives out of order is discarded, so the sender has to transmit that late segment again.", correct: false, misconception: "reorder-retransmits" },
       ],
     },
     hints: [
@@ -209,9 +209,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Why do those elements have to move?",
       options: [
-        { id: "contiguous", text: "Slots are contiguous: index i always lives at 0x1000 + i × 4, so every element from index {param.index} onward moves one slot right.", correct: true },
-        { id: "sorted", text: "Arrays keep their values sorted, so the new value is moved to its sorted position.", correct: false, misconception: "sorted-array" },
-        { id: "pointers", text: "Each slot stores a pointer to the next value, and those pointers are rewritten.", correct: false, misconception: "array-has-pointers" },
+        { id: "contiguous", text: "Index i always lives at 0x1000 + i × 4, so making room at index {param.index} moves every later element one slot right.", correct: true },
+        { id: "sorted", text: "Arrays always keep their values in sorted order, so later elements move along to let the new value reach its sorted position.", correct: false, misconception: "sorted-array" },
+        { id: "pointers", text: "Each slot holds a pointer to the next value, so the pointers from index {param.index} onward are rewritten.", correct: false, misconception: "array-has-pointers" },
       ],
     },
     hints: [
@@ -261,9 +261,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "What does the deletion actually rewrite?",
       options: [
-        { id: "one-pointer", text: "One pointer — HEAD or the predecessor's next — once the node is found. A missing value rewrites nothing.", correct: true },
-        { id: "addresses", text: "Every later node gets a new address.", correct: false },
-        { id: "shift", text: "Later values shift left one position, like an array.", correct: false },
+        { id: "one-pointer", text: "One pointer, HEAD or the predecessor's next, once the node is found; a missing value rewrites nothing.", correct: true },
+        { id: "addresses", text: "Every node after the deleted one is copied to a new address so the list stays together.", correct: false, misconception: "list-nodes-move" },
+        { id: "shift", text: "Each later value shifts left into the previous node, as in an array, and the now-unused last node is freed.", correct: false, misconception: "list-shifts" },
       ],
     },
     hints: [
@@ -271,7 +271,10 @@ const raw: unknown[] = [
       { text: "To remove a node, something that pointed at it must point past it instead.", beforePrediction: true },
       { text: "Compare the final frame's next pointers with the first frame's.", beforePrediction: false },
     ],
-    misconceptions: {},
+    misconceptions: {
+      "list-nodes-move": { label: "Nodes move", message: "Nodes never move: every remaining node keeps its address in the trace. Only links change: {outcome.pointerChanges} pointer change(s) here." },
+      "list-shifts": { label: "Values shift like an array", message: "A linked list has no slots to shift into. Each value stays in its node; the trace shows {outcome.pointerChanges} pointer change(s) and no values moved." },
+    },
     sources: dsSources("linked-list"),
   },
   {
@@ -304,9 +307,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Which keys does the insert compare against?",
       options: [
-        { id: "bucket", text: "Only keys already in bucket key mod 7; each colliding key costs one comparison.", correct: true },
-        { id: "all", text: "Every key in the table, because hashing only narrows the search afterwards.", correct: false },
-        { id: "none", text: "None — the hash proves the key is new.", correct: false },
+        { id: "bucket", text: "Only the keys already in bucket {param.value} mod 7; each key in that chain costs one comparison.", correct: true },
+        { id: "all", text: "Every key in the table, because the hash only picks where to store the key after checking for duplicates.", correct: false, misconception: "hash-scans-all" },
+        { id: "none", text: "None: different keys never land in the same bucket, so the hash alone shows the key is new.", correct: false, misconception: "hash-proves-new" },
       ],
     },
     hints: [
@@ -314,7 +317,10 @@ const raw: unknown[] = [
       { text: "Keys in other buckets can't be equal to it, so they are never compared.", beforePrediction: true },
       { text: "Count the CHECK COLLISION CHAIN frames.", beforePrediction: false },
     ],
-    misconceptions: {},
+    misconceptions: {
+      "hash-scans-all": { label: "Compares every key", message: "Keys in other buckets can't equal {param.value}, so they are never compared. The insert compared {outcome.comparisons} key(s), all from its own bucket." },
+      "hash-proves-new": { label: "The hash proves it's new", message: "Different keys can share a bucket: that is a collision. Inserting {param.value} compared {outcome.comparisons} key(s) already in its bucket's chain." },
+    },
     sources: dsSources("hash-table"),
   },
   {
@@ -350,9 +356,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Why are so few nodes inspected?",
       options: [
-        { id: "discard", text: "Each comparison with a node rules out its whole other subtree, so the search follows one root-to-leaf path.", correct: true },
-        { id: "level", text: "The search reads every node on each level before going deeper.", correct: false },
-        { id: "sorted", text: "Values are stored in a sorted array inside the root.", correct: false },
+        { id: "discard", text: "Each comparison rules out one whole subtree, so the search follows a single path down from the root.", correct: true },
+        { id: "level", text: "The search reads every node on one level, then moves down a level, stopping as soon as it sees the value.", correct: false, misconception: "bst-level-order" },
+        { id: "sorted", text: "The root keeps a sorted copy of every value, so the search jumps straight to the value's position.", correct: false, misconception: "bst-root-array" },
       ],
     },
     hints: [
@@ -360,7 +366,10 @@ const raw: unknown[] = [
       { text: "Count one comparison for every node on the path, including the match.", beforePrediction: true },
       { text: "The inspector's comparison counter rises by one per COMPARE frame.", beforePrediction: false },
     ],
-    misconceptions: {},
+    misconceptions: {
+      "bst-level-order": { label: "Level by level", message: "Reading whole levels is breadth-first order. The trace compares {outcome.comparisons} node(s) on one path: smaller goes left, larger goes right." },
+      "bst-root-array": { label: "A sorted copy in the root", message: "Each node holds one value and two child links; there is no sorted copy. The trace walks down node by node: {outcome.comparisons} comparison(s)." },
+    },
     sources: dsSources("binary-tree"),
   },
   {
@@ -395,9 +404,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Which rule produced this result?",
       options: [
-        { id: "levels", text: "BFS dequeues vertices in order of distance from vertex 1, and only vertices connected by edges ever enter the queue.", correct: true },
-        { id: "deep", text: "BFS follows the smallest neighbor as deep as it can before backtracking.", correct: false, misconception: "depth-first-order" },
-        { id: "budget", text: "BFS stops after a fixed number of steps, so far-away vertices are reported unreachable.", correct: false, misconception: "stops-early" },
+        { id: "levels", text: "BFS dequeues vertices in order of distance from vertex 1; only vertices reached along an edge ever join the queue.", correct: true },
+        { id: "deep", text: "BFS follows the smallest-numbered neighbor as deep as it can, then backtracks to the most recent unexplored branch.", correct: false, misconception: "depth-first-order" },
+        { id: "budget", text: "BFS stops after a fixed number of queue steps, so vertices far from vertex 1 are reported unreachable.", correct: false, misconception: "stops-early" },
       ],
     },
     hints: [
@@ -444,9 +453,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Which call returns first, and why?",
       options: [
-        { id: "lifo", text: "factorial(1): it is on top of the stack, and the waiting frames below it can only finish after it returns — last in, first out.", correct: true },
-        { id: "first", text: "factorial({param.n}): it was called first, so it finishes first.", correct: false, misconception: "first-call-first" },
-        { id: "together", text: "All frames return at the same moment once the base case is reached.", correct: false, misconception: "frames-return-immediately" },
+        { id: "lifo", text: "factorial(1): it is on top of the stack, and every frame below waits for the call above it to return.", correct: true },
+        { id: "first", text: "factorial({param.n}): it was called first, so its frame is at the front of the line and returns first.", correct: false, misconception: "first-call-first" },
+        { id: "together", text: "Every frame returns at the same moment, as soon as factorial(1) reaches the base case and stops the calls.", correct: false, misconception: "frames-return-immediately" },
       ],
     },
     hints: [
@@ -493,9 +502,9 @@ const raw: unknown[] = [
     explanation: {
       prompt: "Why does that happen?",
       options: [
-        { id: "frames", text: "Calls stop only at a reachable base case. Until one returns, every call adds a frame, and the runtime allows at most {param.stackLimit}.", correct: true },
-        { id: "zero", text: "factorial(0) returns 0 automatically, which ends the recursion.", correct: false, misconception: "implicit-stop" },
-        { id: "reuse", text: "Recursion reuses a single frame, so it simply runs forever.", correct: false, misconception: "no-frame-cost" },
+        { id: "frames", text: "Calls stop only at a reachable base case; until one returns, every call adds a frame, up to the runtime's {param.stackLimit}.", correct: true },
+        { id: "zero", text: "When n reaches 0, factorial(0) returns 0 automatically, which ends the recursion without a base case.", correct: false, misconception: "implicit-stop" },
+        { id: "reuse", text: "Each recursive call reuses its caller's frame, so a missing base case makes it run forever without using memory.", correct: false, misconception: "no-frame-cost" },
       ],
     },
     hints: [
@@ -551,8 +560,8 @@ const raw: unknown[] = [
       prompt: "What did the trace count as a write?",
       options: [
         { id: "store", text: "Every store into a slot, node field, bucket chain or end marker. Reads and comparisons are counted separately.", correct: true },
-        { id: "steps", text: "Every step of the animation.", correct: false },
-        { id: "final", text: "Only storing the final new value.", correct: false },
+        { id: "steps", text: "Every frame of the trace, since each frame shows the structure after one more memory operation.", correct: false, misconception: "writes-are-steps" },
+        { id: "final", text: "Only the store of the new or removed value itself; moving existing elements to make room is free.", correct: false, misconception: "writes-only-final" },
       ],
     },
     hints: [
@@ -560,7 +569,10 @@ const raw: unknown[] = [
       { text: "Moving an existing element costs a write too, not just storing a new one.", beforePrediction: true },
       { text: "The inspector shows the running write counter for each frame.", beforePrediction: false },
     ],
-    misconceptions: {},
+    misconceptions: {
+      "writes-are-steps": { label: "Every step is a write", message: "Many frames only read or compare, which changes nothing. This run made {outcome.writes} write(s) and {outcome.reads} read(s), counted separately." },
+      "writes-only-final": { label: "Only the new value counts", message: "Moving an existing element into another slot is a store too, and the counter includes it. This run made {outcome.writes} write(s)." },
+    },
     sources: structureKinds.flatMap((kind) => dsSources(kind)).slice(0, 6),
   },
 ];
