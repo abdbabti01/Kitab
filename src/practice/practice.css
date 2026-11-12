@@ -2490,3 +2490,104 @@
     scroll-margin-top: 72px;
   }
 }
+
+/* Layers at this step: the message's real layers nested outermost first; changes animate once per step. */
+.layer-view {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12px;
+}
+.layer-view h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+.layer-view-carries {
+  margin: 0 0 8px;
+  color: var(--muted);
+}
+.layer-stage {
+  position: relative;
+}
+.layer-box {
+  border: 1.5px solid currentColor;
+  border-radius: 8px;
+  padding: 4px 6px 6px;
+  margin-top: 4px;
+  min-width: 0;
+}
+.layer-box-name {
+  display: block;
+  font: 700 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.layer-box-field {
+  display: inline-block;
+  margin: 2px 4px 0 0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #fff3c4;
+  color: #4a3b00;
+  font: 11px var(--mono);
+}
+.layer-box.layer-application {
+  color: #8f5a17;
+}
+.layer-box.layer-transport {
+  color: #5f4a91;
+}
+.layer-box.layer-network {
+  color: #3a6595;
+}
+.layer-box.layer-link {
+  color: #23675f;
+}
+.layer-box > .layer-box-name,
+.layer-box > .layer-box-field {
+  color: inherit;
+}
+.layer-box .layer-box {
+  margin-left: 4px;
+}
+.layer-box.is-changed > .layer-box-name::after {
+  content: " · changed";
+  font-weight: 400;
+}
+.layer-box.is-added {
+  animation: layer-in 0.24s ease-out both;
+}
+.layer-box.is-removed {
+  color: #8a7957;
+  border-style: dashed;
+  animation: layer-out 0.24s ease-in both;
+}
+.layer-box.is-removed .layer-box-name::after {
+  content: " · removed";
+  font-weight: 400;
+}
+.layer-box.is-replaced .layer-box-name::after {
+  content: " · the frame it arrived in";
+}
+.layer-log {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+@keyframes layer-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@keyframes layer-out {
+  to {
+    opacity: 0.45;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .layer-box.is-added,
+  .layer-box.is-removed {
+    animation: none;
+  }
+}
