@@ -31,7 +31,7 @@ import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
 import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
 import { missions } from "./network/missions.ts";
 import { loadMissionStore, missionState } from "./network/mission-progress.ts";
-import { PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
+import { askingOf, PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import type { Experiment } from "./network/experiments.ts";
 import type { Trace } from "./network/model.ts";
 import { checkpointsFor } from "./network/predict.ts";
@@ -562,7 +562,8 @@ export function NetworkPlayground() {
               onPickStep={() => setTab("now")}
               onInspect={inspectPacket}
               prompt={experiment ? null : <PredictCard predict={predict} journey={journey} network={shown} />}
-              options={<PredictSwitch predict={predict} journey={journey} network={shown} />}
+              tools={<PredictSwitch predict={predict} journey={journey} network={shown} />}
+              ask={experiment ? undefined : askingOf(predict, journey, shown)}
             />
             <SendPanel
               network={network}

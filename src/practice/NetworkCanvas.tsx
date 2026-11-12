@@ -29,8 +29,12 @@ export function NetworkCanvas({
   focus,
   motion,
   onPacket,
+  ask,
   children,
 }: {
+  /** An open prediction question: the device that decides is marked, and devices named in the choices are lettered
+   * answers that choose that option when tapped (the card's "Check my prediction" still submits it). */
+  ask?: { device: string; answers: { device: string; option: string; letter: string; text: string }[]; chosen: string; onAnswer: (option: string) => void };
   /** What moves at this step, read from the trace (see motion.ts), how long a hop takes in ms, and the message's
    * layers and their changes at this step (capsuleAt). */
   motion?: Motion & { ms: number; capsule?: Capsule };
@@ -197,6 +201,14 @@ export function NetworkCanvas({
   useEffect(() => {
     if (stacked && follow && watched.length) reveal(watched, stageIds);
   }, [watchKey, stacked, follow, layout, camW, camH]);
+  // A question brings its device into view, framed with its lettered answers when they all fit (a phone's rows
+  // often do not); the answers are also in the question's list.
+  const askKey = ask ? [ask.device, ...ask.answers.map((a) => a.device)].join(" ") : "";
+  useEffect(() => {
+    if (!stacked || !askKey) return;
+    const [asking, ...answers] = askKey.split(" ");
+    reveal([asking], answers);
+  }, [askKey, stacked]);
   if (stacked) {
     const c = clampCam(camRef.current);
     [width, height, view] = [camW, camH, c];
@@ -214,7 +226,9 @@ export function NetworkCanvas({
     const id = target?.getAttribute("data-device") ?? "";
     const p = point(e.clientX, e.clientY);
     const d = network.devices.find((d) => d.id === id);
-    if (d) onSelect(id);
+    const answer = ask?.answers.find((a) => a.device === id);
+    if (answer) ask!.onAnswer(answer.option);
+    else if (d) onSelect(id);
     // Stacked devices have no position of their own to drag: any drag pans the view, measured in screen pixels
     // because the drawing moves under the pointer.
     gesture.current = stacked
@@ -565,23 +579,27 @@ export function NetworkCanvas({
                       : "";
           // In the learner's own layout the tile is drawn larger, the labels move down with it.
           const big = !stacked;
+          const answer = ask?.answers.find((a) => a.device === d.id);
+          const asking = ask?.device === d.id;
           return (
             <g
               key={d.id}
               transform={`translate(${d.x} ${d.y})`}
-              className={`network-device kind-${d.kind} ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${state} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}`}
+              className={`network-device kind-${d.kind} ${selected === d.id ? "selected" : ""} ${active ? "is-active" : ""} ${state} ${involved && !involved.has(d.id) ? "is-dimmed" : ""}${asking ? " is-asking" : ""}${answer ? ` is-answer${ask!.chosen === answer.option ? " is-chosen" : ""}` : ""}`}
               // A frame arrives when its hop ends: the receiver lights up then, not before.
               style={receiver && motion ? ({ "--arrive": `${motion.ms}ms` } as React.CSSProperties) : undefined}
               role="button"
               tabIndex={0}
-              aria-label={`Select ${d.name}`}
+              aria-label={answer ? `Answer ${answer.letter}: ${answer.text}` : `Select ${d.name}${asking ? ", where the question is asked" : ""}`}
+              aria-pressed={answer ? ask!.chosen === answer.option : undefined}
               data-device={d.id}
               // A device reached with the keyboard is brought into view.
               onFocus={() => stacked && reveal([d.id])}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  onSelect(d.id);
+                  if (answer) ask!.onAnswer(answer.option);
+                  else onSelect(d.id);
                 }
                 if (
                   !stacked &&
@@ -649,6 +667,15 @@ export function NetworkCanvas({
                       : "device-led off"
                   }
                 />
+                {/* The question's device, and the answers by the letter they have in the question. */}
+                {(asking || answer) && (
+                  <g className={asking && !answer ? "ask-badge" : "answer-badge"} transform="translate(-54 -52)" aria-hidden="true">
+                    <circle r="17" />
+                    <text y="6.5" textAnchor="middle">
+                      {answer ? answer.letter : "?"}
+                    </text>
+                  </g>
+                )}
               </g>
               {labels(d)}
             </g>

@@ -26,10 +26,13 @@ export function JourneyStage({
   onInspect,
   advice = true,
   prompt,
-  options,
+  tools,
+  ask,
   explainBelow = false,
   onPickStep,
 }: {
+  /** An open prediction question, drawn on the diagram (NetworkCanvas). */
+  ask?: Parameters<typeof NetworkCanvas>[0]["ask"];
   /** A step was chosen from the track's list of steps (the playground then shows Now). */
   onPickStep?: () => void;
   /** Missions: the explanation sits under the diagram, because the side panel holds the mission itself. Elsewhere it
@@ -37,8 +40,8 @@ export function JourneyStage({
   explainBelow?: boolean;
   /** Shown under the controls, e.g. a prediction question. */
   prompt?: ReactNode;
-  /** Extra view options, e.g. the Predict as you go switch. */
-  options?: ReactNode;
+  /** Controls for the top of the lab, in the diagram's bar, e.g. the Predict as you go switch. */
+  tools?: ReactNode;
   /** False in missions: failure advice is left for the learner to work out. */
   advice?: boolean;
   journey: Journey;
@@ -76,6 +79,7 @@ export function JourneyStage({
           onAdd={onAdd}
           follow={j.follow}
           motion={motion}
+          ask={ask}
           onPacket={() => {
             j.setPlaying(false);
             onInspect(true);
@@ -94,6 +98,7 @@ export function JourneyStage({
               {start.label}
             </button>
           )}
+          {tools}
         </NetworkCanvas>
         <JourneyControls
           trace={j.trace}
@@ -136,7 +141,6 @@ export function JourneyStage({
         )}
       </Suspense>
       <div className="view-options">
-        {options}
         <label className="network-check">
           <input type="checkbox" checked={j.follow} onChange={(e) => j.setFollow(e.target.checked)} /> Zoom to the current stage
         </label>

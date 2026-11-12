@@ -90,7 +90,8 @@ test("before a prediction, nothing later is drawn, listed or reachable; answerin
   await expect(page.getByRole("region", { name: "Prediction", exact: true })).toBeVisible();
   const max = Number(await timeline(page).getAttribute("max"));
   for (const [i] of await shown(page)) expect(i).toBeLessThanOrEqual(max);
-  await expect(page.locator(".track-gate-text")).toHaveText("Hidden until you predict");
+  await expect(page.locator(".track-gate-text")).toHaveText("Later steps are hidden until you predict.");
+  await expect(page.locator(".track-gate")).toHaveAttribute("width", "40");
   await expect(page.locator(".track-steps summary")).toHaveText(`All steps (${max + 1})`);
   await expect(page.locator(".track-mark")).toHaveCount(0);
   // Keys cannot step past the question.
@@ -98,11 +99,13 @@ test("before a prediction, nothing later is drawn, listed or reachable; answerin
   for (let k = 0; k < 5; k++) await page.keyboard.press("ArrowRight");
   expect(Number(await timeline(page).inputValue())).toBeLessThanOrEqual(max);
   // Each answer shows a little more; the ARP broadcast appears once the second question is answered.
-  for (let k = 0; k < 2; k++) {
-    await page.getByRole("region", { name: "Prediction", exact: true }).getByRole("button", { name: "Show me" }).click();
-    await page.getByRole("region", { name: "Prediction result" }).getByRole("button", { name: "Continue" }).click();
-  }
-  await expect(page.locator(".track-arrow.kind-arp.is-broadcast").first()).toBeAttached();
+  await page.getByRole("region", { name: "Prediction", exact: true }).getByRole("button", { name: "Show me" }).click();
+  await page.getByRole("region", { name: "Prediction result" }).getByRole("button", { name: "Continue" }).click();
+  // The second answer shows the ARP broadcast and its reply: the run on the track grows past the old question.
+  await page.getByRole("region", { name: "Prediction", exact: true }).getByRole("button", { name: "Show me" }).click();
+  expect(Number(await timeline(page).getAttribute("max"))).toBeGreaterThan(max);
+  await openSteps(page);
+  await expect(page.locator(".event-list").getByRole("button", { name: /ARP reply/ }).first()).toBeAttached();
 });
 
 test("loss, retransmission and a stopped run are marked from the trace", async ({ page }) => {
@@ -145,4 +148,82 @@ test("the track fits the screen: lanes scroll inside it, names are touch targets
   await expect(tab(page, "Device")).toHaveAttribute("aria-pressed", "true");
   // A long run shows a window of it and says which.
   await expect(page.locator(".track-range")).toHaveText(/^Events \d+–489 of 489$/);
+});
+
+test("messages are named by the layers they carry, never as an \"IP frame\"", async ({ page }) => {
+  await sendAndHold(page, "?starter=routed");
+  await toLast(page);
+  await timeline(page).fill("6");
+  await expect(page.locator(`.track-arrow[data-index="6"] title`)).toHaveText("Event 7: Router sends to Your PC: an Ethernet frame carrying an ARP reply");
+  await timeline(page).fill("3");
+  await expect(page.locator(`.track-arrow[data-index="3"] title`)).toHaveText("Event 4: Your PC sends to Router: a broadcast Ethernet frame carrying an ARP request");
+  await timeline(page).fill("22");
+  await expect(page.locator(`.track-arrow[data-index="22"] title`)).toHaveText(
+    "Event 23: Router forwards to Office server: an Ethernet frame carrying an IPv4 packet, which carries an ICMP message with an Echo request",
+  );
+  await expect(plot(page)).toHaveAttribute("aria-label", /Selected: Router forwards to Office server: an Ethernet frame carrying an IPv4 packet/);
+  for (const t of await page.locator(".track-arrow title").allTextContents()) expect(t).not.toMatch(/\b(IP|ARP|DHCP) frame\b/);
+});
+
+test("a tap picks the step under it; where steps sit closer than a finger, it asks which one", async ({ page }, info) => {
+  await sendAndHold(page);
+  await toLast(page);
+  await timeline(page).fill("215");
+  await plot(page).scrollIntoViewIfNeeded();
+  // Two dots on the same lane, next to each other: internal steps of one device.
+  const dots = await page.locator(".track-tick").evaluateAll((els) =>
+    els.map((e) => {
+      const r = e.getBoundingClientRect();
+      return { i: Number(e.getAttribute("data-index")), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+    }),
+  );
+  const k = dots.findIndex((d, n) => n > 0 && d.i === dots[n - 1].i + 1 && Math.abs(d.y - dots[n - 1].y) < 1);
+  const [p, q] = [dots[k - 1], dots[k]];
+  const mid = { x: (p.x + q.x) / 2, y: p.y };
+  const choose = page.getByRole("group", { name: "Steps close together" });
+  if (info.project.use.hasTouch) {
+    await page.touchscreen.tap(mid.x, mid.y);
+    if (q.x - p.x < 32) {
+      // Closer than a finger: both are offered, and the one chosen is exactly the one shown.
+      await expect(choose.getByRole("button", { name: new RegExp(`^Event (${p.i + 1}|${q.i + 1}):`) })).toHaveCount(2);
+      await expect(choose.getByRole("button").first()).toBeFocused();
+      for (const h of await choose.getByRole("button").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(36);
+      // Escape closes it without moving.
+      await page.keyboard.press("Escape");
+      await expect(choose).toHaveCount(0);
+      await expect(timeline(page)).toHaveValue("215");
+      await page.touchscreen.tap(mid.x, mid.y);
+      await choose.getByRole("button", { name: new RegExp(`^Event ${q.i + 1}:`) }).click();
+      await expect(timeline(page)).toHaveValue(String(q.i));
+      await expect(choose).toHaveCount(0);
+    } else await expect(choose).toHaveCount(0);
+  } else {
+    // A mouse is precise: a click on a dot picks exactly that step.
+    await page.mouse.click(q.x, q.y);
+    await expect(timeline(page)).toHaveValue(String(q.i));
+    await page.mouse.click(p.x, p.y);
+    await expect(timeline(page)).toHaveValue(String(p.i));
+    await expect(choose).toHaveCount(0);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});
+
+test("every stage the band shows is reachable with the keyboard alone, at the same step", async ({ page }) => {
+  await sendAndHold(page, "?starter=routed");
+  await toLast(page);
+  await page.getByRole("radio", { name: "Summary" }).click();
+  // The band goes to the last step of a stage; "Show this stage" in the list goes to the same one.
+  await page.locator(".track-stage").nth(2).click();
+  const byBand = await timeline(page).inputValue();
+  await timeline(page).fill("0");
+  await page.locator(".track-steps summary").focus();
+  await page.keyboard.press("Enter");
+  const stage = page.locator(".stage-list > li").nth(2);
+  await stage.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await stage.getByRole("button", { name: "Show this stage" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(timeline(page)).toHaveValue(byBand);
+  // The band itself is a picture of the list, kept out of the accessibility tree.
+  await expect(page.locator(".track-band")).toHaveAttribute("aria-hidden", "true");
 });

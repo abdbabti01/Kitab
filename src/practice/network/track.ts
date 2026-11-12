@@ -20,11 +20,28 @@ export type TrackArrow = {
   /** The message resends one that was lost. */
   retransmit: boolean;
   message: string;
+  /** What crossed the link, named from its recorded layers: "Ethernet frame carrying an ARP reply". */
+  what: string;
 };
 export type TrackMark = { index: number; device: string; how: "delivered" | "discarded" | "stopped" };
 export type Track = { lanes: string[]; arrows: TrackArrow[]; marks: TrackMark[] };
 
 const kindOf = (packet: string): PacketKind => (packet.startsWith("arp-") ? "arp" : packet.startsWith("dhcp-") ? "dhcp" : "ip");
+/** "a" or "an" before a layer's name as it is read aloud: an ARP, an HTTP, an IPv4, an ICMP, an Echo; a UDP, a TCP. */
+export const article = (name: string) => (/^[AEIOH]/.test(name) ? "an" : "a");
+
+/**
+ * What crossed a link, from the outside in, using only the layers the event recorded: "Ethernet frame carrying an
+ * IPv4 packet, which carries a TCP segment with an HTTP request", "Wi-Fi frame carrying an ARP request". Nothing is
+ * assumed: a frame without IPv4, or a packet without a frame, is named as it is.
+ */
+export function carrying(layers: { name: string }[]): string {
+  const [outer, next, ...inner] = layers.map((l) => l.name).reverse();
+  if (!outer) return "message";
+  if (!next) return outer;
+  const rest = inner.map((n) => `${article(n)} ${n}`);
+  return `${outer} carrying ${article(next)} ${next}${rest.length ? `, which carries ${rest.join(" with ")}` : ""}`;
+}
 
 export function trackOf(events: TraceEvent[], network: Network): Track {
   const x = exchangeOf(events, network);
@@ -44,6 +61,7 @@ export function trackOf(events: TraceEvent[], network: Network): Track {
       forwarded: !!m && m.from !== e.hop.from,
       retransmit: !!m?.resends,
       message: e.packet,
+      what: carrying(e.layers),
     });
   });
   const marks: TrackMark[] = x.messages.flatMap((m) =>

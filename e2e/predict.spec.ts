@@ -101,7 +101,7 @@ test("by keyboard and touch, with reduced motion; practice changes no saved netw
   await expect(question(page).getByRole("radio").first()).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(question(page).getByRole("radio").nth(1)).toBeChecked();
-  const chosen = await question(page).locator("label.is-chosen").textContent();
+  const chosen = await question(page).locator("label.is-chosen span").textContent();
   await page.keyboard.press("Enter");
   await expect(result(page).getByRole("heading")).toBeFocused();
   await expect(result(page).getByRole("heading")).toHaveText(chosen === "192.168.1.1 (Home router)" ? "Your prediction was right." : /^Not quite/);

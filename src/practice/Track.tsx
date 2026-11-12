@@ -2,9 +2,9 @@
 // with the timeline's slider; under it, one lane per device and one arrow per recorded link crossing, for the stage
 // being played (a window, so long runs stay readable); then every step, and the full exchange table on request.
 // It has no playback state of its own: it reads the journey's position and moves it only through journey.step().
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { StepsList } from "./Journey.tsx";
-import { trackOf, windowOf, type TrackArrow } from "./network/track.ts";
+import { article, trackOf, windowOf, type TrackArrow } from "./network/track.ts";
 import { stageAt } from "./network/stages.ts";
 import type { Journey } from "./useJourney.ts";
 import type { Network } from "./network/model.ts";
@@ -49,8 +49,11 @@ export function Track({
     laneH = narrow ? 28 : 24,
     spacing = narrow ? 13 : 10;
   const plotW = Math.max(120, w - labelW - 2);
-  const [a, b] = trace ? windowOf(j.stages, j.index, last, (plotW - 16) / spacing) : [0, 0];
-  const step = (plotW - 16) / (b - a + 1);
+  // Behind a prediction the run ends, for the track, at the question: a strip of fixed width stands for the rest, so
+  // it says that something follows without saying how much.
+  const gateW = j.gated ? 40 : 0;
+  const [a, b] = trace ? windowOf(j.stages, j.index, last, (plotW - 16 - gateW) / spacing) : [0, 0];
+  const step = (plotW - 16 - gateW) / (b - a + 1);
   const x = (i: number) => 8 + (i - a + 0.5) * step;
   const inWindow = (i: number) => i >= a && i <= b && i <= until;
   const arrows = (seen?.arrows ?? []).filter((r) => inWindow(r.index));
@@ -64,9 +67,45 @@ export function Track({
   // Keys move between link crossings of the whole (possibly gated) trace: moving on shows the next one, as the slider does.
   const hops = useMemo(() => (trace ? trace.events.flatMap((e, i) => (e.hop && e.packet ? [i] : [])) : []), [trace]);
   const pick = (i: number) => j.step(Math.max(0, Math.min(last, i)));
+  // Where each shown event can be picked: an arrow over the lanes it spans, any other event on its device's lane, in
+  // its own column. A finger is wider than a column on a phone (about 13 px), so a touch that could mean several
+  // events asks which one instead of guessing.
+  const arrowAt = new Map(arrows.map((r) => [r.index, r]));
+  function hitsAt(px: number, py: number, radius: number) {
+    return ticks
+      .filter((t) => Math.abs(x(t.i) - px) <= radius)
+      .filter((t) => {
+        const r = arrowAt.get(t.i);
+        const [y0, y1] = r ? [Math.min(y(r.from), y(r.to)), Math.max(y(r.from), y(r.to))] : [y(t.actor), y(t.actor)];
+        return py >= y0 - laneH / 2 && py <= y1 + laneH / 2;
+      })
+      .map((t) => t.i);
+  }
+  const [choose, setChoose] = useState<number[] | null>(null);
+  const chooser = useRef<HTMLDivElement>(null);
+  // A touch is followed by the browser's own mouse events, which would focus the plot and take the focus from the list.
+  const opening = useRef(false);
+  useEffect(() => setChoose(null), [a, b, trace]);
+  useEffect(() => {
+    if (choose) chooser.current?.querySelector("button")?.focus({ preventScroll: true });
+  }, [choose]);
   function onPointer(e: PointerEvent<SVGSVGElement>) {
     const r = e.currentTarget.getBoundingClientRect();
-    pick(Math.round((e.clientX - r.left - 8) / step - 0.5) + a);
+    const px = e.clientX - r.left,
+      py = e.clientY - r.top;
+    const fine = e.pointerType === "mouse";
+    const near = hitsAt(px, py, fine ? step / 2 : Math.max(step / 2, 16));
+    // Arrows are what the track is for: one arrow under the finger wins over the dots of nearby internal steps.
+    const crossings = near.filter((i) => arrowAt.has(i));
+    const hits = crossings.length ? crossings : near;
+    if (!hits.length) return;
+    if (fine || hits.length === 1) {
+      setChoose(null);
+      pick(hits.reduce((best, i) => (Math.abs(x(i) - px) < Math.abs(x(best) - px) ? i : best)));
+    } else {
+      opening.current = true;
+      setChoose(hits);
+    }
   }
   function onKey(e: KeyboardEvent) {
     const move = (to: number | undefined) => {
@@ -83,8 +122,15 @@ export function Track({
     }
   }
   const current = arrows.find((r) => r.index === j.index);
-  const describe = (r: TrackArrow) =>
-    `${r.lost ? "Lost: " : ""}${r.retransmit ? "resent " : ""}${r.broadcast ? "broadcast " : ""}${r.kind === "ip" ? "IP" : r.kind.toUpperCase()} frame, ${name(r.from)} ${r.forwarded ? "forwards it" : "sends it"} to ${name(r.to)}`;
+  // In the trace's own terms: "Home switch forwards to Router: a broadcast Ethernet frame carrying an ARP request".
+  const describe = (r: TrackArrow) => {
+    const what = [r.retransmit && "resent", r.broadcast && "broadcast", r.what].filter(Boolean).join(" ");
+    return `${name(r.from)} ${r.forwarded ? "forwards" : "sends"} to ${name(r.to)}: ${article(what)} ${what}${r.lost ? ". It is lost on this link" : ""}`;
+  };
+  const label = (i: number) => {
+    const r = arrowAt.get(i);
+    return `Event ${i + 1}: ${r ? describe(r) : `${trace!.events[i].title} at ${name(trace!.events[i].actor)}`}`;
+  };
   const k = stageAt(j.stages, j.index);
   const shownStages = j.stages.filter((s) => j.revealed || s.start <= until);
   const kindOfStage = (s: (typeof j.stages)[number]) =>
@@ -141,7 +187,17 @@ export function Track({
               aria-label={`Messages, events ${a + 1} to ${Math.min(b, until) + 1}${current ? `. Selected: ${describe(current)}` : ""}. Left and right arrows move between messages; Enter opens the packet.`}
               onKeyDown={onKey}
             >
-              <svg width={plotW} height={h} viewBox={`0 0 ${plotW} ${h}`} onPointerDown={onPointer} aria-hidden="true">
+              <svg
+                width={plotW}
+                height={h}
+                viewBox={`0 0 ${plotW} ${h}`}
+                onPointerDown={onPointer}
+                onMouseDown={(e) => {
+                  if (opening.current) e.preventDefault();
+                  opening.current = false;
+                }}
+                aria-hidden="true"
+              >
                 <defs>
                   <pattern id="track-hidden" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
                     <line x1="0" y1="0" x2="0" y2="8" className="track-hatch" />
@@ -151,14 +207,17 @@ export function Track({
                   <line key={d} className="track-lane" x1="0" x2={plotW} y1={y(d)} y2={y(d)} />
                 ))}
                 {/* What has not happened yet: hidden until a prediction, or not reached on the first playthrough. */}
-                {b > until && <rect className={j.gated ? "track-gate" : "track-ahead"} x={x(until) + step / 2} y="0" width={plotW - x(until) - step / 2} height={h} />}
-                {j.gated && b >= until && (
-                  <text className="track-gate-text" x={Math.min(plotW - 6, x(until) + step / 2 + 8)} y={h / 2 + 4}>
-                    Hidden until you predict
-                  </text>
+                {b > until && <rect className="track-ahead" x={x(until) + step / 2} y="0" width={plotW - x(until) - step / 2} height={h} />}
+                {j.gated && b === last && (
+                  <>
+                    <rect className="track-gate" x={plotW - gateW} y="0" width={gateW} height={h} />
+                    <text className="track-gate-mark" x={plotW - gateW / 2} y={h / 2 + 5} textAnchor="middle">
+                      ?
+                    </text>
+                  </>
                 )}
                 {ticks.filter((t) => !t.hop).map((t) => (
-                  <circle key={`t${t.i}`} className="track-tick" cx={x(t.i)} cy={y(t.actor)} r={t.i === j.index ? 4.5 : 2} />
+                  <circle key={`t${t.i}`} className="track-tick" data-index={t.i} cx={x(t.i)} cy={y(t.actor)} r={t.i === j.index ? 4.5 : 2} />
                 ))}
                 {arrows.map((r) => {
                   const ya = y(r.from),
@@ -199,7 +258,39 @@ export function Track({
               </svg>
             </div>
           </div>
+          {choose && (
+            <div
+              className="track-choose"
+              role="group"
+              aria-label="Steps close together"
+              ref={chooser}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setChoose(null);
+              }}
+            >
+              <p>These steps are close together. Which one?</p>
+              <ul>
+                {choose.map((i) => (
+                  <li key={i}>
+                    <button
+                      className={arrowAt.get(i) ? `kind-${arrowAt.get(i)!.kind}` : ""}
+                      onClick={() => {
+                        setChoose(null);
+                        pick(i);
+                      }}
+                    >
+                      {label(i)}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button className="text-button" onClick={() => setChoose(null)}>
+                Cancel
+              </button>
+            </div>
+          )}
           <div className="track-foot">
+            {j.gated && <span className="track-gate-text">Later steps are hidden until you predict.</span>}
             <span className="track-range">
               {b - a < last ? `${j.gated ? "Steps" : "Events"} ${a + 1}–${Math.min(b, until) + 1}${j.gated ? "" : ` of ${last + 1}`}` : ""}
             </span>

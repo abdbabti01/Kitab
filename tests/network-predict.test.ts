@@ -2,7 +2,7 @@
 // shows the outcome; the outcome is recorded at `at`; and the correct choice is what the trace records there.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { checkpointsOf, type Checkpoint } from "../src/practice/network/predict.ts";
+import { checkpointsOf, optionDevices, type Checkpoint } from "../src/practice/network/predict.ts";
 import { missions } from "../src/practice/network/missions.ts";
 import { runSequence } from "../src/practice/network/mission-assess.ts";
 import { scenarios } from "./support/network-scenarios.ts";
@@ -179,4 +179,26 @@ test("a wrong choice can say what it mixes up, using the same recorded values", 
   assert.match(why("arp-answer", "Your phone")!, /received the broadcast.*its reply is sent to Your PC alone, not broadcast/);
   assert.match(why("ack", "1001")!, /sequence number of the first byte that arrived/);
   assert.match(why("nat-out", "192.168.1.10 (Your PC)")!, /rewrites the source, not the destination/);
+});
+
+test("devices that can be tapped as answers are exactly the ones a choice names, each for one choice", () => {
+  let tappable = 0;
+  for (const { name, network, trace } of runs)
+    for (const c of checkpointsOf(trace, network)) {
+      const on = optionDevices(c, network);
+      assert.equal(new Set(on.map((a) => a.device)).size, on.length, name);
+      for (const a of on) {
+        const text = c.options.find((o) => o.id === a.option)!.text;
+        const d = network.devices.find((x) => x.id === a.device)!;
+        assert.ok(text === d.name || text.endsWith(` (${d.name})`), `${name} ${c.id}: "${text}" is not ${d.name}`);
+      }
+      // A choice that names no device (or "No device: ...") is never put on the diagram.
+      for (const o of c.options.filter((o) => !on.some((a) => a.option === o.id))) assert.ok(!network.devices.some((d) => o.text === d.name), `${name} ${c.id}: ${o.text}`);
+      tappable += on.length;
+    }
+  assert.ok(tappable > 0);
+  // The ARP question: the device that replied is the tappable right answer.
+  const { cs, network } = run("internet: HTTP by name");
+  const arp = cs.find((c) => c.kind === "arp-answer")!;
+  assert.equal(network.devices.find((d) => d.id === optionDevices(arp, network).find((a) => a.option === arp.answer)!.device)!.name, right(arp));
 });

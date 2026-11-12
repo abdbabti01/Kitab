@@ -32,6 +32,10 @@
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+/* A device chosen with the pointer is shown by its selection, not by the browser's own focus box. */
+.network-device:focus:not(:focus-visible) {
+  outline: none;
+}
 .network-playground .eyebrow {
   font: 600 10px/1.4 var(--font);
   letter-spacing: 1.7px;
@@ -1756,6 +1760,10 @@
 .network-device.is-dimmed {
   opacity: 0.42;
 }
+/* A prediction's devices stay clear, wherever the stage is. */
+.network-device.is-dimmed:is(.is-asking, .is-answer) {
+  opacity: 1;
+}
 .network-device.is-sender .device-tile {
   stroke: #b57729;
   stroke-width: 4;
@@ -3226,9 +3234,13 @@
   stroke: var(--line);
   stroke-width: 3;
 }
-.track-gate-text {
+.track-gate-mark {
   fill: var(--muted);
-  font: 600 11px var(--font);
+  font: 700 16px var(--font);
+}
+.track-gate-text {
+  font-weight: 600;
+  color: var(--ink);
 }
 .track-foot {
   display: flex;
@@ -3303,4 +3315,50 @@
     max-height: 260px;
     overflow-y: auto;
   }
+}
+
+/* When a tap could mean several steps, they are listed to choose from: full-width rows, each a finger's height. */
+.track-choose {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.track-choose p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.track-choose ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.track-choose li button {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+}
+.track-choose li button.kind-ip {
+  border-left-color: #3a6595;
+}
+.track-choose li button.kind-arp {
+  border-left-color: #23675f;
+}
+.track-choose li button.kind-dhcp {
+  border-left-color: #8f5a17;
+}
+.track-choose > .text-button {
+  margin-top: 4px;
+  min-height: 36px;
 }

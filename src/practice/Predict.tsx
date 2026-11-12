@@ -1,7 +1,8 @@
 // Predict as you go (playground only): the Journey stops before a decision, the learner predicts, then sees what
 // the simulator did. Practice only: nothing is saved and nothing counts towards missions.
 import { useEffect, useRef, useState } from "react";
-import { checkpointsFor, type Checkpoint } from "./network/predict.ts";
+import { HelpCircle } from "lucide-react";
+import { checkpointsFor, optionDevices, type Checkpoint } from "./network/predict.ts";
 import type { Journey } from "./useJourney.ts";
 import type { Network, Trace } from "./network/model.ts";
 import "./predict.css";
@@ -14,17 +15,46 @@ export function usePredictions(network: Network) {
   const [picks, setPicks] = useState<Picks>({ trace: null, by: {} });
   // The checkpoint whose result is on screen, until the learner continues.
   const [result, setResult] = useState<string | null>(null);
+  // The option chosen for the open question, from the card or by tapping a device on the diagram; checked only
+  // when the learner presses "Check my prediction".
+  const [choice, setChoice] = useState("");
   const answers = (t: Trace) => (picks.trace === t ? picks.by : {});
   /** Where the Journey must wait: the next checkpoint not yet answered. */
   const limit = on ? (t: Trace) => checkpointsFor(t, network).find((c) => !(c.id in answers(t)))?.ask : undefined;
-  return { on, setOn, picks, setPicks, result, setResult, answers, limit };
+  return { on, setOn, picks, setPicks, result, setResult, choice, setChoice, answers, limit };
 }
 export type Predictions = ReturnType<typeof usePredictions>;
 
-/** The switch, shown with the view options. Turning it on mid-run asks only from the current step onwards. */
+/** Which question or result is on screen now, read from the predictions and the Journey's position. */
+function current(p: Predictions, j: Journey, network: Network) {
+  const t = j.fullTrace;
+  const cs = p.on && t ? checkpointsFor(t, network) : [];
+  const by = t ? p.answers(t) : {};
+  const pending = cs.find((c) => !(c.id in by));
+  const done = cs.find((c) => c.id === p.result && j.index >= c.ask && j.index <= c.at);
+  const open = !done && pending && j.index === pending.ask ? pending : undefined;
+  return { t, cs, by, pending, done, open };
+}
+
+/** The open question as the diagram shows it: the device that decides, and the devices that are answers. */
+export type Asking = { device: string; answers: { device: string; option: string; letter: string; text: string }[]; chosen: string; onAnswer: (option: string) => void };
+export function askingOf(p: Predictions, j: Journey, network: Network): Asking | undefined {
+  const q = current(p, j, network).open;
+  if (!q) return undefined;
+  const letter = (option: string) => String.fromCharCode(65 + q.options.findIndex((o) => o.id === option));
+  return {
+    device: q.device,
+    answers: optionDevices(q, network).map((a) => ({ ...a, letter: letter(a.option), text: q.options.find((o) => o.id === a.option)!.text })),
+    chosen: p.choice,
+    onAnswer: p.setChoice,
+  };
+}
+
+/** The switch, at the top of the lab. Turning it on mid-run asks only from the current step onwards. */
 export function PredictSwitch({ predict: p, journey: j, network }: { predict: Predictions; journey: Journey; network: Network }) {
   return (
-    <label className="network-check">
+    <label className={`predict-switch${p.on ? " is-on" : ""}`} title="The Journey stops before each decision so you can predict it">
+      <HelpCircle size={15} aria-hidden="true" />
       <input
         type="checkbox"
         checked={p.on}
@@ -41,16 +71,11 @@ export function PredictSwitch({ predict: p, journey: j, network }: { predict: Pr
 }
 
 export function PredictCard({ predict: p, journey: j, network }: { predict: Predictions; journey: Journey; network: Network }) {
-  const t = j.fullTrace;
-  const [choice, setChoice] = useState("");
+  const { t, cs, by, pending, done, open } = current(p, j, network);
+  const { choice, setChoice } = p;
   // Replaying a revealed outcome ("Watch it happen") stops when the outcome is reached.
   const [watching, setWatching] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
-  const cs = p.on && t ? checkpointsFor(t, network) : [];
-  const by = t ? p.answers(t) : {};
-  const pending = cs.find((c) => !(c.id in by));
-  const done = cs.find((c) => c.id === p.result && j.index >= c.ask && j.index <= c.at);
-  const open = !done && pending && j.index === pending.ask ? pending : undefined;
   const shown = done ?? open;
   // A new question or result takes the focus, so keyboard and screen reader users land on it.
   const key = shown ? `${shown.id}:${done ? "result" : "ask"}` : "";
@@ -134,6 +159,7 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
     );
   }
   const q = open!;
+  const onDiagram = new Map(optionDevices(q, network).map((a) => [a.option, a.device]));
   return (
     <section className="predict-card" aria-label="Prediction">
       <form
@@ -151,12 +177,20 @@ export function PredictCard({ predict: p, journey: j, network }: { predict: Pred
               {q.question}
             </h2>
           </legend>
-          {q.options.map((o) => (
+          {q.options.map((o, k) => (
             <label key={o.id} className={`predict-option${choice === o.id ? " is-chosen" : ""}`}>
               <input type="radio" name={`predict-${q.id}`} value={o.id} checked={choice === o.id} onChange={() => setChoice(o.id)} />
+              <b className="predict-letter" aria-hidden="true">
+                {String.fromCharCode(65 + k)}
+              </b>
               <span>{o.text}</span>
             </label>
           ))}
+          {onDiagram.size > 0 && (
+            <p className="predict-hint">
+              {onDiagram.size === q.options.length ? "Or tap" : "You can also tap"} the lettered {onDiagram.size === 1 ? "device" : "devices"} on the diagram to choose.
+            </p>
+          )}
         </fieldset>
         <div className="predict-actions">
           <button type="submit" className="button primary" disabled={!choice}>

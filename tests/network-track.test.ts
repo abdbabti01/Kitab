@@ -2,7 +2,7 @@
 // every event reachable.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { trackOf, windowOf } from "../src/practice/network/track.ts";
+import { carrying, trackOf, windowOf } from "../src/practice/network/track.ts";
 import { exchangeOf } from "../src/practice/network/exchange.ts";
 import { stagesOf } from "../src/practice/network/stages.ts";
 import { missions } from "../src/practice/network/missions.ts";
@@ -71,4 +71,28 @@ test("windows always hold the current event, stay put within a stage, and togeth
       assert.ok(moves <= pages, `${name} cap ${cap}: ${moves} moves for ${pages} pages`);
     }
   }
+});
+
+test("what crosses a link is named from its own recorded layers, outside in, and nothing else", () => {
+  assert.equal(carrying([{ name: "ARP reply" }, { name: "Ethernet frame" }]), "Ethernet frame carrying an ARP reply");
+  assert.equal(carrying([{ name: "ARP request" }, { name: "Wi-Fi frame" }]), "Wi-Fi frame carrying an ARP request");
+  assert.equal(
+    carrying([{ name: "HTTP request" }, { name: "TCP segment" }, { name: "IPv4 packet" }, { name: "Ethernet frame" }]),
+    "Ethernet frame carrying an IPv4 packet, which carries a TCP segment with an HTTP request",
+  );
+  assert.equal(carrying([{ name: "DHCP Discover" }, { name: "UDP datagram" }, { name: "IPv4 packet" }, { name: "Wi-Fi frame" }]), "Wi-Fi frame carrying an IPv4 packet, which carries a UDP datagram with a DHCP Discover");
+  assert.equal(carrying([{ name: "HTTP request" }, { name: "TCP segment" }, { name: "IPv4 packet" }]), "IPv4 packet carrying a TCP segment, which carries an HTTP request");
+  for (const { name, network, trace } of runs())
+    for (const a of trackOf(trace.events, network).arrows) {
+      const layers = trace.events[a.index].layers.map((l) => l.name);
+      // Every recorded layer is named, outermost first, and no protocol the event does not carry.
+      let at = -1;
+      for (const l of [...layers].reverse()) {
+        const k = a.what.indexOf(l, at + 1);
+        assert.ok(k > at, `${name} event ${a.index}: "${a.what}" misses or misorders ${l}`);
+        at = k;
+      }
+      for (const p of ["Ethernet", "Wi-Fi", "IPv4", "TCP", "UDP", "ICMP", "ARP"]) if (a.what.includes(p)) assert.ok(layers.some((l) => l.includes(p)), `${name} event ${a.index}: ${p} in "${a.what}"`);
+      assert.ok(!/IP frame/.test(a.what));
+    }
 });
