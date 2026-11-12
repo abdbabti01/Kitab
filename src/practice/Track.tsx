@@ -81,6 +81,19 @@ export function Track({
       })
       .map((t) => t.i);
   }
+  // Many lanes scroll inside the track: when the current step's lanes are out of sight, the box scrolls just enough to
+  // show them (never the page). Steps that stay in sight move nothing.
+  const lanesBox = useRef<HTMLDivElement>(null);
+  const cur = arrowAt.get(j.index);
+  const curActor = trace?.events[j.index]?.actor ?? "";
+  const [top, bottom] = cur ? [Math.min(y(cur.from), y(cur.to)), Math.max(y(cur.from), y(cur.to))] : [y(curActor), y(curActor)];
+  useLayoutEffect(() => {
+    const el = lanesBox.current;
+    if (!el || !lanes.includes(curActor) || el.scrollHeight <= el.clientHeight) return;
+    const lo = top - laneH, hi = bottom + laneH;
+    if (lo >= el.scrollTop && hi <= el.scrollTop + el.clientHeight) return;
+    el.scrollTop = hi - lo > el.clientHeight ? lo : (lo + hi) / 2 - el.clientHeight / 2;
+  }, [top, bottom, curActor]);
   const [choose, setChoose] = useState<number[] | null>(null);
   const chooser = useRef<HTMLDivElement>(null);
   // A touch is followed by the browser's own mouse events, which would focus the plot and take the focus from the list.
@@ -170,7 +183,7 @@ export function Track({
               );
             })}
           </div>
-          <div className="track-lanes">
+          <div className="track-lanes" ref={lanesBox}>
             <ul className="track-names" aria-label="Devices in this run" style={{ width: labelW }}>
               {lanes.map((d) => (
                 <li key={d} style={{ height: laneH }}>

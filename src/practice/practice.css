@@ -3100,13 +3100,16 @@
 .track-stage.kind-none {
   background: var(--muted);
 }
+/* A run that reaches many devices has many lanes: they scroll inside the track, never the page. */
 .track-lanes {
   display: flex;
   align-items: flex-start;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  overflow: hidden;
+  max-height: 324px;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 .track-names {
   list-style: none;
