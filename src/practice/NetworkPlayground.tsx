@@ -94,7 +94,7 @@ export function NetworkPlayground() {
     [saveBlocked, setSaveBlocked] = useState(!!startup.error || "scratch" in startup),
     [saved, setSaved] = useState("Saved on this device");
   const [selected, setSelected] = useState(""),
-    [tab, setTab] = useState<InspectorTab>("packet");
+    [tab, setTab] = useState<InspectorTab>("now");
   // Break and compare: a temporary broken copy, shown instead of the learner's network while it is open.
   const [comparing, setComparing] = useState(false),
     [experiment, setExperiment] = useState<{ x: Experiment; side: Side } | null>(null);
@@ -197,7 +197,7 @@ export function NetworkPlayground() {
     // A practice copy never starts saving over the learner's own network, whatever it loads.
     if (!("scratch" in startup)) setSaveBlocked(false);
     setSelected("");
-    setTab("packet");
+    setTab("now");
     setNotice("");
     setAction(
       nextAction ?? {
@@ -238,7 +238,8 @@ export function NetworkPlayground() {
     // Send plays the journey straight away; pause, step and scrub stay available throughout.
     const result = journey.run(action, undefined, { play: true });
     if (!result) return;
-    setTab("packet");
+    // The panel follows the run: Now explains each step as it plays.
+    setTab("now");
     // Only the step as given advances; once the learner changes the form, they are on their own. The next step
     // is offered when this run's result is shown, so it does not give the result away.
     const at = steps.findIndex((s) => s.action === action);
@@ -615,7 +616,7 @@ export function NetworkPlayground() {
             journey={journey}
             network={shown}
             selected={selected}
-            onSelect={setSelected}
+            now={{ onAbout: select, onInspect: () => inspectPacket() }}
             tab={tab}
             onTab={setTab}
             panelRef={inspectorRef}

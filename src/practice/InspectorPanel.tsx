@@ -1,13 +1,16 @@
-// The inspector beside the diagram: the selected device, the current packet, state tables and every step.
+// One panel beside the diagram (under it on a phone) for everything about the current step: Now (what is happening
+// and why), Packet (what the message carries and what changed), Device (a device's role, state and settings), and
+// every Step. Every view reads the one journey state; selecting the packet or a device opens its view.
 import type { ReactNode, RefObject } from "react";
-import { Flag, Layers, ListOrdered, Monitor, Server, Settings2 } from "lucide-react";
+import { Flag, Layers, ListOrdered, Monitor, PlayCircle, Settings2 } from "lucide-react";
 import { DeviceInspector } from "./DeviceInspector.tsx";
 import { PacketInspector, StateTables } from "./PacketInspector.tsx";
 import { StepsList } from "./Journey.tsx";
+import { NowCard } from "./JourneyStage.tsx";
 import type { Journey } from "./useJourney.ts";
 import type { Device, Endpoint, Medium, Network } from "./network/model.ts";
 
-export type InspectorTab = "mission" | "device" | "packet" | "tables" | "steps";
+export type InspectorTab = "mission" | "now" | "packet" | "device" | "steps";
 /** How the selected device may be changed. */
 export type DeviceEditor = {
   onApply: (device: Device) => void;
@@ -20,30 +23,32 @@ export function InspectorPanel({
   journey: j,
   network,
   selected,
-  onSelect,
   tab,
   onTab,
   editor,
   panelRef,
   mission,
+  now,
 }: {
   /** A mission page's own tab, shown first. */
   mission?: ReactNode;
+  /** The Now tab, where the playground explains the current step (missions explain it under the diagram). */
+  now?: { onAbout: (id: string) => void; onInspect: () => void };
   journey: Journey;
   network: Network;
   selected: string;
-  onSelect: (id: string) => void;
   tab: InspectorTab;
   onTab: (tab: InspectorTab) => void;
   editor: DeviceEditor;
   panelRef: RefObject<HTMLElement | null>;
 }) {
-  const device = network.devices.find((d) => d.id === selected);
+  // The device chosen on the diagram, or else the one acting at this step.
+  const device = network.devices.find((d) => d.id === (selected || j.event?.actor));
   const tabs: [InspectorTab, typeof Settings2, string][] = [
     ...(mission ? [["mission", Flag, "Mission"] as [InspectorTab, typeof Settings2, string]] : []),
-    ["device", Settings2, "Device"],
+    ...(now ? [["now", PlayCircle, "Now"] as [InspectorTab, typeof Settings2, string]] : []),
     ["packet", Layers, "Packet"],
-    ["tables", Server, "Tables"],
+    ["device", Settings2, "Device"],
     ["steps", ListOrdered, "Steps"],
   ];
   return (
@@ -56,9 +61,23 @@ export function InspectorPanel({
         ))}
       </div>
       <div className="inspector-body">
+        {/* Now stays mounted while another view is shown, so what the learner opened in it stays open. */}
+        {now && (
+          <div hidden={tab !== "now"}>
+            {j.trace ? (
+              <NowCard journey={j} network={network} onAbout={now.onAbout} onInspect={now.onInspect} />
+            ) : (
+              <div className="inspector-empty">
+                <PlayCircle size={32} />
+                <h2>Nothing is happening yet</h2>
+                <p>Send something. This tab explains each step as it happens: which device acts, what it decides and why.</p>
+              </div>
+            )}
+          </div>
+        )}
         {tab === "mission" && mission ? (
           mission
-        ) : tab === "device" ? (
+        ) : tab === "now" ? null : tab === "device" ? (
           device ? (
             <DeviceInspector
               key={device.id}
@@ -71,6 +90,7 @@ export function InspectorPanel({
               onDelete={() => editor.onDelete(device)}
               onConnect={editor.onConnect}
               onDisconnect={editor.onDisconnect}
+              state={<StateTables network={network} session={j.shownSession} actor={device.id} embedded />}
             />
           ) : (
             <div className="inspector-empty">
@@ -81,7 +101,18 @@ export function InspectorPanel({
           )
         ) : tab === "steps" ? (
           j.trace ? (
-            <StepsList trace={j.trace} stages={j.stages} index={j.index} mode={j.mode} network={network} onStep={j.step} />
+            <StepsList
+              trace={j.trace}
+              stages={j.stages}
+              index={j.index}
+              mode={j.mode}
+              network={network}
+              // Choosing a step shows what happens at it.
+              onStep={(i) => {
+                j.step(i);
+                if (now) onTab("now");
+              }}
+            />
           ) : (
             <div className="inspector-empty">
               <ListOrdered size={32} />
@@ -89,25 +120,8 @@ export function InspectorPanel({
               <p>Send something. Every step it takes will be listed here.</p>
             </div>
           )
-        ) : tab === "packet" ? (
-          <PacketInspector events={j.trace?.events ?? []} index={j.index} network={network} onStep={j.step} />
         ) : (
-          <>
-            <label className="table-device-picker">
-              Inspect device
-              <select aria-label="Table device" value={selected || j.event?.actor || ""} onChange={(e) => onSelect(e.target.value)}>
-                <option value="" disabled>
-                  Choose a device
-                </option>
-                {network.devices.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <StateTables network={network} session={j.shownSession} actor={selected || j.event?.actor || ""} />
-          </>
+          <PacketInspector events={j.trace?.events ?? []} index={j.index} network={network} onStep={j.step} />
         )}
       </div>
     </aside>

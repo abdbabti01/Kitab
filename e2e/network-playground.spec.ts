@@ -28,9 +28,12 @@ test("practice workspace runs and rewinds a real HTTP journey", async ({
   await toEnd(page);
   await expect(card).toContainText("Page delivered");
   await expect(card).toContainText("The page arrived, and both sides closed the connection");
+  // The same panel shows the message: the page itself.
+  await page.getByRole("button", { name: "Packet", exact: true }).click();
   await expect(page.locator(".packet-inspector")).toContainText(
     "Hello from your network",
   );
+  await page.getByRole("button", { name: "Now", exact: true }).click();
   await page.getByRole("button", { name: "First event", exact: true }).click();
   await expect(card).toContainText("Prepare the HTTP request");
   expect(
@@ -129,15 +132,18 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     page.getByRole("button", { name: "Play journey", exact: true }),
   ).toBeVisible();
   // Device names distinguish repeated receive events and must remain visible on phones.
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
   await expect(page.locator(".event-list small").filter({ hasText: "Your PC" }).first()).toBeVisible();
   await page
     .locator(".event-list")
     .getByRole("button", { name: /Receive frame Your PC$/ })
     .first()
     .click();
+  // Choosing a step shows it in Now, where the opened explanation stays open.
   await expect(page.locator(".step-guide")).toContainText("does not answer");
   await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(page.locator(".step-guide")).toContainText("port 68 → 67");
+  await page.getByRole("button", { name: "Steps", exact: true }).click();
   await page.locator(".event-list").getByRole("button", { name: /DHCP Offer/ }).first().click();
   await expect(page.locator(".step-guide")).toContainText(
     "not simply because it is a router",
@@ -311,7 +317,8 @@ test("the packet inspector follows one packet, shows what changed at each link a
   const trip = page.getByRole("region", { name: "Follow this packet" });
   await expect(trip.locator("li")).toHaveCount(5);
   await trip.getByRole("button", { name: /DNS server/ }).click();
-  await expect(page.locator(".journey-card h2")).toHaveText("Transmit over Ethernet");
+  // Following the packet keeps the Packet view open; the journey moves to that step.
+  await expect(page.locator(".journey-position b")).toHaveText("Transmit over Ethernet");
   await expect(page.locator(".packet-identity")).toContainText("On link 5 of 5");
 });
 test("selecting a device during a run explains its part in that run", async ({ page }) => {

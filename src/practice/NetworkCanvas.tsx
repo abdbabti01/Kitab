@@ -4,6 +4,7 @@ import { DeviceArt } from "./DeviceArt.tsx";
 import { effectiveInterface } from "./network/engine.ts";
 import { actionAt, type Motion } from "./network/motion.ts";
 import { stackedLayout } from "./network/layout.ts";
+import type { Capsule } from "./network/packets.ts";
 import type {
   Network,
   Session,
@@ -26,13 +27,13 @@ export function NetworkCanvas({
   onAdd,
   follow,
   focus,
-  onPositions,
   motion,
   onPacket,
   children,
 }: {
-  /** What moves at this step, read from the trace (see motion.ts), and how long a hop takes in ms. */
-  motion?: Motion & { ms: number };
+  /** What moves at this step, read from the trace (see motion.ts), how long a hop takes in ms, and the message's
+   * layers and their changes at this step (capsuleAt). */
+  motion?: Motion & { ms: number; capsule?: Capsule };
   /** Opens the current message's headers. */
   onPacket?: () => void;
   /** Shown in the canvas's own bar, such as the first-run start button. */
@@ -47,8 +48,6 @@ export function NetworkCanvas({
   follow: boolean;
   /** The current stage: its devices stay prominent and its links show their direction. */
   focus?: { devices: string[]; hops: { from: string; to: string; link: string }[] };
-  /** Device centres in pixels inside the canvas, for anchoring the journey card. */
-  onPositions?: (positions: Record<string, { x: number; y: number }>, scale: number) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [zoom, setZoom] = useState(1),
@@ -259,27 +258,14 @@ export function NetworkCanvas({
     const [x0, x1, y0, y1] = [Math.min(...list.map((d) => d.x)) - 85, Math.max(...list.map((d) => d.x)) + 85, Math.min(...list.map((d) => d.y)) - 97, Math.max(...list.map((d) => d.y)) + 120];
     return !visibleDevices.some((d) => d.group !== group && d.x > x0 && d.x < x1 && d.y > y0 && d.y < y1);
   });
-  const wrap = useRef<HTMLDivElement>(null),
-    reported = useRef("");
-  // Report where each device is drawn, after layout and whenever the view or size changes.
+  const wrap = useRef<HTMLDivElement>(null);
+  // Measure the drawing area and its scale after layout and whenever its size changes.
   useLayoutEffect(() => {
     const report = () => {
       const r = svg.current?.getBoundingClientRect();
       if (r && (Math.round(r.width) !== area.w || Math.round(r.height) !== area.h)) setArea({ w: Math.round(r.width), h: Math.round(r.height) });
-      const m = svg.current?.getScreenCTM(),
-        box = wrap.current?.getBoundingClientRect();
+      const m = svg.current?.getScreenCTM();
       if (m && m.a !== unitPx) setUnitPx(m.a);
-      if (!m || !box || !onPositions) return;
-      const out: Record<string, { x: number; y: number }> = {};
-      for (const d of devices) {
-        const p = new DOMPoint(displayPosition(d).x, displayPosition(d).y).matrixTransform(m);
-        out[d.id] = { x: Math.round(p.x - box.left), y: Math.round(p.y - box.top) };
-      }
-      const key = JSON.stringify([out, m.a]);
-      if (key !== reported.current) {
-        reported.current = key;
-        onPositions(out, m.a);
-      }
     };
     report();
     const observer = new ResizeObserver(report);
@@ -291,8 +277,10 @@ export function NetworkCanvas({
     return d && displayPosition(d);
   };
   const onPath = new Set(focus?.hops.map((h) => h.link));
-  // The message is about 26 px tall on screen however far the diagram is zoomed out, without outgrowing the devices.
-  const tokenScale = Math.min(2.2, Math.max(1, 26 / (20 * unitPx)));
+  // The message is about 20 px tall on screen however far the diagram is zoomed out, without outgrowing the devices.
+  const tokenScale = Math.min(2, Math.max(1, 20 / (CAPSULE_H * unitPx)));
+  // Half its drawn size, so its path stops clear of tiles and labels.
+  const pad = { x: (capsuleWidth(motion?.capsule, motion?.packet?.label ?? motion?.held?.label ?? "") / 2) * tokenScale, y: (CAPSULE_H / 2) * tokenScale };
   const involved = focus && new Set([...focus.devices, ...focus.hops.flatMap((h) => [h.from, h.to])]);
   // Stacked, a cable leaves a device below its name and address and arrives at the top of the next tile, so it never
   // runs through a label; in the learner's own layout cables join device centres as before.
@@ -515,14 +503,14 @@ export function NetworkCanvas({
         {/* The message's touch area: about 44 px wherever it rests, drawn under the devices so a device still
             gets taps on its own tile. At least about 44 px, and always 16 px beyond the drawn frame. */}
         {motion && (() => {
-          const spot = restingSpot(motion, place, cable, stacked);
+          const spot = restingSpot(motion, place, cable, stacked, pad);
           return (
             spot && (
               <circle
                 className="packet-hit"
                 cx={spot.at.x}
                 cy={spot.at.y}
-                r={Math.max(Math.min(60, Math.max(26, 22 / unitPx)), 10 * tokenScale + 16 / unitPx)}
+                r={Math.max(Math.min(60, Math.max(26, 22 / unitPx)), pad.y + 16 / unitPx)}
                 data-packet=""
                 aria-hidden="true"
                 onClick={onPacket}
@@ -689,6 +677,7 @@ export function NetworkCanvas({
             name={(id) => network.devices.find((d) => d.id === id)?.name ?? id}
             onPacket={onPacket}
             scale={tokenScale}
+            pad={pad}
           />
         )}
         {!network.devices.length && (
@@ -745,6 +734,7 @@ function restingSpot(
   place: (id: string) => Point | undefined,
   cable: (a: Point, b: Point) => Cable,
   stacked: boolean,
+  pad = { x: 0, y: 0 },
 ): { at: Point; points?: Point[] } | null {
   if (packet) {
     const a = place(packet.from),
@@ -753,7 +743,7 @@ function restingSpot(
     const c = cable(a, b);
     // A device's tile and the name, address and action label under it.
     const below = stacked ? 150 : 120;
-    const covers = (p: Point, d: Point) => Math.abs(p.x - d.x) < 64 && p.y > d.y - 60 && p.y < d.y + below;
+    const covers = (p: Point, d: Point) => Math.abs(p.x - d.x) < 64 + pad.x && p.y > d.y - 60 - pad.y && p.y < d.y + below + pad.y;
     let t0 = 0,
       t1 = 1;
     while (t0 < 0.5 && covers(c.at(t0), a)) t0 += 0.02;
@@ -771,6 +761,12 @@ function restingSpot(
   // Beside the tile's top corner, which is drawn larger in the learner's own layout.
   return at ? { at: stacked ? { x: at.x + 44, y: at.y - 52 } : { x: at.x + 50, y: at.y - 60 } } : null;
 }
+const CAPSULE_H = 18;
+const segWidth = (tag: string) => tag.length * 6.6 + 12;
+const capsuleWidth = (c: Capsule | undefined, label: string) =>
+  c?.segments.length ? c.segments.reduce((w, s) => w + segWidth(s.tag), 0) : segWidth(label);
+/** A change note short enough for the diagram: "src 192.168.1.10:53000→203.0.113.2:62000" becomes "src → 203.0.113.2:62000". */
+const brief = (note: string) => (note.length > 22 ? note.replace(/^(\S+(?: port)?) .*→(.*)$/, "$1 → $2") : note);
 const reducedMotion = () => {
   try {
     return matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -789,10 +785,12 @@ function PacketLayer({
   name,
   onPacket,
   scale = 1,
+  pad,
 }: {
   /** Drawn size of the message, so it stays easy to find on a small or zoomed-out diagram. */
   scale?: number;
-  motion: Motion & { ms: number };
+  pad?: { x: number; y: number };
+  motion: Motion & { ms: number; capsule?: Capsule };
   eventId: number;
   place: (id: string) => Point | undefined;
   cable: (a: Point, b: Point) => Cable;
@@ -814,21 +812,62 @@ function PacketLayer({
     }
     },
   };
-  const badge = (kind: string, label: string, broadcast = false, moving = false) => {
-    const w = label.length * 7 + 18;
+  const reduced = reducedMotion();
+  // Layer changes take most of a held step, or the start of a hop (a frame is wrapped before it is sent).
+  const changeMs = Math.round(Math.min(700, Math.max(250, motion.packet ? motion.ms * 0.35 : motion.ms * 0.8)));
+  /** The message as its layers: one segment per layer, outermost first, as the headers sit on the wire. */
+  const badge = (label: string, broadcast = false, moving = false) => {
+    const c = motion.capsule;
+    const segs = c?.segments.length ? c.segments : [{ tag: label, name: label, kind: "network" as const, mark: undefined }];
+    const w = capsuleWidth(c, label);
+    let x = -w / 2;
+    const notes = (c?.notes ?? []).slice(0, 2).map(brief).join("  ");
+    const nw = notes.length * 6.3 + 14;
     return (
-    <g transform={scale === 1 ? undefined : `scale(${scale.toFixed(2)})`}>
-      {/* A short pulse as a hop begins, so the eye finds the frame that is about to move. */}
-      {moving && <rect className="packet-locate" x={-w / 2 - 6} y="-16" width={w + 12} height="32" rx="16" />}
-      {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y="-15" width={w + 10} height="30" rx="15" />}
-      <rect className="packet-shape" x={-w / 2} y="-10" width={w} height="20" rx={kind === "ip" ? 10 : kind === "arp" ? 2 : 6} />
-      <text className="packet-label" y="4" textAnchor="middle">
-        {label}
-      </text>
-    </g>
+      <g transform={scale === 1 ? undefined : `scale(${scale.toFixed(2)})`} style={{ "--change": `${changeMs}ms` } as React.CSSProperties}>
+        {/* A short pulse as a hop begins, so the eye finds the frame that is about to move. */}
+        {moving && <rect className="packet-locate" x={-w / 2 - 6} y={-CAPSULE_H / 2 - 6} width={w + 12} height={CAPSULE_H + 12} rx="12" />}
+        {broadcast && <rect className="packet-broadcast" x={-w / 2 - 5} y={-CAPSULE_H / 2 - 5} width={w + 10} height={CAPSULE_H + 10} rx="11" />}
+        <rect className="packet-shape" x={-w / 2} y={-CAPSULE_H / 2} width={w} height={CAPSULE_H} rx="6" />
+        {/* A layer this step took off leaves from the outside of the packet. */}
+        {!reduced &&
+          (c?.gone ?? []).map((g) => {
+            const gw = segWidth(g.tag);
+            return (
+              <g key={`gone ${g.name}`} className={`packet-seg layer-${g.kind} is-gone`} aria-hidden="true">
+                <rect x={-w / 2 - gw} y={-CAPSULE_H / 2} width={gw} height={CAPSULE_H} rx="4" />
+                <text x={-w / 2 - gw / 2} y="4" textAnchor="middle">
+                  {g.tag}
+                </text>
+              </g>
+            );
+          })}
+        {segs.map((s, i) => {
+          const sw = segWidth(s.tag);
+          const g = (
+            <g key={s.name} className={`packet-seg layer-${s.kind}${s.mark ? ` is-${s.mark}` : ""}`}>
+              <rect x={x} y={-CAPSULE_H / 2} width={sw} height={CAPSULE_H} rx={i === 0 || i === segs.length - 1 ? 6 : 1} />
+              <text className="packet-label" x={x + sw / 2} y="4" textAnchor="middle">
+                {s.tag}
+              </text>
+            </g>
+          );
+          x += sw;
+          return g;
+        })}
+        {notes && (
+          <g className="packet-note" transform={`translate(0 ${-CAPSULE_H / 2 - 15})`}>
+            <rect x={-nw / 2} y="-10" width={nw} height="18" rx="9" />
+            <text y="3.5" textAnchor="middle">
+              {notes}
+            </text>
+          </g>
+        )}
+      </g>
     );
   };
-  const spot = restingSpot(motion, place, cable, stacked);
+  const carrying = motion.capsule?.segments.map((s) => s.name).join(" carrying ");
+  const spot = restingSpot(motion, place, cable, stacked, pad);
   if (packet && spot?.points) {
     const { at: end, points } = spot;
     const still = reducedMotion() || motion.ms <= 0;
@@ -837,7 +876,7 @@ function PacketLayer({
         key={eventId}
         className={`packet-token kind-${packet.kind}${packet.lost ? " is-lost" : ""}`}
         transform={still ? `translate(${end.x} ${end.y})` : undefined}
-        aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}. Inspect its headers`}
+        aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}${carrying ? `: ${carrying}` : ""}. Inspect its headers`}
         {...select}
       >
         {!still && (
@@ -849,7 +888,7 @@ function PacketLayer({
             values={points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(";")}
           />
         )}
-        {badge(packet.kind, packet.label, packet.broadcast, !still)}
+        {badge(packet.label, packet.broadcast, !still)}
         {packet.lost && <path className="packet-cross" d="M-7 -7 L7 7 M7 -7 L-7 7" transform={`translate(0 ${-24 * scale}) scale(${scale})`} />}
       </g>
     );
@@ -858,10 +897,10 @@ function PacketLayer({
       <g
         className={`packet-token is-held kind-${held.kind}`}
         transform={`translate(${spot.at.x} ${spot.at.y})`}
-        aria-label={`${held.label} message at ${name(held.device)}. Inspect its headers`}
+        aria-label={`${held.label} message at ${name(held.device)}${carrying ? `: ${carrying}` : ""}. Inspect its headers`}
         {...select}
       >
-        {badge(held.kind, held.label)}
+        {badge(held.label)}
       </g>
     );
   }

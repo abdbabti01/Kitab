@@ -4,7 +4,7 @@ import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
 import { beatsOf, durationsOf, type Beat } from "./network/motion.ts";
-import { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
+import { MODE_KEY, type JourneyMode } from "./journey-nav.ts";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 
 export type InputError = { field: "source" | "target"; message: string };
@@ -31,8 +31,6 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     [cardOpen, setCardOpen] = useState(true),
     // Whether the run's result may be shown: not while Send's playback is on its way to it.
     [revealed, setRevealed] = useState(true),
-    [positions, setPositions] = useState<Record<string, Point>>({}),
-    [scale, setScale] = useState(1),
     [inputError, setInputError] = useState<InputError | null>(null),
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
@@ -178,12 +176,6 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setFollow,
     cardOpen,
     setCardOpen,
-    positions,
-    scale,
-    setLayout: (p: Record<string, Point>, s: number) => {
-      setPositions(p);
-      setScale(s);
-    },
     inputError,
     clearInputError: () => setInputError(null),
     mode,

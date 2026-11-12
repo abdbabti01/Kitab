@@ -37,8 +37,8 @@ test("selecting a message moves the Journey to its real event and opens its pack
   await send(page);
   await page.getByRole("radio", { name: "Exchange" }).click();
   await rows(page).filter({ hasText: "DNS query" }).click();
-  // The Journey is on the DNS query's first transmission, the Packet tab shows that packet.
-  await expect(page.locator(".journey-card")).toContainText("Your PC");
+  // The Journey is on the DNS query's first transmission (Your PC sends it), the Packet tab shows that packet.
+  await expect(page.locator(".network-device.is-sender")).toHaveAttribute("aria-label", "Select Your PC");
   await expect(page.getByRole("button", { name: "Packet", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".network-inspector")).toContainText("198.51.100.53");
   await expect(active(page)).toContainText("DNS query");
@@ -53,7 +53,7 @@ test("selecting a message moves the Journey to its real event and opens its pack
     "DNS server delivered it",
   ]);
   await steps.getByRole("button", { name: "Home router sent it on to ISP router" }).click();
-  await expect(page.locator(".journey-card")).toContainText("Home router");
+  await expect(page.locator(".network-device.is-sender")).toHaveAttribute("aria-label", "Select Home router");
   await expect(steps.getByRole("button", { name: "Home router sent it on to ISP router" })).toHaveAttribute("aria-current", "step");
   // Moving the Journey moves the highlight to the message of the current event (positions from the recorded trace).
   const timeline = page.getByLabel("Journey timeline");
@@ -79,7 +79,7 @@ test("a lost segment is marked and linked to its retransmission", async ({ page 
   await lost.click();
   await exchange(page).getByRole("button", { name: "Show the retransmission" }).click();
   await expect(active(page)).toHaveAccessibleName(/It resends message 14, which was lost\.$/);
-  await expect(page.locator(".journey-card")).toContainText("Your PC");
+  await expect(page.locator(".network-device.is-sender")).toHaveAttribute("aria-label", "Select Your PC");
   await exchange(page).getByRole("button", { name: "Show the lost one" }).click();
   await expect(active(page)).toContainText("lost");
 });

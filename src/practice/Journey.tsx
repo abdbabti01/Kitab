@@ -1,6 +1,6 @@
 // Follow the Journey on the diagram: a card beside the active device, compact controls under the
 // canvas, and the full list of steps. All of it reads one position: the current event index.
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useState } from "react";
 import {
   Check,
   ChevronLeft,
@@ -17,8 +17,8 @@ import { StepExplanation } from "./StepExplanation.tsx";
 import { failureText } from "./network/explanations.ts";
 import { narrate } from "./network/narration.ts";
 import { stageAt, type Stage } from "./network/stages.ts";
-import type { Beat } from "./network/motion.ts";
-import { neighbours, place, type JourneyMode, type Point } from "./journey-nav.ts";
+import { actionAt, type Beat } from "./network/motion.ts";
+import { neighbours, type JourneyMode } from "./journey-nav.ts";
 export { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
 import type { Network, Trace } from "./network/model.ts";
 
@@ -164,8 +164,6 @@ export function JourneyCard({
   mode,
   network,
   playing,
-  positions,
-  scale,
   open,
   onOpen,
   onStep,
@@ -174,17 +172,18 @@ export function JourneyCard({
   onReadDetails,
   advice = true,
   beats = [],
+  hiddenAfter = false,
 }: {
   /** What each event shows (motion.ts): while playing a stage, routine repeats are not narrated one by one. */
   beats?: Beat[];
+  /** The rest of the run is hidden until a prediction is made: "next" must not give it away. */
+  hiddenAfter?: boolean;
   trace: Trace;
   stages: Stage[];
   index: number;
   mode: JourneyMode;
   network: Network;
   playing: boolean;
-  positions: Record<string, Point>;
-  scale: number;
   open: boolean;
   onOpen: (open: boolean) => void;
   onStep: (i: number) => void;
@@ -194,19 +193,7 @@ export function JourneyCard({
   /** False in missions: the simulator's diagnosis and repair advice are left for the learner to work out. */
   advice?: boolean;
 }) {
-  const card = useRef<HTMLElement>(null);
-  const [spot, setSpot] = useState<Point | null>(null);
   const [details, setDetails] = useState(false);
-  // A shorter card when no clear spot exists for the full one; tried again at every step.
-  const [compact, setCompact] = useState(false);
-  // Under the diagram when even the shorter card would cover a device. While a stage plays this holds for the whole
-  // stage, so the page below does not jump at every event.
-  const [docked, setDocked] = useState(false);
-  const placeKey = playing && mode !== "events" ? `stage ${stageAt(stages, index)}` : `event ${index}`;
-  useLayoutEffect(() => {
-    setCompact(false);
-    setDocked(false);
-  }, [placeKey]);
   const k = stageAt(stages, index);
   const stage = stages[k];
   // Playing a stage, the card stays on the latest event of it that did something new; routine repeats pass by
@@ -216,52 +203,10 @@ export function JourneyCard({
   const event = trace.events[shown];
   const n = narrate(trace.events, shown, network);
   const name = (id: string) => network.devices.find((d) => d.id === id)?.name ?? id;
-  // During playback the card stays with the stage instead of jumping with every event.
-  const anchorId = playing || mode !== "events" ? trace.events[stage.end].actor : event.actor;
   const complete = index === stage.end;
-  const avoidIds = [...new Set([...stage.devices, ...stage.hops.flatMap((h) => [h.from, h.to])])];
-  useLayoutEffect(() => {
-    const el = card.current,
-      area = el?.parentElement?.querySelector(".network-canvas");
-    const origin = area?.getBoundingClientRect();
-    // The canvas's own buttons must stay reachable; its bars are kept clear by placing the card between them.
-    const controls = [...(area?.querySelectorAll(".canvas-zoom, .internet-toggle") ?? [])].map((c) => {
-      const r = c.getBoundingClientRect();
-      return { x: r.left - origin!.left, y: r.top - origin!.top, w: r.width, h: r.height };
-    });
-    const anchor = positions[anchorId];
-    // A docked card (narrow canvases) sits under the diagram; there is nothing to place.
-    if (!el || !area || !anchor || getComputedStyle(el).position === "static") return setSpot(null);
-    const next = place(
-      anchor,
-      { w: el.offsetWidth, h: el.offsetHeight },
-      { w: area.clientWidth, h: area.clientHeight },
-      avoidIds.filter((id) => id !== anchorId).flatMap((id) => (positions[id] ? [positions[id]] : [])),
-      controls,
-      Object.entries(positions).flatMap(([id, p]) => (avoidIds.includes(id) || id === anchorId ? [] : [p])),
-      scale,
-      {
-        top: area.querySelector<HTMLElement>(".canvas-bar")?.offsetHeight ?? 0,
-        bottom: area.querySelector<HTMLElement>(".canvas-foot")?.offsetHeight ?? 0,
-      },
-    );
-    // Covering any device (even one outside the stage) makes the card compact first: devices must stay clickable.
-    if (next.score >= 2 && !compact && !details) return setCompact(true);
-    if (next.score >= 2 && !details) return setDocked(true);
-    setSpot((old) => (old && Math.abs(old.x - next.x) < 2 && Math.abs(old.y - next.y) < 2 ? old : { x: next.x, y: next.y }));
-  });
-  const [room, setRoom] = useState(0);
-  useLayoutEffect(() => {
-    const height = card.current?.parentElement?.querySelector(".network-canvas")?.clientHeight ?? 0;
-    if (height !== room) setRoom(height);
-  });
-  // The card never grows past the canvas onto the controls; it scrolls inside instead.
-  const style = spot
-    ? ({ "--card-x": `${spot.x}px`, "--card-y": `${spot.y}px`, "--card-max": `${room - 16}px` } as CSSProperties)
-    : undefined;
   if (!open)
     return (
-      <button className="journey-reopen" style={style} onClick={() => onOpen(true)} aria-label="Show the explanation">
+      <button className="journey-reopen" onClick={() => onOpen(true)} aria-label="Show the explanation">
         <Maximize2 size={14} /> Explain this step
       </button>
     );
@@ -272,13 +217,20 @@ export function JourneyCard({
     : mode !== "events" && complete
       ? stage.summary
       : n.summary;
+  // The link or address this step involves, as recorded: the link a frame crosses, or the decision's result.
+  const action = actionAt(event, network);
+  const where = event.hop
+    ? `On the link ${name(event.hop.from)} → ${name(event.hop.to)}${action.detail ? ` · ${action.detail}` : ""}`
+    : action.detail;
+  // What comes next, without giving away a hidden part of the run or the run's result before it is reached.
+  const after = trace.events[index + 1];
+  const next = hiddenAfter && !after
+    ? "Waiting for your prediction."
+    : after && !after.error && index + 1 < trace.events.length - 1
+      ? `${name(after.actor)} · ${after.title}`
+      : "";
   return (
-    <section
-      ref={card}
-      className={`journey-card ${event.error ? "is-error" : ""} ${spot ? "is-placed" : ""} ${details ? "has-details" : ""} ${compact ? "is-compact" : ""} ${docked ? "is-docked" : ""}`}
-      style={style}
-      aria-label="Explanation of the current step"
-    >
+    <section className={`journey-card ${event.error ? "is-error" : ""} ${details ? "has-details" : ""}`} aria-label="Explanation of the current step">
       <header>
         <span className="eyebrow">
           {mode !== "events" ? "Now at " : ""}
@@ -295,6 +247,7 @@ export function JourneyCard({
         </p>
       )}
       <p className="journey-summary">{text}</p>
+      {where && <p className="journey-where">{where}</p>}
       {!details && n.cause && !event.error && (
         <p className="journey-why">
           <b>Why:</b> {n.cause.text}
@@ -304,6 +257,11 @@ export function JourneyCard({
         <div className="journey-details">
           <StepExplanation events={trace.events} index={index} network={network} onReadDetails={onReadDetails} onGoto={onStep} embedded advice={advice} />
         </div>
+      )}
+      {next && (
+        <p className="journey-next">
+          <b>Next:</b> {next}
+        </p>
       )}
       <footer>
         <button

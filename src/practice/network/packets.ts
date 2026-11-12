@@ -206,3 +206,55 @@ export function layerStep(events: TraceEvent[], index: number): LayerStep {
   }
   return { basis, origin: false, by: e.actor, changes };
 }
+
+/** A layer's short name on the diagram's packet: Eth, Wi-Fi, ARP, IP, ICMP, UDP, TCP, DNS, HTTP, DHCP, Echo. */
+export function layerTag(name: string) {
+  const word = name.split(" ")[0];
+  return word === "Ethernet" ? "Eth" : word === "IPv4" ? "IP" : word;
+}
+const fieldTag: Record<string, string> = { "Source IP": "src", "Destination IP": "dst", "Source port": "src port", "Destination port": "dst port", Identifier: "id" };
+export type Capsule = {
+  /** The message's layers, outermost first, as on the wire; `mark` says what this step did to the layer. */
+  segments: { tag: string; name: string; kind: Layer["kind"]; mark?: "added" | "replaced" | "changed" }[];
+  /** Layers this step removed (the frame a device took off to read what is inside). */
+  gone: { tag: string; name: string; kind: Layer["kind"] }[];
+  /** The changes in a few words, for the label above the packet: "− Eth", "TTL 64→63", "src 192.168.1.10:53000→…". */
+  notes: string[];
+};
+/**
+ * What the diagram draws as this step's message, read from layerStep(): no layer appears that the event does not
+ * carry, and nothing is marked as changed that the trace does not record changing.
+ */
+export function capsuleAt(events: TraceEvent[], index: number): Capsule {
+  const e = events[index];
+  const step = layerStep(events, index);
+  const mark = (name: string): Capsule["segments"][number]["mark"] =>
+    step.changes.some((c) => c.kind === "added" && c.layer === name)
+      ? "added"
+      : step.changes.some((c) => c.kind === "replaced" && c.to === name)
+        ? "replaced"
+        : step.changes.some((c) => c.kind === "field" && c.layer === name)
+          ? "changed"
+          : undefined;
+  const segments = [...(e?.layers ?? [])].reverse().map((l) => ({ tag: layerTag(l.name), name: l.name, kind: l.kind, mark: mark(l.name) }));
+  const gone = step.changes.flatMap((c) => (c.kind === "removed" ? [{ tag: layerTag(c.layer), name: c.layer, kind: c.layerKind }] : []));
+  const notes: string[] = [];
+  for (const c of step.changes) {
+    if (c.kind === "removed") notes.push(`− ${layerTag(c.layer)}`);
+    if (c.kind === "added") notes.push(`+ ${layerTag(c.layer)}`);
+    if (c.kind === "replaced") notes.push(`new ${layerTag(c.to)}`);
+  }
+  // Field changes; an address and its port changed together (NAT) read as one: "src 192.168.1.10:53000→203.0.113.2:62000".
+  const fields = step.changes.filter((c): c is Extract<LayerChange, { kind: "field" }> => c.kind === "field");
+  const used = new Set<Extract<LayerChange, { kind: "field" }>>();
+  for (const side of ["Source", "Destination"]) {
+    const ip = fields.find((f) => f.field === `${side} IP`),
+      port = fields.find((f) => f.field === `${side} port`);
+    if (ip && port) {
+      notes.push(`${fieldTag[ip.field]} ${ip.before}:${port.before}→${ip.after}:${port.after}`);
+      used.add(ip).add(port);
+    }
+  }
+  for (const f of fields) if (!used.has(f)) notes.push(`${fieldTag[f.field] ?? f.field} ${f.before}→${f.after}`);
+  return { segments, gone, notes };
+}

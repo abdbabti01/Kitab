@@ -416,7 +416,7 @@
   }
   to {
     opacity: 0;
-    transform: scale(1.45);
+    transform: scale(1.12);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1815,22 +1815,15 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* The explanation of the current step: the panel's Now tab (under the diagram in missions). */
 .journey-card {
-  position: absolute;
-  left: var(--card-x, 16px);
-  top: var(--card-y, 56px);
-  z-index: 3;
-  width: min(330px, calc(100% - 32px));
-  max-height: var(--card-max, 440px);
-  overflow: auto;
+  position: static;
   padding: 13px 15px 10px;
-  background: #fffef9f5;
+  background: #fffef9;
   border: 1px solid var(--line);
   border-left: 4px solid var(--primary);
   border-radius: 12px;
-  box-shadow: 0 10px 28px #193a2d22;
   color: var(--ink-2);
-  visibility: hidden;
 }
 .journey-card.is-placed {
   visibility: visible;
@@ -2839,4 +2832,156 @@
     order: 3;
     width: 100%;
   }
+}
+/* ---- The message as its layers (PR 3): one segment per recorded layer, outermost first. ---- */
+.packet-seg rect {
+  stroke: #fffef9;
+  stroke-width: 1.5;
+}
+/* Darker than the legend's layer colours, so white tags stay readable. */
+.packet-seg.layer-link rect {
+  fill: #2a6f67;
+}
+.packet-seg.layer-network rect {
+  fill: #3a6595;
+}
+.packet-seg.layer-transport rect {
+  fill: #654d97;
+}
+.packet-seg.layer-application rect {
+  fill: #8f5a17;
+}
+.packet-seg text {
+  fill: #fff;
+  font: 700 10.5px var(--mono);
+  pointer-events: none;
+}
+/* What this step did, timed by the step itself: a frame taken off leaves, a new one arrives, a changed header is outlined. */
+.packet-seg.is-gone {
+  animation: seg-leave var(--change, 500ms) ease-in forwards;
+}
+.packet-seg.is-added {
+  animation: seg-enter var(--change, 500ms) ease-out both;
+}
+.packet-seg.is-replaced rect {
+  animation: seg-swap var(--change, 500ms) ease-out both;
+}
+.packet-seg.is-changed rect {
+  stroke: #f2c94c;
+  stroke-width: 2.5;
+}
+@keyframes seg-leave {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-6px, -18px);
+  }
+}
+@keyframes seg-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes seg-swap {
+  from {
+    fill: #fffef9;
+  }
+}
+.packet-note rect {
+  fill: #1a2721;
+}
+.packet-note text {
+  fill: #fffef9;
+  font: 600 10px var(--mono);
+}
+.packet-note {
+  animation: note-in var(--change, 500ms) ease-out both;
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet-seg.is-gone,
+  .packet-seg.is-added,
+  .packet-seg.is-replaced rect,
+  .packet-note {
+    animation: none;
+  }
+}
+/* ---- The panel (PR 3): Now, Packet and Device beside the diagram, or straight under it on a narrow screen. ---- */
+@media (max-width: 850px) {
+  /* The stage's parts join the page grid so the panel can sit right under the diagram and its controls, before the
+     forms for sending and breaking things. */
+  .workspace-grid > .workspace-stage {
+    display: contents;
+  }
+  .workspace-stage > * {
+    order: 2;
+  }
+  .workspace-stage > .experiment-banner,
+  .workspace-stage > .journey-stage,
+  .workspace-stage > .exchange,
+  .workspace-stage > .exchange-loading {
+    order: 0;
+  }
+  .workspace-grid > .network-inspector {
+    order: 1;
+    min-width: 0;
+  }
+}
+.journey-where {
+  margin: 6px 0 0;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink);
+}
+.journey-next {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.state-heading {
+  font: normal 18px/1.2 var(--display);
+  margin: 18px 0 8px;
+  color: var(--ink);
+}
+.packet-addresses {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffef9;
+}
+.packet-addresses h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.packet-addresses dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.packet-addresses dl > div {
+  display: grid;
+  gap: 1px;
+}
+.packet-addresses dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.packet-addresses dd {
+  margin: 0;
+  font: 12px var(--mono);
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }

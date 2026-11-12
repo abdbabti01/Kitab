@@ -83,11 +83,12 @@ test("ending the run with Next step (which then disables) still moves focus to t
 test("the playground inspector says which view is shown", async ({ page }) => {
   await page.goto("/practice/network");
   const view = (name: string) => page.locator(".inspector-tabs").getByRole("button", { name, exact: true });
-  await expect(view("Packet")).toHaveAttribute("aria-pressed", "true");
-  for (const name of ["Device", "Tables", "Steps"]) await expect(view(name)).toHaveAttribute("aria-pressed", "false");
+  // Now (the current step) is the first view; Packet, Device and Steps are beside it.
+  await expect(view("Now")).toHaveAttribute("aria-pressed", "true");
+  for (const name of ["Packet", "Device", "Steps"]) await expect(view(name)).toHaveAttribute("aria-pressed", "false");
   await view("Steps").focus();
   await page.keyboard.press("Enter");
   await expect(view("Steps")).toHaveAttribute("aria-pressed", "true");
-  await expect(view("Packet")).toHaveAttribute("aria-pressed", "false");
+  await expect(view("Now")).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".inspector-body")).toContainText("No journey yet");
 });
