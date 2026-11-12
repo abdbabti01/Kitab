@@ -1,11 +1,12 @@
 // Pure parts of Follow the Journey: where Previous/Next go, and where the card is placed.
 import { stageAt, type Stage } from "./network/stages.ts";
 
-export type JourneyMode = "summary" | "events";
+/** Exchange moves by stage like Summary and adds the sequence diagram under the controls. */
+export type JourneyMode = "summary" | "events" | "exchange";
 export const MODE_KEY = "kitab.network.journeyMode";
 export type Point = { x: number; y: number };
 
-/** Where Previous and Next go: by stage in Summary, by event in Every event. */
+/** Where Previous and Next go: by event in Every event, otherwise by stage. */
 export function neighbours(mode: JourneyMode, stages: Stage[], index: number, last: number) {
   if (mode === "events" || !stages.length) return { prev: Math.max(0, index - 1), next: Math.min(last, index + 1) };
   const k = stageAt(stages, index);

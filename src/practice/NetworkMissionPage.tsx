@@ -10,7 +10,8 @@ import { useJourney } from "./useJourney.ts";
 import { connect, validateNetwork } from "./network/topology.ts";
 import { SCRATCH_KEY } from "./network/storage.ts";
 import { areaLabels, aspectLabels, findNetworkMission, missions, variantFor, type Area, type NetworkMission } from "./network/missions.ts";
-import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, type Assessment } from "./network/mission-assess.ts";
+import { assessFix, diagnose, evidenceCredit, investigationAnswer, lockBroken, misconceptionStep, stepKey, type Assessment, type Reveal } from "./network/mission-assess.ts";
+import { optionOrder } from "../learning/assessment.ts";
 import {
   loadMissionStore,
   missionState,
@@ -35,7 +36,9 @@ const storage = () => {
     return { getItem: () => null, setItem: () => undefined } as unknown as Storage;
   }
 };
-type Draft = { missionId: string; version: string; attempt: MissionAttempt; network: Network };
+/** Reveals: the steps assistance showed during this attempt (kept here, not in progress, so older versions still read progress). */
+type Draft = { missionId: string; version: string; attempt: MissionAttempt; network: Network; reveals?: Reveal[] };
+const assistance: Record<Reveal["by"], string> = { "show-stop": "Show where and why", check: "Check my fix", "show-me": "Show this step on the diagram" };
 
 function loadDraft(mission: NetworkMission): Draft | null {
   try {
@@ -79,8 +82,12 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     [diagnosisFeedback, setDiagnosisFeedback] = useState(""),
     [answer, setAnswer] = useState(""),
     [answerFeedback, setAnswerFeedback] = useState(""),
-    [explained, setExplained] = useState<string | null>(null);
-  const journey = useJourney(network);
+    [explained, setExplained] = useState<string | null>(null),
+    // The step the learner chose as evidence, and how many assistance reveals had happened by then. Where the
+    // diagram happens to be (after "Check my fix", "Show where and why" or a "Show me" link) never counts by itself.
+    [chosen, setChosen] = useState<{ trace: Trace; index: number; seen: number } | null>(null);
+  const reveals = useRef<Reveal[]>(Array.isArray(restored?.reveals) ? restored.reveals : []);
+  const journey = useJourney(network, (trace, index) => reveal(trace, index, "show-stop"));
   const inspectorRef = useRef<HTMLElement>(null);
   const record = store.missions[mission.id];
   const state = missionState(record, mission);
@@ -94,11 +101,31 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     const updated = recordAttempt(store, mission, next);
     setStore(updated);
     saveMissionStore(storage(), updated);
+    saveDraft(next, nextNetwork);
+  }
+  function saveDraft(next = attempt, nextNetwork = network) {
     try {
-      storage().setItem(`${DRAFT_KEY}.${mission.id}`, JSON.stringify({ missionId: mission.id, version: mission.version, attempt: next, network: nextNetwork }));
+      storage().setItem(
+        `${DRAFT_KEY}.${mission.id}`,
+        JSON.stringify({ missionId: mission.id, version: mission.version, attempt: next, network: nextNetwork, reveals: reveals.current }),
+      );
     } catch {
       // Progress is still kept for this visit.
     }
+  }
+  // Assistance is remembered for the attempt, by step, so returning to the step or rerunning does not hide it.
+  function reveal(trace: Trace, index: number, by: Reveal["by"]) {
+    const e = trace.events[index];
+    if (!e) return;
+    // Only the first time matters (was it shown before the learner chose it?), so each step is kept once.
+    const step = stepKey(e);
+    if (reveals.current.some((r) => r.step === step)) return;
+    reveals.current = [...reveals.current, { step, by, at: new Date().toISOString() }];
+    saveDraft();
+  }
+  function assist(trace: Trace, index: number, by: Reveal["by"]) {
+    reveal(trace, index, by);
+    journey.show(trace, index);
   }
   function edit(next: Network, positionsOnly = false) {
     setNetwork(next);
@@ -121,6 +148,16 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           : mission.kind === "fix" && !attempt.completedAt
       : false;
   const correctPrediction = useMemo(() => prediction?.answer(variant.build(), variant), [prediction, variant]);
+  // Choices appear in an order fixed for this attempt (by when it started), so position never gives the answer away.
+  const inAttemptOrder = <T extends { id: string }>(items: T[], what: string) =>
+    optionOrder(`${mission.id}:${attempt.startedAt}:${what}`, items.map((o) => o.id)).map((id) => items.find((o) => o.id === id)!);
+  const explainedOption = mission.explanation.options.find((o) => o.id === explained);
+  const misconception = explainedOption?.misconception;
+  // Only a step that happened in a real run is offered as evidence against the chosen explanation.
+  const counter = useMemo(
+    () => (misconception ? misconceptionStep(mission, variant, network, misconception) : null),
+    [mission, variant, network, misconception],
+  );
 
   function send() {
     setNotice("");
@@ -133,19 +170,19 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     const result = assessFix(mission, variant, network);
     setAssessment(result);
     const failing = result.checks.find((c) => !c.passed);
-    journey.show((failing ?? result.checks[0]).trace, (failing ?? result.checks[0]).evidence);
+    assist((failing ?? result.checks[0]).trace, (failing ?? result.checks[0]).evidence, "check");
     if (result.completed && !attempt.completedAt) save({ ...attempt, completedAt: new Date().toISOString() });
   }
-  // The step on the diagram is the learner's evidence.
-  function evidenceNow(trace: Trace | null = journey.trace) {
-    return !!trace && evidenceShows(mission, variant, trace, journey.index);
-  }
+  const credit = () => (chosen ? evidenceCredit(mission, variant, chosen.trace, chosen.index, reveals.current.slice(0, chosen.seen)) : null);
+  const assistedNote = (by: Reveal["by"]) =>
+    ` The step you chose shows the problem, but "${assistance[by]}" showed it to you first, so it does not count towards mastery. Evidence you find yourself does.`;
   function submitDiagnosis() {
     if (!guess.device || !guess.area) return;
     const result = diagnose(variant, { device: guess.device, area: guess.area }, network);
-    const evidence = evidenceNow();
+    const c = credit();
+    const evidence = c?.credit === "independent";
     setDiagnosisFeedback(
-      `${result.message}${evidence ? " The step you are showing is good evidence." : " To count as evidence, show a step of a failing run where the problem appears (for example where it stopped)."}`,
+      `${result.message}${evidence ? " The step you chose is good evidence." : c?.credit === "assisted" ? assistedNote(c.by) : chosen ? " The step you chose does not show this problem. Evidence is a step of a failing run where the problem appears, such as where it stopped." : " To record evidence, find a step of a failing run that shows the problem and choose it with \"Use this step as evidence\"."}`,
     );
     const diagnosis = result.correct ? (attempt.diagnosis === null ? "first-try" : attempt.diagnosis === "wrong" ? "later" : attempt.diagnosis) : attempt.diagnosis ?? "wrong";
     save({ ...attempt, diagnosis, evidence: attempt.evidence || (result.correct && evidence) });
@@ -154,12 +191,15 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     if (mission.kind !== "investigate") return;
     const expected = investigationAnswer(mission, variant);
     const right = Number(answer) === expected;
-    const evidence = evidenceNow();
+    const c = credit();
+    const evidence = c?.credit === "independent";
     setAnswerFeedback(
       right
         ? evidence
-          ? "Correct, and the step you are showing is the retransmission evidence."
-          : "Correct. Now show the retransmitted segment on the diagram (step to it) and submit again to record your evidence."
+          ? "Correct, and the step you chose is the evidence."
+          : c?.credit === "assisted"
+            ? `Correct.${assistedNote(c.by)}`
+          : "Correct. Now find the step that shows the recovery, choose it with \"Use this step as evidence\", and submit again to record your evidence."
         : `Not ${answer}. ${mission.question.explain}`,
     );
     save({
@@ -183,6 +223,8 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     setAnswer("");
     setAnswerFeedback("");
     setExplained(null);
+    setChosen(null);
+    reveals.current = [];
     setSelected("");
     save(next, n);
   }
@@ -205,7 +247,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           <h2>Predict first</h2>
           <p>{prediction.prompt}</p>
           <div className="mission-options">
-            {prediction.options(network).map((o) => (
+            {inAttemptOrder(prediction.options(network), "predict").map((o) => (
               <button
                 key={o.id}
                 className="small-button"
@@ -230,7 +272,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
         <>
           <section className="mission-card" aria-label="Diagnose">
             <h2>Name the cause <small>(for mastery; you can fix it without this)</small></h2>
-            <p>Pick the device and the kind of setting at fault, and show a step of a failing run on the diagram as your evidence.</p>
+            <p>Pick the device and the kind of setting at fault. For evidence, find a step of a failing run that shows the problem and choose it.</p>
             <div className="mission-fields">
               <label>
                 <span>Device</span>
@@ -258,9 +300,22 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
                 Submit diagnosis
               </button>
             </div>
-            <p className="mission-evidence-now">
-              Evidence shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send something first"}
-            </p>
+            <div className="mission-evidence-now">
+              <p>
+                Step shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send something first"}{" "}
+                <button className="text-button" disabled={!journey.trace} onClick={() => journey.trace && setChosen({ trace: journey.trace, index: journey.index, seen: reveals.current.length })}>
+                  Use this step as evidence
+                </button>
+              </p>
+              {chosen && (
+                <p>
+                  Your evidence: step {chosen.index + 1}, {chosen.trace.events[chosen.index].title}{" "}
+                  <button className="text-button" onClick={() => journey.show(chosen.trace, chosen.index)}>
+                    Show it
+                  </button>
+                </p>
+              )}
+            </div>
             {diagnosisFeedback && (
               <p className="mission-feedback" role="status">
                 {diagnosisFeedback}
@@ -279,7 +334,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
                   <li key={c.id} className={c.passed ? "is-passed" : "is-failed"}>
                     {c.passed ? <Check size={14} /> : <X size={14} />} <b>{c.label}</b>
                     {c.message && <span>{c.message}</span>}
-                    <button className="text-button" onClick={() => journey.show(c.trace, c.evidence)}>
+                    <button className="text-button" onClick={() => assist(c.trace, c.evidence, "check")}>
                       Show {c.passed ? "the proof" : "where it failed"}
                     </button>
                   </li>
@@ -296,7 +351,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
       ) : (
         <section className="mission-card" aria-label="Investigate">
           <h2>{mission.question.prompt}</h2>
-          <p>Send the request, find the evidence in the journey, then answer. Leave the diagram on the step that proves it.</p>
+          <p>Send the request, find the evidence in the journey and choose the step that proves it, then answer.</p>
           <div className="mission-fields">
             <label>
               <span>Acknowledgement number</span>
@@ -306,9 +361,22 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
               Submit answer
             </button>
           </div>
-          <p className="mission-evidence-now">
-            Evidence shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send the request first"}
-          </p>
+          <div className="mission-evidence-now">
+            <p>
+              Step shown now: {journey.trace ? `step ${journey.index + 1}, ${journey.trace.events[journey.index].title}` : "nothing yet; send the request first"}{" "}
+              <button className="text-button" disabled={!journey.trace} onClick={() => journey.trace && setChosen({ trace: journey.trace, index: journey.index, seen: reveals.current.length })}>
+                Use this step as evidence
+              </button>
+            </p>
+            {chosen && (
+              <p>
+                Your evidence: step {chosen.index + 1}, {chosen.trace.events[chosen.index].title}{" "}
+                <button className="text-button" onClick={() => journey.show(chosen.trace, chosen.index)}>
+                  Show it
+                </button>
+              </p>
+            )}
+          </div>
           {answerFeedback && (
             <p className="mission-feedback" role="status">
               {answerFeedback}
@@ -336,10 +404,11 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           </p>
           <h2>{mission.explanation.prompt}</h2>
           <div className="mission-options">
-            {mission.explanation.options.map((o) => (
+            {inAttemptOrder(mission.explanation.options, "explain").map((o) => (
               <button
                 key={o.id}
                 className={`small-button ${explained === o.id ? (o.correct ? "is-right" : "is-wrong") : ""}`}
+                aria-pressed={explained === o.id}
                 disabled={explained !== null && attempt.explanation === true}
                 onClick={() => {
                   setExplained(o.id);
@@ -350,10 +419,17 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
               </button>
             ))}
           </div>
-          {explained && (
-            <p className="mission-feedback">
-              {mission.explanation.options.find((o) => o.id === explained)!.correct ? "Yes, that is the rule at work." : "That is a common misconception; read the step explanations on the diagram and try another answer."}
+          {explainedOption && (
+            <p className="mission-feedback" role="status">
+              {explainedOption.correct
+                ? "Yes, that is the rule at work."
+                : `${(misconception && mission.misconceptions[misconception]?.message) || "That is a common misconception; read the step explanations on the diagram."} Try another answer.`}
             </p>
+          )}
+          {explainedOption && !explainedOption.correct && counter && (
+            <button className="text-button" onClick={() => assist(counter.trace, counter.index, "show-me")}>
+              Show this step on the diagram
+            </button>
           )}
         </section>
       )}

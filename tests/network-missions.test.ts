@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { missions, variantFor, type FixMission, type InvestigateMission, type Variant } from "../src/practice/network/missions.ts";
-import { assessFix, diagnose, evidenceShows, investigationAnswer, lockBroken, runSequence } from "../src/practice/network/mission-assess.ts";
+import { assessFix, diagnose, evidenceCredit, evidenceShows, stepKey, type Reveal, investigationAnswer, lockBroken, misconceptionStep, runSequence } from "../src/practice/network/mission-assess.ts";
 import { connect } from "../src/practice/network/topology.ts";
 import { failures } from "../src/practice/network/explanations.ts";
 import { scenarios } from "./support/network-scenarios.ts";
-import type { Failure, Network } from "../src/practice/network/model.ts";
+import type { Failure, Network, TraceEvent } from "../src/practice/network/model.ts";
 
 const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
 const mission = (id: string) => missions.find((m) => m.id === id)!;
@@ -262,21 +262,79 @@ test("a diagnosis is judged against the version's actual cause, with feedback th
     }
 });
 
-test("evidence must be a step that shows the problem in a run that failed", () => {
-  for (const m of fixMissions)
+// The steps that show each version's fault in its own broken run, as "actor: title". Nothing else counts:
+// not the faulty device's other steps, and not frames merely sent to or from it.
+const expectedEvidence: Record<string, string[]> = {
+  "no-connection/cable": ["pc: Delivery stopped"],
+  "no-connection/port": ["pc: Delivery stopped"],
+  "no-connection/switches": ["pc: Delivery stopped"],
+  "no-connection/wifi": ["phone: Delivery stopped"],
+  "neighbours/pc-mask": ["pc: Delivery stopped"],
+  "neighbours/pc-address": ["pc: Delivery stopped"],
+  "neighbours/server-mask": ["server: Delivery stopped"],
+  "join-and-address/passphrase": ["phone: Delivery stopped"],
+  "join-and-address/ssid": ["phone: Delivery stopped"],
+  "join-and-address/static": ["phone: Delivery stopped"],
+  // The router received the Discover and offered nothing.
+  "join-and-address/dhcp-off": ["router: Receive frame", "phone: Delivery stopped"],
+  "join-and-address/pool": ["router: Receive frame", "router: Delivery stopped"],
+  "leave-the-lan/no-gateway": ["pc: Delivery stopped"],
+  // The PC's route decision names the gateway nobody owns.
+  "leave-the-lan/wrong-gateway": ["pc: Choose a route", "pc: Delivery stopped"],
+  "leave-the-lan/server-gateway": ["server: Delivery stopped"],
+  "leave-the-lan/router-route": ["router: Delivery stopped"],
+  // The request leaves the home router still from 192.168.1.10: the missing translation, then the failed return.
+  "bring-reply-home/nat-off": ["router: Transmit over Ethernet", "isp: Delivery stopped"],
+  "bring-reply-home/nat-swapped": ["router: Transmit over Ethernet", "isp: Delivery stopped"],
+  "bring-reply-home/no-default": ["router: Delivery stopped"],
+  "missing-segment/short": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+  "missing-segment/long": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+  "missing-segment/internet": ["pc: Drop TCP data segment", "pc: Retransmit TCP segment", "server: Acknowledge received bytes"],
+};
+
+test("evidence is only a step that shows this version's fault, in every version", () => {
+  const seen = new Set<string>();
+  for (const m of missions)
     for (const v of m.variants) {
+      const key = `${m.id}/${v.id}`;
+      seen.add(key);
       const t = runSequence(v.build(), [v.probe]);
-      assert.equal(evidenceShows(m, v, t, t.events.length - 1), true, `${m.id}/${v.id}: the stop is evidence`);
-      const fixed = runSequence(apply(v, cases[m.id][v.id].fix), [v.probe]);
-      assert.equal(evidenceShows(m, v, fixed, fixed.events.length - 1), false, "a working run shows no problem");
+      const shown = t.events.flatMap((e, i) => (evidenceShows(m, v, t, i) ? [`${e.actor}: ${e.title}`] : []));
+      assert.deepEqual(shown, expectedEvidence[key], key);
+      // Superficially related steps are refused: anything else the faulty device did, or a frame to or from it.
+      const devices = v.faults.map((f) => f.device);
+      t.events.forEach((e, i) => {
+        if (expectedEvidence[key].includes(`${e.actor}: ${e.title}`)) return;
+        if (devices.includes(e.actor) || devices.includes(e.hop?.from ?? "") || devices.includes(e.hop?.to ?? ""))
+          assert.equal(evidenceShows(m, v, t, i), false, `${key}: step ${i} (${e.actor}: ${e.title}) is only near the fault`);
+      });
+      if (m.kind === "fix") {
+        // A working run shows no problem, even at the same kind of step.
+        const fixed = runSequence(apply(v, cases[m.id][v.id].fix), [v.probe]);
+        fixed.events.forEach((_, i) => assert.equal(evidenceShows(m, v, fixed, i), false, `${key}: working run step ${i}`));
+      }
     }
-  const inv = mission("missing-segment") as InvestigateMission;
-  for (const v of inv.variants) {
-    const t = runSequence(v.build(), [v.probe]);
-    const retransmit = t.events.findIndex((e) => e.title === "Retransmit TCP segment");
-    assert.equal(evidenceShows(inv, v, t, retransmit), true);
-    assert.equal(evidenceShows(inv, v, t, 0), false);
-  }
+  assert.deepEqual([...seen].sort(), Object.keys(expectedEvidence).sort());
+});
+
+test("the untranslated packet is evidence whatever the learner sent: a ping as well as a page request", () => {
+  const m = mission("bring-reply-home");
+  const v = m.variants.find((x) => x.id === "nat-off")!;
+  const t = runSequence(v.build(), [{ kind: "ping", source: "pc", target: "198.51.100.20", ttl: 64 }]);
+  const shown = t.events.flatMap((e, i) => (evidenceShows(m, v, t, i) ? [`${e.actor}: ${e.title}`] : []));
+  assert.ok(shown.includes("router: Transmit over Ethernet"), shown.join(" | "));
+});
+
+test("a stop caused by a different fault is not evidence for this one", () => {
+  // No connection, server unplugged: unplugging the PC as well stops the run at the PC for its own reason.
+  const m = mission("no-connection");
+  const v = m.variants.find((x) => x.id === "cable")!;
+  const n = v.build();
+  dev(n, "pc").interfaces[0].enabled = false;
+  const t = runSequence(n, [v.probe]);
+  assert.equal(t.success, false);
+  assert.notEqual(t.reason, runSequence(v.build(), [v.probe]).reason);
+  t.events.forEach((_, i) => assert.equal(evidenceShows(m, v, t, i), false, `step ${i}: ${t.events[i].title}`));
 });
 
 test("the investigation's answer comes from each version's own run and differs between versions", () => {
@@ -404,4 +462,92 @@ test("missions show the observation only: no simulator diagnosis or repair advic
       for (const c of assessFix(m, v, v.build()).checks)
         for (const extra of [probe?.detail, probe?.advice]) if (extra) assert.ok(!c.message.includes(extra), `${m.id}/${v.id}: ${c.message}`);
     }
+});
+
+test("a misconception's “show this step” points to an event that really happens, in every version", () => {
+  for (const m of missions)
+    for (const v of m.variants) {
+      // After a fix (an investigation needs none), every grounded misconception finds its event.
+      const network = m.kind === "fix" ? apply(v, cases[m.id][v.id].fix) : v.build();
+      for (const o of m.explanation.options.filter((x) => !x.correct)) {
+        const see = m.misconceptions[o.misconception!]?.see;
+        if (!see) continue;
+        const step = misconceptionStep(m, v, network, o.misconception!);
+        assert.ok(step, `${m.id}/${v.id}: no “${see.title}”${see.actor ? ` by ${see.actor}` : ""} for ${o.misconception}`);
+        const e = step.trace.events[step.index];
+        assert.equal(e.title, see.title);
+        if (see.actor) assert.equal(e.actor, see.actor);
+        // Outside the version's broken first run, the step comes from a run that worked, as the explanation assumes.
+        if (see.run !== "start" && m.kind === "fix") assert.ok(step.trace.success, `${m.id}/${v.id}: ${o.misconception} points into a failed run`);
+        // Without a matching event there is no link at all, rather than a nearby one.
+        assert.equal(misconceptionStep(m, v, network, "no-such-misconception"), null);
+      }
+    }
+});
+
+test("evidence the learner found counts towards mastery; a step assistance showed them first does not", () => {
+  const m = mission("no-connection");
+  const v = m.variants.find((x) => x.id === "cable")!;
+  const t = runSequence(v.build(), [v.probe]);
+  const stop = t.events.length - 1;
+  const shown = (trace: typeof t, i: number, by: Reveal["by"] = "show-stop"): Reveal => ({ step: stepKey(trace.events[i]), by, at: "2026-11-12T10:00:00Z" });
+  // Independent: nothing was shown before the choice.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, []), { credit: "independent" });
+  // Assisted: "Show where and why" showed the stop, then the learner chose it.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, [shown(t, stop)]), { credit: "assisted", by: "show-stop" });
+  // Moving away and back, or rerunning the same request, is still the same step: still assisted.
+  const rerun = runSequence(v.build(), [v.probe]);
+  assert.notEqual(rerun, t);
+  assert.deepEqual(evidenceCredit(m, v, rerun, rerun.events.length - 1, [shown(t, stop, "check")]), { credit: "assisted", by: "check" });
+  // Assistance that showed a different step does not take away a step the learner found.
+  assert.deepEqual(evidenceCredit(m, v, t, stop, [shown(t, 0, "show-me")]), { credit: "independent" });
+  // A step that does not show the problem is not evidence, assisted or not.
+  assert.deepEqual(evidenceCredit(m, v, t, 0, [shown(t, 0)]), { credit: "invalid" });
+  // In the wrong-gateway version, being shown the stop still leaves the route choice (also evidence) to find.
+  const l = mission("leave-the-lan");
+  const w = l.variants.find((x) => x.id === "wrong-gateway")!;
+  const lt = runSequence(w.build(), [w.probe]);
+  const route = lt.events.findIndex((e) => e.title === "Choose a route");
+  assert.deepEqual(evidenceCredit(l, w, lt, route, [shown(lt, lt.events.length - 1)]), { credit: "independent" });
+});
+
+test("the assisted-evidence fingerprint tells similar steps apart and keeps the same step across reruns", () => {
+  const reveal = (e: TraceEvent): Reveal => ({ step: stepKey(e), by: "show-me", at: "2026-11-12T10:00:00Z" });
+  // Every evidence step in every version has a fingerprint no other event of its run shares,
+  // and the same fingerprint when the run is repeated.
+  for (const m of missions)
+    for (const v of m.variants) {
+      const t = runSequence(v.build(), [v.probe]),
+        again = runSequence(v.build(), [v.probe]);
+      t.events.forEach((e, i) => {
+        if (!evidenceShows(m, v, t, i)) return;
+        const where = `${m.id}/${v.id} step ${i} (${e.title})`;
+        assert.ok(t.events.every((x, j) => j === i || stepKey(x) !== stepKey(e)), where);
+        assert.equal(stepKey(again.events[i]), stepKey(e), where);
+      });
+    }
+  // The router's ARP request and the leaking IP packet cross the same link with the same title: different steps.
+  const b = mission("bring-reply-home");
+  const nat = b.variants.find((x) => x.id === "nat-off")!;
+  const nt = runSequence(nat.build(), [nat.probe]);
+  const leak = nt.events.findIndex((e, i) => evidenceShows(b, nat, nt, i) && !!e.hop);
+  const arp = nt.events.findIndex((e) => e.packet?.startsWith("arp-") && e.title === nt.events[leak].title && e.hop?.from === nt.events[leak].hop!.from && e.hop?.to === nt.events[leak].hop!.to);
+  assert.ok(leak >= 0 && arp >= 0);
+  assert.deepEqual(evidenceCredit(b, nat, nt, leak, [reveal(nt.events[arp])]), { credit: "independent" });
+  assert.deepEqual(evidenceCredit(b, nat, nt, leak, [reveal(nt.events[leak])]), { credit: "assisted", by: "show-me" });
+  // Two acknowledgements by the same device differ by their numbers: showing a later one leaves the first to find.
+  const s = mission("missing-segment");
+  const long = s.variants.find((x) => x.id === "long")!;
+  const st = runSequence(long.build(), [long.probe]);
+  const acks = st.events.flatMap((e, i) => (e.title === "Acknowledge received bytes" ? [i] : []));
+  const first = acks.find((i) => evidenceShows(s, long, st, i))!;
+  const later = acks.find((i) => i > first && st.events[i].actor === st.events[first].actor)!;
+  assert.ok(later > first);
+  assert.deepEqual(evidenceCredit(s, long, st, first, [reveal(st.events[later])]), { credit: "independent" });
+  // Credit is judged against the assistance recorded before the choice: what is shown afterwards does not revoke it.
+  const log = [reveal(st.events[later])],
+    seen = log.length;
+  log.push(reveal(st.events[first]));
+  assert.deepEqual(evidenceCredit(s, long, st, first, log.slice(0, seen)), { credit: "independent" });
+  assert.deepEqual(evidenceCredit(s, long, st, first, log), { credit: "assisted", by: "show-me" });
 });

@@ -1,6 +1,6 @@
 // One run of the simulation and the learner's place in it: shared by the playground and missions.
 // There is exactly one playback state; every view reads the current event index from here.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
 import { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
@@ -8,10 +8,15 @@ import type { Action, Network, Session, Trace } from "./network/model.ts";
 
 export type InputError = { field: "source" | "target"; message: string };
 
-export function useJourney(network: Network) {
+/**
+ * `onShowStop` hears when "Show where and why" puts the stop on the diagram (missions track it as assistance).
+ * `limit` hides the rest of a run after one event (Predict as you go): every view then receives the run only
+ * up to that event, so nothing later can be seen, scrubbed to or played until the limit moves on.
+ */
+export function useJourney(network: Network, onShowStop?: (trace: Trace, index: number) => void, limit?: (trace: Trace) => number | undefined) {
   const [session, setSession] = useState<Session>(newSession),
-    [trace, setTrace] = useState<Trace | null>(null),
-    [index, setIndex] = useState(0),
+    [full, setTrace] = useState<Trace | null>(null),
+    [wanted, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [speed, setSpeed] = useState(1),
     // On narrow screens the whole network is too small to read, so the camera follows the journey.
@@ -29,12 +34,22 @@ export function useJourney(network: Network) {
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
       try {
-        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
+        const saved = localStorage.getItem(MODE_KEY);
+        return saved === "events" || saved === "exchange" ? saved : "summary";
       } catch {
         return "summary";
       }
     });
   const journeyRef = useRef<HTMLDivElement>(null);
+  const gate = full && limit ? limit(full) : undefined;
+  const trace = useMemo(
+    () => (full && gate !== undefined && gate < full.events.length - 1 ? { ...full, events: full.events.slice(0, gate + 1) } : full),
+    [full, gate],
+  );
+  /** Later events exist but are hidden. */
+  const gated = trace !== full;
+  // Steps may be asked for beyond the limit (an answer moves it on in the same moment); they are shown once visible.
+  const index = Math.min(wanted, (trace?.events.length ?? 1) - 1);
   const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
   const stage = trace ? stages[stageAt(stages, index)] : undefined;
   const event = trace?.events[index];
@@ -45,7 +60,7 @@ export function useJourney(network: Network) {
         setIndex((i) => {
           if (i >= trace.events.length - 1) {
             setPlaying(false);
-            return i;
+            return Math.min(i, trace.events.length - 1);
           }
           return i + 1;
         }),
@@ -93,14 +108,19 @@ export function useJourney(network: Network) {
   }
   function step(next: number) {
     setPlaying(false);
-    setIndex(Math.max(0, Math.min((trace?.events.length ?? 1) - 1, next)));
+    setIndex(Math.max(0, Math.min((full?.events.length ?? 1) - 1, next)));
   }
   function play() {
-    if (trace && index >= trace.events.length - 1) setIndex(0);
+    if (trace && index >= trace.events.length - 1) {
+      // At a hidden part there is nothing further to play; at the real end, play from the start.
+      if (gated) return setPlaying(false);
+      setIndex(0);
+    }
     setPlaying((p) => !p);
   }
   function chooseMode(next: JourneyMode) {
-    setMode(next);
+    // A transition keeps the current view on screen while the Exchange view loads, instead of a fallback.
+    startTransition(() => setMode(next));
     try {
       localStorage.setItem(MODE_KEY, next);
     } catch {
@@ -108,9 +128,10 @@ export function useJourney(network: Network) {
     }
   }
   // The failing step holds the full explanation; status lines only point to it.
-  const stoppedAt = trace && !trace.success ? trace.events.length - 1 : -1;
+  const stoppedAt = trace && !trace.success && !gated ? trace.events.length - 1 : -1;
   const stoppedBy = stoppedAt >= 0 ? network.devices.find((d) => d.id === trace!.events[stoppedAt].actor)?.name ?? "" : "";
   function showStop() {
+    if (trace) onShowStop?.(trace, stoppedAt);
     step(stoppedAt);
     setCardOpen(true);
   }
@@ -124,6 +145,9 @@ export function useJourney(network: Network) {
     session,
     shownSession: event?.snapshot ?? session,
     trace,
+    /** The whole run, including any part hidden by `limit`. */
+    fullTrace: full,
+    gated,
     index,
     playing,
     setPlaying,

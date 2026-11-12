@@ -1,0 +1,172 @@
+/* Break and compare: loaded with the panel. Two runs side by side when there is room, stacked on phones. */
+.compare {
+  margin: 12px 0 0;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 13px;
+  min-width: 0;
+}
+.compare h2 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.compare h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+.compare p {
+  margin: 0 0 8px;
+}
+.compare-intro,
+.compare-empty,
+.compare-count {
+  color: var(--muted);
+}
+.compare fieldset {
+  margin: 0 0 10px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.compare legend {
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+.compare-option {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 44px;
+  box-sizing: border-box;
+  margin: 0 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.compare-option input {
+  margin: 2px 0 0;
+  flex: none;
+  accent-color: var(--primary);
+}
+.compare-option small {
+  display: block;
+  color: var(--muted);
+  font: 11px var(--mono);
+  overflow-wrap: anywhere;
+}
+.compare-option.is-chosen {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.compare-option:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.compare-changed {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff3c4;
+  color: #4a3b00;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 10px;
+}
+@media (max-width: 640px) {
+  .compare-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.compare-run {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-top: 4px solid #2f7a4f;
+  border-radius: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.compare-run.is-broken {
+  border-top-color: var(--danger);
+}
+.compare-run.is-shown {
+  box-shadow: 0 0 0 2px var(--primary-soft-line);
+}
+.compare-outcome.failure b {
+  color: var(--danger);
+}
+.compare-event {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fbfcf6;
+}
+.compare-event p {
+  margin: 2px 0 4px;
+  font-weight: 600;
+}
+.compare-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+}
+.compare-actions .text-button {
+  min-height: 40px;
+  text-align: left;
+}
+.compare-why table {
+  width: 100%;
+  margin: 0 0 8px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+}
+.compare-why th,
+.compare-why td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.compare-why td {
+  font-family: var(--mono);
+}
+.compare-why tbody th {
+  font-weight: 600;
+}
+.experiment-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  align-items: center;
+  margin: 0 0 10px;
+  padding: 10px 14px;
+  border: 1px solid #e3c766;
+  border-radius: 10px;
+  background: #fff3c4;
+  color: #4a3b00;
+  font-size: 13px;
+}
+.experiment-banner .button {
+  min-height: 40px;
+}
+.compare .text-button {
+  font-size: 13px;
+}
+.compare h2:focus {
+  outline: none;
+}
+.compare h2:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.compare-start {
+  color: var(--muted);
+  font-size: 12px;
+}

@@ -1,0 +1,253 @@
+/* Exchange: the run as a sequence diagram. One lifeline per device, one row per message. Loaded with the view. */
+.exchange {
+  --exchange-lane: #c9d1c4;
+  margin: 12px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  min-width: 0;
+}
+.exchange-intro {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.exchange-scroll {
+  position: relative;
+  max-height: min(62vh, 460px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.exchange-heads,
+.exchange-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: calc(var(--cols) * 76px);
+}
+.exchange-heads {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  background: #fbfcf6;
+  border-bottom: 1px solid var(--line);
+}
+.exchange-heads li {
+  padding: 8px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.exchange-rows {
+  position: relative;
+  padding: 4px 0 8px;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+}
+.exchange-rows > li {
+  position: relative;
+}
+.exchange-row,
+.exchange-stop {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 6px 2px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.exchange-row:hover,
+.exchange-stop:hover {
+  background: rgba(47, 114, 84, 0.06);
+}
+.exchange-row:focus-visible,
+.exchange-stop:focus-visible,
+.exchange-detail button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.exchange-row[aria-current],
+.exchange-stop[aria-current] {
+  background: var(--primary-soft);
+}
+.exchange-label {
+  display: block;
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.exchange-label b {
+  font-size: 12px;
+}
+.exchange-label small {
+  color: var(--muted);
+  font: 10px var(--mono);
+}
+.exchange-tag {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-style: normal;
+  font-size: 10px;
+  background: #eef0e8;
+  color: var(--muted);
+}
+.exchange-tag.tag-lost,
+.exchange-tag.tag-went-no-further,
+.exchange-tag.tag-not-sent,
+.exchange-tag.tag-loop {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.exchange-tag.tag-resent {
+  background: #fff3c4;
+  color: #4a3b00;
+}
+.exchange-arrow {
+  position: relative;
+  display: block;
+  height: 16px;
+  color: #3a6595;
+}
+.proto-arp .exchange-arrow {
+  color: #23675f;
+}
+.proto-dhcp .exchange-arrow,
+.proto-dns .exchange-arrow {
+  color: #8f5a17;
+}
+.proto-tcp .exchange-arrow {
+  color: #5f4a91;
+}
+.exchange-line {
+  position: absolute;
+  top: 7px;
+  height: 2px;
+  background: currentColor;
+}
+.exchange-line.is-lost {
+  height: 0;
+  background: none;
+  border-top: 2px dashed var(--danger);
+}
+.exchange-origin {
+  position: absolute;
+  top: 4px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.exchange-head {
+  position: absolute;
+  top: 2px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+}
+.exchange-head.to-right {
+  margin-left: -9px;
+  border-left: 9px solid currentColor;
+}
+.exchange-head.to-left {
+  border-right: 9px solid currentColor;
+}
+/* Did not deliver or send it on: an open head. Discarded or lost: a cross. */
+.exchange-head.is-no-further.to-right {
+  border-left-color: var(--danger);
+}
+.exchange-head.is-no-further.to-left {
+  border-right-color: var(--danger);
+}
+.exchange-head.is-discarded,
+.exchange-head.is-lost {
+  border: 0;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  top: 2px;
+}
+.exchange-head.is-discarded::before,
+.exchange-head.is-lost::before {
+  content: "✕";
+  display: block;
+  font-size: 12px;
+  line-height: 12px;
+  font-weight: 700;
+  color: var(--danger);
+}
+.exchange-halt {
+  position: absolute;
+  top: -1px;
+  margin-left: -8px;
+  width: 16px;
+  text-align: center;
+  font-weight: 700;
+  color: var(--danger);
+}
+.exchange-stop b {
+  color: var(--danger);
+}
+/* Stays in view while the lifelines scroll sideways on narrow screens. */
+.exchange-detail {
+  position: sticky;
+  left: 8px;
+  box-sizing: border-box;
+  width: fit-content;
+  max-width: min(640px, calc(100vw - 72px));
+  margin: 0 8px 8px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--primary);
+  background: #fbfcf6;
+  font-size: 12px;
+}
+.exchange-detail p {
+  margin: 0 0 6px;
+}
+.exchange-steps {
+  margin: 0 0 6px;
+  padding-left: 18px;
+}
+.exchange-steps li {
+  margin: 0;
+}
+.exchange-detail .text-button {
+  min-height: 32px;
+  font-size: 12px;
+  text-align: left;
+}
+.exchange-steps .step-lost,
+.exchange-steps .step-no-further,
+.exchange-steps .step-discarded {
+  color: var(--danger);
+}
+.exchange-steps [aria-current] {
+  font-weight: 700;
+}
+@media (max-width: 500px) {
+  /* Six lifelines fit a phone without scrolling sideways; more scroll inside the diagram, never the page. */
+  .exchange-heads,
+  .exchange-rows {
+    min-width: calc(var(--cols) * 56px);
+  }
+  .exchange-heads li {
+    font-size: 10px;
+    padding: 6px 2px;
+  }
+  .exchange-intro {
+    padding: 8px 12px;
+  }
+}
