@@ -30,6 +30,10 @@ export type Divergence = {
   differences: { what: string; working: string; broken: string }[];
 };
 export type Experiment = { fault: Fault; network: Network; working: Trace; broken: Trace; divergence: Divergence | null };
+/** An experiment as the page shows it: plain data, which can be sent from a worker (the fault's apply() is left out). */
+export type ExperimentData = Omit<Experiment, "fault"> & { fault: Omit<Fault, "apply"> };
+export type FoundData = { working: Trace; experiments: ExperimentData[] };
+export const asData = ({ fault: { apply: _, ...fault }, ...x }: Experiment): ExperimentData => ({ ...x, fault });
 
 const dev = (n: Network, id: string) => n.devices.find((d) => d.id === id)!;
 const differs = (a: Trace, b: Trace) => a.success !== b.success || a.reason !== b.reason;
@@ -203,7 +207,11 @@ const decision = (e: TraceEvent) =>
 export function divergence(working: Trace, broken: Trace): Divergence | null {
   const perDevice = (t: Trace) => {
     const m = new Map<string, number[]>();
-    t.events.forEach((e, i) => m.set(e.actor, [...(m.get(e.actor) ?? []), i]));
+    t.events.forEach((e, i) => {
+      const list = m.get(e.actor);
+      if (list) list.push(i);
+      else m.set(e.actor, [i]);
+    });
     return m;
   };
   const w = perDevice(working),
@@ -232,7 +240,7 @@ export function divergence(working: Trace, broken: Trace): Divergence | null {
  * failure can be at different devices: a router that stops translating does not fail itself, the reply later has
  * no way back. Null when there is no first difference to start from.
  */
-export function aftermath(x: Experiment): { steps: number; devices: string[]; last: TraceEvent; stopsAt?: string } | null {
+export function aftermath(x: ExperimentData): { steps: number; devices: string[]; last: TraceEvent; stopsAt?: string } | null {
   const d = x.divergence;
   if (!d) return null;
   const from = d.broken ?? -1;

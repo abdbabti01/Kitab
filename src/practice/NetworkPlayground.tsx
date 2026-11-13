@@ -33,7 +33,7 @@ import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } f
 import { missions } from "./network/missions.ts";
 import { loadMissionStore, missionState } from "./network/mission-progress.ts";
 import { askingOf, PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
-import type { Experiment } from "./network/experiments.ts";
+import type { ExperimentData } from "./network/experiments.ts";
 import type { Trace } from "./network/model.ts";
 import type { Side } from "./BreakCompare.tsx";
 import type { JourneySnapshot } from "./useJourney.ts";
@@ -102,7 +102,7 @@ export function NetworkPlayground() {
   const [comparing, setComparing] = useState(false),
     // Each run keeps its own place (an event of one run is never looked up in the other), and `back` is the
     // learner's own place in their own run, to return to.
-    [experiment, setExperiment] = useState<{ x: Experiment; side: Side; at: Record<Side, number>; back: JourneySnapshot } | null>(null);
+    [experiment, setExperiment] = useState<{ x: ExperimentData; side: Side; at: Record<Side, number>; back: JourneySnapshot } | null>(null);
   const shown = experiment?.side === "broken" ? experiment.x.network : network;
   const predict = usePredictions(shown);
   // Predictions apply to the learner's own runs, not to the two runs of an experiment.
@@ -119,7 +119,7 @@ export function NetworkPlayground() {
     setExperiment(null);
     if (e) journey.resume(e.back);
   }
-  function startExperiment(x: Experiment) {
+  function startExperiment(x: ExperimentData) {
     setNotice("");
     const at = { working: x.divergence?.working ?? x.working.events.length - 1, broken: x.divergence?.broken ?? x.broken.events.length - 1 };
     setExperiment({ x, side: "broken", at, back: experiment?.back ?? journey.snapshot() });

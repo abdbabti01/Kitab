@@ -3,7 +3,7 @@
 // changed; the broken copy exists only while the experiment is open.
 // The chooser and the two runs sit under the track; the explanation (cause and effect) is in the Now panel.
 import { useEffect, useRef, useState } from "react";
-import { aftermath, findExperiments, type Experiment, type Found } from "./network/experiments.ts";
+import { aftermath, asData, findExperiments, type ExperimentData, type FoundData } from "./network/experiments.ts";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 import "./compare.css";
 
@@ -24,26 +24,49 @@ export default function BreakCompare({
   network: Network;
   action: Action;
   session: Session;
-  active: Experiment | null;
+  active: ExperimentData | null;
   side: Side;
   /** The event each run is at: each run keeps its own place, so an index of one is never used in the other. */
   at: Record<Side, number>;
-  onStart: (x: Experiment) => void;
+  onStart: (x: ExperimentData) => void;
   /** Shows one run in the Journey at an event; `inspect` also opens its packet. */
   onShow: (side: Side, index: number, inspect: boolean) => void;
   onRestore: () => void;
 }) {
-  // Both runs of every candidate fault, computed once the request stops changing (not on every keystroke).
-  // One engine run at a time, letting the browser handle input in between; a change of request cancels the search.
-  const [found, setFound] = useState<{ for: unknown[]; result: Found } | null>(null);
+  // Both runs of every candidate fault, computed once the request stops changing (not on every keystroke), in a
+  // worker so the page never waits for the engine; a change of request ends the search. Without workers, one engine
+  // run at a time on the page, letting the browser handle input in between.
+  const [found, setFound] = useState<{ for: unknown[]; result: FoundData } | null>(null);
   useEffect(() => {
-    const steps = findExperiments(network, action, session);
-    let t = setTimeout(function next() {
-      const step = steps.next();
-      if (step.done) setFound({ for: [network, action, session], result: step.value });
-      else t = setTimeout(next);
+    const done = (result: FoundData) => setFound({ for: [network, action, session], result });
+    let stop = () => {};
+    const stepped = () => {
+      const steps = findExperiments(network, action, session);
+      let t = setTimeout(function next() {
+        const step = steps.next();
+        if (step.done) done({ working: step.value.working, experiments: step.value.experiments.map(asData) });
+        else t = setTimeout(next);
+      });
+      return () => clearTimeout(t);
+    };
+    const wait = setTimeout(() => {
+      if (typeof Worker === "undefined") return void (stop = stepped());
+      const worker = new Worker(new URL("./compare.worker.ts", import.meta.url), { type: "module" });
+      worker.onmessage = (e: MessageEvent<FoundData>) => {
+        worker.terminate();
+        done(e.data);
+      };
+      worker.onerror = () => {
+        worker.terminate();
+        stop = stepped();
+      };
+      worker.postMessage({ network, action, session });
+      stop = () => worker.terminate();
     }, 150);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(wait);
+      stop();
+    };
   }, [network, action, session]);
   const [choice, setChoice] = useState("");
   // Opening the panel, or starting or ending a comparison, replaces the controls that had the focus: move it to
@@ -183,7 +206,7 @@ export function CompareNow({
   onShow,
   onRestore,
 }: {
-  x: Experiment;
+  x: ExperimentData;
   side: Side;
   network: Network;
   onShow: (side: Side, index: number, inspect: boolean) => void;
@@ -232,7 +255,8 @@ export function CompareNow({
                 </tr>
               </thead>
               <tbody>
-                {d.differences.map((v) => (
+                {/* The engine's reason codes are left out here: "Why it fails" gives the reason in words. */}
+                {d.differences.filter((v) => v.what !== "Reason").map((v) => (
                   <tr key={v.what}>
                     <th scope="row">{v.what}</th>
                     <td>{v.what === "Sent to" ? name(v.working) : v.working}</td>
