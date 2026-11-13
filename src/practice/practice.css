@@ -42,17 +42,76 @@
   color: var(--muted);
   display: block;
 }
+/* A slim heading: the diagram is the first thing the learner sees. */
 .playground-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 26px;
+  gap: 8px 20px;
+  margin-bottom: 14px;
 }
 .playground-heading h1 {
-  font: normal clamp(32px, 3.5vw, 48px)/1.15 var(--display);
-  letter-spacing: -1.6px;
-  margin: 7px 0 9px;
+  font: normal clamp(26px, 2.4vw, 34px)/1.1 var(--display);
+  letter-spacing: -1px;
+  margin: 4px 0 4px;
+}
+.heading-link {
+  font-size: 12px;
+  color: var(--primary);
+}
+/* The one-time introduction: one compact band above the lab, gone once dismissed. */
+.lab-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--primary-soft-line, #abc4b1);
+  border-radius: 10px;
+  background: var(--primary-soft);
+  font-size: 13px;
+}
+.lab-intro p {
+  margin: 0;
+}
+.lab-intro ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 22px;
+  margin: 0;
+  padding-left: 18px;
+  flex: 1 1 560px;
+}
+/* On a phone: just the three names (the buttons on the diagram say the rest), so the diagram stays near the top. */
+@media (max-width: 760px) {
+  .lab-intro {
+    padding: 8px 12px;
+  }
+  .lab-intro ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+    flex-basis: 100%;
+  }
+  .lab-intro-more {
+    display: none;
+  }
+  .playground-heading {
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .playground-heading p {
+    font-size: 13px;
+  }
+}
+.lab-intro li::marker {
+  color: var(--primary);
+  font-weight: 700;
+}
+.lab-intro .button {
+  min-height: 36px;
+  margin-left: auto;
 }
 .heading-dot {
   color: var(--primary);
@@ -1383,7 +1442,7 @@
     grid-template-columns: 1fr;
   }
   .playground-heading h1 {
-    font-size: 36px;
+    font-size: 28px;
   }
 }
 @media (max-width: 850px) {

@@ -96,21 +96,6 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .hero h1 { font-size: clamp(2.45rem, 1.75rem + 3vw, 4.55rem); letter-spacing: -.055em; max-width: 15ch; margin: .35rem 0 .9rem; }
 .hero .lead { max-width: 46ch; }
 .hero .actions { margin-top: 22px; }
-.network-preview {
-  min-width: 0; margin: 0; padding: clamp(14px, 2.6vw, 28px); border-radius: var(--radius);
-  display: grid; gap: 17px; background: var(--feature); color: var(--feature-text);
-  background-image: linear-gradient(rgb(191 212 197 / .08) 1px, transparent 1px), linear-gradient(90deg, rgb(191 212 197 / .08) 1px, transparent 1px);
-  background-size: 22px 22px;
-}
-.network-preview-top { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font: 650 .7rem/1.45 var(--mono); color: var(--feature-muted); }
-.network-preview-top span:first-child { padding: 3px 7px; border: 1px solid var(--feature-line); border-radius: 5px; }
-.network-preview figcaption { font: 500 clamp(1.25rem, 1rem + 1vw, 1.85rem)/1.13 var(--display); max-width: 23ch; }
-.network-preview-nodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; list-style: none; margin: 0; padding: 0; }
-.network-preview-nodes li { position: relative; display: grid; align-content: start; gap: 4px; min-width: 0; padding: 11px 8px; border: 1px solid var(--feature-line); border-radius: var(--radius-sm); background: var(--feature); font-size: .82rem; }
-.network-preview-nodes li + li::before { content: ""; position: absolute; left: -13px; top: 25px; width: 12px; border-top: 1px solid var(--feature-muted); }
-.network-preview-nodes svg { width: 19px; height: 19px; margin-bottom: 3px; color: var(--feature-muted); }
-.network-preview-nodes small { color: var(--feature-muted); font-size: .72rem; line-height: 1.3; }
-.network-preview p { margin: 0; font-size: .83rem; color: var(--feature-muted); max-width: 47ch; }
 .journey-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .journey-card b .inline-icon { color: var(--primary); }
 .search { position: relative; margin-top: 36px; }
@@ -138,6 +123,56 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .concept-list small { color: var(--muted); }
 .empty { margin-top: 18px; padding: 18px; border: 1px dashed var(--line-strong); border-radius: var(--radius); background: var(--surface); }
 
+/* The hero's recording of a real run: the lab bench in the feature colour. Packets use the lab's message colours,
+   lightened to read on the dark bench (ARP teal, IP blue). */
+.hero-demo {
+  min-width: 0; margin: 0; padding: clamp(14px, 2.6vw, 24px); border-radius: var(--radius);
+  display: grid; gap: 12px; background: var(--feature); color: var(--feature-text);
+  background-image: linear-gradient(rgb(191 212 197 / .08) 1px, transparent 1px), linear-gradient(90deg, rgb(191 212 197 / .08) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+.hero-demo-top { display: flex; align-items: baseline; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font: 650 .7rem/1.45 var(--mono); color: var(--feature-muted); }
+.hero-demo-top span:first-child { padding: 3px 7px; border: 1px solid var(--feature-line); border-radius: 5px; }
+.hero-demo figcaption { font: 500 clamp(1.15rem, 1rem + .8vw, 1.6rem)/1.15 var(--display); max-width: 26ch; }
+.hero-demo-stage { width: 100%; height: auto; display: block; overflow: visible; }
+.hero-wire { stroke: var(--feature-line); stroke-width: 3; }
+.hero-wire.is-on { stroke: var(--feature-muted); }
+.hero-device rect { fill: #24493c; stroke: var(--feature-line); stroke-width: 2; }
+.hero-device svg { color: var(--feature-text); }
+.hero-device.is-sender rect { stroke: #e2b062; stroke-width: 3; }
+.hero-device.is-receiver rect { stroke: #8fd3b5; stroke-width: 3; stroke-dasharray: 6 5; }
+.hero-name { fill: var(--feature-text); font: 600 13px var(--font); }
+.hero-ip { fill: var(--feature-muted); font: 11px var(--mono); }
+.hero-packet rect { fill: #3f6f9e; stroke: #b9d3ee; stroke-width: 1.5; }
+.hero-packet.kind-arp rect { fill: #2a7a6c; stroke: #9be0cf; }
+.hero-packet.is-broadcast rect { stroke-dasharray: 5 3; }
+.hero-packet text { fill: #fff; font: 700 12px var(--font); }
+.hero-demo-caption { display: grid; gap: 3px; min-height: 5.6em; font-size: .9rem; line-height: 1.4; }
+.hero-demo-caption b { font-size: .98rem; }
+.hero-demo-caption small { color: var(--feature-muted); font: .72rem var(--mono); }
+.hero-demo-controls { display: flex; gap: 8px; }
+.hero-demo-controls button { display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--feature-line); border-radius: 50%; background: transparent; color: var(--feature-text); cursor: pointer; }
+.hero-demo-controls button:disabled { opacity: .4; cursor: default; }
+.hero-demo-controls button:focus-visible, .hero-demo-steps summary:focus-visible { outline: 3px solid var(--feature-muted); outline-offset: 2px; }
+.hero-demo-controls svg { width: 18px; height: 18px; }
+.hero-demo-steps { font-size: .82rem; color: var(--feature-muted); }
+.hero-demo-steps summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.hero-demo-steps ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 3px; }
+/* The three things to do in the lab, beside the demonstration. */
+.hero-actions-list { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; max-width: 48ch; }
+.hero-actions-list li { display: flex; gap: 10px; align-items: flex-start; color: var(--ink-2); }
+.hero-actions-list svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--primary); }
+.hero-actions-list b { color: var(--ink); }
+/* Desktop: the copy and what to do on the left, the demonstration on the right. Narrow: heading, demonstration,
+   then what to do, so a phone's first screen shows the lab at work. */
+.hero.journey-hero { grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); grid-template-areas: "copy demo" "next demo"; row-gap: 0; }
+.hero-copy { grid-area: copy; align-self: end; }
+.hero-demo { grid-area: demo; }
+.hero-next { grid-area: next; align-self: start; }
+@media (max-width: 900px) {
+  .hero.journey-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "demo" "next"; row-gap: 18px; }
+}
+
 /* Concept & draft pages */
 .walkthrough { padding: clamp(10px, 2vw, 18px); display: grid; gap: 12px; }
 .walkthrough .engine-canvas { margin: 0; border-radius: var(--radius-sm); }
@@ -148,7 +183,6 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 
 @media (max-width: 900px) {
   .hero { grid-template-columns: minmax(0, 1fr); }
-  .network-preview figcaption { max-width: 35ch; }
 }
 code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0; }
 @media (prefers-reduced-motion: reduce) {

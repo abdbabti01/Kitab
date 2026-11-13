@@ -1,0 +1,102 @@
+{
+ "source": {
+  "starter": "routed",
+  "action": "ping 192.168.2.20 from Your PC"
+ },
+ "devices": [
+  {
+   "id": "pc",
+   "name": "Your PC",
+   "kind": "pc",
+   "ip": "192.168.1.10"
+  },
+  {
+   "id": "router",
+   "name": "Router",
+   "kind": "router",
+   "ip": "192.168.1.1"
+  },
+  {
+   "id": "server",
+   "name": "Office server",
+   "kind": "server",
+   "ip": "192.168.2.20"
+  }
+ ],
+ "crossings": [
+  {
+   "index": 3,
+   "from": "pc",
+   "to": "router",
+   "kind": "arp",
+   "broadcast": true,
+   "what": "Ethernet frame carrying an ARP request",
+   "stage": "ARP · Your PC looks for 192.168.1.1"
+  },
+  {
+   "index": 6,
+   "from": "router",
+   "to": "pc",
+   "kind": "arp",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an ARP reply",
+   "stage": "ARP · Your PC looks for 192.168.1.1"
+  },
+  {
+   "index": 10,
+   "from": "pc",
+   "to": "router",
+   "kind": "ip",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an IPv4 packet, which carries an ICMP message with an Echo request",
+   "stage": "Echo request · Your PC → Router"
+  },
+  {
+   "index": 15,
+   "from": "router",
+   "to": "server",
+   "kind": "arp",
+   "broadcast": true,
+   "what": "Ethernet frame carrying an ARP request",
+   "stage": "ARP · Router looks for 192.168.2.20"
+  },
+  {
+   "index": 18,
+   "from": "server",
+   "to": "router",
+   "kind": "arp",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an ARP reply",
+   "stage": "ARP · Router looks for 192.168.2.20"
+  },
+  {
+   "index": 22,
+   "from": "router",
+   "to": "server",
+   "kind": "ip",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an IPv4 packet, which carries an ICMP message with an Echo request",
+   "stage": "Echo request · Router → Office server"
+  },
+  {
+   "index": 29,
+   "from": "server",
+   "to": "router",
+   "kind": "ip",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an IPv4 packet, which carries an ICMP message with an Echo reply",
+   "stage": "Echo reply · Office server → Your PC"
+  },
+  {
+   "index": 35,
+   "from": "router",
+   "to": "pc",
+   "kind": "ip",
+   "broadcast": false,
+   "what": "Ethernet frame carrying an IPv4 packet, which carries an ICMP message with an Echo reply",
+   "stage": "Echo reply · Office server → Your PC"
+  }
+ ],
+ "events": 39,
+ "summary": "Ping succeeded. The reply arrived."
+}

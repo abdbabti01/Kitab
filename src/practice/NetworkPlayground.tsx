@@ -66,7 +66,30 @@ function pathStarter() {
   const id = new URLSearchParams(location.search).get("starter");
   return starterOptions.find((s) => s.id === id);
 }
+const INTRO_KEY = "kitab.network.intro.v1";
+/** The lab's one-time introduction: shown until dismissed on this device, worded for a learner who has been here. */
+function useIntro() {
+  const [intro, setIntro] = useState(() => {
+    try {
+      if (localStorage.getItem(INTRO_KEY) === "dismissed") return null;
+      // Read before this visit saves anything: a saved workspace means the learner has used the lab before.
+      return { returning: localStorage.getItem(WORKSPACE_KEY) !== null };
+    } catch {
+      return null;
+    }
+  });
+  const dismiss = () => {
+    setIntro(null);
+    try {
+      localStorage.setItem(INTRO_KEY, "dismissed");
+    } catch {
+      /* Shown again next time in a private window. */
+    }
+  };
+  return { intro, dismiss };
+}
 export function NetworkPlayground() {
+  const { intro, dismiss: dismissIntro } = useIntro();
   const [path] = useState(pathStarter);
   const [startup] = useState(() => {
     if (path)
@@ -335,13 +358,15 @@ export function NetworkPlayground() {
       <header className="playground-heading">
         <div>
           <span className="eyebrow">PRACTICE / NETWORK LAB</span>
-          <a style={{display:"block",fontSize:12,marginTop:8}} {...linkProps("/practice/connections")}>Wi-Fi, Ethernet, DSL, cable or fiber? Explore how your home connects →</a>
           <h1>
             Network playground<span className="heading-dot">.</span>
           </h1>
-          <p>Build a network. Send a message. See everything in between.</p>
+          <p>Send a request and watch every frame cross your network. Predict each decision, or break one setting and compare.</p>
         </div>
         <div className="playground-heading-actions">
+          <a className="heading-link" {...linkProps("/practice/connections")}>
+            How does your home connect?
+          </a>
           <a className="small-button" {...linkProps("/practice/missions")}>
             <GraduationCap size={16} /> Practice missions{" "}
             <span className="count">
@@ -399,6 +424,27 @@ export function NetworkPlayground() {
           <a href="/learn/ip-addressing">
             Review IP addresses, LANs and subnets <ArrowRight size={14} />
           </a>
+        </section>
+      )}
+      {intro && (
+        <section className="lab-intro" aria-label={intro.returning ? "What is new in the network lab" : "Welcome to the network lab"}>
+          <p>
+            <b>{intro.returning ? "The network lab has changed." : "Welcome to the network lab."}</b> Three things to try:
+          </p>
+          <ol>
+            <li>
+              <b>Send</b> <span className="lab-intro-more">a request and watch each frame cross the diagram, with its layers.</span>
+            </li>
+            <li>
+              <b>Predict as you go</b> <span className="lab-intro-more">to answer before each decision, on the diagram itself.</span>
+            </li>
+            <li>
+              <b>Break and compare</b> <span className="lab-intro-more">to change one setting on a copy and see where the runs part.</span>
+            </li>
+          </ol>
+          <button className="button" onClick={dismissIntro}>
+            Got it
+          </button>
         </section>
       )}
       <section className="lab-shell" aria-label="Network workspace">

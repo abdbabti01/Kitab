@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "test": "node --experimental-strip-types --no-warnings --test tests/*.test.ts",
+    "hero-trace": "node --experimental-strip-types --no-warnings scripts/hero-trace.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json && tsc --noEmit -p tsconfig.e2e.json",
     "build": "npm test && npm run typecheck && vite build",
     "preview": "vite preview",
