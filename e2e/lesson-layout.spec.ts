@@ -15,20 +15,27 @@ async function open(page: Page, id: string) {
 }
 
 /**
- * What the step bar covers with the step brought into view. Wide layouts: nothing it sits next to. Stacked layouts fix the
- * bar to the bottom, so content below the fold passes under it while scrolling; the diagram and chapter goal must not be
- * under it at rest, and endCovered() and focusHidden() prove everything else can be reached clear of it.
+ * What the step bar covers. Wide layouts: with the step in view, nothing it sits beside. Stacked layouts fix the bar to the
+ * bottom, so content below the fold passes under it while scrolling (how tall a diagram renders depends on the platform's
+ * fonts); instead, each part of the step is scrolled to its end, as a learner reading down would, and must finish fully
+ * above the bar. endCovered() and focusHidden() cover the rest of the page.
  */
 function covered(page: Page, stacked: boolean) {
   return page.evaluate((stacked) => {
     const bar = document.querySelector(".lesson-controls")!,
       header = document.querySelector(".site-header")!;
+    const parts = [...document.querySelectorAll(".stage-scene, .step-card, .chapter-goal, .key-concept")].filter((el) => !bar.contains(el));
+    if (stacked)
+      return parts
+        .filter((el) => {
+          el.scrollIntoView({ block: "end" });
+          return el.getBoundingClientRect().bottom > bar.getBoundingClientRect().top + 1;
+        })
+        .map((el) => el.className);
     window.scrollTo(0, document.querySelector(".stage-head")!.getBoundingClientRect().top + scrollY - header.getBoundingClientRect().height - 8);
     const b = bar.getBoundingClientRect();
     const hits = (r: DOMRect) => r.width > 1 && r.height > 1 && r.bottom > b.top + 1 && r.top < b.bottom - 1 && r.right > b.left && r.left < b.right && r.top < innerHeight;
-    return [...document.querySelectorAll(stacked ? ".stage-scene, .chapter-goal" : ".stage-scene, .step-card, .chapter-goal, .key-concept")]
-      .filter((el) => !bar.contains(el) && hits(el.getBoundingClientRect()))
-      .map((el) => el.className);
+    return parts.filter((el) => hits(el.getBoundingClientRect())).map((el) => el.className);
   }, stacked);
 }
 function endCovered(page: Page) {
