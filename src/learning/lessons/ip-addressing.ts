@@ -35,7 +35,7 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
     translation: { represents: "The router's packet rewrite and saved NAT mapping.", matters: "One outside IP can serve multiple connections with distinct translated ports." },
   },
   controls: [
-    { key: "prefix", label: "PC subnet prefix", control: "choice", options: [{ value: 24, label: "/24 · one subnet" }, { value: 25, label: "/25 · LAN split into two subnets" }], help: "With /25 every device uses the new prefix and the router gets an address in each half. The PC and printer keep their IPs." },
+    { key: "prefix", label: "LAN prefix (every device)", control: "choice", options: [{ value: 24, label: "/24 · one subnet" }, { value: 25, label: "/25 · LAN split into two subnets" }], help: "With /25 every device uses the new prefix and the router gets an address in each half. The PC and printer keep their IPs." },
     { key: "target", label: "Destination", control: "choice", options: [{ value: "phone", label: "Phone · 192.168.1.25" }, { value: "printer", label: "Printer · 192.168.1.130" }, { value: "web", label: "Web · 198.51.100.20" }], help: "Compare a nearby phone, a printer near the subnet boundary, and an internet destination." },
   ],
   chapters: [
@@ -64,7 +64,7 @@ export const ipAddressing: Omit<Lesson, "experiments" | "practice"> = {
   ],
   sources: [
     { id: "ipv4-host-routing", text: "RFC 1122 §3.3.1.1. The local or remote decision compares the addresses after applying the local interface's mask. For a remote destination, the packet goes to a gateway on a connected network." },
-    { id: "cidr-blocks", text: "RFC 4632 §3. A CIDR prefix indicates the number of leading bits in the network. A /24 has 256 addresses, and a /25 has 128. When forwarding, the longest matching prefix wins." },
+    { id: "cidr-blocks", text: "RFC 4632 §3.1. A CIDR prefix length, from 0 to 32, gives the number of leading bits that identify the network. A /24 has 256 addresses, and a /25 has 128. RFC 1812 §5.2.4.3 (Longest Match): when several routes match the destination, the one with the longest prefix is used; RFC 4632 §5.1 restates that forwarding is longest-match." },
     { id: "traditional-nat", text: "RFC 3022 §2–3. Network Address Port Translation maps an internal IP address and transport port to an outside address and port. Return packets are translated in the reverse direction." },
   ],
 };

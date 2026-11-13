@@ -9,7 +9,7 @@ export const ipTerms: Lesson["glossary"] = [
   },
   {
     id: "ip-address", term: "IP address",
-    definition: "A number assigned to a network interface, such as your PC's Wi-Fi adapter, by the network it joins (often through DHCP).",
+    definition: "A number assigned to a network interface, such as your PC's Wi-Fi adapter. It is configured on the interface by hand (a static address) or obtained from a DHCP server when the device joins the network.",
     purpose: "It says where a packet came from and where it should go. Its network part tells routers which network to forward toward, so a packet can cross many links. The source and destination stay the same end to end, unless NAT rewrites them.",
     example: "The PC sends from 192.168.1.10. A phone can send a packet back to that address.",
   },
@@ -99,7 +99,7 @@ export const ipTerms: Lesson["glossary"] = [
   },
   {
     id: "hop", term: "Next hop",
-    definition: "The device that receives the packet next.",
+    definition: "The next IP device the packet is handed to: a router, or the destination itself. Switches and access points in between carry the frame but are not hops.",
     purpose: "It tells the sender who to hand the packet to on this link, even if the final destination is farther away.",
     example: "For a web request, the next hop is the home router. The packet's destination IP is the web server's.",
   },
@@ -135,7 +135,7 @@ export const ipTerms: Lesson["glossary"] = [
   },
   {
     id: "private", term: "Private IPv4 address",
-    definition: "An IP address from a range reserved for use inside private networks.",
+    definition: "An IPv4 address from one of the three ranges reserved for private networks (RFC 1918): 10.0.0.0/8, 172.16.0.0/12 and 192.168.0.0/16. Routers on the public Internet do not forward packets addressed to them.",
     purpose: "Different homes can reuse the same addresses for their own devices.",
     example: "Your PC and a PC in another home can both use 192.168.1.10 on their separate LANs.",
   },
