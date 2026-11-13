@@ -125,5 +125,9 @@ export function scenarios(): Scenario[] {
     one("fail: endpoint asked to forward", "routed", ping("10.9.9.9"), (n) => {
       dev(n, "router").routes.push({ network: "10.0.0.0", prefix: 8, via: "192.168.2.20", port: "wan" });
     }),
+    // A matching route whose next hop is on no network the router is connected to.
+    one("fail: static route next hop unusable", "routed", ping("10.0.3.20"), (n) => {
+      dev(n, "router").routes.push({ network: "10.0.3.0", prefix: 24, via: "172.16.0.1", port: "wan" });
+    }),
   ];
 }

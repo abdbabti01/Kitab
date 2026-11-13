@@ -1,6 +1,5 @@
 import { ArrowDown, Layers, Info } from "lucide-react";
-import { effectiveInterface } from "./network/engine.ts";
-import { subnet } from "./network/topology.ts";
+import { effectiveInterface, routingTable } from "./network/engine.ts";
 import { changesAt, glossary, layerStep, layerTag, packetNumber, resends, shown, tagMeaning, trip, type LayerChange } from "./network/packets.ts";
 import type { TraceEvent, Session, Network, Layer } from "./network/model.ts";
 
@@ -233,26 +232,8 @@ export function StateTables({
     ],
     [
       "Routing table",
-      "Most specific matching address block determines the outgoing interface.",
-      device
-        ? [
-            ...device.interfaces
-              .map((p) => effectiveInterface(device, p, session))
-              .filter((p) => p.ip)
-              .map((p) => [
-                `${subnet(p.ip, p.prefix).network}/${p.prefix}`,
-                `connected · ${p.id}`,
-              ]),
-            ...device.routes.map((r) => [
-              `${r.network}/${r.prefix}`,
-              `${r.via} · ${r.port}`,
-            ]),
-            ...device.interfaces
-              .map((p) => effectiveInterface(device, p, session))
-              .filter((p) => p.gateway)
-              .map((p) => ["default", p.gateway]),
-          ]
-        : [],
+      "Most specific matching address block determines the outgoing interface. Inactive entries are listed but not used.",
+      device ? routingTable(device, session) : [],
     ],
     [
       "DHCP leases",

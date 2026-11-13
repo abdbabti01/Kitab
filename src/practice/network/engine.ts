@@ -5,6 +5,7 @@ import {
   type Network,
   type Device,
   type NetworkInterface,
+  type StaticRoute,
   type Endpoint,
   type Layer,
   type Session,
@@ -68,6 +69,42 @@ export function effectiveInterface(
     dns: l?.dns ?? "",
   };
 }
+/** Why a configured static route cannot carry traffic now, or "" when it can. Routing and the Tables tab both use it. */
+export function routeProblem(d: Device, r: StaticRoute, s: Session): string {
+  const configured = d.interfaces.find((p) => p.id === r.port);
+  if (!configured) return `its interface ${r.port} does not exist`;
+  const p = effectiveInterface(d, configured, s);
+  if (!p.enabled) return `${p.id} is turned off`;
+  if (!p.ip) return `${p.id} has no IP address`;
+  if (!sameSubnet(p.ip, r.via, p.prefix))
+    return `its next hop ${r.via} is not on ${p.id}'s network ${subnet(p.ip, p.prefix).network}/${p.prefix}`;
+  return "";
+}
+/** A device's routing table as the Tables tab lists it: every configured entry, with the ones routing cannot use marked inactive. */
+export function routingTable(d: Device, s: Session): [string, string][] {
+  const ports = d.interfaces.map((p) => effectiveInterface(d, p, s));
+  const inactive = (why: string) => (why ? ` · inactive: ${why}` : "");
+  const off = (p: NetworkInterface) => (p.enabled ? "" : `${p.id} is turned off`);
+  return [
+    ...ports
+      .filter((p) => p.ip)
+      .map((p): [string, string] => [`${subnet(p.ip, p.prefix).network}/${p.prefix}`, `connected · ${p.id}${inactive(off(p))}`]),
+    ...d.routes.map((r): [string, string] => [`${r.network}/${r.prefix}`, `${r.via} · ${r.port}${inactive(routeProblem(d, r, s))}`]),
+    ...ports
+      .filter((p) => p.gateway)
+      .map((p): [string, string] => [
+        "default",
+        `${p.gateway}${inactive(
+          off(p) ||
+            (!p.ip
+              ? `${p.id} has no IP address`
+              : sameSubnet(p.ip, p.gateway, p.prefix)
+                ? ""
+                : `the gateway is not on ${p.id}'s network ${subnet(p.ip, p.prefix).network}/${p.prefix}`),
+        )}`,
+      ]),
+  ];
+}
 const bytes = (s: string) => new TextEncoder().encode(s).length;
 /** The engine's diagnosis and a repair suggestion, kept apart from what was observed (see Failure). */
 type Coaching = { detail?: string; advice?: string };
@@ -97,7 +134,7 @@ const failureOf = (e: SimulationFailure): Failure => ({
 // Failures of the path itself. A reply that hits one of these could not get back to the sender.
 const pathReasons = new Set<FailureReason>([
   "DUPLICATE_IP", "ARP_NO_OWNER", "ARP_NO_PATH", "SWITCH_STALE_MAC", "NO_GATEWAY", "GATEWAY_NOT_LOCAL",
-  "ROUTER_NO_ROUTE", "NO_ROUTE_PRIVATE", "NOT_A_ROUTER", "TTL_EXPIRED", "ROUTING_LOOP", "NAT_NO_MAPPING",
+  "ROUTER_NO_ROUTE", "ROUTE_UNUSABLE", "NO_ROUTE_PRIVATE", "NOT_A_ROUTER", "TTL_EXPIRED", "ROUTING_LOOP", "NAT_NO_MAPPING",
 ]);
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -616,17 +653,22 @@ export function simulate(
           prefix: p.prefix,
           label: `Connected ${subnet(p.ip, p.prefix).network}/${p.prefix}`,
         });
+    // A matching route that cannot be used is skipped, and said so: it is in the table, so "no route" would be untrue.
+    const skipped: { route: StaticRoute; label: string; why: string }[] = [];
     for (const r of d.routes)
       if (sameSubnet(r.network, dst, r.prefix)) {
-        const p = active(d).find((p) => p.id === r.port && p.ip);
-        if (p && sameSubnet(p.ip, r.via, p.prefix))
+        const label = `Static ${r.network}/${r.prefix}`,
+          why = routeProblem(d, r, s);
+        if (why) skipped.push({ route: r, label, why });
+        else
           candidates.push({
-            p,
+            p: iface(d, r.port),
             next: r.via,
             prefix: r.prefix,
-            label: `Static ${r.network}/${r.prefix}`,
+            label,
           });
       }
+    skipped.sort((a, b) => b.route.prefix - a.route.prefix);
     for (const p of active(d))
       if (p.ip && p.gateway && sameSubnet(p.ip, p.gateway, p.prefix))
         candidates.push({
@@ -636,6 +678,15 @@ export function simulate(
           label: "Default gateway",
         });
     candidates.sort((a, b) => b.prefix - a.prefix);
+    if (!candidates.length && skipped.length) {
+      const { route: r, why } = skipped[0];
+      fail(
+        `${d.name} has no usable route to ${dst}. Its static route to ${r.network}/${r.prefix} via ${r.via} matches ${dst}, but ${why}, so it cannot be used.`,
+        "ROUTE_UNUSABLE",
+        undefined,
+        { advice: `A route's next hop must be an address on the network of the interface it leaves from, and that interface must be on.` },
+      );
+    }
     // A router with no private interface is outside every private network: it cannot route back into one.
     if (
       !candidates.length &&
@@ -677,7 +728,8 @@ export function simulate(
         { detail: `No default gateway is set, so ${d.name} has nowhere to send it.` },
       );
     }
-    return candidates[0];
+    // Only a skipped route more specific than the chosen one would otherwise have been used.
+    return { ...candidates[0], skipped: skipped.filter((x) => x.route.prefix > candidates[0].prefix) };
   }
   /** Sends one IP packet. Every event until it is delivered (or dropped) carries the packet's id. */
   function send(start: Device, message: IpMessage, lose = false) {
@@ -773,7 +825,7 @@ export function simulate(
       const r = route(d, m.dst);
       emit(
         "Choose a route",
-        `${r.label} is the longest matching prefix. Use ${r.p.id} and next hop ${r.next}. Destination IP remains ${m.dst}.`,
+        `${r.label} is the longest matching prefix. Use ${r.p.id} and next hop ${r.next}. Destination IP remains ${m.dst}.${r.skipped.map((x) => ` ${x.label} also matches but is not used: ${x.why}.`).join("")}`,
         layers(m),
       );
       facts({ Destination: m.dst, Route: r.label, Interface: r.p.id, "Next hop": r.next });
@@ -946,7 +998,18 @@ export function simulate(
       // With no server, the Discover is still broadcast; the run then shows who heard it.
       const server = serverEntry && dev(serverEntry.end.device),
         sp = serverEntry && iface(server!, serverEntry.end.port);
-      dhcpContext = { client: client.id, server: server?.id ?? "" };
+      // Other servers on this LAN would answer too; the lab follows one exchange, so explanations name them instead.
+      const others = [
+        ...new Set(
+          reachable
+            .filter((e) => {
+              const d = dev(e.end.device);
+              return d.id !== server?.id && d.dhcp.enabled && d.dhcp.port === e.end.port;
+            })
+            .map((e) => e.end.device),
+        ),
+      ];
+      dhcpContext = { client: client.id, server: server?.id ?? "", ...(others.length ? { others } : {}) };
       const dhcpLayers = (name: string, data: string): Layer[] => [
         {
           name: `DHCP ${name}`,

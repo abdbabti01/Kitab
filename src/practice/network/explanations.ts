@@ -395,6 +395,14 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "Open the router's routing table in the Tables tab.",
     noIcmpUnreachable,
   ),
+  ROUTE_UNUSABLE: failure(
+    "A matching route cannot be used",
+    "A route in the device's table matches the destination, but it cannot carry the packet: its next hop is not on the network of the interface it names, or that interface is turned off or has no address. No other route matches.",
+    "A next hop must be reachable directly: an address on the network of the outgoing interface, and that interface must be up. A route that fails this is not used.",
+    "RFC 1122 §3.3.1",
+    "Open the routing table in the Tables tab: the route is marked inactive. Compare its next hop with the address and prefix of its interface.",
+    `Real routers refuse such a route, or use it only when another route leads to its next hop; this lab lists it as inactive. ${noIcmpUnreachable}`,
+  ),
   NO_ROUTE_PRIVATE: failure(
     "No route to a private address",
     "A router outside the home network received a packet for a private address (such as 192.168.x.x) and has no route to it. Private addresses are reused in many homes, so the Internet cannot route to them.",
@@ -447,7 +455,7 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "The client broadcasts DHCPDISCOVER on its local network. Without a relay agent, it does not reach servers on other networks.",
     "RFC 2131 §3.1",
     "Which device should run DHCP on this LAN, and is it enabled on the right interface?",
-    "This lab stops before sending the Discover. A real client would broadcast it, retry, and eventually give up. DHCP relays are not modeled.",
+    "A real client repeats the Discover a few times before giving up; this lab sends it once. DHCP relays are not modeled.",
   ),
   DHCP_POOL_INVALID: failure(
     "DHCP pool range is invalid",
@@ -664,7 +672,15 @@ export function explainStep(
                   : "Its DHCP server can confirm the requested lease.",
                 "The service could run on a router or a separate server. Being a router alone is not enough; DHCP must be enabled.",
               )
-            : lesson(
+            : event.dhcpContext.others?.includes(event.actor)
+              ? lesson(
+                  `${name} received a copy of this broadcast, and it also runs a DHCP server on this LAN. On a real network it would ${phase === "Discover" ? "answer with an Offer of its own" : "see that the client chose another server's offer"}. This lab follows one server's exchange, ${deviceName(server)}'s${phase === "Discover" ? `, so ${name}'s Offer is not shown` : ""}.`,
+                  phase === "Discover"
+                    ? "Only one Offer appears in this run, although two servers could answer."
+                    : "On a real network the Request names the chosen server, so every other server learns that its offer was declined. This lab does not show that field.",
+                  "With two DHCP servers on one LAN, a client usually accepts the first Offer to arrive, and its broadcast Request tells the other servers that their offers were declined. That is how an unauthorized (rogue) DHCP server can hand out wrong settings.",
+                )
+              : lesson(
                 `${name} received a copy because this is a broadcast to the local LAN. It is not the DHCP server handling this exchange, so it does not answer.`,
                 "This device does not assign an address or change its own IP settings.",
                 "Every reachable local device may see a broadcast, but only the relevant service processes it. This model chooses one DHCP server even if more than one is enabled.",

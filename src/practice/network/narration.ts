@@ -112,8 +112,12 @@ function summarize(c: Ctx): string {
         ? `${name} is still on the Wi-Fi network “${f.SSID}” at ${f["Access point"]}; the lab checks the network name and passphrase again at the start of each run. ${name} keeps ${lease.ip} from its DHCP lease.`
         : `${name} joins the Wi-Fi network “${f.SSID}” at ${f["Access point"]}. It now has a wireless link, but no IP settings from it.`;
     }
-    case "DHCP Discover":
-      return `${name} has no IP address yet, so it broadcasts a DHCP Discover to its whole LAN, asking any DHCP server to answer.`;
+    case "DHCP Discover": {
+      const lease = heldLease(e);
+      return lease
+        ? `${name} already holds ${lease.ip} from its DHCP lease. A real client would renew it by asking its server directly; this lab repeats the whole exchange, starting with a DHCP Discover broadcast to its LAN.`
+        : `${name} has no IP address yet, so it broadcasts a DHCP Discover to its whole LAN, asking any DHCP server to answer.`;
+    }
     case "DHCP Offer":
       return `${name}'s DHCP server offers ${dhcp?.payload} to ${dn(e.dhcpContext?.client ?? "")}. The client may not use it yet.`;
     case "DHCP Request":
@@ -181,6 +185,10 @@ function summarize(c: Ctx): string {
         const toServer = phase === "Discover" || phase === "Request";
         if (toServer && e.actor === server) return `${name} receives the DHCP ${phase} and runs the DHCP server, so it will answer.`;
         if (!toServer && e.actor === client) return `${name} receives the DHCP ${phase}: the reply to its own request.`;
+        if (toServer && e.dhcpContext.others?.includes(e.actor))
+          return phase === "Discover"
+            ? `${name} hears the DHCP Discover too, and it also runs a DHCP server, so on a real network it would send an Offer of its own. This lab follows only ${dn(server)}'s offer.`
+            : `${name} hears the DHCP Request too. It also runs a DHCP server; on a real network the Request names the server whose offer ${dn(client)} accepted, here ${dn(server)}, so ${name} would know its own offer was declined.`;
         return `${name} hears the DHCP ${phase} broadcast, but it is not ${toServer ? "a DHCP server" : `${dn(client)}, the client that asked`}, so it ignores it.`;
       }
       const carried = frame?.fields.Carries;

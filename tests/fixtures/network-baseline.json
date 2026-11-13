@@ -8209,6 +8209,25 @@
     "Receive frame | server | Network interface |  |  | 36ed3e8427",
     "Delivery stopped | server | OS · IPv4 |  | error | 5f9438c289"
    ]
+  },
+  "fail: static route next hop unusable": {
+   "success": false,
+   "events": [
+    "Create ICMP echo request | pc | Ping application |  |  | 7b2897b033",
+    "Choose a route | pc | OS · IPv4 |  |  | e70230e2b7",
+    "ARP: discover the next-hop MAC | pc | OS · ARP |  |  | d7a2e5ce1b",
+    "Transmit over Ethernet | pc | Network interface | pc>router@l0 |  | 3c47087ae4",
+    "Receive frame | router | Network interface |  |  | cbe9a7b20b",
+    "ARP reply | router | OS · ARP |  |  | 6709f75fd1",
+    "Transmit over Ethernet | router | Network interface | router>pc@l0 |  | c7f1d6b212",
+    "Receive frame | pc | Network interface |  |  | df2fbd19c2",
+    "Save ARP mapping | pc | OS · ARP |  |  | 1f563b31e4",
+    "Wrap in a link frame | pc | Network interface |  |  | 1ebcd75c65",
+    "Transmit over Ethernet | pc | Network interface | pc>router@l0 |  | 1ab3868087",
+    "Receive frame | router | Network interface |  |  | 1af52f52b1",
+    "Decrease TTL | router | OS · IPv4 |  |  | 7e639447dd",
+    "Delivery stopped | router | OS · IPv4 |  | error | 5e49d96eaf"
+   ]
   }
  },
  "missions": {

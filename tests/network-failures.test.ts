@@ -88,6 +88,7 @@ const expected: Record<string, FailureReason> = {
   "fail: routing loop": "ROUTING_LOOP",
   "fail: unsolicited inbound through NAT": "NAT_NO_MAPPING",
   "fail: router has no route": "ROUTER_NO_ROUTE",
+  "fail: static route next hop unusable": "ROUTE_UNUSABLE",
   "fail: endpoint asked to forward": "NOT_A_ROUTER",
   "invalid network": "INVALID_NETWORK",
   "event limit": "SIMULATION_LIMIT",
