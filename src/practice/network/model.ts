@@ -113,6 +113,7 @@ export type FailureReason =
   | "DUPLICATE_IP" // two interfaces on one LAN use the same address
   | "ARP_NO_OWNER" // no device uses the next-hop address
   | "ARP_NO_PATH" // a device uses it, but no link-layer path reaches it
+  | "ARP_STALE" // a cached ARP entry sent the frame to a MAC that no longer belongs to the next hop
   | "SWITCH_STALE_MAC" // a switch's MAC table points to a port that no longer leads there
   // Routing
   | "NO_GATEWAY" // a host's destination is outside its subnets and it has no gateway

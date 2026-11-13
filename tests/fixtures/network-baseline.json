@@ -8210,6 +8210,38 @@
     "Delivery stopped | server | OS · IPv4 |  | error | 5f9438c289"
    ]
   },
+  "fail: stale ARP entry, address moved": {
+   "success": false,
+   "events": [
+    "Create ICMP echo request | pc | Ping application |  |  | e722e352fc",
+    "Choose a route | pc | OS · IPv4 |  |  | 7bc31340e4",
+    "ARP cache hit | pc | OS · ARP |  |  | 49939e698e",
+    "Wrap in a link frame | pc | Network interface |  |  | 4d09e1035d",
+    "Transmit over Ethernet | pc | Network interface | pc>switch@l0 |  | c22b24dbf9",
+    "Learn source MAC | switch | Bridge / link layer |  |  | bfc5c82d6e",
+    "Receive frame | switch | Bridge / link layer |  |  | 78c2eb064b",
+    "Forward using MAC table | switch | Bridge / link layer |  |  | 3fcfb9832b",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>server@l1 |  | 749ff86acc",
+    "Receive frame | server | Network interface |  |  | 89e158109d",
+    "Delivery stopped | server | OS · IPv4 |  | error | e3f8fa825a"
+   ]
+  },
+  "fail: stale ARP entry, card replaced": {
+   "success": false,
+   "events": [
+    "Create ICMP echo request | pc | Ping application |  |  | 309eeb7fe5",
+    "Choose a route | pc | OS · IPv4 |  |  | d1da7ffe3d",
+    "ARP cache hit | pc | OS · ARP |  |  | 8a9d9b78a3",
+    "Wrap in a link frame | pc | Network interface |  |  | 3e78832fe3",
+    "Transmit over Ethernet | pc | Network interface | pc>switch@l0 |  | 7222686861",
+    "Learn source MAC | switch | Bridge / link layer |  |  | ea0c431d23",
+    "Receive frame | switch | Bridge / link layer |  |  | 8d636b1696",
+    "Forward using MAC table | switch | Bridge / link layer |  |  | ea06e71f49",
+    "Transmit over Ethernet | switch | Bridge / link layer | switch>server@l1 |  | 5f6a2fbe48",
+    "Discard frame for another MAC | server | Network interface |  |  | d7ceea995a",
+    "Delivery stopped | pc | Network interface |  | error | 148add9dff"
+   ]
+  },
   "fail: static route next hop unusable": {
    "success": false,
    "events": [

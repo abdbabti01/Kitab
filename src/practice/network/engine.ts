@@ -134,7 +134,7 @@ const failureOf = (e: SimulationFailure): Failure => ({
 // Failures of the path itself. A reply that hits one of these could not get back to the sender.
 const pathReasons = new Set<FailureReason>([
   "DUPLICATE_IP", "ARP_NO_OWNER", "ARP_NO_PATH", "SWITCH_STALE_MAC", "NO_GATEWAY", "GATEWAY_NOT_LOCAL",
-  "ROUTER_NO_ROUTE", "ROUTE_UNUSABLE", "NO_ROUTE_PRIVATE", "NOT_A_ROUTER", "TTL_EXPIRED", "ROUTING_LOOP", "NAT_NO_MAPPING",
+  "ARP_STALE", "ROUTER_NO_ROUTE", "ROUTE_UNUSABLE", "NO_ROUTE_PRIVATE", "NOT_A_ROUTER", "TTL_EXPIRED", "ROUTING_LOOP", "NAT_NO_MAPPING",
 ]);
 const errorText = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
@@ -413,7 +413,7 @@ export function simulate(
       ) {
         emit(
           "Discard frame for another MAC",
-          `${to.name} received a flooded copy addressed to ${destinationMac}. Its interface discards it without handing it to IP.`,
+          `${to.name} received a frame addressed to ${destinationMac}, which is not its MAC address. Its interface discards it without handing it to IP.`,
           layers,
         );
         continue;
@@ -450,6 +450,37 @@ export function simulate(
           );
         }
   }
+  /**
+   * A unicast frame for a MAC that no interface on this LAN has. Each switch forwards it out of the port where it
+   * learned that MAC, or floods it when it has no entry; every endpoint that receives it discards it.
+   */
+  function stray(start: Endpoint, sourceMac: string, destinationMac: string, upper: Layer[]) {
+    const seen = new Set<string>();
+    const walk = (from: Endpoint) => {
+      for (const h of adjacent(from)) {
+        if (seen.has(h.link)) continue;
+        seen.add(h.link);
+        deliverPath([h], sourceMac, destinationMac, upper, "IPv4", true);
+        const to = dev(h.to.device);
+        if (!isBridge(to)) continue;
+        const learned = s.mac[`${to.id}/${destinationMac}`];
+        for (const p of to.interfaces)
+          if (p.enabled && p.id !== h.to.port && (!learned || p.id === learned)) walk({ device: to.id, port: p.id });
+      }
+    };
+    walk(start);
+  }
+  /** What the simulator knows about an out-of-date ARP entry: who uses the address now, and who has the cached MAC. */
+  function staleDetail(sender: Device, ip: string, mac: string) {
+    const user = n.devices.find((x) => !isBridge(x) && active(x).some((q) => q.ip === ip));
+    const holder = n.devices.find((x) => x.interfaces.some((q) => q.mac === mac));
+    const now = user
+      ? `${user.name} uses ${ip} now, with MAC ${active(user).find((q) => q.ip === ip)!.mac}`
+      : `no device uses ${ip} now`;
+    const where = !holder ? `; no device in this network has ${mac}` : holder.id !== user?.id ? `; ${mac} belongs to ${holder.name}` : "";
+    return `${sender.name}'s ARP cache maps ${ip} to ${mac}, but ${now}${where}. The cache entry is out of date.`;
+  }
+  const staleAdvice = "Restart the simulation to clear every ARP cache, then send again: ARP will ask for the current MAC address.";
   /** One ARP exchange: its request and reply are their own messages, not part of the IP packet. */
   function arp(d: Device, p: NetworkInterface, nextHop: string, upper: Layer[]) {
     const outer = packet;
@@ -464,7 +495,7 @@ export function simulate(
     p: NetworkInterface,
     nextHop: string,
     upper: Layer[],
-  ): { path: Hop[]; end: Endpoint; mac: string } {
+  ): { path: Hop[]; end?: Endpoint; mac: string; stale?: boolean } {
     at(d, "OS · ARP");
     const reachable = reach({ device: d.id, port: p.id });
     const owners = reachable.filter(
@@ -507,7 +538,15 @@ export function simulate(
         `${nextHop} → ${cached}. A cache entry does not create a physical connection.`,
         upper,
       );
-    if (cached) facts({ IP: nextHop, MAC: cached });
+    if (cached) {
+      facts({ IP: nextHop, MAC: cached });
+      // A cached mapping is used as it is: the frame goes wherever that MAC is on this LAN, whoever uses the IP now.
+      const holder = reachable.find(
+        (r) => r.path.length && !isBridge(dev(r.end.device)) && iface(dev(r.end.device), r.end.port).mac === cached,
+      );
+      if (!holder) return { path: [], mac: cached, stale: true };
+      return { ...holder, mac: cached, stale: iface(dev(holder.end.device), holder.end.port).ip !== nextHop };
+    }
     const owner = owners[0];
     if (!owner) {
       // The device that asked is the one left without an answer.
@@ -751,6 +790,8 @@ export function simulate(
       ingress = "";
     const forwarded = new Set<string>();
     let looped = false;
+    // Set when the last frame went to a MAC from an out-of-date ARP cache entry.
+    let stale: { sender: Device; ip: string; mac: string } | undefined;
     for (let count = 0; count < 256; count++) {
       at(d, "OS · IPv4");
       if (d.kind === "router" && d.nat && ingress === d.outside) {
@@ -788,6 +829,13 @@ export function simulate(
         );
         return { device: d, message: m };
       }
+      if (ingress && d.kind !== "router" && stale)
+        fail(
+          `${d.name} received a frame addressed to its MAC address ${stale.mac}, but the packet inside is for ${m.dst}, which is not its address, so it discards the packet.`,
+          "ARP_STALE",
+          undefined,
+          { detail: staleDetail(stale.sender, stale.ip, stale.mac), advice: staleAdvice },
+        );
       if (ingress && d.kind !== "router")
         fail(
           `${d.name} received a packet for ${m.dst}, which is not its address. It is an endpoint, not a router, so it discards the packet.`,
@@ -885,9 +933,41 @@ export function simulate(
         );
         return null;
       }
+      if (!found.end) {
+        // No interface on this LAN has the cached MAC: switches forward or flood the frame, and every receiver discards it.
+        stray({ device: d.id, port: r.p.id }, r.p.mac, found.mac, layers(m));
+        at(d, "Network interface");
+        // The entry can be right while the path is broken: the device with that MAC still uses the address.
+        const holder = n.devices.find(
+          (x) => !isBridge(x) && x.id !== d.id && x.interfaces.some((q) => q.mac === found.mac && iface(x, q.id).ip === r.next),
+        );
+        const port = holder?.interfaces.find((q) => q.mac === found.mac);
+        if (holder && port)
+          fail(
+            `No device on this LAN accepted the frame addressed to ${found.mac}, so the packet for ${m.dst} was lost.`,
+            "ARP_NO_PATH",
+            undefined,
+            port.enabled
+              ? {
+                  detail: `${d.name}'s ARP cache is right: ${holder.name} uses ${r.next} with MAC ${found.mac}. But no link-layer path connects it to ${d.name} ${r.p.id}.`,
+                  advice: `Check for a missing or disabled cable or Wi-Fi link between ${d.name} and ${holder.name}.`,
+                }
+              : {
+                  detail: `${holder.name} has ${r.next} and MAC ${found.mac}, but on an interface that is turned off: a disabled interface neither sends nor receives frames.`,
+                  advice: `Turn on ${holder.name}'s interface.`,
+                },
+          );
+        fail(
+          `No device on this LAN accepted the frame addressed to ${found.mac}, so the packet for ${m.dst} was lost.`,
+          "ARP_STALE",
+          undefined,
+          { detail: staleDetail(d, r.next, found.mac), advice: staleAdvice },
+        );
+      }
       deliverPath(found.path, r.p.mac, found.mac, layers(m));
-      d = dev(found.end.device);
-      ingress = found.end.port;
+      stale = found.stale ? { sender: d, ip: r.next, mac: found.mac } : undefined;
+      d = dev(found.end!.device);
+      ingress = found.end!.port;
     }
     // Unreachable: the TTL (at most 255) expires first.
     throw new Error("Routing exceeded the simulation hop limit.");

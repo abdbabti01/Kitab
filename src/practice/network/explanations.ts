@@ -38,7 +38,7 @@ const lessons: Record<string, Lesson> = {
   ),
   "ARP cache hit": lesson(
     "The sender already remembers a MAC address for this next-hop IP. It can reuse that mapping instead of asking the LAN again.",
-    "No new ARP broadcast is needed. The simulator still checks that a physical path exists.",
+    "No ARP request is sent. The frame is addressed to the cached MAC, even if that mapping has gone out of date.",
     "An ARP cache is a local table of IP-to-MAC mappings. A saved mapping cannot repair a disconnected cable.",
   ),
   "Save ARP mapping": lesson(
@@ -112,7 +112,7 @@ const lessons: Record<string, Lesson> = {
     "Flooding an unknown unicast does not turn it into a broadcast: the destination MAC remains unchanged.",
   ),
   "Discard frame for another MAC": lesson(
-    "A flooded copy reached this device, but the destination MAC belongs to someone else.",
+    "A frame for another MAC address reached this device, usually a copy that a switch flooded.",
     "The interface discards this copy. It does not pass it to IP or send an application response.",
     "Being physically connected to the same switch does not make every message yours.",
   ),
@@ -359,11 +359,19 @@ export const failures: Record<FailureReason, FailureInfo> = {
   ),
   ARP_NO_PATH: failure(
     "The next hop cannot be reached on this LAN",
-    "A device does use the next-hop address, but the ARP broadcast cannot reach it at the link layer, so it never hears the question.",
+    "A device does use the next-hop address, but no working link-layer path reaches it, so neither an ARP request nor a frame from the sender's ARP cache can get there.",
     "An ARP broadcast stays on one LAN: it crosses cables, switches and joined Wi-Fi, but not routers.",
     "RFC 826",
     "Follow the cables and Wi-Fi links between the two devices, and check whether a router separates them.",
     `A real sender retries ARP a few times before giving up. ${noIcmpUnreachable}`,
+  ),
+  ARP_STALE: failure(
+    "An out-of-date ARP cache entry",
+    "The sender took the next hop's MAC address from its ARP cache, but that mapping is out of date: the IP address now belongs to another interface, or no interface on the LAN has that MAC any more. The frame went where the MAC led, not to the device that uses the IP address now.",
+    "While an ARP cache entry is valid, the host addresses frames with its MAC and sends no new ARP request. Ethernet delivers by MAC address, and a host discards a packet that is not addressed to one of its own IP addresses.",
+    "RFC 826; RFC 1122 §2.3.2.1, §3.2.1.3",
+    "Open the sender's ARP cache in the Tables tab and compare the entry with the MAC address of the device that uses that IP address now.",
+    "Real ARP entries expire after a few minutes, and many hosts re-check an entry that stops working, then ask again with ARP. This lab keeps entries for the session; restarting the simulation clears every ARP cache.",
   ),
   SWITCH_STALE_MAC: failure(
     "A switch remembers the wrong port",
