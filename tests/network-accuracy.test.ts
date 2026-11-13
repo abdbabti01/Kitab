@@ -157,3 +157,25 @@ test("Destination MAC is the next IP hop's address, not the next device on the l
   assert.match(glossary["Destination MAC"].source ?? "", /802\.11/);
   assert.match(glossary["Source MAC"].source ?? "", /802\.11/);
 });
+
+test("a router falls back to its usable default route past an unusable, more specific one", () => {
+  const n = starter("internet");
+  dev(n, "router").routes.push({ network: "198.51.100.0", prefix: 24, via: "10.9.9.9", port: "wan" });
+  const t = simulate(n, newSession(), { kind: "http", source: "pc", target: "http://kitab.test/" });
+  assert.equal(t.success, true);
+  const choice = t.events.find((e) => e.title === "Choose a route" && e.actor === "router")!;
+  assert.equal(choice.facts?.Route, "Static 0.0.0.0/0");
+  assert.match(choice.explanation, /Static 198\.51\.100\.0\/24 also matches but is not used: its next hop 10\.9\.9\.9/);
+});
+
+test("of two routes to the same network, the usable one carries the packet and nothing is reported unusable", () => {
+  const n = starter("routed");
+  const r = dev(n, "router");
+  r.routes.push({ network: "10.0.3.0", prefix: 24, via: "172.16.0.1", port: "wan" });
+  r.routes.push({ network: "10.0.3.0", prefix: 24, via: "192.168.2.20", port: "wan" });
+  const t = simulate(n, newSession(), ping("10.0.3.20"));
+  assert.notEqual(t.reason, "ROUTE_UNUSABLE");
+  const choice = t.events.find((e) => e.title === "Choose a route" && e.actor === "router")!;
+  assert.equal(choice.facts?.["Next hop"], "192.168.2.20");
+  assert.doesNotMatch(choice.explanation, /not used/);
+});
