@@ -617,6 +617,9 @@ export function NetworkMissionsIndex({ tcp }: { tcp: { id: string; title: string
         <a className="text-button" {...linkProps("/practice/network")}>
           Prefer to build freely? Open the network playground →
         </a>
+        <a className="text-button" {...linkProps("/practice/subnets")}>
+          Explore subnets: any address and prefix →
+        </a>
       </header>
       {/* In networking-path order, so each mission follows what it builds on. */}
       {networkingPath.map((stage, index) => stage.practise.length > 0 && (

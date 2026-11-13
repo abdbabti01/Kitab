@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowRight, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Binary, BookOpen, Compass, Loader2, Search, Sparkles } from "lucide-react";
 import { chapters } from "../content/chapters.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
@@ -118,6 +118,15 @@ export function Home() {
           <h2 id="missions-title">Practice missions</h2>
           <p className="section-lead">Networking and TCP missions are in the <a href="#path">networking path</a> above, or <a {...linkProps("/practice/missions")}>all in one list</a>.</p>
           <p className="section-lead">Predict, run and explain. Reviewed scenarios with a fresh setup each try; every number is computed by a deterministic engine and your prediction is checked against it.</p>
+          <ul className="concept-list" aria-label="Practice tools">
+            <li>
+              <a {...linkProps("/practice/subnets")}>
+                <Binary aria-hidden="true" />
+                <span><b>Explore subnets</b><small>Any IPv4 address and prefix: its bits, its block, and predictions with feedback</small></span>
+                <ArrowRight aria-hidden="true" />
+              </a>
+            </li>
+          </ul>
           {topics.length === 0 && <p className="muted">No mission matches “{query}”.</p>}
           {topics.map((topic) => (
             <div className="topic" key={topic}>
