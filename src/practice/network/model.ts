@@ -186,8 +186,10 @@ export type TraceEvent = {
   dhcpContext?: {
     client: string;
     server: string;
-    /** Other enabled DHCP servers on the client's LAN. A real network would hear from them too; the lab follows one. */
+    /** Other enabled DHCP servers on the client's LAN that could offer an address. A real network would hear from them too; the lab follows one. */
     others?: string[];
+    /** Enabled DHCP servers on the client's LAN with no address to offer it. They stay silent, as real servers do. */
+    silent?: string[];
   };
 };
 export type Action = {

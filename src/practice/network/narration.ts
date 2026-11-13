@@ -85,7 +85,7 @@ const real: Record<string, string> = {
   "DHCP Offer": "Real servers often send the Offer by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "DHCP ACK": "Real servers often send the ACK by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "Apply DHCP lease": "A real client should first check with ARP that nobody else uses the address (RFC 2131 §3.1). This lab skips that check.",
-  "DHCP lease expired": "A real client tries to renew at half the lease time; this lab renews only when you run DHCP.",
+  "DHCP lease expired": "A real client asks its server to renew at T1, usually 50% of the lease time, and asks any server (rebinding) at T2, usually 87.5%, so a lease normally lapses only when no server answers. This lab does not renew by itself: a lease is renewed only when you run DHCP again.",
   "DNS cache hit": "This lab keeps answers for the whole session; a real cache drops them when the record's TTL runs out.",
   "Save ARP mapping": "Real ARP entries expire after a while; this lab keeps them for the session.",
   "Learn source MAC": "Real switches forget entries after an ageing time (300 seconds by default); this lab keeps them for the session.",
@@ -197,6 +197,8 @@ function summarize(c: Ctx): string {
         const toServer = phase === "Discover" || phase === "Request";
         if (toServer && e.actor === server) return `${name} receives the DHCP ${phase} and runs the DHCP server, so it will answer.`;
         if (!toServer && e.actor === client) return `${name} receives the DHCP ${phase}: the reply to its own request.`;
+        if (toServer && e.dhcpContext.silent?.includes(e.actor))
+          return `${name} hears the DHCP ${phase} too. It runs a DHCP server, but it has no address it can offer on this network, so it stays silent.`;
         if (toServer && e.dhcpContext.others?.includes(e.actor))
           return phase === "Discover"
             ? `${name} hears the DHCP Discover too, and it also runs a DHCP server, so on a real network it would send an Offer of its own. This lab follows only ${dn(server)}'s offer.`

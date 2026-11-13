@@ -1071,25 +1071,62 @@ export function simulate(
       const cp = port!;
       const start = { device: client.id, port: cp.id },
         reachable = reach(start);
-      const serverEntry = reachable.find((e) => {
-        const d = dev(e.end.device);
-        return d.dhcp.enabled && d.dhcp.port === e.end.port;
-      });
-      // With no server, the Discover is still broadcast; the run then shows who heard it.
-      const server = serverEntry && dev(serverEntry.end.device),
-        sp = serverEntry && iface(server!, serverEntry.end.port);
-      // Other servers on this LAN would answer too; the lab follows one exchange, so explanations name them instead.
-      const others = [
-        ...new Set(
-          reachable
-            .filter((e) => {
-              const d = dev(e.end.device);
-              return d.id !== server?.id && d.dhcp.enabled && d.dhcp.port === e.end.port;
-            })
-            .map((e) => e.end.device),
-        ),
-      ];
-      dhcpContext = { client: client.id, server: server?.id ?? "", ...(others.length ? { others } : {}) };
+      const existing = s.leases[keyOf(client.id, cp.id)];
+      // What a server can offer this client: an address, or why it cannot. A server with nothing to offer stays silent (RFC 2131 §4.3.1).
+      const offerOf = (d: Device, sp: ReturnType<typeof iface>): { ip: string } | { reason: FailureReason; message: string } => {
+        const startIp = ipNumber(d.dhcp.start),
+          endIp = ipNumber(d.dhcp.end);
+        if (endIp < startIp || endIp - startIp > 4096)
+          return { reason: "DHCP_POOL_INVALID", message: "DHCP pool must contain at most 4097 addresses in ascending order." };
+        if (
+          existing &&
+          existing.server === d.id &&
+          ipNumber(existing.ip) >= startIp &&
+          ipNumber(existing.ip) <= endIp &&
+          sameSubnet(existing.ip, sp.ip, sp.prefix)
+        )
+          return { ip: existing.ip };
+        for (let v = startIp; v <= endIp; v++) {
+          const candidate = dotted(v);
+          if (!sp.ip || !sameSubnet(candidate, sp.ip, sp.prefix)) continue;
+          const block = subnet(sp.ip, sp.prefix);
+          if (candidate === block.network || candidate === block.broadcast)
+            continue;
+          if (!reachable.some((e) => iface(dev(e.end.device), e.end.port).ip === candidate))
+            return { ip: candidate };
+        }
+        return {
+          reason: "DHCP_POOL_EMPTY",
+          message: `The DHCP pool has no available host address in the server interface subnet. ${d.name}'s pool ${d.dhcp.start}–${d.dhcp.end} has no address that is inside ${subnet(sp.ip, sp.prefix).network}/${sp.prefix} and not already used on this LAN.`,
+        };
+      };
+      // Every enabled server the Discover reaches, in the order the lab finds them.
+      const candidates = reachable
+        .filter((e, i, all) => {
+          const d = dev(e.end.device);
+          return d.dhcp.enabled && d.dhcp.port === e.end.port && all.findIndex((x) => x.end.device === e.end.device) === i;
+        })
+        .map((e) => {
+          const d = dev(e.end.device),
+            p = iface(d, e.end.port);
+          return { entry: e, server: d, sp: p, offer: offerOf(d, p) };
+        });
+      // ponytail: one exchange, with the first server that can offer. Real servers each send an Offer and the client
+      // usually takes the first to arrive; competing Offers are milestone 3b. With no server, the Discover is still
+      // broadcast; the run then shows who heard it.
+      const followed = candidates.find((c) => "ip" in c.offer) ?? candidates[0],
+        serverEntry = followed?.entry,
+        server = followed?.server,
+        sp = followed?.sp;
+      // Other servers stay silent (nothing to offer) or would answer too; explanations name them instead.
+      const silent = candidates.filter((c) => c !== followed && !("ip" in c.offer)).map((c) => c.server.id),
+        others = candidates.filter((c) => c !== followed && "ip" in c.offer).map((c) => c.server.id);
+      dhcpContext = {
+        client: client.id,
+        server: server?.id ?? "",
+        ...(others.length ? { others } : {}),
+        ...(silent.length ? { silent } : {}),
+      };
       const dhcpLayers = (name: string, data: string): Layer[] => [
         {
           name: `DHCP ${name}`,
@@ -1145,41 +1182,18 @@ export function simulate(
           "DHCP_NO_SERVER",
         );
       }
-      const startIp = ipNumber(server.dhcp.start),
-        endIp = ipNumber(server.dhcp.end);
-      if (endIp < startIp || endIp - startIp > 4096)
+      // No server can offer: the first one found is reported, as with a single server.
+      if (!("ip" in followed.offer)) {
+        const also = silent.map((id) => dev(id).name);
         fail(
-          "DHCP pool must contain at most 4097 addresses in ascending order.",
-          "DHCP_POOL_INVALID",
+          followed.offer.message +
+            (also.length
+              ? ` ${also.join(" and ")} also run${also.length > 1 ? "" : "s"} a DHCP server, but ${also.length > 1 ? "they have" : "it has"} no address to offer on this network either.`
+              : ""),
+          followed.offer.reason,
         );
-      const existing = s.leases[keyOf(client.id, cp.id)];
-      let offered =
-        existing &&
-        existing.server === server.id &&
-        ipNumber(existing.ip) >= startIp &&
-        ipNumber(existing.ip) <= endIp &&
-        sameSubnet(existing.ip, sp.ip, sp.prefix)
-          ? existing.ip
-          : "";
-      for (let v = startIp; !offered && v <= endIp; v++) {
-        const candidate = dotted(v);
-        if (!sp.ip || !sameSubnet(candidate, sp.ip, sp.prefix)) continue;
-        const block = subnet(sp.ip, sp.prefix);
-        if (candidate === block.network || candidate === block.broadcast)
-          continue;
-        const occupied = reachable.some(
-          (e) => iface(dev(e.end.device), e.end.port).ip === candidate,
-        );
-        if (!occupied) {
-          offered = candidate;
-          break;
-        }
       }
-      if (!offered)
-        fail(
-          `The DHCP pool has no available host address in the server interface subnet. ${server.name}'s pool ${server.dhcp.start}–${server.dhcp.end} has no address that is inside ${subnet(sp.ip, sp.prefix).network}/${sp.prefix} and not already used on this LAN.`,
-          "DHCP_POOL_EMPTY",
-        );
+      const offered = followed.offer.ip;
       at(server, "DHCP server");
       packet = `dhcp-${++messages}`;
       emit(
@@ -1337,7 +1351,7 @@ export function simulate(
         if (!Object.keys(server.records).length) {
           at(server, "OS · UDP");
           fail(
-            `${server.name} (${cp.dns}) received the DNS query, but it does not run a DNS service: nothing listens on UDP port 53.`,
+            `${server.name} (${cp.dns}) received the DNS query, but it has no DNS records, so in this lab it does not run a DNS service: nothing listens on UDP port 53.`,
             "DNS_NO_SERVICE",
             undefined,
             { advice: `Check ${client.name}'s DNS server setting; it should be the address of a DNS server.` },
@@ -1374,7 +1388,7 @@ export function simulate(
         if (!answer) {
           at(client, "OS · DNS resolver");
           fail(
-            `${server.name} answered that “${destination}” does not exist (NXDOMAIN). The DNS server is reachable and working.`,
+            `${server.name} (${cp.dns}) answered that “${destination}” does not exist (NXDOMAIN): it has no record for that name.`,
             "DNS_NO_RECORD",
             undefined,
             { advice: `Check the name, or add an A record for it on ${server.name}.` },
