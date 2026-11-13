@@ -216,6 +216,15 @@
   stroke-width: 4;
   stroke-dasharray: none;
 }
+.changed-tag circle {
+  fill: #8a5a00;
+  stroke: #fff;
+  stroke-width: 3;
+}
+.changed-tag.is-compact text {
+  font-size: 18px;
+  font-weight: 700;
+}
 .changed-tag rect {
   fill: #8a5a00;
 }

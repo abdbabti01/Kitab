@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import fs from "node:fs";
 import { aftermath, experimentsFor, type FaultKind } from "../src/practice/network/experiments.ts";
 import { starter } from "../src/practice/network/starters.ts";
 import type { Action } from "../src/practice/network/model.ts";
@@ -126,3 +127,61 @@ test("restore without a run of their own returns the learner to an empty Journey
   await expect(timeline(page)).toBeDisabled();
   await expect(page.locator(".journey-start")).toBeVisible();
 });
+
+// No full fault tag covers another device's tile, name or address; a crowded spot gets a compact badge instead, and
+// every changed device keeps the full text in its accessible name. Device positions are never changed.
+async function overlaps(page: Page) {
+  return page.evaluate(() => {
+    const boxes = [...document.querySelectorAll(".network-canvas .network-device")].map((g) => ({
+      g,
+      parts: [...g.querySelectorAll(".device-tile, .device-name, .device-ip")].map((e) => e.getBoundingClientRect()),
+    }));
+    const hit = (a: DOMRect, b: DOMRect) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top && a.width > 0 && b.width > 0;
+    const out: string[] = [];
+    for (const tag of document.querySelectorAll(".network-canvas .changed-tag:not(.is-compact) rect")) {
+      const r = tag.getBoundingClientRect();
+      const own = tag.closest(".network-device");
+      for (const o of boxes) if (o.g !== own && o.parts.some((p) => hit(r, p))) out.push(o.g.getAttribute("aria-label") ?? "");
+    }
+    return out;
+  });
+}
+const layouts = ["My layout", "Rows"] as const;
+for (const [what, seed, fault] of [
+  ["the internet starter", null, /Unplug the cable between Your PC and Home switch/],
+  ["a crowded 36-device campus", "campus", null],
+] as const)
+  test(`fault tags never cover another device: ${what}`, async ({ page }, info) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    if (seed) {
+      const campus = fs.readFileSync(new URL("./fixtures/campus.json", import.meta.url), "utf8");
+      await page.goto("/");
+      await page.evaluate((n) => localStorage.setItem("kitab.network.workspace.v1", n), campus);
+    }
+    await page.goto("/practice/network");
+    await page.locator(".journey-start").waitFor();
+    if (seed) {
+      await page.getByLabel("Source device").selectOption("pc25");
+      await page.getByLabel("Traffic type").selectOption("ping");
+      await page.getByLabel("Destination").fill("10.2.0.13");
+    }
+    const positions = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("kitab.network.workspace.v1") ?? "{}").devices?.map((d: { x: number; y: number }) => [d.x, d.y])));
+    await page.locator(".canvas-bar").getByRole("button", { name: "Break and compare…" }).click();
+    const option = fault ? panel(page).getByRole("radio", { name: fault }) : panel(page).getByRole("radio").first();
+    await option.check();
+    await panel(page).getByRole("button", { name: "Run both and compare" }).click();
+    for (const layout of layouts) {
+      const toggle = page.locator(".canvas-layout");
+      if (!(await toggle.textContent())!.includes(layout)) await toggle.click();
+      await expect(toggle).toContainText(layout);
+      for (const side of ["With the fault", "Your network"]) {
+        await sides(page).getByRole("radio", { name: side }).click();
+        expect(await overlaps(page), `${layout}, ${side}, ${info.project.name}`).toEqual([]);
+        // Every changed device names its change, whether it shows the full tag or the compact badge.
+        const changed = page.locator(".network-canvas .network-device.is-changed");
+        expect(await changed.count()).toBeGreaterThan(0);
+        for (const d of await changed.all()) await expect(d).toHaveAttribute("aria-label", /, changed in this experiment: .+/);
+      }
+    }
+    expect(await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("kitab.network.workspace.v1") ?? "{}").devices?.map((d: { x: number; y: number }) => [d.x, d.y])))).toBe(positions);
+  });

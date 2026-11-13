@@ -321,6 +321,24 @@ export function NetworkCanvas({
   };
   // What the acting device is doing, and the link its routing decision chose, as recorded in the trace.
   const action = event && !motion?.packet ? actionAt(event, network) : event?.hop ? { ...actionAt(event, network), device: event.hop.from } : undefined;
+  /**
+   * Whether an experiment's tag fits above a device without covering another device's tile, name or address. In a
+   * crowded layout of the learner's own it may not: the device then gets a compact badge instead, and the full text
+   * stays in its accessible name, its tooltip, the banner and Now. Positions are only read, never changed.
+   */
+  const tagFits = (d: (typeof devices)[number], text: string) => {
+    const big = !stacked, k = big ? 1.15 : 1;
+    const half = (text.length * 7.2 + 32) / 2, top = d.y + (big ? -92 : -82) - 14, bottom = top + 26;
+    return !visibleDevices.some((o) => {
+      if (o.id === d.id) return false;
+      const name = Math.min(o.name.length, big ? 24 : 21) * 3.9 + 8;
+      const boxes = [
+        [o.x - 62 * k, o.x + 62 * k, o.y - 59 * k, o.y + 60 * k],
+        [o.x - name, o.x + name, o.y + (big ? 78 : 62), o.y + (big ? 118 : 102)],
+      ];
+      return boxes.some(([x0, x1, y0, y1]) => d.x - half < x1 && d.x + half > x0 && top < y1 && bottom > y0);
+    });
+  };
   /** A device's name and address under its tile (drawn larger, and so lower, in the learner's own layout). */
   const labels = (d: (typeof devices)[number]) => {
     const p = d.interfaces.map((p) => effectiveInterface(d, p, session)).find((p) => p.ip);
@@ -693,14 +711,23 @@ export function NetworkCanvas({
                 )}
               </g>
               {/* The experiment's one change, on the device it touches, as it is in the run shown. */}
-              {isChanged && (
-                <g className="changed-tag" transform={`translate(0 ${big ? -92 : -82})`} aria-hidden="true">
-                  <rect x={-(changed!.text.length * 3.6 + 16)} y="-14" width={changed!.text.length * 7.2 + 32} height="26" rx="13" />
-                  <text y="4.5" textAnchor="middle">
-                    {changed!.text}
-                  </text>
-                </g>
-              )}
+              {isChanged &&
+                (tagFits(d, changed!.text) ? (
+                  <g className="changed-tag" transform={`translate(0 ${big ? -92 : -82})`} aria-hidden="true">
+                    <rect x={-(changed!.text.length * 3.6 + 16)} y="-14" width={changed!.text.length * 7.2 + 32} height="26" rx="13" />
+                    <text y="4.5" textAnchor="middle">
+                      {changed!.text}
+                    </text>
+                  </g>
+                ) : (
+                  <g className="changed-tag is-compact" transform={`translate(${big ? 62 : 54} ${big ? -60 : -52})`}>
+                    <title>{changed!.text}</title>
+                    <circle r="15" />
+                    <text y="6" textAnchor="middle">
+                      !
+                    </text>
+                  </g>
+                ))}
               {labels(d)}
             </g>
           );
