@@ -1,6 +1,10 @@
+import { lazy, Suspense } from "react";
 import { ArrowRight, Eye, FlaskConical, HelpCircle } from "lucide-react";
 import { linkProps } from "./router.ts";
-import { HeroDemo } from "./HeroDemo.tsx";
+
+// The demonstration arrives just after the heading is painted (its first render cost a throttled phone about 170 ms
+// before the heading appeared); its place is held, so nothing moves when it arrives.
+const HeroDemo = lazy(() => import("./HeroDemo.tsx").then((m) => ({ default: m.HeroDemo })));
 
 // What the network lab is for, in the three things a learner does there.
 const actions = [
@@ -17,7 +21,9 @@ export function LibraryHero({ next }: { next: { label: string; path: string } })
         <h1 id="hero-title">See a network work, one packet at a time.</h1>
         <p className="lead">The network lab runs a real simulation: every frame, header and decision you see is recorded from it.</p>
       </div>
-      <HeroDemo />
+      <Suspense fallback={<div className="hero-demo is-loading" aria-hidden="true" />}>
+        <HeroDemo />
+      </Suspense>
       <div className="hero-next">
         <ul className="hero-actions-list">
           {actions.map(({ Icon, title, text }) => (

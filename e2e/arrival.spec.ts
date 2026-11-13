@@ -33,7 +33,7 @@ test("the homepage demonstration steps through the recorded crossings, in order,
 test("with reduced motion nothing moves; with motion it plays once and stops when the page is hidden", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  const where = () => demo(page).locator(".hero-packet").getAttribute("transform");
+  const where = () => demo(page).locator(".hero-packet").getAttribute("style");
   const first = await where();
   await page.waitForTimeout(2500);
   expect(await where()).toBe(first);

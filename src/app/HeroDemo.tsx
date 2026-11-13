@@ -50,28 +50,24 @@ export function HeroDemo() {
       document.removeEventListener("visibilitychange", away);
     };
   }, []);
-  // One crossing: the capsule travels, then the step is held so its explanation can be read.
+  // One crossing: the capsule is drawn at the sender, then moved to the receiver by a CSS transition (the browser
+  // animates it; nothing re-renders per frame), then the step is held so its explanation can be read.
   useEffect(() => {
     if (!playing || done) return;
     let frame = 0,
       timer = 0;
-    const from = performance.now() - t * MOVE;
-    const tick = (now: number) => {
-      const k = Math.min(1, (now - from) / MOVE);
-      setT(k);
-      if (k < 1) frame = requestAnimationFrame(tick);
-      else
-        timer = window.setTimeout(() => {
-          if (step + 1 < crossings.length) {
-            setStep(step + 1);
-            setT(0);
-          } else {
-            setDone(true);
-            setPlaying(false);
-          }
-        }, HOLD);
-    };
-    frame = requestAnimationFrame(tick);
+    frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setT(1));
+      timer = window.setTimeout(() => {
+        if (step + 1 < crossings.length) {
+          setStep(step + 1);
+          setT(0);
+        } else {
+          setDone(true);
+          setPlaying(false);
+        }
+      }, MOVE + HOLD);
+    });
     return () => {
       cancelAnimationFrame(frame);
       clearTimeout(timer);
@@ -103,9 +99,8 @@ export function HeroDemo() {
   }
   // With reduced motion the capsule rests half way along its link; nothing moves by itself.
   const k = reduced.current && !playing ? 0.5 : t;
-  const x = at(c.from) + (at(c.to) - at(c.from)) * (1 - (1 - k) ** 2);
+  const x = at(c.from) + (at(c.to) - at(c.from)) * k;
   const label = short(c.what);
-  const capsuleW = label.length * 7.4 + 26;
   return (
     <figure className="hero-demo" ref={figure} aria-labelledby="hero-demo-title">
       <div className="hero-demo-top">
@@ -113,7 +108,8 @@ export function HeroDemo() {
         <span>{source.action}</span>
       </div>
       <figcaption id="hero-demo-title">Watch one ping cross a router, frame by frame.</figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} className="hero-demo-stage" aria-hidden="true">
+      <div className="hero-demo-stage">
+      <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
         <line x1={X[0]} x2={X[1]} y1="78" y2="78" className={`hero-wire${!done && (c.from === devices[0].id || c.to === devices[0].id) ? " is-on" : ""}`} />
         <line x1={X[1]} x2={X[2]} y1="78" y2="78" className={`hero-wire${!done && (c.from === devices[2].id || c.to === devices[2].id) ? " is-on" : ""}`} />
         {devices.map((d, i) => {
@@ -132,15 +128,20 @@ export function HeroDemo() {
             </g>
           );
         })}
-        {!done && (
-          <g className={`hero-packet kind-${c.kind}${c.broadcast ? " is-broadcast" : ""}`} transform={`translate(${x} 40)`}>
-            <rect x={-capsuleW / 2} y="-13" width={capsuleW} height="26" rx="13" />
-            <text y="4.5" textAnchor="middle">
-              {label}
-            </text>
-          </g>
-        )}
       </svg>
+        {/* The capsule is an element over the drawing, moved by a transform the browser animates on its own (an
+            animated SVG transform would lay the drawing out again on every frame). Positions are in drawing units,
+            scaled with the drawing's width (cqw). */}
+        {!done && (
+          <span
+            className={`hero-packet kind-${c.kind}${c.broadcast ? " is-broadcast" : ""}`}
+            aria-hidden="true"
+            style={{ transform: `translateX(calc(${(x / W) * 100}cqw - 50%))`, transition: playing && t === 1 ? `transform ${MOVE}ms ease-out` : "none" }}
+          >
+            {label}
+          </span>
+        )}
+      </div>
       <div className="hero-demo-caption" aria-live={playing ? "off" : "polite"}>
         {done ? (
           <>
