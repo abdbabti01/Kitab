@@ -3,7 +3,7 @@
 // first difference shown is the earliest point where a device's recorded decisions differ.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { divergence, experimentsFor, type Experiment } from "../src/practice/network/experiments.ts";
+import { aftermath, divergence, experimentsFor, type Experiment } from "../src/practice/network/experiments.ts";
 import { newSession, simulate } from "../src/practice/network/engine.ts";
 import { starter } from "../src/practice/network/starters.ts";
 import type { Action, Network, Session, Trace, TraceEvent } from "../src/practice/network/model.ts";
@@ -188,4 +188,37 @@ test("long TCP and HTTP runs stay quick", () => {
   const ms = performance.now() - t0;
   assert.ok(ms < 200, `${ms} ms`);
   console.log(`# long run: ${long.found.working.events.length} events, ${long.found.experiments.length} experiments found in ${long.ms.toFixed(0)} ms, divergences in ${ms.toFixed(1)} ms`);
+});
+
+test("the change names every device it touches, and what follows the first difference is read from the broken run", () => {
+  for (const c of all)
+    for (const x of c.found.experiments) {
+      // The devices: the one whose setting changed, or both ends of the unplugged link; all real devices.
+      assert.ok(x.fault.devices.includes(x.fault.device), `${c.name} ${x.fault.id}`);
+      for (const id of x.fault.devices) assert.ok(c.network.devices.some((d) => d.id === id), `${c.name} ${x.fault.id}: ${id}`);
+      if (x.fault.kind === "cable") {
+        const link = c.network.links.find((l) => `cable:${l.id}` === x.fault.id)!;
+        assert.deepEqual([...x.fault.devices].sort(), [link.a.device, link.b.device].sort(), c.name);
+      } else assert.equal(x.fault.devices.length, 1, c.name);
+      const after = aftermath(x);
+      if (!x.divergence) {
+        assert.equal(after, null, c.name);
+        continue;
+      }
+      const from = (x.divergence.broken ?? -1) + 1;
+      const rest = x.broken.events.slice(from);
+      assert.equal(after!.steps, rest.length, `${c.name} ${x.fault.id}`);
+      assert.deepEqual(after!.devices, [...new Set(rest.map((e) => e.actor))], `${c.name} ${x.fault.id}`);
+      assert.equal(after!.last, x.broken.events.at(-1), c.name);
+      if (!x.broken.success) assert.equal(after!.stopsAt, x.broken.failure?.device ?? x.broken.events.at(-1)!.actor, c.name);
+    }
+  // Turning NAT off: the runs part at the home router (it no longer translates), but the run stops later, at the
+  // ISP router, where the reply has no way back. The cause and the visible failure are at different devices.
+  const nat = one("internet: HTTP by name", "nat");
+  assert.equal(nat.divergence!.device, "router");
+  assert.equal(aftermath(nat)!.stopsAt, "isp");
+  assert.ok(aftermath(nat)!.steps > 10);
+  // A missing route stops the run right where it differs.
+  const route = one("internet: HTTP by name", "route");
+  assert.equal(route.divergence!.device, aftermath(route)!.stopsAt);
 });

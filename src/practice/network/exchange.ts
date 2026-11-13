@@ -83,10 +83,15 @@ function describe(e: TraceEvent): Pick<Message, "label" | "detail" | "protocol">
 /** The messages of a run, in the order they were first transmitted (or created, if never transmitted). */
 export function exchangeOf(events: TraceEvent[], network: Network): Exchange {
   const kind = (id: string) => network.devices.find((d) => d.id === id)?.kind;
-  const ids: string[] = [];
-  for (const e of events) if (e.packet && !ids.includes(e.packet)) ids.push(e.packet);
-  const messages = ids.map((id): Message => {
-    const mine = events.flatMap((e, i) => (e.packet === id ? [i] : []));
+  // Each message's events, in one pass (in order of first appearance), rather than a scan of the run per message.
+  const byPacket = new Map<string, number[]>();
+  events.forEach((e, i) => {
+    if (!e.packet) return;
+    const list = byPacket.get(e.packet);
+    if (list) list.push(i);
+    else byPacket.set(e.packet, [i]);
+  });
+  const messages = [...byPacket].map(([id, mine]): Message => {
     const first = mine[0];
     const from = events[first].actor;
     const hops = mine.filter((i) => events[i].hop?.from === events[i].actor);

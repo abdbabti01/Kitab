@@ -399,3 +399,17 @@ export function checkpointsFor(trace: Trace, network: Network) {
   if (!cache.has(trace)) cache.set(trace, checkpointsOf(trace, network));
   return cache.get(trace)!;
 }
+
+/**
+ * The choices that name one device on the diagram, so the device itself can be tapped to choose it: the option is
+ * the device's name, or an address labelled with it ("192.168.1.1 (Home router)"). Choices that name no device, or
+ * a name two devices share, stay in the list only.
+ */
+export function optionDevices(c: Checkpoint, network: Network): { option: string; device: string }[] {
+  const out: { option: string; device: string }[] = [];
+  for (const o of c.options) {
+    const named = network.devices.filter((d) => o.text === d.name || o.text.endsWith(` (${d.name})`));
+    if (named.length === 1 && !out.some((x) => x.device === named[0].id)) out.push({ option: o.id, device: named[0].id });
+  }
+  return out;
+}

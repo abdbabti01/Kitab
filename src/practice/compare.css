@@ -170,3 +170,184 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+/* The run shown during an experiment: your network in green, the temporary broken copy in amber, named everywhere. */
+.experiment-banner.is-broken {
+  border-color: #c99a1d;
+}
+.experiment-banner.is-working {
+  border-color: #6aa58c;
+  background: #e8f4ee;
+  color: #18402f;
+}
+.experiment-banner > span {
+  flex: 1 1 260px;
+}
+.experiment-sides {
+  display: inline-flex;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.experiment-sides button {
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.experiment-sides button[aria-checked="true"].is-working {
+  background: #23675f;
+  color: #fff;
+}
+.experiment-sides button[aria-checked="true"].is-broken {
+  background: #8a5a00;
+  color: #fff;
+}
+.experiment-sides button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+/* The changed setting, above the device it is on. */
+.network-device.is-changed .device-ring {
+  stroke: #8a5a00;
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+.changed-tag circle {
+  fill: #8a5a00;
+  stroke: #fff;
+  stroke-width: 3;
+}
+.changed-tag.is-compact text {
+  font-size: 18px;
+  font-weight: 700;
+}
+.changed-tag rect {
+  fill: #8a5a00;
+}
+
+.network-device.is-changed .changed-tag rect {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.changed-tag text {
+  fill: #fff;
+  font: 600 12px var(--font);
+  pointer-events: none;
+}
+/* The track names its run and marks where the two runs first part. */
+.track-run {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.track-run.is-working {
+  color: #23675f;
+}
+.track-run.is-broken {
+  color: #8a5a00;
+}
+.track.is-broken .track-lanes {
+  border-color: #c99a1d;
+  border-width: 2px;
+}
+.track.is-working .track-lanes {
+  border-color: #6aa58c;
+  border-width: 2px;
+}
+.track-marker path {
+  fill: #8a5a00;
+}
+.k-diverge {
+  color: #8a5a00;
+}
+.compare-story th[scope="row"],
+.compare-story thead th:first-child {
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.track-marker line {
+  stroke: #8a5a00;
+  stroke-width: 3;
+  stroke-dasharray: 4 3;
+}
+/* The run shown now, among the two. */
+.compare-run.is-shown.is-working {
+  border-color: #23675f;
+}
+.compare-run.is-shown.is-broken {
+  border-color: #8a5a00;
+}
+.compare-run h3 small {
+  font-weight: 500;
+  color: var(--muted);
+}
+.compare-more {
+  color: var(--muted);
+}
+/* In Now: the experiment as cause and effect. */
+.compare-now {
+  margin: 0 0 12px;
+  padding: 14px 16px;
+  border: 1px solid #c99a1d;
+  border-left-width: 5px;
+  border-radius: 10px;
+  background: #fffbea;
+  font-size: 13px;
+}
+.compare-now.is-working {
+  border-color: #6aa58c;
+  background: #f1f8f4;
+}
+.compare-now h2 {
+  margin: 4px 0 8px;
+  font-size: 16px;
+  line-height: 1.3;
+}
+.compare-story {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.compare-story table {
+  width: 100%;
+  margin: 6px 0;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.compare-story th,
+.compare-story td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.compare-story .compare-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 4px;
+}
+.compare-story .text-button {
+  min-height: 36px;
+}
+.compare-before {
+  font-family: var(--mono);
+}
+.compare-after {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: #8a5a00;
+}
+.compare-apart {
+  display: block;
+  margin-top: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #fff3c4;
+}

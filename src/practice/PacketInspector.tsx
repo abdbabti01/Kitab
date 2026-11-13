@@ -1,7 +1,7 @@
 import { ArrowDown, Layers, Info } from "lucide-react";
 import { effectiveInterface } from "./network/engine.ts";
 import { subnet } from "./network/topology.ts";
-import { changesAt, glossary, layerStep, packetNumber, resends, shown, trip, type LayerChange } from "./network/packets.ts";
+import { changesAt, glossary, layerStep, layerTag, packetNumber, resends, shown, tagMeaning, trip, type LayerChange } from "./network/packets.ts";
 import type { TraceEvent, Session, Network, Layer } from "./network/model.ts";
 
 const kindOf = (packet: string) =>
@@ -58,6 +58,8 @@ export function PacketInspector({
           )}
         </section>
       )}
+      {event && event.layers.length > 0 && <PacketKey event={event} />}
+      {event && event.layers.length > 0 && <Addresses event={event} network={network} />}
       {event && event.layers.length > 0 && <LayerView events={events} index={index} network={network} />}
       {event?.hop && (
         <section className="packet-changes" aria-label="Changed since the previous link">
@@ -196,13 +198,25 @@ export function StateTables({
   session,
   network,
   actor,
+  embedded = false,
 }: {
   session: Session;
   network: Network;
   actor: string;
+  /** Inside the Device view, which already names the device. */
+  embedded?: boolean;
 }) {
   const device = network.devices.find((d) => d.id === actor);
   const tables: [string, string, string[][]][] = [
+    [
+      "Interfaces",
+      "Each port's address, mask and MAC at this step (including any address a DHCP lease gave it).",
+      device
+        ? device.interfaces
+            .map((p) => effectiveInterface(device, p, session))
+            .map((p) => [p.id, `${p.ip ? `${p.ip}/${p.prefix}` : "no IP address"} · ${p.mac}${p.enabled ? "" : " · off"}`])
+        : [],
+    ],
     [
       "ARP cache",
       "IP → MAC mappings on each interface.",
@@ -282,11 +296,15 @@ export function StateTables({
   ];
   return (
     <div className="state-tables">
-      <div className="inspector-intro">
-        <span className="eyebrow">STATE AT THIS EVENT</span>
-        <h2>{device?.name ?? "Select a device"}</h2>
-        <p>Rewind to see these tables before they changed.</p>
-      </div>
+      {embedded ? (
+        <h3 className="state-heading">State at this step</h3>
+      ) : (
+        <div className="inspector-intro">
+          <span className="eyebrow">STATE AT THIS EVENT</span>
+          <h2>{device?.name ?? "Select a device"}</h2>
+          <p>Rewind to see these tables before they changed.</p>
+        </div>
+      )}
       {tables.map(([title, purpose, rows]) => (
         <details key={title} open={rows.length > 0}>
           <summary>
@@ -360,6 +378,70 @@ export function DeviceCloseup({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+/**
+ * The short tags on the diagram's packet, for this message only: each with the layer name the simulator recorded,
+ * what the protocol is called in full, and what it does.
+ */
+function PacketKey({ event }: { event: TraceEvent }) {
+  return (
+    <section className="packet-key" aria-label="Reading this packet">
+      <h3>Reading this packet</h3>
+      <ul>
+        {[...event.layers].reverse().map((l) => {
+          const tag = layerTag(l.name),
+            m = tagMeaning[tag];
+          return (
+            <li key={l.name}>
+              <span className={`layer-chip layer-${l.kind}`}>{tag}</span>
+              <span>
+                <b>{l.name}</b>
+                {m && (
+                  <>
+                    {m.stands !== tag && ` (${m.stands})`}: {m.does}.
+                  </>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Who the message is from and for, at each level, as its headers record it: the end-to-end IP addresses (and ports),
+ * which stay the same across routers unless NAT changes them, and this link's MAC addresses, which do not.
+ */
+function Addresses({ event, network }: { event: TraceEvent; network: Network }) {
+  const layer = (test: (l: Layer) => boolean) => event.layers.find(test)?.fields;
+  const ip = layer((l) => l.name === "IPv4 packet"),
+    transport = layer((l) => l.kind === "transport"),
+    frame = layer((l) => /frame$/.test(l.name)),
+    arp = layer((l) => /^ARP/.test(l.name));
+  const owner = (ip: unknown) => network.devices.find((d) => d.interfaces.some((p) => p.ip === ip))?.name;
+  const named = (ip: unknown) => (owner(ip) ? `${ip} (${owner(ip)})` : String(ip));
+  const rows: [string, string][] = [];
+  if (ip) rows.push(["IP, end to end", `${named(ip["Source IP"])} → ${named(ip["Destination IP"])}`]);
+  if (transport) rows.push(["Ports", `${transport["Source port"]} → ${transport["Destination port"]}`]);
+  if (arp) rows.push(["ARP", arp["Who has"] !== undefined ? `${named(arp["Sender IP"])} asks: who has ${arp["Who has"]}?` : `${named(arp["Sender IP"])} is at ${arp["Sender MAC"]}`]);
+  if (frame) rows.push(["MAC, this link only", `${frame["Source MAC"]} → ${frame["Destination MAC"]}${frame["Destination MAC"] === "ff:ff:ff:ff:ff:ff" ? " (broadcast)" : ""}`]);
+  if (!rows.length) return null;
+  return (
+    <section className="packet-addresses" aria-label="Addresses">
+      <h3>From and to</h3>
+      <dl>
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

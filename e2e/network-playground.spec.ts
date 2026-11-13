@@ -1,8 +1,21 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
+
+// Goes to the run's last event, whether or not playback has already reached it (the button is then disabled).
+// Selects a device on the diagram as a keyboard user does: on a phone the view moves to it first.
+async function selectDevice(page: Page, name: string) {
+  await page.getByRole("button", { name: `Select ${name}`, exact: true }).focus();
+  await page.keyboard.press("Enter");
+}
+async function toEnd(page: Page) {
+  const timeline = page.getByLabel("Journey timeline");
+  await timeline.fill((await timeline.getAttribute("max")) ?? "0");
+}
 /** Shows every event, then selects one from the Steps tab by title (and device). */
 async function goToEvent(page: Page, name: RegExp) {
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name }).first().click();
 }
 test("practice workspace runs and rewinds a real HTTP journey", async ({
@@ -14,12 +27,15 @@ test("practice workspace runs and rewinds a real HTTP journey", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   const card = page.locator(".journey-card");
-  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await toEnd(page);
   await expect(card).toContainText("Page delivered");
   await expect(card).toContainText("The page arrived, and both sides closed the connection");
+  // The same panel shows the message: the page itself.
+  await page.getByRole("button", { name: "Packet", exact: true }).click();
   await expect(page.locator(".packet-inspector")).toContainText(
     "Hello from your network",
   );
+  await page.getByRole("button", { name: "Now", exact: true }).click();
   await page.getByRole("button", { name: "First event", exact: true }).click();
   await expect(card).toContainText("Prepare the HTTP request");
   expect(
@@ -33,21 +49,19 @@ test("device settings affect delivery and designs survive reload", async ({
 }) => {
   await page.goto("/practice/network");
   await page.getByLabel("Starter network").selectOption("routed");
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
   await page.getByLabel("Default gateway").fill("192.168.1.99");
   await page
     .getByRole("button", { name: "Apply settings", exact: true })
     .click();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // The result waits for the end of the run; going there shows where delivery stopped.
+  await expect(page.locator(".run-status")).toHaveCount(0);
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Delivery stopped");
-  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   await expect(page.locator(".journey-card")).toContainText("ARP");
   await page.reload();
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
   await expect(page.getByLabel("Default gateway")).toHaveValue("192.168.1.99");
 });
 test("adding and undoing devices works without dragging", async ({ page }) => {
@@ -63,12 +77,8 @@ test("switching device types and adding a routed interface keeps the editor usab
   page,
 }) => {
   await page.goto("/practice/network");
-  await page
-    .getByRole("button", { name: "Select Your PC", exact: true })
-    .click();
-  await page
-    .getByRole("button", { name: "Select Home router", exact: true })
-    .click();
+  await selectDevice(page, "Your PC");
+  await selectDevice(page, "Home router");
   await page
     .getByRole("button", { name: "Add routed interface", exact: true })
     .click();
@@ -78,9 +88,7 @@ test("switching device types and adding a routed interface keeps the editor usab
   await page
     .getByRole("button", { name: "Apply settings", exact: true })
     .click();
-  await page
-    .getByRole("button", { name: "Select Your phone", exact: true })
-    .click();
+  await selectDevice(page, "Your phone");
   await expect(
     page.getByRole("combobox", { name: /Interface \/ port/ }),
   ).toHaveValue("wlan0");
@@ -93,11 +101,13 @@ test("undoing a move keeps the DHCP lease and replay", async ({ page }) => {
   await page
     .getByRole("button", { name: "Configure automatically", exact: true })
     .click();
-  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await toEnd(page);
   const phone = page.getByRole("button", {
     name: "Select Your phone",
     exact: true,
   });
+  // Moving a device applies to the learner's own layout; on a phone that is one tap away.
+  if (await page.getByRole("button", { name: "Rows" }).isVisible()) await page.getByRole("button", { name: "Rows" }).click();
   await phone.focus();
   await page.keyboard.press("ArrowRight");
   await page.getByRole("button", { name: "Undo", exact: true }).click();
@@ -124,15 +134,20 @@ test("step explanations pause playback and explain DHCP recipients", async ({
     page.getByRole("button", { name: "Play journey", exact: true }),
   ).toBeVisible();
   // Device names distinguish repeated receive events and must remain visible on phones.
+  await toLast(page);
+  await openSteps(page);
   await expect(page.locator(".event-list small").filter({ hasText: "Your PC" }).first()).toBeVisible();
   await page
     .locator(".event-list")
     .getByRole("button", { name: /Receive frame Your PC$/ })
     .first()
     .click();
+  // Choosing a step shows it in Now, where the opened explanation stays open.
   await expect(page.locator(".step-guide")).toContainText("does not answer");
   await page.getByText("Who receives it, and what happens next?", { exact: true }).click();
   await expect(page.locator(".step-guide")).toContainText("port 68 → 67");
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name: /DHCP Offer/ }).first().click();
   await expect(page.locator(".step-guide")).toContainText(
     "not simply because it is a router",
@@ -161,7 +176,8 @@ test("TCP steps disclose stop-and-wait and link to the send-window mission", asy
 test("no playground control is clipped or pushed off screen", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   // Checks real clipping: a control wider than the viewport or than its nearest overflow-clipping ancestor.
   const clipped = await page.evaluate(() => {
     const out: string[] = [];
@@ -194,13 +210,13 @@ test("a typing mistake is shown at the field, not as a network failure", async (
 });
 test("a failure names its cause chain and where to look", async ({ page }) => {
   await page.goto("/practice/network");
-  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await selectDevice(page, "Home router");
   await page.getByText("Routing & NAT", { exact: true }).click();
   await page.getByLabel("Enable NAT / port translation").uncheck();
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Delivery stopped at ISP router");
-  await page.locator(".run-status").getByRole("button", { name: "Show where and why" }).click();
   const card = page.locator(".journey-card");
   await expect(card.locator("h2")).toHaveText("The DNS answer could not come back");
   await card.getByRole("button", { name: "Why it stopped" }).click();
@@ -229,6 +245,8 @@ test("a step links to the earlier step that caused it and cites its rule", async
 test("Follow the journey: the card explains each stage beside the diagram and both views share one position", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  // Send plays the journey; going back to the first event pauses it there.
+  await page.getByRole("button", { name: "First event", exact: true }).click();
   const card = page.locator(".journey-card");
   const position = page.locator(".journey-position");
   // Summary is the first-visit view: Next moves a whole stage.
@@ -251,6 +269,7 @@ test("Follow the journey: the card explains each stage beside the diagram and bo
   // The view is remembered on this device.
   await page.reload();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.getByRole("button", { name: "First event", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Every event" })).toHaveAttribute("aria-checked", "true");
   // The card can be hidden and brought back, and the step is announced for screen readers.
   await card.getByRole("button", { name: "Hide the explanation" }).click();
@@ -303,13 +322,14 @@ test("the packet inspector follows one packet, shows what changed at each link a
   const trip = page.getByRole("region", { name: "Follow this packet" });
   await expect(trip.locator("li")).toHaveCount(5);
   await trip.getByRole("button", { name: /DNS server/ }).click();
-  await expect(page.locator(".journey-card h2")).toHaveText("Transmit over Ethernet");
+  // Following the packet keeps the Packet view open; the journey moves to that step.
+  await expect(page.locator(".journey-position b")).toHaveText("Transmit over Ethernet");
   await expect(page.locator(".packet-identity")).toContainText("On link 5 of 5");
 });
 test("selecting a device during a run explains its part in that run", async ({ page }) => {
   await page.goto("/practice/network");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await toEnd(page);
   // A device the card happens to cover stays reachable from the keyboard.
   await page.getByRole("button", { name: "Select Home router", exact: true }).focus();
   await page.keyboard.press("Enter");
@@ -345,9 +365,9 @@ test("each path starter opens with the action its path step promises", async ({ 
     await expect(page.getByLabel("Source device")).toHaveValue(s.from);
     await expect(page.getByLabel("Traffic type")).toHaveValue(s.kind);
     await page.locator(".send-button").click();
-    await expect(page.locator(".run-status")).toContainText(s.result);
     await expect(page.locator(".journey-card")).toContainText(s.first);
-    await page.getByRole("button", { name: "Last event", exact: true }).click();
+    await toEnd(page);
+    await expect(page.locator(".run-status")).toContainText(s.result);
     await expect(page.locator(".journey-card")).toContainText(s.last);
   }
 });
@@ -357,13 +377,16 @@ test("the Internet starter makes its preparation explicit: DHCP on the phone fir
   await expect(notice).toContainText("Step 1 of 2");
   await expect(page.getByLabel("Source device")).toHaveValue("phone");
   await page.getByRole("button", { name: "Configure automatically", exact: true }).click();
+  // Step 2 is offered with the result, once the run has reached its end.
+  await expect(page.getByText("Step 2 of 2")).toHaveCount(0);
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Your phone received 192.168.1.100");
   await expect(notice).toContainText("Step 2 of 2");
   await expect(page.getByLabel("Traffic type")).toHaveValue("http");
   await expect(page.getByLabel("Destination")).toHaveValue("http://kitab.test/");
   await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
-  await page.getByRole("button", { name: "Last event", exact: true }).click();
   await expect(page.locator(".journey-card")).toContainText("Page delivered");
   // The learner's own saved design is untouched by the starter.
   expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toBeNull();
@@ -373,16 +396,18 @@ test("guided steps advance only on success, and a reset or edit returns to the s
   const notice = page.locator(".network-notice");
   const send = page.locator(".send-button");
   // A failed DHCP run does not advance: a wrong passphrase keeps the phone off Wi-Fi.
-  await page.getByRole("button", { name: "Select Your phone", exact: true }).click();
+  await selectDevice(page, "Your phone");
   await page.getByLabel("Wi-Fi passphrase").fill("wrong");
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await send.click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Delivery stopped");
   await expect(page.getByLabel("Traffic type")).toHaveValue("dhcp");
   await expect(page.getByText("Step 2 of 2")).toHaveCount(0);
   // Undoing the edit and succeeding advances to step 2, whose first stage says the phone is still on Wi-Fi.
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await send.click();
+  await toEnd(page);
   await expect(notice).toContainText("Step 2 of 2");
   await expect(page.getByLabel("Traffic type")).toHaveValue("http");
   // Restarting discards the lease, so the guidance goes back to step 1 instead of promising an address.
@@ -390,19 +415,22 @@ test("guided steps advance only on success, and a reset or edit returns to the s
   await expect(notice).toContainText("Step 1 of 2");
   await expect(page.getByLabel("Traffic type")).toHaveValue("dhcp");
   await send.click();
+  await toEnd(page);
   await expect(notice).toContainText("Step 2 of 2");
   // Editing the network between steps resets the run too.
-  await page.getByRole("button", { name: "Select Your PC", exact: true }).click();
+  await selectDevice(page, "Your PC");
   await page.getByLabel("Device name").fill("Desk PC");
   await page.getByRole("button", { name: "Apply settings", exact: true }).click();
   await expect(notice).toContainText("Network updated");
   await expect(notice).toContainText("Step 1 of 2");
   await expect(page.getByLabel("Traffic type")).toHaveValue("dhcp");
   await send.click();
+  await toEnd(page);
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
   await expect(page.locator(".journey-card")).toContainText("Still on Wi-Fi");
   await expect(page.locator(".journey-card")).toContainText("keeps 192.168.1.100 from its DHCP lease");
+  await toEnd(page);
+  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
 });
 test("changing the form leaves the guidance, and a reload starts the starter again from step 1", async ({ page }) => {
   await page.goto("/practice/network?starter=internet");
@@ -410,6 +438,7 @@ test("changing the form leaves the guidance, and a reload starts the starter aga
   await page.getByLabel("Traffic type").selectOption("ping");
   await page.getByLabel("Destination").fill("192.168.1.1");
   await page.locator(".send-button").click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Ping succeeded");
   await expect(page.getByLabel("Traffic type")).toHaveValue("ping");
   await expect(page.locator(".network-notice")).toHaveCount(0);
@@ -428,6 +457,7 @@ test("a starter copy says it is not saved, and switching starters inside it neve
   await expect(page.getByLabel("Network name")).toHaveValue("Two connected LANs");
   await expect(page.locator(".network-notice")).toContainText("default gateway");
   await page.locator(".send-button").click();
+  await toEnd(page);
   await expect(page.locator(".run-status")).toContainText("Ping succeeded");
   await expect(page.locator(".save-status")).toHaveText("Practice copy · not saved");
   expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toContain("My home lab");
@@ -443,6 +473,29 @@ test("the Wi-Fi starters say a real phone joins and starts DHCP by itself, and t
     await expect(page.locator(".network-notice")).toContainText("A real phone does both by itself when you choose the network.");
   }
   await page.goto("/practice/network?starter=wifi");
-  await page.getByRole("button", { name: "Select Home router", exact: true }).click();
+  await selectDevice(page, "Home router");
   await expect(page.locator(".dns-record").first().locator("input").first()).toHaveValue("pc.home.arpa");
+});
+
+test("Send plays the journey at once; pause holds it, and the end says how it finished", async ({ page }) => {
+  await page.goto("/practice/network?starter=routed");
+  await page.locator(".journey-start").click();
+  // While it plays, progress is shown but not the result.
+  await expect(page.locator(".run-status")).toHaveCount(0);
+  // Nothing else to press: playback runs, the focus is on Pause, and a frame crosses a link within seconds.
+  await expect(page.locator(".playback-state")).toHaveText("Playing");
+  await expect(page.getByRole("button", { name: "Pause playback" })).toBeFocused();
+  await expect(page.locator(".packet-token animateMotion")).toHaveCount(1, { timeout: 8000 });
+  await expect(page.locator(".network-wire.active")).toHaveClass(/kind-/);
+  await page.getByRole("button", { name: "Pause playback" }).click();
+  await expect(page.locator(".playback-state")).toHaveText("Paused");
+  const at = await page.locator(".journey-position small").innerText();
+  await page.waitForTimeout(2500);
+  await expect(page.locator(".journey-position small")).toHaveText(at);
+  await toEnd(page);
+  await expect(page.locator(".playback-state")).toHaveText("Complete");
+  await expect(page.locator(".run-status")).toContainText("Ping succeeded");
+  // Play at the end replays from the start.
+  await page.getByRole("button", { name: "Play journey" }).click();
+  await expect(page.locator(".journey-position small")).toContainText(/event [12] of 39/);
 });

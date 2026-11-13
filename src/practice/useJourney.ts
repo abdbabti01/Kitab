@@ -3,9 +3,13 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
 import { newSession, simulate } from "./network/engine.ts";
 import { stageAt, stagesOf } from "./network/stages.ts";
-import { MODE_KEY, type JourneyMode, type Point } from "./journey-nav.ts";
+import { beatsOf, durationsOf, type Beat } from "./network/motion.ts";
+import { MODE_KEY, type JourneyMode } from "./journey-nav.ts";
+const EXCHANGE_KEY = "kitab.network.fullExchange";
 import type { Action, Network, Session, Trace } from "./network/model.ts";
 
+/** The learner's place in a run: the run itself, the event, and whether its result had been shown. */
+export type JourneySnapshot = { trace: Trace | null; index: number; revealed: boolean };
 export type InputError = { field: "source" | "target"; message: string };
 
 /**
@@ -28,16 +32,23 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
       }
     }),
     [cardOpen, setCardOpen] = useState(true),
-    [positions, setPositions] = useState<Record<string, Point>>({}),
-    [scale, setScale] = useState(1),
+    // Whether the run's result may be shown: not while Send's playback is on its way to it.
+    [revealed, setRevealed] = useState(true),
     [inputError, setInputError] = useState<InputError | null>(null),
     // Summary is the first-visit default; the learner's choice is remembered on this device.
     [mode, setMode] = useState<JourneyMode>(() => {
       try {
-        const saved = localStorage.getItem(MODE_KEY);
-        return saved === "events" || saved === "exchange" ? saved : "summary";
+        return localStorage.getItem(MODE_KEY) === "events" ? "events" : "summary";
       } catch {
         return "summary";
+      }
+    }),
+    // The full exchange table under the track, remembered; a learner who had chosen the old Exchange view finds it open.
+    [fullExchange, setFullExchange] = useState(() => {
+      try {
+        return localStorage.getItem(EXCHANGE_KEY) === "open" || localStorage.getItem(MODE_KEY) === "exchange";
+      } catch {
+        return false;
       }
     });
   const journeyRef = useRef<HTMLDivElement>(null);
@@ -53,21 +64,28 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
   const stages = useMemo(() => (trace ? stagesOf(trace.events, network) : []), [trace, network]);
   const stage = trace ? stages[stageAt(stages, index)] : undefined;
   const event = trace?.events[index];
+  // Playback time per event, read from the whole run (so hiding its end changes nothing), and what each event shows.
+  const { durations, beats } = useMemo(() => {
+    if (!full) return { durations: [] as number[], beats: [] as Beat[] };
+    return { durations: durationsOf(full.events, network, stagesOf(full.events, network)), beats: beatsOf(full.events, network) };
+  }, [full, network]);
   useEffect(() => {
     if (!playing || !trace) return;
-    const timer = window.setInterval(
-      () =>
-        setIndex((i) => {
-          if (i >= trace.events.length - 1) {
-            setPlaying(false);
-            return Math.min(i, trace.events.length - 1);
-          }
-          return i + 1;
-        }),
-      Math.max(120, 1100 / speed),
-    );
-    return () => clearInterval(timer);
-  }, [playing, speed, trace]);
+    // The end of what can be seen: the run's last event, or the last one before a hidden part.
+    if (index >= trace.events.length - 1) return setPlaying(false);
+    const timer = window.setTimeout(() => setIndex(index + 1), Math.max(60, (durations[index] ?? 1100) / speed));
+    return () => clearTimeout(timer);
+  }, [playing, speed, trace, index, durations]);
+  // The result is shown once the run reaches its last event, by playing there or by going there.
+  useEffect(() => {
+    if (full && !gated && index >= full.events.length - 1) setRevealed(true);
+  }, [full, gated, index]);
+  // Playback does not carry on unseen in a background tab.
+  useEffect(() => {
+    const away = () => document.hidden && setPlaying(false);
+    document.addEventListener("visibilitychange", away);
+    return () => document.removeEventListener("visibilitychange", away);
+  }, []);
 
   /** Forgets the run and any acquired state such as DHCP leases. */
   function reset() {
@@ -76,8 +94,9 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setIndex(0);
     setPlaying(false);
   }
-  /** Runs an action on the current session. A typing mistake is shown at the form and returns null. */
-  function run(action: Action, on: Network = network): Trace | null {
+  /** Runs an action on the current session. A typing mistake is shown at the form and returns null. With `play`
+   * the journey starts playing at once (the playground's Send); otherwise it waits on the first event. */
+  function run(action: Action, on: Network = network, { play = false } = {}): Trace | null {
     setPlaying(false);
     const result = simulate(on, session, action);
     if (result.reason?.startsWith("INPUT_")) {
@@ -97,13 +116,29 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setSession(result.session);
     setTrace(result);
     setIndex(0);
+    setPlaying(play);
+    // Played from the start, the result waits for the end; a run that is not played shows it at once (missions).
+    setRevealed(!play);
     return result;
+  }
+  /** The learner's place in their own run, to come back to after something temporary (Break and compare). */
+  function snapshot(): JourneySnapshot {
+    return { trace: full, index: wanted, revealed };
+  }
+  /** Returns to a place taken with snapshot(): the same run object (so answered predictions still apply to it), the
+   * same event, and the result shown only if it had been. */
+  function resume(s: JourneySnapshot) {
+    setPlaying(false);
+    setTrace(s.trace);
+    setIndex(s.index);
+    setRevealed(s.revealed);
   }
   /** Shows a run that was made elsewhere (e.g. a mission check), at a chosen event. The session is kept. */
   function show(result: Trace, at: number) {
     setPlaying(false);
     setTrace(result);
     setIndex(Math.max(0, Math.min(result.events.length - 1, at)));
+    setRevealed(true);
     setCardOpen(true);
   }
   function step(next: number) {
@@ -136,11 +171,12 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setCardOpen(true);
   }
   // Announce stage changes; when stepping by hand in Every event, announce each event.
+  // With the rest of the run hidden, so is its length.
   const announcement = !trace
     ? ""
     : mode === "events" && !playing
-      ? `Event ${index + 1} of ${trace.events.length}: ${trace.events[index].title}`
-      : `Stage ${stageAt(stages, index) + 1} of ${stages.length}: ${stage?.title}`;
+      ? `Event ${index + 1}${gated ? "" : ` of ${trace.events.length}`}: ${trace.events[index].title}`
+      : `Stage ${stageAt(stages, index) + 1}${gated ? "" : ` of ${stages.length}`}: ${stage?.title}`;
   return {
     session,
     shownSession: event?.snapshot ?? session,
@@ -148,25 +184,33 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     /** The whole run, including any part hidden by `limit`. */
     fullTrace: full,
     gated,
+    /** The result may be shown: the run has reached its end, or was opened or shown rather than played. */
+    revealed: revealed && !gated,
     index,
     playing,
     setPlaying,
+    /** Milliseconds at 1× for each event of the whole run, and what each event shows (motion.ts). */
+    durations,
+    beats,
     speed,
     setSpeed,
     follow,
     setFollow,
     cardOpen,
     setCardOpen,
-    positions,
-    scale,
-    setLayout: (p: Record<string, Point>, s: number) => {
-      setPositions(p);
-      setScale(s);
-    },
     inputError,
     clearInputError: () => setInputError(null),
     mode,
     chooseMode,
+    fullExchange,
+    setFullExchange: (open: boolean) => {
+      try {
+        localStorage.setItem(EXCHANGE_KEY, open ? "open" : "closed");
+      } catch {
+        /* Not remembered in a private window. */
+      }
+      startTransition(() => setFullExchange(open));
+    },
     stages,
     stage,
     event,
@@ -174,6 +218,8 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     reset,
     run,
     show,
+    snapshot,
+    resume,
     step,
     play,
     stoppedAt,

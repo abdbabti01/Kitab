@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps, openExchange } from "./track.ts";
 
 // Predict as you go, on the internet starter's web request: the first questions are the PC's next hop
 // (192.168.1.1, the home router) and who answers its ARP broadcast (the home router).
@@ -9,8 +10,8 @@ async function start(page: Page) {
   await page.goto("/practice/network");
   await page.getByLabel("Predict as you go").check();
   await page.getByLabel("Destination").fill("http://kitab.test/");
+  // Send plays the journey, which stops at the first question by itself.
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Play journey" }).click();
   await expect(question(page)).toBeVisible();
 }
 async function pick(page: Page, text: string | RegExp, hasTouch?: boolean) {
@@ -23,18 +24,24 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   await start(page);
   await expect(question(page).getByRole("heading")).toHaveText("Your PC has a packet for 198.51.100.53. Which address will it send it to first?");
   await expect(question(page).getByRole("radio")).toHaveCount(2);
+  // Playback waits for the answer, and the counter shows the visible step without the run's length.
+  await expect(page.locator(".playback-state")).toHaveText("Waiting for your prediction");
+  await expect(page.locator(".journey-position small")).toHaveText(/Waiting for your prediction Step 2$/);
   // The Journey waits before the route is chosen: two events, no outcome, nothing further to scrub or play to.
   await expect(page.getByLabel("Journey timeline")).toHaveAttribute("max", "1");
   await expect(page.locator(".run-status")).toHaveText("The rest of this run appears once you answer the prediction or choose Show me.");
   await expect(page.getByRole("button", { name: "Last event", exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Next stage" })).toBeDisabled();
-  await expect(page.locator(".journey-position small")).toContainText("event 2 of 2");
-  for (const view of ["Every event", "Exchange", "Summary"]) await page.getByRole("radio", { name: view }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  // The counter gives the visible step, never a total that would make the hidden run look finished.
+  await expect(page.locator(".journey-position small")).not.toContainText(" of ");
+  for (const view of ["Every event", "Summary"]) await page.getByRole("radio", { name: view }).click();
+  await toLast(page);
+  await openSteps(page);
   await expect(page.locator(".steps-list h2")).toHaveText("2 stages");
   await page.getByRole("radio", { name: "Every event" }).click();
   await expect(page.locator(".event-list button")).toHaveText([/Prepare HTTP request/, /DNS query/]);
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await page.getByRole("radio", { name: "Summary" }).click();
+  await openExchange(page);
   await expect(exchange(page)).toContainText("No message has been sent yet.");
   await expect(page.locator(".network-inspector")).not.toContainText("Choose a route");
   await expect(question(page)).toBeVisible();
@@ -51,7 +58,7 @@ test("the question comes before its answer, and nothing later can be seen, scrub
   // The next question: the DNS query waits for ARP, and the ARP request is created; neither is sent yet, no reply is shown.
   await result(page).getByRole("button", { name: "Continue" }).click();
   await expect(question(page).getByRole("heading")).toHaveText('Your PC broadcasts "Who has 192.168.1.1?" to every device on its LAN. Which device answers?');
-  await page.getByRole("radio", { name: "Exchange" }).click();
+  await openExchange(page);
   await expect(exchange(page).locator(".exchange-row")).toHaveText([/^DNS query.*not sent yet/, /^ARP request.*not sent yet/]);
   await expect(exchange(page)).not.toContainText("ARP reply");
   await pick(page, "Home router");
@@ -74,8 +81,10 @@ test("Show me, trying again, and turning predictions off", async ({ page }) => {
   // Nobody is trapped: turning predictions off shows the whole run and its outcome.
   await page.getByLabel("Predict as you go").uncheck();
   await expect(result(page)).toHaveCount(0);
-  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
+  // The result still waits for the end of the run.
+  await expect(page.locator(".run-status")).toHaveCount(0);
   await page.getByRole("button", { name: "Last event", exact: true }).click();
+  await expect(page.locator(".run-status")).toContainText("HTTP 200 OK");
   await expect(page.locator(".journey-position small")).toContainText(/event 489 of 489/);
 });
 
@@ -86,14 +95,13 @@ test("by keyboard and touch, with reduced motion; practice changes no saved netw
   const before = await page.evaluate(() => ({ workspace: localStorage.getItem("kitab.network.workspace.v1"), saves: localStorage.getItem("kitab.network.saves.v1") }));
   await page.getByLabel("Predict as you go").check();
   await page.getByRole("button", { name: "Send request", exact: true }).click();
-  await page.getByRole("button", { name: "Play journey" }).click();
   // The question takes the focus; Tab reaches the choices, arrow keys move between them, Enter checks.
   await expect(question(page).getByRole("heading")).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(question(page).getByRole("radio").first()).toBeFocused();
   await page.keyboard.press("ArrowDown");
   await expect(question(page).getByRole("radio").nth(1)).toBeChecked();
-  const chosen = await question(page).locator("label.is-chosen").textContent();
+  const chosen = await question(page).locator("label.is-chosen span").textContent();
   await page.keyboard.press("Enter");
   await expect(result(page).getByRole("heading")).toBeFocused();
   await expect(result(page).getByRole("heading")).toHaveText(chosen === "192.168.1.1 (Home router)" ? "Your prediction was right." : /^Not quite/);

@@ -541,6 +541,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
                 setTab("packet");
               }}
               advice={false}
+              explainBelow
             />
             <SendPanel
               network={network}
@@ -557,7 +558,6 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
             journey={journey}
             network={network}
             selected={selected}
-            onSelect={setSelected}
             tab={tab}
             onTab={setTab}
             panelRef={inspectorRef}

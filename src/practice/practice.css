@@ -32,23 +32,86 @@
   outline: 3px solid var(--focus);
   outline-offset: 3px;
 }
+/* A device chosen with the pointer is shown by its selection, not by the browser's own focus box. */
+.network-device:focus:not(:focus-visible) {
+  outline: none;
+}
 .network-playground .eyebrow {
   font: 600 10px/1.4 var(--font);
   letter-spacing: 1.7px;
   color: var(--muted);
   display: block;
 }
+/* A slim heading: the diagram is the first thing the learner sees. */
 .playground-heading {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 26px;
+  gap: 8px 20px;
+  margin-bottom: 14px;
 }
 .playground-heading h1 {
-  font: normal clamp(32px, 3.5vw, 48px)/1.15 var(--display);
-  letter-spacing: -1.6px;
-  margin: 7px 0 9px;
+  font: normal clamp(26px, 2.4vw, 34px)/1.1 var(--display);
+  letter-spacing: -1px;
+  margin: 4px 0 4px;
+}
+.heading-link {
+  font-size: 12px;
+  color: var(--primary);
+}
+/* The one-time introduction: one compact band above the lab, gone once dismissed. */
+.lab-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border: 1px solid var(--primary-soft-line, #abc4b1);
+  border-radius: 10px;
+  background: var(--primary-soft);
+  font-size: 13px;
+}
+.lab-intro p {
+  margin: 0;
+}
+.lab-intro ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px 22px;
+  margin: 0;
+  padding-left: 18px;
+  flex: 1 1 560px;
+}
+/* On a phone: just the three names (the buttons on the diagram say the rest), so the diagram stays near the top. */
+@media (max-width: 760px) {
+  .lab-intro {
+    padding: 8px 12px;
+  }
+  .lab-intro ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 18px;
+    flex-basis: 100%;
+  }
+  .lab-intro-more {
+    display: none;
+  }
+  .playground-heading {
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .playground-heading p {
+    font-size: 13px;
+  }
+}
+.lab-intro li::marker {
+  color: var(--primary);
+  font-weight: 700;
+}
+.lab-intro .button {
+  min-height: 36px;
+  margin-left: auto;
 }
 .heading-dot {
   color: var(--primary);
@@ -272,22 +335,61 @@
   font: normal 22px var(--display);
   color: var(--ink);
 }
+/* The diagram is the centre of the page: a bar of its own controls, the drawing, and a hint line. */
 .network-canvas {
-  height: 480px;
+  height: 600px;
   position: relative;
   background: #f5f7ef;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .topology-svg {
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   touch-action: none;
   user-select: none;
 }
+.canvas-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e3e8dc;
+  background: #f9faf4;
+  position: relative;
+  z-index: 2;
+}
+.canvas-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.canvas-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 16px;
+  border-top: 1px solid #e3e8dc;
+  background: #f9faf4;
+}
+.canvas-layout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  background: #fffef9;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--primary);
+}
 .canvas-caption {
-  position: absolute;
-  top: 17px;
-  left: 21px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -340,10 +442,53 @@
 }
 .network-wire.active {
   stroke: #357a60;
-  stroke-width: 4;
+  stroke-width: 5;
+}
+/* The link a frame is crossing, in the colour of its message (as the packet token). */
+.network-wire.active.kind-ip {
+  stroke: #3a6595;
+}
+.network-wire.active.kind-arp {
+  stroke: #23675f;
+}
+.network-wire.active.kind-dhcp {
+  stroke: #8f5a17;
+}
+.packet-locate {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: packet-locate 0.7s ease-out 1;
+}
+.kind-ip .packet-locate {
+  color: #3a6595;
+}
+.kind-arp .packet-locate {
+  color: #23675f;
+}
+.kind-dhcp .packet-locate {
+  color: #8f5a17;
+}
+@keyframes packet-locate {
+  from {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet-locate {
+    animation: none;
+  }
 }
 .link-label {
-  font: 10px var(--mono);
+  font: 11px var(--mono);
   fill: #6c7c70;
   paint-order: stroke;
   stroke: #f5f7ef;
@@ -374,7 +519,6 @@
 .network-device.is-active .device-tile {
   stroke: #2d7b59;
   stroke-width: 3;
-  filter: drop-shadow(0 0 10px #6da88455);
 }
 .network-device:hover .device-tile {
   fill: #f6faf1;
@@ -382,11 +526,19 @@
 }
 .device-name {
   fill: var(--ink);
-  font: 600 13px var(--font);
+  font: 600 17px var(--font);
+  paint-order: stroke;
+  stroke: #f5f7ef;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .device-ip {
-  fill: #637466;
-  font: 10px var(--mono);
+  fill: #586b5b;
+  font: 13px var(--mono);
+  paint-order: stroke;
+  stroke: #f5f7ef;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 .device-led {
   fill: #619f77;
@@ -479,9 +631,6 @@
   stroke-dasharray: 10 5;
 }
 .canvas-hint {
-  position: absolute;
-  bottom: 16px;
-  left: 20px;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -490,9 +639,6 @@
   pointer-events: none;
 }
 .canvas-zoom {
-  position: absolute;
-  bottom: 12px;
-  right: 14px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -505,8 +651,8 @@
 .canvas-zoom button {
   border: 0;
   background: transparent;
-  width: 28px;
-  height: 27px;
+  width: 34px;
+  height: 32px;
   color: var(--muted);
   display: grid;
   place-items: center;
@@ -517,9 +663,6 @@
   text-align: center;
 }
 .canvas-mode {
-  position: absolute;
-  right: 16px;
-  top: 15px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -1254,7 +1397,7 @@
 }
 @media (min-width: 1600px) {
   .network-canvas {
-    height: 560px;
+    height: 680px;
   }
   .workspace-grid {
     grid-template-columns: minmax(0, 1fr) 370px;
@@ -1284,10 +1427,9 @@
     padding: 7px;
   }
   .network-canvas {
-    height: 400px;
+    height: 540px;
   }
   .canvas-hint {
-    max-width: 58%;
     line-height: 1.6;
   }
   .view-options > span {
@@ -1300,7 +1442,7 @@
     grid-template-columns: 1fr;
   }
   .playground-heading h1 {
-    font-size: 36px;
+    font-size: 28px;
   }
 }
 @media (max-width: 850px) {
@@ -1320,7 +1462,7 @@
     margin: auto;
   }
   .network-canvas {
-    height: 430px;
+    height: 540px;
   }
   .workspace-toolbar {
     flex-wrap: wrap;
@@ -1415,7 +1557,7 @@
     margin-left: 0;
   }
   .network-canvas {
-    height: 340px;
+    height: 520px;
   }
   .canvas-caption {
     left: 13px;
@@ -1546,14 +1688,12 @@
   }
 }
 .internet-toggle {
-  position: absolute;
-  top: 46px;
-  right: 16px;
+  min-height: 34px;
   border: 1px solid var(--line);
   background: #fffef9dd;
-  border-radius: 6px;
-  padding: 6px 9px;
-  font-size: 9px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
   color: var(--primary);
 }
 
@@ -1679,14 +1819,57 @@
 .network-device.is-dimmed {
   opacity: 0.42;
 }
+/* A prediction's devices stay clear, wherever the stage is. */
+.network-device.is-dimmed:is(.is-asking, .is-answer) {
+  opacity: 1;
+}
 .network-device.is-sender .device-tile {
   stroke: #b57729;
-  stroke-width: 3;
+  stroke-width: 4;
 }
 .network-device.is-receiver .device-tile {
   stroke: #357a60;
-  stroke-width: 3;
-  stroke-dasharray: 5 4;
+  stroke-width: 4;
+  stroke-dasharray: 6 4;
+}
+.device-shadow {
+  fill: #193a2d;
+  opacity: 0.07;
+}
+/* Playing, paused, complete, stopped or waiting for a prediction, before the position. */
+.playback-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: #e6ebe0;
+  color: #39463d;
+}
+.playback-state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.playback-state.is-playing {
+  background: #e3efe6;
+  color: #1f5a3f;
+}
+.playback-state.is-complete {
+  background: #e3efe6;
+  color: #246044;
+}
+.playback-state.is-stopped {
+  background: #f9e9e3;
+  color: #a0352c;
+}
+.playback-state.is-waiting {
+  background: #f9eed8;
+  color: #6d4510;
 }
 .network-wire.in-path {
   stroke: #6f9c84;
@@ -1699,22 +1882,15 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* The explanation of the current step: the panel's Now tab (under the diagram in missions). */
 .journey-card {
-  position: absolute;
-  left: var(--card-x, 16px);
-  top: var(--card-y, 56px);
-  z-index: 3;
-  width: min(330px, calc(100% - 32px));
-  max-height: var(--card-max, 440px);
-  overflow: auto;
+  position: static;
   padding: 13px 15px 10px;
-  background: #fffef9f5;
+  background: #fffef9;
   border: 1px solid var(--line);
   border-left: 4px solid var(--primary);
   border-radius: 12px;
-  box-shadow: 0 10px 28px #193a2d22;
   color: var(--ink-2);
-  visibility: hidden;
 }
 .journey-card.is-placed {
   visibility: visible;
@@ -2185,11 +2361,6 @@
 }
 /* Before the first run: the one action that starts the journey, at the top of the diagram, where it is seen first. */
 .network-canvas .journey-start {
-  position: absolute;
-  left: 50%;
-  top: 14px;
-  transform: translateX(-50%);
-  z-index: 2;
   min-height: 40px;
   padding: 9px 18px;
   box-shadow: 0 6px 18px #193a2d33;
@@ -2590,4 +2761,689 @@
   .layer-box.is-removed {
     animation: none;
   }
+}
+/* ---- Phase 4 diagram: what each device is, what it is doing, and where the message goes. ---- */
+/* On a narrow screen the diagram is arranged in rows and gets the height to show two or three of them. */
+.network-canvas.is-stacked {
+  height: min(74vh, 660px);
+}
+.is-stacked .device-name {
+  font-size: 15.5px;
+}
+.is-stacked .device-ip {
+  font-size: 12px;
+}
+/* Each kind of device has its own ink, for its drawing and the small label of its kind. */
+.network-device.kind-pc,
+.network-device.kind-phone {
+  color: #2f6c53;
+}
+.network-device.kind-switch {
+  color: #2d5f88;
+}
+.network-device.kind-router {
+  color: #6a4a8c;
+}
+.network-device.kind-ap {
+  color: #8a5a16;
+}
+.network-device.kind-server {
+  color: #7a4e2b;
+}
+.device-kind {
+  fill: currentColor;
+  font: 700 9px var(--font);
+  letter-spacing: 1px;
+}
+/* A ring around the tile says what the device does at this step; nothing flashes. */
+.device-ring {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 3;
+}
+.network-device.is-working .device-ring {
+  stroke: #1f5a3f;
+  stroke-dasharray: 7 5;
+}
+.network-device.is-sender .device-ring {
+  stroke: #b57729;
+}
+.network-device.is-receiver .device-ring {
+  stroke: #357a60;
+  stroke-dasharray: 6 5;
+}
+/* The receiver lights up when the frame arrives, at the end of its hop. */
+.network-device.is-receiver .device-tile {
+  animation: device-arrive 0.01s linear var(--arrive, 0ms) both;
+}
+@keyframes device-arrive {
+  to {
+    fill: #eef7f0;
+    stroke: #2a7a56;
+    stroke-width: 4;
+    stroke-dasharray: none;
+  }
+}
+.network-device.is-forwarding .device-ring {
+  stroke: #2d5f88;
+  stroke-width: 4;
+}
+.network-device.is-stopped .device-ring {
+  stroke: #b3261e;
+  stroke-width: 4;
+}
+.network-device.is-stopped .device-tile {
+  fill: #fff4f2;
+  stroke: #b3261e;
+}
+.network-device.is-discarded .device-ring {
+  stroke: #8a7957;
+  stroke-dasharray: 3 4;
+}
+@media (prefers-reduced-motion: reduce) {
+  .network-device.is-receiver .device-tile {
+    animation-delay: 0ms;
+  }
+}
+/* What the acting device is doing, under it: the step, and the decision the trace recorded. */
+.action-tag rect {
+  fill: #1a2721;
+}
+.action-tag.is-stopped rect {
+  fill: #a0352c;
+}
+.action-title {
+  fill: #fffef9;
+  font: 600 12.5px var(--font);
+}
+.action-detail {
+  fill: #cfe3d4;
+  font: 11.5px var(--mono);
+}
+/* The link a routing decision chose, before the frame is sent on it. */
+.network-wire.is-chosen {
+  stroke: #2a7a56;
+  stroke-width: 4;
+  stroke-dasharray: 8 6;
+}
+/* The link a frame was lost on. */
+.network-wire.active.is-lost {
+  stroke: #b3261e;
+  stroke-dasharray: 6 5;
+}
+.canvas-bar .journey-start {
+  order: 1;
+}
+/* No clear place on the diagram: the card waits under it rather than cover a device. */
+.journey-card.is-docked {
+  position: static;
+  width: auto;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  border-width: 1px 0 0 4px;
+  box-shadow: none;
+  visibility: visible;
+}
+@media (max-width: 500px) {
+  .canvas-bar {
+    padding: 8px 10px;
+  }
+  .canvas-caption > span:last-child {
+    display: none;
+  }
+  .canvas-foot .canvas-mode {
+    display: none;
+  }
+  .canvas-bar .journey-start {
+    order: 3;
+    width: 100%;
+  }
+}
+/* ---- The message as its layers (PR 3): one segment per recorded layer, outermost first. ---- */
+.packet-seg rect {
+  stroke: #fffef9;
+  stroke-width: 1.5;
+}
+/* Darker than the legend's layer colours, so white tags stay readable. */
+.packet-seg.layer-link rect {
+  fill: #2a6f67;
+}
+.packet-seg.layer-network rect {
+  fill: #3a6595;
+}
+.packet-seg.layer-transport rect {
+  fill: #654d97;
+}
+.packet-seg.layer-application rect {
+  fill: #8f5a17;
+}
+.packet-seg text {
+  fill: #fff;
+  font: 700 10.5px var(--mono);
+  pointer-events: none;
+}
+/* What this step did, timed by the step itself: a frame taken off leaves, a new one arrives, a changed header is outlined. */
+.packet-seg.is-gone {
+  animation: seg-leave var(--change, 500ms) ease-in forwards;
+}
+.packet-seg.is-added {
+  animation: seg-enter var(--change, 500ms) ease-out both;
+}
+.packet-seg.is-replaced rect {
+  animation: seg-swap var(--change, 500ms) ease-out both;
+}
+.packet-seg.is-changed rect {
+  stroke: #f2c94c;
+  stroke-width: 2.5;
+}
+@keyframes seg-leave {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translate(-6px, -18px);
+  }
+}
+@keyframes seg-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes seg-swap {
+  from {
+    fill: #fffef9;
+  }
+}
+.packet-note rect {
+  fill: #1a2721;
+}
+.packet-note text {
+  fill: #fffef9;
+  font: 600 10px var(--mono);
+}
+.packet-note {
+  animation: note-in var(--change, 500ms) ease-out both;
+}
+@keyframes note-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .packet-seg.is-gone,
+  .packet-seg.is-added,
+  .packet-seg.is-replaced rect,
+  .packet-note {
+    animation: none;
+  }
+}
+/* ---- The panel (PR 3): Now, Packet and Device beside the diagram, or straight under it on a narrow screen. ---- */
+@media (max-width: 850px) {
+  /* The stage's parts join the page grid so the panel can sit right under the diagram and its controls, before the
+     forms for sending and breaking things. */
+  .workspace-grid > .workspace-stage {
+    display: contents;
+  }
+  .workspace-stage > * {
+    order: 2;
+  }
+  .workspace-stage > .experiment-banner,
+  .workspace-stage > .journey-stage,
+  .workspace-stage > .exchange,
+  .workspace-stage > .exchange-loading {
+    order: 0;
+  }
+  .workspace-grid > .network-inspector {
+    order: 1;
+    min-width: 0;
+  }
+}
+.journey-where {
+  margin: 6px 0 0;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink);
+}
+.journey-next {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.state-heading {
+  font: normal 18px/1.2 var(--display);
+  margin: 18px 0 8px;
+  color: var(--ink);
+}
+/* The packet's short tags, as on the diagram, with their names (Now) and meanings (Packet). */
+.layer-chip {
+  display: inline-block;
+  padding: 0 5px;
+  border-radius: 4px;
+  font: 700 10.5px/1.6 var(--mono);
+  color: #fff;
+}
+.layer-chip.layer-link {
+  background: #2a6f67;
+}
+.layer-chip.layer-network {
+  background: #3a6595;
+}
+.layer-chip.layer-transport {
+  background: #654d97;
+}
+.layer-chip.layer-application {
+  background: #8f5a17;
+}
+.journey-carrying {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.packet-key {
+  margin: 0 0 16px;
+}
+.packet-key h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.packet-key ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.packet-key li {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+}
+.packet-key .layer-chip {
+  justify-self: start;
+}
+.packet-addresses {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffef9;
+}
+.packet-addresses h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.packet-addresses dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.packet-addresses dl > div {
+  display: grid;
+  gap: 1px;
+}
+.packet-addresses dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+.packet-addresses dd {
+  margin: 0;
+  font: 12px var(--mono);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* The track under the controls: stages over the timeline, then one lane per device with an arrow per link crossing. */
+.journey-controls .track {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  min-width: 0;
+}
+.track .timeline-slider {
+  width: 100%;
+  accent-color: var(--primary);
+  margin: 2px 0 0;
+}
+.track-band {
+  display: flex;
+  gap: 2px;
+  margin: 4px 0 6px;
+  height: 22px;
+}
+.track-stage {
+  min-width: 3px;
+  border-radius: 3px;
+  background: var(--line);
+  opacity: 0.55;
+  cursor: pointer;
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 22px;
+  padding: 0 4px;
+  color: #fff;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.track-stage b {
+  font-weight: 600;
+}
+.track-stage.is-past,
+.track-stage.is-current {
+  opacity: 1;
+}
+.track-stage.is-current {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+.track-stage.kind-ip {
+  background: #3a6595;
+}
+.track-stage.kind-arp {
+  background: #23675f;
+}
+.track-stage.kind-dhcp {
+  background: #8f5a17;
+}
+.track-stage.kind-stop {
+  background: var(--danger);
+}
+.track-stage.kind-none {
+  background: var(--muted);
+}
+/* A run that reaches many devices has many lanes: they scroll inside the track, never the page. */
+.track-lanes {
+  display: flex;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  max-height: 324px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.track-names {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line);
+}
+.track-names li {
+  display: flex;
+  align-items: center;
+}
+.track-names button {
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--muted);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 24px;
+}
+.track-names button.is-active {
+  color: var(--ink);
+  font-weight: 600;
+}
+.track-plot {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+.track-plot:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+.track-plot svg {
+  display: block;
+  cursor: pointer;
+}
+.track-lane {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.track-tick {
+  fill: var(--muted);
+}
+.track-arrow line {
+  stroke-width: 2;
+}
+.track-arrow.kind-ip {
+  --k: #3a6595;
+}
+.track-arrow.kind-arp {
+  --k: #23675f;
+}
+.track-arrow.kind-dhcp {
+  --k: #8f5a17;
+}
+.track-arrow line {
+  stroke: var(--k);
+}
+.track-arrow path,
+.track-arrow .track-origin {
+  fill: var(--k);
+  stroke: var(--k);
+}
+/* Broadcasts dashed; a device sending on what it received has a hollow origin; a lost frame ends in a red cross. */
+.track-arrow.is-broadcast line {
+  stroke-dasharray: 3 2;
+}
+.track-arrow.is-forwarded .track-origin {
+  fill: var(--surface);
+  stroke-width: 1.5;
+}
+.track-arrow.is-lost line {
+  stroke: var(--danger);
+}
+.track-arrow .track-lost {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2.5;
+}
+.track-resent {
+  fill: var(--k);
+  font: 700 11px var(--font);
+}
+.track-arrow.is-current line {
+  stroke-width: 4;
+}
+.track-mark circle {
+  fill: var(--surface);
+  stroke-width: 1.5;
+}
+.track-mark path {
+  fill: none;
+  stroke-width: 2;
+}
+.track-mark.is-delivered circle,
+.track-mark.is-delivered path {
+  stroke: var(--success);
+}
+.track-mark.is-discarded circle,
+.track-mark.is-discarded path {
+  stroke: var(--muted);
+}
+.track-mark.is-stopped circle,
+.track-mark.is-stopped path {
+  stroke: var(--danger);
+}
+.track-playhead {
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+.track-gate,
+.track-ahead {
+  fill: url(#track-hidden);
+}
+.track-hatch {
+  stroke: var(--line);
+  stroke-width: 3;
+}
+.track-gate-mark {
+  fill: var(--muted);
+  font: 700 16px var(--font);
+}
+.track-gate-text {
+  font-weight: 600;
+  color: var(--ink);
+}
+.track-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.track-range {
+  font-variant-numeric: tabular-nums;
+}
+.track-key {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.track-key i {
+  display: inline-block;
+  width: 16px;
+  height: 0;
+  border-top: 2px solid #3a6595;
+  position: relative;
+  margin-left: 4px;
+}
+.track-key .k-fwd::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -5px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid #3a6595;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.track-key .k-bc {
+  border-top-style: dashed;
+}
+.track-key .k-lost {
+  color: var(--danger);
+}
+.track-key .k-ok {
+  color: var(--success);
+}
+.track-foot .text-button {
+  margin-left: auto;
+  min-height: 32px;
+}
+.track-steps {
+  margin-top: 4px;
+}
+.track-steps > summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--primary);
+  padding: 6px 0;
+  min-height: 32px;
+}
+.track-steps[open] > :not(summary) {
+  max-height: 420px;
+  overflow-y: auto;
+}
+@container journey (max-width: 760px) {
+  .journey-controls .track {
+    order: 4;
+  }
+  /* On a phone the lanes scroll inside the track, never the page. */
+  .track-lanes {
+    max-height: 260px;
+    overflow-y: auto;
+  }
+}
+
+/* When a tap could mean several steps, they are listed to choose from: full-width rows, each a finger's height. */
+.track-choose {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.track-choose p {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.track-choose ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.track-choose li button {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--muted);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  text-align: left;
+}
+.track-choose li button.kind-ip {
+  border-left-color: #3a6595;
+}
+.track-choose li button.kind-arp {
+  border-left-color: #23675f;
+}
+.track-choose li button.kind-dhcp {
+  border-left-color: #8f5a17;
+}
+.track-choose > .text-button {
+  margin-top: 4px;
+  min-height: 36px;
+}
+
+/* Break and compare opens from the top of the lab, beside Predict as you go. */
+.compare-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffef9;
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a5a00;
+}
+.compare-switch.is-on {
+  border-color: #c99a1d;
+  background: #fff3c4;
+}
+.predict-switch.is-disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

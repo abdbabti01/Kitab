@@ -90,3 +90,82 @@
   border-radius: 6px;
   background: var(--danger-soft);
 }
+/* The switch sits at the top of the lab, in the diagram's bar, beside the layout and zoom controls. */
+.predict-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffef9;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  cursor: pointer;
+}
+.predict-switch input {
+  margin: 0;
+  accent-color: var(--primary);
+}
+.predict-switch.is-on {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+.predict-switch:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+/* The choices carry the letters the diagram shows on the devices they name. */
+.predict-letter {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #24302a;
+  color: #fff;
+  font: 700 11px var(--font);
+}
+.predict-option.is-chosen .predict-letter {
+  background: var(--primary);
+}
+.predict-card .predict-hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* On the diagram: "?" on the device that decides; a letter on each device that is a choice, filled once chosen. */
+.network-device.is-asking .device-ring {
+  stroke: #24302a;
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+.network-device.is-answer .device-ring {
+  stroke: #24302a;
+  stroke-width: 3;
+  stroke-dasharray: 5 4;
+}
+.network-device.is-answer.is-chosen .device-ring {
+  stroke: var(--primary);
+  stroke-width: 5;
+  stroke-dasharray: none;
+}
+.ask-badge circle,
+.answer-badge circle,
+.answer-badge rect {
+  fill: #24302a;
+  stroke: #fff;
+  stroke-width: 3;
+}
+.network-device.is-chosen .answer-badge circle {
+  fill: var(--primary);
+}
+.ask-badge text,
+.answer-badge text {
+  fill: #fff;
+  font: 700 19px var(--font);
+  pointer-events: none;
+}

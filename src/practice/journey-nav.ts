@@ -1,8 +1,8 @@
 // Pure parts of Follow the Journey: where Previous/Next go, and where the card is placed.
 import { stageAt, type Stage } from "./network/stages.ts";
 
-/** Exchange moves by stage like Summary and adds the sequence diagram under the controls. */
-export type JourneyMode = "summary" | "events" | "exchange";
+/** Summary moves a stage at a time, Every event one event at a time. (The exchange is the track, under both.) */
+export type JourneyMode = "summary" | "events";
 export const MODE_KEY = "kitab.network.journeyMode";
 export type Point = { x: number; y: number };
 
@@ -16,51 +16,4 @@ export function neighbours(mode: JourneyMode, stages: Stage[], index: number, la
     // Finish the current stage first if it is in progress.
     next: index < stages[k].end ? stages[k].end : (stages[k + 1]?.end ?? last),
   };
-}
-
-export type Rect = { x: number; y: number; w: number; h: number };
-/**
- * Picks where the card goes: beside the anchor device if that is clear, otherwise the nearest spot
- * on a coarse grid that covers none of the stage's devices and none of the canvas controls.
- */
-export function place(
-  anchor: Point,
-  box: { w: number; h: number },
-  area: { w: number; h: number },
-  avoid: Point[],
-  controls: Rect[],
-  /** Devices outside the stage: covering them is allowed, but they must stay clickable when possible. */
-  others: Point[] = [],
-  /** Pixels per diagram unit: device tiles shrink and grow with the canvas. */
-  scale = 1,
-): Point & { score: number } {
-  const gap = 66;
-  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-  const right = area.w - box.w - 8,
-    bottom = area.h - box.h - 8;
-  const grid = [0, 0.25, 0.5, 0.75, 1].flatMap((fx) => [0, 0.5, 1].map((fy) => ({ x: 8 + fx * (right - 8), y: 8 + fy * (bottom - 8) })));
-  const candidates = [
-    { x: anchor.x + gap, y: anchor.y - box.h / 2 },
-    { x: anchor.x - gap - box.w, y: anchor.y - box.h / 2 },
-    { x: anchor.x - box.w / 2, y: anchor.y + gap + 30 },
-    { x: anchor.x - box.w / 2, y: anchor.y - gap - box.h },
-    ...grid,
-  ].map((c) => ({ x: clamp(c.x, 8, right), y: clamp(c.y, 8, bottom) }));
-  // A device tile spans 60 units either side of its centre, 50 above it and 97 below (its name and address).
-  const covers = (c: Point, p: Point) =>
-    p.x + 60 * scale > c.x && p.x - 60 * scale < c.x + box.w && p.y + 97 * scale > c.y && p.y - 50 * scale < c.y + box.h;
-  const overlaps = (c: Point, r: Rect) => c.x < r.x + r.w && c.x + box.w > r.x && c.y < r.y + r.h && c.y + box.h > r.y;
-  // Beside the device wins whenever it is clear; grid spots are fallbacks, nearest first.
-  const score = (c: Point, i: number) =>
-    avoid.filter((p) => covers(c, p)).length * 10 +
-    others.filter((p) => covers(c, p)).length * 2 +
-    controls.filter((r) => overlaps(c, r)).length * 20 +
-    (covers(c, anchor) ? 50 : 0) +
-    (i >= 4 ? 1 : 0) +
-    Math.hypot(c.x - anchor.x, c.y - anchor.y) / 1000;
-  let best = 0;
-  candidates.forEach((c, i) => {
-    if (score(c, i) < score(candidates[best], best)) best = i;
-  });
-  return { ...candidates[best], score: score(candidates[best], best) };
 }

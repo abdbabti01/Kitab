@@ -6,10 +6,12 @@ import { NetworkCanvas } from "./NetworkCanvas.tsx";
 import { JourneyCard, JourneyControls } from "./Journey.tsx";
 import { DeviceCloseup } from "./PacketInspector.tsx";
 import { motionAt } from "./network/motion.ts";
+import { capsuleAt } from "./network/packets.ts";
 import type { Journey } from "./useJourney.ts";
 import type { DeviceKind, Network } from "./network/model.ts";
 
-// The sequence diagram is only downloaded when the learner picks the Exchange view.
+import { Track } from "./Track.tsx";
+// The full exchange table is only downloaded when the learner opens it.
 const ExchangeView = lazy(() => import("./ExchangeView.tsx"));
 
 export function JourneyStage({
@@ -24,12 +26,29 @@ export function JourneyStage({
   onInspect,
   advice = true,
   prompt,
-  options,
+  tools,
+  ask,
+  changed,
+  run,
+  marker,
+  explainBelow = false,
+  onPickStep,
 }: {
+  /** Break and compare: the changed devices on the diagram, which run the track shows, and its first difference. */
+  changed?: Parameters<typeof NetworkCanvas>[0]["changed"];
+  run?: Parameters<typeof Track>[0]["run"];
+  marker?: Parameters<typeof Track>[0]["marker"];
+  /** An open prediction question, drawn on the diagram (NetworkCanvas). */
+  ask?: Parameters<typeof NetworkCanvas>[0]["ask"];
+  /** A step was chosen from the track's list of steps (the playground then shows Now). */
+  onPickStep?: () => void;
+  /** Missions: the explanation sits under the diagram, because the side panel holds the mission itself. Elsewhere it
+   * is the panel's Now tab (NowCard). */
+  explainBelow?: boolean;
   /** Shown under the controls, e.g. a prediction question. */
   prompt?: ReactNode;
-  /** Extra view options, e.g. the Predict as you go switch. */
-  options?: ReactNode;
+  /** Controls for the top of the lab, in the diagram's bar, e.g. the Predict as you go switch. */
+  tools?: ReactNode;
   /** False in missions: failure advice is left for the learner to work out. */
   advice?: boolean;
   journey: Journey;
@@ -37,7 +56,7 @@ export function JourneyStage({
   selected: string;
   onSelect: (id: string) => void;
   onMove: (id: string, x: number, y: number) => void;
-  onAdd: (kind: DeviceKind, x: number, y: number) => void;
+  onAdd: (kind: DeviceKind, x?: number, y?: number) => void;
   /** The first-run button shown on the diagram before anything has been sent. */
   start?: { label: string; disabled: boolean; onClick: () => void };
   onAbout: (id: string) => void;
@@ -45,10 +64,13 @@ export function JourneyStage({
   onInspect: (scroll?: boolean) => void;
 }) {
   const [inside, setInside] = useState(false);
-  // A hop takes most of one playback step, so the frame arrives before the next event is shown.
+  // A hop takes most of its playback step, so the frame arrives before the next event is shown.
   const motion = useMemo(
-    () => (j.trace ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, 1100 / j.speed) * 0.8) } : undefined),
-    [j.trace, j.index, j.speed, network],
+    () =>
+      j.trace
+        ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, (j.durations[j.index] ?? 1100) / j.speed) * 0.8), capsule: capsuleAt(j.trace.events, j.index) }
+        : undefined,
+    [j.trace, j.index, j.speed, j.durations, network],
   );
   return (
     <>
@@ -58,23 +80,33 @@ export function JourneyStage({
           session={j.shownSession}
           event={j.event}
           focus={j.stage}
-          onPositions={j.setLayout}
           selected={selected}
           onSelect={onSelect}
           onMove={onMove}
           onAdd={onAdd}
           follow={j.follow}
           motion={motion}
+          ask={ask}
+          changed={changed}
           onPacket={() => {
             j.setPlaying(false);
             onInspect(true);
           }}
         >
           {!j.trace && start && (
-            <button className="button primary journey-start" disabled={start.disabled} onClick={start.onClick}>
+            <button
+              className="button primary journey-start"
+              disabled={start.disabled}
+              onClick={() => {
+                start.onClick();
+                // This button goes once the run starts: the focus moves to Pause, so playback can be stopped at once.
+                requestAnimationFrame(() => j.journeyRef.current?.querySelector<HTMLButtonElement>(".play-button")?.focus({ preventScroll: true }));
+              }}
+            >
               {start.label}
             </button>
           )}
+          {tools}
         </NetworkCanvas>
         <JourneyControls
           trace={j.trace}
@@ -90,39 +122,21 @@ export function JourneyStage({
           onSpeed={j.setSpeed}
           onShowStop={j.showStop}
           outcomeHidden={j.gated}
+          outcomeShown={j.revealed}
+          track={<Track journey={j} network={network} onDevice={onSelect} onInspect={() => onInspect(true)} onPickStep={onPickStep} run={run} marker={marker} />}
         />
         {prompt}
-        {j.trace && (
-          <JourneyCard
-            trace={j.trace}
-            stages={j.stages}
-            index={j.index}
-            mode={j.mode}
-            network={network}
-            playing={j.playing}
-            positions={j.positions}
-            scale={j.scale}
-            onAbout={(id) => {
-              j.setPlaying(false);
-              onAbout(id);
-            }}
-            open={j.cardOpen}
-            onOpen={j.setCardOpen}
-            onStep={j.step}
-            onInspect={() => onInspect(true)}
-            onReadDetails={() => j.setPlaying(false)}
-            advice={advice}
-          />
-        )}
+        {explainBelow && <NowCard journey={j} network={network} onAbout={onAbout} onInspect={() => onInspect(true)} advice={advice} />}
         <p className="sr-only" aria-live="polite">
           {j.announcement}
         </p>
       </div>
-      {/* Always mounted, so choosing Exchange (a transition) keeps the page as it is until the view has loaded. */}
+      {/* The full exchange table, on request under the track. Always mounted, so opening it (a transition) keeps the page
+          as it is until it has loaded. Like the track, it shows only what has happened until the result may be shown. */}
       <Suspense fallback={<p className="exchange-loading">Loading the exchange…</p>}>
-        {j.mode === "exchange" && j.trace && (
+        {j.fullExchange && j.trace && (
           <ExchangeView
-            trace={j.trace}
+            trace={j.revealed ? j.trace : { ...j.trace, events: j.trace.events.slice(0, j.index + 1) }}
             index={j.index}
             network={network}
             onSelect={(i) => {
@@ -130,12 +144,11 @@ export function JourneyStage({
               onInspect(false);
             }}
             onInspect={() => onInspect(true)}
-            partial={j.gated}
+            partial={j.gated || !j.revealed}
           />
         )}
       </Suspense>
       <div className="view-options">
-        {options}
         <label className="network-check">
           <input type="checkbox" checked={j.follow} onChange={(e) => j.setFollow(e.target.checked)} /> Zoom to the current stage
         </label>
@@ -148,5 +161,44 @@ export function JourneyStage({
       </div>
       {inside && <DeviceCloseup event={j.event} network={network} />}
     </>
+  );
+}
+
+/** The explanation of the current step, read from the one journey state: the panel's Now tab, or under the diagram. */
+export function NowCard({
+  journey: j,
+  network,
+  onAbout,
+  onInspect,
+  advice = true,
+}: {
+  journey: Journey;
+  network: Network;
+  onAbout: (id: string) => void;
+  onInspect: () => void;
+  advice?: boolean;
+}) {
+  if (!j.trace) return null;
+  return (
+    <JourneyCard
+      trace={j.trace}
+      stages={j.stages}
+      index={j.index}
+      mode={j.mode}
+      network={network}
+      playing={j.playing}
+      onAbout={(id) => {
+        j.setPlaying(false);
+        onAbout(id);
+      }}
+      open={j.cardOpen}
+      onOpen={j.setCardOpen}
+      onStep={j.step}
+      onInspect={onInspect}
+      onReadDetails={() => j.setPlaying(false)}
+      advice={advice}
+      beats={j.beats}
+      hiddenAfter={j.gated}
+    />
   );
 }

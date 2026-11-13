@@ -1,4 +1,4 @@
-import { useEffect, useState, useId } from "react";
+import { useEffect, useState, useId, type ReactNode } from "react";
 import { Cable, Info, Trash2, Wifi } from "lucide-react";
 import { deviceDescription, subnet } from "./network/topology.ts";
 import { effectiveInterface } from "./network/engine.ts";
@@ -51,7 +51,10 @@ export function DeviceInspector({
   onDisconnect,
   events,
   index,
+  state,
 }: {
+  /** The device's tables at this step (interfaces, ARP, routes…), shown between its role and its settings. */
+  state?: ReactNode;
   /** The current run, if any: the inspector then explains this device's part in it. */
   events?: TraceEvent[];
   index?: number;
@@ -113,6 +116,8 @@ export function DeviceInspector({
         <p>{deviceDescription(device)}</p>
       </div>
       {events?.length ? <DeviceRole device={device} network={network} events={events} index={index ?? 0} /> : null}
+      {state}
+      <h3 className="state-heading">Settings</h3>
       <form
         onSubmit={(e) => {
           e.preventDefault();

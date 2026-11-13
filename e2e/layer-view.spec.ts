@@ -1,9 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
+import { toLast, openSteps } from "./track.ts";
 
 /** Shows every event, then selects one from the Steps tab by its accessible name. */
 async function goToEvent(page: Page, name: RegExp) {
   await page.getByRole("radio", { name: "Every event" }).click();
-  await page.getByRole("button", { name: "Steps", exact: true }).click();
+  await toLast(page);
+  await openSteps(page);
   await page.locator(".event-list").getByRole("button", { name }).first().click();
 }
 const view = (page: Page) => page.getByRole("region", { name: "Layers at this step" });

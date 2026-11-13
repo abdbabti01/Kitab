@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { scenarios } from "./support/network-scenarios.ts";
 import { stagesOf } from "../src/practice/network/stages.ts";
-import { neighbours, place } from "../src/practice/journey-nav.ts";
+import { neighbours } from "../src/practice/journey-nav.ts";
 
 const s = scenarios().find((x) => x.name === "internet: HTTP by name")!;
 const stages = stagesOf(s.trace.events, s.network);
@@ -26,22 +26,3 @@ test("Summary moves by stage end, Every event by one event, both on the one even
   assert.deepEqual(neighbours("summary", [], 0, 0), { prev: 0, next: 0 });
 });
 
-test("the card is placed beside its device when that is clear, and never over a stage device when another spot is", () => {
-  const box = { w: 300, h: 200 }, area = { w: 1000, h: 480 };
-  const beside = place({ x: 100, y: 240 }, box, area, [], []);
-  assert.deepEqual([beside.x, beside.y], [166, 140]);
-  assert.ok(beside.score < 1, "nothing covered");
-  // A device tile reaches 60 units sideways, 50 up and 97 down (its name): the card covers none of it.
-  const tile = (p: { x: number; y: number }, c: { x: number; y: number }) =>
-    p.x + 60 > c.x && p.x - 60 < c.x + box.w && p.y + 97 > c.y && p.y - 50 < c.y + box.h;
-  const spot = place({ x: 100, y: 240 }, box, area, [{ x: 250, y: 240 }], []);
-  assert.ok(!tile({ x: 250, y: 240 }, spot));
-  assert.ok(spot.score < 10);
-  // Regression: a card just below a device must not cover its name.
-  const below = place({ x: 500, y: 100 }, box, { w: 1000, h: 330 }, [{ x: 500, y: 100 }], []);
-  assert.ok(!tile({ x: 500, y: 100 }, below), "the device's name and address stay visible");
-  // Canvas controls stay uncovered.
-  const zoom = { x: 860, y: 430, w: 130, h: 40 };
-  const away = place({ x: 900, y: 300 }, box, area, [], [zoom]);
-  assert.ok(away.x + box.w <= zoom.x || away.y + box.h <= zoom.y || away.x >= zoom.x + zoom.w);
-});
