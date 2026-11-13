@@ -4,7 +4,7 @@ import type { Route } from "./routes.ts";
 
 const sections = [
   { id: "path", label: "Learn", routes: ["lesson"] },
-  { id: "missions", label: "Practice", routes: ["mission", "network-practice", "network-missions", "network-mission", "access-explorer"] },
+  { id: "missions", label: "Practice", routes: ["mission", "network-practice", "network-missions", "network-mission", "access-explorer", "subnet-explorer"] },
   { id: "concepts", label: "Concepts", routes: ["concept", "draft"] },
 ];
 

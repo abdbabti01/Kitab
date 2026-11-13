@@ -10,6 +10,7 @@ import { linkProps, useRoute } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
 
 const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(m => ({default:m.AccessExplorer})));
+const SubnetExplorer = lazy(() => import("../practice/SubnetExplorer.tsx").then(m => ({default:m.SubnetExplorer})));
 const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
 const NetworkMissionsIndex = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionsIndex })));
@@ -35,6 +36,7 @@ export function App() {
   let view;
   if (route.name === "home") view = <Home />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
+  else if (route.name === "subnet-explorer") view = <SubnetExplorer />;
   // Keyed by the query, so moving between path starters (?starter=lan → ?starter=wifi) opens the new one.
   else if (route.name === "network-practice") view = <NetworkPlayground key={window.location.search} />;
   else if (route.name === "network-missions") {
