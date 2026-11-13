@@ -177,11 +177,66 @@ test("address bits flip by pointer, touch and keyboard, change only the address,
   // Flipping a network bit moves to another block; the prefix and mask don't change.
   await expect(page.getByLabel("Subnet mask")).toHaveValue("255.255.255.0");
 
-  // Two octets per row at every width, every bit at least 44px tall, and nothing overflows.
-  const boxes = await bits.evaluateAll((els) => els.map((el) => el.getBoundingClientRect()).map((r) => ({ top: Math.round(r.top), h: r.height })));
-  expect(new Set(boxes.map((b) => b.top)).size).toBe(2);
-  expect(Math.min(...boxes.map((b) => b.h))).toBeGreaterThanOrEqual(44);
   expect(await fits(page)).toBe(true);
+});
+
+/** Rows of address bits as laid out on screen, and the smallest bit. */
+async function bitLayout(page: Page) {
+  const bits = page.getByRole("group", { name: /Address bits of/ }).getByRole("button");
+  await expect(bits).toHaveCount(32);
+  const boxes = await bits.evaluateAll((els) =>
+    els.map((el) => el.getBoundingClientRect()).map((r) => ({ top: Math.round(r.top), w: r.width, h: r.height })),
+  );
+  const rows = [...new Set(boxes.map((b) => b.top))];
+  return { rows: rows.map((top) => boxes.filter((b) => b.top === top).length), w: Math.min(...boxes.map((b) => b.w)), h: Math.min(...boxes.map((b) => b.h)) };
+}
+
+test("phones show one octet per row with 44 × 44 bits; wider screens keep two octets per row", async ({ page }) => {
+  await open(page, "?ip=10.20.30.77&prefix=28");
+  const phone = page.viewportSize()!.width <= 600,
+    layout = await bitLayout(page);
+  expect(layout.rows).toEqual(phone ? [8, 8, 8, 8] : [16, 16]);
+  expect(layout.h).toBeGreaterThanOrEqual(44);
+  expect(layout.w).toBeGreaterThanOrEqual(phone ? 44 : 24);
+
+  // The bits still spell the address, highlighting still follows the prefix, and every label matches its bit.
+  const bits = page.getByRole("group", { name: /Address bits of/ }).getByRole("button");
+  const state = await bits.evaluateAll((els) => els.map((el) => ({ on: el.getAttribute("aria-pressed") === "true", text: el.textContent, network: el.classList.contains("is-network"), edge: el.classList.contains("is-edge"), label: el.getAttribute("aria-label")! })));
+  const binary = state.map((b) => (b.on ? "1" : "0")).join("");
+  expect(state.map((b) => b.text).join("")).toBe(binary);
+  expect([0, 8, 16, 24].map((s) => parseInt(binary.slice(s, s + 8), 2)).join(".")).toBe("10.20.30.77");
+  expect(state.map((b) => b.network)).toEqual(state.map((_, i) => i < 28));
+  expect(state.findIndex((b) => b.edge)).toBe(28);
+  state.forEach((b, i) => expect(b.label).toBe(`Bit ${i + 1} of 32, ${i < 28 ? "network" : "host"} bit, place value ${2 ** (7 - (i % 8))} in octet ${Math.floor(i / 8) + 1}`));
+  await expect(page.locator(".subnet-octet-value")).toHaveText(["10", "20", "30", "77"]);
+
+  // Down moves one visual row: the next octet on phones, two octets on wider screens.
+  await page.getByRole("button", { name: /^Bit 1 of 32/ }).focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("button", { name: new RegExp(`^Bit ${phone ? 9 : 17} of 32`) })).toBeFocused();
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("button", { name: /^Bit 1 of 32/ })).toBeFocused();
+  // Flipping a bit in the new layout changes the address and nothing else; prediction resets for the new address.
+  await press(page.getByRole("button", { name: /^Bit 32 of 32/ }));
+  await expect(page.getByLabel("IPv4 address")).toHaveValue("10.20.30.76");
+  await expect(page.locator(".subnet-prompt")).toHaveText("What is the network address of 10.20.30.76/28?");
+  await press(choice(page, "10.20.30.64"));
+  await expect(page.locator("#subnet-feedback")).toContainText("Right. Clearing the 4 host bits of 10.20.30.76 gives 10.20.30.64");
+  expect(await fits(page)).toBe(true);
+});
+
+test("the bit layout holds across phone widths: 44 × 44 from 390px, smaller but never overflowing below", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-390", "phone widths only");
+  await open(page, "?ip=255.255.255.255&prefix=17");
+  for (const width of [320, 360, 375, 390, 414, 430, 600, 601]) {
+    await page.setViewportSize({ width, height: 844 });
+    const layout = await bitLayout(page);
+    expect(layout.rows, `${width}px`).toEqual(width <= 600 ? [8, 8, 8, 8] : [16, 16]);
+    expect(layout.h, `${width}px`).toBeGreaterThanOrEqual(44);
+    if (width >= 390 && width <= 600) expect(layout.w, `${width}px`).toBeGreaterThanOrEqual(44);
+    else expect(layout.w, `${width}px`).toBeGreaterThanOrEqual(width <= 600 ? 34 : 24);
+    expect(await fits(page), `${width}px`).toBe(true);
+  }
 });
 
 test("the explorer writes nothing to storage, runs no animations with reduced motion, and leaves no dangling references", async ({ page }) => {

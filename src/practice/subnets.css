@@ -24,7 +24,7 @@
 .subnet-help { color: var(--ink-2); font-size: 0.92rem; }
 .subnet-rowlabel { display: flex; justify-content: space-between; gap: 8px; font-size: 0.86rem; color: var(--muted); margin: 12px 0 4px; }
 .subnet-rowlabel code { font: 600 0.92rem var(--mono); color: var(--ink); overflow-wrap: anywhere; text-align: right; }
-/* Two octets per row at every width, so each bit can stay 44px tall and as wide as the column allows. */
+/* Two octets per row on wider screens; one per row on phones (below). Every bit is at least 44px tall. */
 .subnet-bits { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 8px; }
 .subnet-octet { min-width: 0; }
 .subnet-octet-bits { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
@@ -88,6 +88,12 @@ button.subnet-bit { cursor: pointer; }
   .subnet-bit { font-size: 0.92rem; }
   .subnet-and { grid-template-columns: 1fr; }
   .subnet-and dd { margin-bottom: 4px; }
+}
+/* Phones: one octet per row. The rows reach into the card's padding, so at 390px each bit is 44 × 44; narrower
+   phones shrink them rather than overflow. Keep the width in step with ONE_OCTET_PER_ROW in SubnetExplorer.tsx. */
+@media (max-width: 600px) {
+  .subnet-bits { grid-template-columns: minmax(0, 1fr); gap: 4px; margin-inline: -17px; }
+  .subnet-bits.is-mask .subnet-bit { min-height: 28px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .subnet-page * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }

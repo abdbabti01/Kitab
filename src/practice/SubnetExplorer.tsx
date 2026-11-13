@@ -19,6 +19,8 @@ import { linkProps } from "../app/router.ts";
 import "./subnets.css";
 
 const count = (n: number) => n.toLocaleString("en");
+/** Matches the phone layout in subnets.css, where the address bits show one octet per row. */
+const ONE_OCTET_PER_ROW = "(max-width: 600px)";
 function problem(read: () => unknown) {
   try {
     read();
@@ -181,7 +183,9 @@ export function BitStrip({ address, prefix, onAddress }: { address: string | nul
     onAddress(next, `Bit ${i + 1} is now ${on ? 0 : 1}. The address is ${formatAddress(next)}; the prefix is still /${prefix}.`);
   };
   const move = (event: KeyboardEvent, i: number) => {
-    const to = { ArrowRight: i + 1, ArrowDown: i + 8, ArrowLeft: i - 1, ArrowUp: i - 8, Home: 0, End: 31 }[event.key];
+    // Up and Down move a visual row: one octet on phones, two octets on wider screens.
+    const row = window.matchMedia(ONE_OCTET_PER_ROW).matches ? 8 : 16,
+      to = { ArrowRight: i + 1, ArrowDown: i + row, ArrowLeft: i - 1, ArrowUp: i - row, Home: 0, End: 31 }[event.key];
     if (to === undefined) return;
     event.preventDefault();
     const target = Math.max(0, Math.min(31, to));
