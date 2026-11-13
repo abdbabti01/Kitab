@@ -93,8 +93,8 @@ export function packetNumber(events: TraceEvent[], packet: string | undefined) {
 type Gloss = { meaning: string; source?: string; simplified?: string };
 // What each field means. Every field name the engine emits has an entry (tested).
 export const glossary: Record<string, Gloss> = {
-  "Source MAC": { meaning: "The link-layer address of the interface that sent this frame on this link.", source: "IEEE 802.3" },
-  "Destination MAC": { meaning: "The link-layer address of the next device on this link, or ff:ff:ff:ff:ff:ff for everyone on the LAN.", source: "IEEE 802.3" },
+  "Source MAC": { meaning: "The link-layer address of the interface that built this frame. Switches and access points pass it on unchanged.", source: "IEEE 802.3; IEEE 802.11" },
+  "Destination MAC": { meaning: "The link-layer address of the interface this frame is for on this LAN: the next IP hop (the destination itself, or the router that forwards the packet on), or ff:ff:ff:ff:ff:ff for everyone on the LAN. Switches and access points pass the frame along without being its destination.", source: "IEEE 802.3; IEEE 802.11" },
   Carries: { meaning: "The EtherType: which protocol is inside the frame. 0x0800 means IPv4 and 0x0806 means ARP.", source: "IEEE EtherType registry; RFC 826" },
   Medium: { meaning: "Lab context: the kind of link. It is not a header field." },
   "Outgoing port": { meaning: "Lab context: the interface the frame leaves from. It is not a header field." },

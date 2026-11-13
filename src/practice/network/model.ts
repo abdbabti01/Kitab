@@ -113,11 +113,13 @@ export type FailureReason =
   | "DUPLICATE_IP" // two interfaces on one LAN use the same address
   | "ARP_NO_OWNER" // no device uses the next-hop address
   | "ARP_NO_PATH" // a device uses it, but no link-layer path reaches it
+  | "ARP_STALE" // a cached ARP entry sent the frame to a MAC that no longer belongs to the next hop
   | "SWITCH_STALE_MAC" // a switch's MAC table points to a port that no longer leads there
   // Routing
   | "NO_GATEWAY" // a host's destination is outside its subnets and it has no gateway
   | "GATEWAY_NOT_LOCAL" // a host's gateway is outside its own subnet
   | "ROUTER_NO_ROUTE" // a router has no matching route
+  | "ROUTE_UNUSABLE" // a static route matches, but its next hop or interface cannot be used, and nothing else matches
   | "NO_ROUTE_PRIVATE" // a router outside a private network has no route to a private address
   | "NOT_A_ROUTER" // a host received a packet for another address
   | "TTL_EXPIRED" // the hop limit reached zero
@@ -181,7 +183,14 @@ export type TraceEvent = {
   /** Which link-layer frame: a new number for every transmission on every link, so broadcast copies differ. */
   frame?: number;
   // Teaching context, not fields transmitted inside a packet. Device IDs stay unambiguous.
-  dhcpContext?: { client: string; server: string };
+  dhcpContext?: {
+    client: string;
+    server: string;
+    /** Other enabled DHCP servers on the client's LAN that could offer an address. A real network would hear from them too; the lab follows one. */
+    others?: string[];
+    /** Enabled DHCP servers on the client's LAN with no address to offer it. They stay silent, as real servers do. */
+    silent?: string[];
+  };
 };
 export type Action = {
   kind: "dhcp" | "ping" | "http";

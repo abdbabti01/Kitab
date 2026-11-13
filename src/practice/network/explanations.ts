@@ -38,7 +38,7 @@ const lessons: Record<string, Lesson> = {
   ),
   "ARP cache hit": lesson(
     "The sender already remembers a MAC address for this next-hop IP. It can reuse that mapping instead of asking the LAN again.",
-    "No new ARP broadcast is needed. The simulator still checks that a physical path exists.",
+    "No ARP request is sent. The frame is addressed to the cached MAC, even if that mapping has gone out of date.",
     "An ARP cache is a local table of IP-to-MAC mappings. A saved mapping cannot repair a disconnected cable.",
   ),
   "Save ARP mapping": lesson(
@@ -112,7 +112,7 @@ const lessons: Record<string, Lesson> = {
     "Flooding an unknown unicast does not turn it into a broadcast: the destination MAC remains unchanged.",
   ),
   "Discard frame for another MAC": lesson(
-    "A flooded copy reached this device, but the destination MAC belongs to someone else.",
+    "A frame for another MAC address reached this device, usually a copy that a switch flooded.",
     "The interface discards this copy. It does not pass it to IP or send an application response.",
     "Being physically connected to the same switch does not make every message yours.",
   ),
@@ -224,7 +224,7 @@ const lessons: Record<string, Lesson> = {
   "DHCP lease expired": lesson(
     "The permitted time for this leased IP address has ended.",
     "The expired assignment is removed. Run DHCP again to obtain valid settings before sending more traffic.",
-    "Real DHCP clients normally try to renew before expiry. This simulation uses the DHCP action for renewal.",
+    "Real DHCP clients renew before expiry: at T1, usually 50% of the lease time, they ask their server, and at T2, usually 87.5%, any server. This lab does not renew by itself; a lease is renewed only when you run DHCP again.",
   ),
 };
 
@@ -236,8 +236,8 @@ const dhcpLessons: Record<string, Lesson> = {
   ),
   Offer: lesson(
     "The DHCP server proposes an available address. It responds because its DHCP service is enabled, not simply because it is a router.",
-    "The requesting client can choose the offer. The address is not yet confirmed for use.",
-    "A home router often runs DHCP, but a separate server can provide the same service. This simulator chooses one reachable DHCP server.",
+    "The requesting client can accept the offer. The address is not yet confirmed for use.",
+    "A home router often runs DHCP, but a separate server can provide the same service. This lab follows a single exchange: the first server it finds that has an address to offer. On a real network every server with a free address sends its own Offer, and the client usually takes the first to arrive; a server with nothing to offer stays silent.",
   ),
   Request: lesson(
     "The client asks to use the offered address and announces which offer it selected.",
@@ -359,11 +359,19 @@ export const failures: Record<FailureReason, FailureInfo> = {
   ),
   ARP_NO_PATH: failure(
     "The next hop cannot be reached on this LAN",
-    "A device does use the next-hop address, but the ARP broadcast cannot reach it at the link layer, so it never hears the question.",
+    "A device does use the next-hop address, but no working link-layer path reaches it, so neither an ARP request nor a frame from the sender's ARP cache can get there.",
     "An ARP broadcast stays on one LAN: it crosses cables, switches and joined Wi-Fi, but not routers.",
     "RFC 826",
     "Follow the cables and Wi-Fi links between the two devices, and check whether a router separates them.",
     `A real sender retries ARP a few times before giving up. ${noIcmpUnreachable}`,
+  ),
+  ARP_STALE: failure(
+    "An out-of-date ARP cache entry",
+    "The sender took the next hop's MAC address from its ARP cache, but that mapping is out of date: the IP address now belongs to another interface, or no interface on the LAN has that MAC any more. The frame went where the MAC led, not to the device that uses the IP address now.",
+    "While an ARP cache entry is valid, the host addresses frames with its MAC and sends no new ARP request. Ethernet delivers by MAC address, and a host discards a packet that is not addressed to one of its own IP addresses.",
+    "RFC 826; RFC 1122 §2.3.2.1, §3.2.1.3",
+    "Open the sender's ARP cache in the Tables tab and compare the entry with the MAC address of the device that uses that IP address now.",
+    "Real ARP entries expire after a few minutes, and many hosts re-check an entry that stops working, then ask again with ARP. This lab keeps entries for the session; restarting the simulation clears every ARP cache.",
   ),
   SWITCH_STALE_MAC: failure(
     "A switch remembers the wrong port",
@@ -394,6 +402,14 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "RFC 1812 §5.2.4.3",
     "Open the router's routing table in the Tables tab.",
     noIcmpUnreachable,
+  ),
+  ROUTE_UNUSABLE: failure(
+    "A matching route cannot be used",
+    "A route in the device's table matches the destination, but it cannot carry the packet: its next hop is not on the network of the interface it names, or that interface is turned off or has no address. No other route matches.",
+    "A next hop must be reachable directly: an address on the network of the outgoing interface, and that interface must be up. A route that fails this is not used.",
+    "RFC 1122 §3.3.1",
+    "Open the routing table in the Tables tab: the route is marked inactive. Compare its next hop with the address and prefix of its interface.",
+    `Real routers refuse such a route, or use it only when another route leads to its next hop; this lab lists it as inactive. ${noIcmpUnreachable}`,
   ),
   NO_ROUTE_PRIVATE: failure(
     "No route to a private address",
@@ -447,7 +463,7 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "The client broadcasts DHCPDISCOVER on its local network. Without a relay agent, it does not reach servers on other networks.",
     "RFC 2131 §3.1",
     "Which device should run DHCP on this LAN, and is it enabled on the right interface?",
-    "This lab stops before sending the Discover. A real client would broadcast it, retry, and eventually give up. DHCP relays are not modeled.",
+    "A real client repeats the Discover a few times before giving up; this lab sends it once. DHCP relays are not modeled.",
   ),
   DHCP_POOL_INVALID: failure(
     "DHCP pool range is invalid",
@@ -469,8 +485,8 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "The sender's address was leased for a limited time, and the lease ended during this transfer, so it may no longer use that address.",
     "When a lease expires without renewal, the client must immediately stop using the address and start DHCP again.",
     "RFC 2131 §4.4.5",
-    "Look at the lease time on the DHCP server and the length of the transfer.",
-    "A real client tries to renew at half the lease time. This lab renews only when you run DHCP.",
+    "Compare the lease time on the DHCP server with when the sender last ran DHCP.",
+    "A real client renews long before this: at T1, usually 50% of the lease time, it asks its server to extend the lease, and at T2, usually 87.5%, it asks any server (rebinding); servers can set other times. So a real lease normally lapses only when no server can be reached. This lab does not renew by itself: a lease is renewed only when you run DHCP again.",
   ),
   DNS_NOT_CONFIGURED: failure(
     "No DNS server set",
@@ -499,14 +515,15 @@ export const failures: Record<FailureReason, FailureInfo> = {
     "An address only identifies an interface; a service must be running there to answer. DNS queries go to UDP port 53. In this lab a device runs DNS when it has at least one DNS record.",
     "RFC 1035 §4.2.1",
     "Is the client's DNS server setting the address of a DNS server?",
-    "A real host usually answers with an ICMP Port Unreachable error, which is not modeled.",
+    "A real host usually answers with an ICMP Port Unreachable error, which is not modeled. In this lab any device with at least one DNS record runs DNS; a real device runs it only when a DNS service is installed and started.",
   ),
   DNS_NO_RECORD: failure(
     "The name does not exist",
-    "A working DNS server received the question and answered: it has no A record for this name (NXDOMAIN).",
+    "The device at the client's DNS server address received the question and answered: it has no A record for this name (NXDOMAIN).",
     "Reaching a DNS server is not enough; it must have a record for the exact name. NXDOMAIN is the Name Error response code.",
     "RFC 1035 §4.1.1",
     "Check the spelling of the name, and the records on that DNS server.",
+    "In this lab any device with at least one DNS record answers DNS queries, and it answers only from its own records. A real device answers only if a DNS service is installed and running, and a real resolver may ask other DNS servers about names it does not hold, so NXDOMAIN there means the name exists nowhere.",
   ),
   DNS_REPLY_UNREACHABLE: failure(
     "The DNS answer could not come back",
@@ -664,7 +681,21 @@ export function explainStep(
                   : "Its DHCP server can confirm the requested lease.",
                 "The service could run on a router or a separate server. Being a router alone is not enough; DHCP must be enabled.",
               )
-            : lesson(
+            : event.dhcpContext.silent?.includes(event.actor)
+              ? lesson(
+                  `${name} received a copy of this broadcast. It runs a DHCP server, but it has no address it can offer on this network, so it stays silent and sends no Offer.`,
+                  "Nothing changes on this device; the exchange continues with another server.",
+                  "A DHCP server with no free address for the client's network does not answer (RFC 2131 §4.3.1). The client is not told why; it simply never hears from that server.",
+                )
+            : event.dhcpContext.others?.includes(event.actor)
+              ? lesson(
+                  `${name} received a copy of this broadcast, and it also runs a DHCP server on this LAN. On a real network it would ${phase === "Discover" ? "answer with an Offer of its own" : "see that the client chose another server's offer"}. This lab follows one server's exchange, ${deviceName(server)}'s${phase === "Discover" ? `, so ${name}'s Offer is not shown` : ""}.`,
+                  phase === "Discover"
+                    ? "Only one Offer appears in this run, although two servers could answer."
+                    : "On a real network the Request names the chosen server, so every other server learns that its offer was declined. This lab does not show that field.",
+                  "With two DHCP servers on one LAN, a client usually accepts the first Offer to arrive, and its broadcast Request tells the other servers that their offers were declined. That is how an unauthorized (rogue) DHCP server can hand out wrong settings.",
+                )
+              : lesson(
                 `${name} received a copy because this is a broadcast to the local LAN. It is not the DHCP server handling this exchange, so it does not answer.`,
                 "This device does not assign an address or change its own IP settings.",
                 "Every reachable local device may see a broadcast, but only the relevant service processes it. This model chooses one DHCP server even if more than one is enabled.",

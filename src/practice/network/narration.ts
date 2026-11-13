@@ -23,6 +23,8 @@ type Ctx = {
   dn: (id: string) => string;
   /** The device that uses an address at this step, by name. */
   who: (ip: unknown) => string;
+  /** The device that has a MAC address, by name. */
+  macOwner: (mac: unknown) => string;
   /** " (Device name)", or a note that no device uses the address. */
   owner: (ip: unknown) => string;
   f: Record<string, string | number>;
@@ -83,7 +85,7 @@ const real: Record<string, string> = {
   "DHCP Offer": "Real servers often send the Offer by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "DHCP ACK": "Real servers often send the ACK by unicast unless the client sets the broadcast flag (RFC 2131 §4.1). This lab broadcasts every server reply.",
   "Apply DHCP lease": "A real client should first check with ARP that nobody else uses the address (RFC 2131 §3.1). This lab skips that check.",
-  "DHCP lease expired": "A real client tries to renew at half the lease time; this lab renews only when you run DHCP.",
+  "DHCP lease expired": "A real client asks its server to renew at T1, usually 50% of the lease time, and asks any server (rebinding) at T2, usually 87.5%, so a lease normally lapses only when no server answers. This lab does not renew by itself: a lease is renewed only when you run DHCP again.",
   "DNS cache hit": "This lab keeps answers for the whole session; a real cache drops them when the record's TTL runs out.",
   "Save ARP mapping": "Real ARP entries expire after a while; this lab keeps them for the session.",
   "Learn source MAC": "Real switches forget entries after an ageing time (300 seconds by default); this lab keeps them for the session.",
@@ -112,8 +114,12 @@ function summarize(c: Ctx): string {
         ? `${name} is still on the Wi-Fi network “${f.SSID}” at ${f["Access point"]}; the lab checks the network name and passphrase again at the start of each run. ${name} keeps ${lease.ip} from its DHCP lease.`
         : `${name} joins the Wi-Fi network “${f.SSID}” at ${f["Access point"]}. It now has a wireless link, but no IP settings from it.`;
     }
-    case "DHCP Discover":
-      return `${name} has no IP address yet, so it broadcasts a DHCP Discover to its whole LAN, asking any DHCP server to answer.`;
+    case "DHCP Discover": {
+      const lease = heldLease(e);
+      return lease
+        ? `${name} already holds ${lease.ip} from its DHCP lease. A real client would renew it by asking its server directly; this lab repeats the whole exchange, starting with a DHCP Discover broadcast to its LAN.`
+        : `${name} has no IP address yet, so it broadcasts a DHCP Discover to its whole LAN, asking any DHCP server to answer.`;
+    }
     case "DHCP Offer":
       return `${name}'s DHCP server offers ${dhcp?.payload} to ${dn(e.dhcpContext?.client ?? "")}. The client may not use it yet.`;
     case "DHCP Request":
@@ -149,15 +155,25 @@ function summarize(c: Ctx): string {
       return `${name} knows the next hop is ${asked}, but not its MAC address, so it broadcasts “Who has ${asked}?” to its LAN.`;
     }
     case "ARP cache hit":
-      return `${name} already knows ${f.IP} is at ${f.MAC}, so it does not need ARP.`;
+      return `${name} has ${f.IP} → ${f.MAC} in its ARP cache, so it sends no ARP request and uses that MAC address.`;
     case "ARP reply":
       return `${name} owns ${field("ARP reply", "Sender IP")}, so it answers ${who(field("ARP reply", "Target IP")) || field("ARP reply", "Target IP")} directly: “${field("ARP reply", "Sender IP")} is at ${field("ARP reply", "Sender MAC")}.”`;
     case "Save ARP mapping":
       return `${name} saves ${f.IP} → ${f.MAC} in its ARP cache.`;
-    case "Wrap in a link frame":
+    case "Wrap in a link frame": {
+      // The frame goes to whoever has the MAC; with an out-of-date ARP entry that is not who uses the next-hop IP.
+      const mac = f["Next-hop MAC"],
+        holder = c.macOwner(mac),
+        user = who(f["Next hop"]);
+      const to = holder ? `the MAC address of ${holder}, ${mac}` : `${mac}, a MAC address no device in this network has`;
+      const stale =
+        holder === user
+          ? ""
+          : ` ${name}'s ARP cache maps ${f["Next hop"]} to that MAC, but ${user ? `${user} uses ${f["Next hop"]} now` : `no device uses ${f["Next hop"]} now`}: the entry is out of date.`;
       return f["Next hop"] === f.Destination
-        ? `${name} puts the packet in a frame addressed to the MAC address of ${who(f.Destination)}, ${f["Next-hop MAC"]}.`
-        : `${name} puts the packet in a frame addressed to the MAC address of ${who(f["Next hop"])}, ${f["Next-hop MAC"]}. The frame goes to the next hop; the packet inside is still addressed to ${f.Destination}.`;
+        ? `${name} puts the packet in a frame addressed to ${to}.${stale}`
+        : `${name} puts the packet in a frame addressed to ${to}. The frame goes to the next hop; the packet inside is still addressed to ${f.Destination}.${stale}`;
+    }
     case "Transmit over Ethernet":
     case "Transmit over Wi-Fi":
       return `${dn(e.hop!.from)} sends the frame to ${dn(e.hop!.to)} over ${e.title.endsWith("Wi-Fi") ? "Wi-Fi" : "an Ethernet cable"}${dstMac === "ff:ff:ff:ff:ff:ff" ? ". It is a broadcast: every device on this LAN gets a copy." : "."}`;
@@ -181,13 +197,19 @@ function summarize(c: Ctx): string {
         const toServer = phase === "Discover" || phase === "Request";
         if (toServer && e.actor === server) return `${name} receives the DHCP ${phase} and runs the DHCP server, so it will answer.`;
         if (!toServer && e.actor === client) return `${name} receives the DHCP ${phase}: the reply to its own request.`;
+        if (toServer && e.dhcpContext.silent?.includes(e.actor))
+          return `${name} hears the DHCP ${phase} too. It runs a DHCP server, but it has no address it can offer on this network, so it stays silent.`;
+        if (toServer && e.dhcpContext.others?.includes(e.actor))
+          return phase === "Discover"
+            ? `${name} hears the DHCP Discover too, and it also runs a DHCP server, so on a real network it would send an Offer of its own. This lab follows only ${dn(server)}'s offer.`
+            : `${name} hears the DHCP Request too. It also runs a DHCP server; on a real network the Request names the server whose offer ${dn(client)} accepted, here ${dn(server)}, so ${name} would know its own offer was declined.`;
         return `${name} hears the DHCP ${phase} broadcast, but it is not ${toServer ? "a DHCP server" : `${dn(client)}, the client that asked`}, so it ignores it.`;
       }
       const carried = frame?.fields.Carries;
       return `${name} accepts the frame because it is addressed ${dstMac === "ff:ff:ff:ff:ff:ff" ? "to everyone on the LAN (broadcast)" : `to its MAC ${dstMac}`}, and passes the ${carried} inside up to its network stack.`;
     }
     case "Discard frame for another MAC":
-      return `${name} received a flooded copy addressed to ${dstMac}, which is not its MAC, so it drops it.`;
+      return `${name} received a frame addressed to ${dstMac}, which is not its MAC, so it drops it.`;
     case "Deliver IP payload":
       return `${name} owns ${ip("Destination IP")}, so IP hands the contents to ${ip("Protocol")}.`;
     case "Decrease TTL":
@@ -318,6 +340,7 @@ export function narrate(events: TraceEvent[], index: number, network: Network): 
     bridge: !!actor && isBridge(actor),
     dn,
     who,
+    macOwner: (mac) => network.devices.find((d) => d.interfaces.some((p) => p.mac === mac))?.name ?? "",
     owner: (address) => (who(address) ? ` (${who(address)})` : ", an address no device in this network uses"),
     f: e.facts ?? {},
     field: (layer, key) => e.layers.find((l) => l.name === layer)?.fields[key],

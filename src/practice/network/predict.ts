@@ -4,6 +4,7 @@
 // the trace cannot support (a missing event, field or reason) is left out.
 import { optionOrder } from "../../learning/assessment.ts";
 import { isPrivate } from "./engine.ts";
+import { heldLease } from "./narration.ts";
 import type { Network, Trace, TraceEvent } from "./model.ts";
 
 export type CheckpointKind = "next-hop" | "arp-answer" | "arp-cache" | "flood" | "dhcp" | "router" | "nat-out" | "nat-in" | "ack" | "loss";
@@ -211,6 +212,7 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
   const discover = find(0, (e) => e.title === "DHCP Discover");
   if (discover >= 0) {
     const client = ev[discover].actor;
+    const held = heldLease(ev[discover]);
     const applied = find(discover, (e) => e.title === "Apply DHCP lease" && e.actor === client);
     const offer = find(discover, (e) => e.title === "DHCP Offer");
     const yes = `Yes: a DHCP server offers one and ${name(client)} applies it`,
@@ -223,7 +225,9 @@ export function checkpointsOf(trace: Trace, network: Network): Checkpoint[] {
         ask: discover,
         at: applied >= 0 ? applied : ev.length - 1,
         device: client,
-        question: `${name(client)} has no address yet and broadcasts a DHCP Discover. Will it get an address?`,
+        question: held
+          ? `${name(client)} already holds ${held.ip}, and this lab renews it by broadcasting a new DHCP Discover. Will it get an address?`
+          : `${name(client)} has no address yet and broadcasts a DHCP Discover. Will it get an address?`,
         right: outcome,
         wrong: [yes, noServer, noPool].filter((o) => o !== outcome),
         explain:
