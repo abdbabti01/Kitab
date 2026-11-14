@@ -17,11 +17,11 @@ async function toStep(page: Page, title: string) {
   await expect(page.locator("#step-title")).toHaveText(title);
 }
 
-test("the five chapters run end to end on the lab's own diagram, and earlier lesson records stay as they were", async ({ page }) => {
+test("the six chapters run end to end on the lab's own diagram, and earlier lesson records stay as they were", async ({ page }) => {
   const old = { lessonVersion: "1.0.0", visits: 1, lastVisitedAt: "t", seen: [], total: 13, chaptersSeen: [], completedAt: "2026-11-13T10:00:00.000Z", experimentsCompleted: [], position: null, updated: false };
   await open(page, { "kitab.learning.v1": { version: 1, lessons: { "ipv4-subnets": old } } });
   await expect(page).toHaveTitle("Local delivery, gateways and routing · Kitab");
-  await expect(page.locator(".chapter-pill")).toHaveText([/Same subnet\?/, /ARP or gateway/, /Two addresses, two jobs/, /A router between subnets/, /Leaving home: NAT/]);
+  await expect(page.locator(".chapter-pill")).toHaveText([/Same subnet\?/, /ARP or gateway/, /Two addresses, two jobs/, /A router between subnets/, /Leaving home: NAT/, /Try it in the lab/]);
   // The diagram is the lab's NetworkCanvas, loaded with the lesson.
   await expect(scene(page).locator(".network-canvas")).toBeVisible();
   // Prediction first: the calculation appears once the question is answered.
@@ -32,9 +32,11 @@ test("the five chapters run end to end on the lab's own diagram, and earlier les
   for (let i = 0; i < 30 && !(await next(page).isDisabled()); i++) {
     await next(page).click();
     await expect(scene(page).locator(".ld-run")).toContainText("Simulated run:");
+    if ((await page.locator("#step-title").textContent()) === "The reply comes home")
+      await expect(page.locator(".step-what")).toContainText("Ping succeeded. The reply arrived. Your PC received the reply from 198.51.100.20");
   }
-  await expect(page.locator("#step-title")).toHaveText("The reply comes home");
-  await expect(page.locator(".step-what")).toContainText("Ping succeeded. The reply arrived. Your PC received the reply from 198.51.100.20");
+  await expect(page.locator("#step-title")).toHaveText("Try it in the lab");
+  await expect(page.locator(".step-what")).toContainText("Apart from chapter 1’s subnet calculation");
   // The journey ends with the three experiments on offer.
   await expect(page.locator(".completion button", { hasText: "Experiment:" })).toHaveText([/A wrong default gateway/, /A server with no way back/, /Turn off NAT/]);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.learning.v1")!).lessons);
@@ -111,7 +113,7 @@ const experiments = [
 for (const x of experiments) {
   test(`experiment “${x.title}”: one change, a real run that stops, then the setting put back`, async ({ page }) => {
     await open(page);
-    await toStep(page, "The reply comes home");
+    await toStep(page, "Try it in the lab");
     await page.locator(".completion button", { hasText: `Experiment: ${x.title}` }).click();
     await expect(page.locator("#step-title")).toHaveText("The normal run");
     await expect(scene(page).locator(".ld-result")).toHaveText(/^Simulated run succeeded\./);
@@ -139,7 +141,7 @@ for (const x of experiments) {
     await expect(row.locator("td")).toHaveText(x.row.slice(1));
     await expect(row).toHaveClass(/is-different/);
     await page.locator(".compare").getByRole("button", { name: "Back to the journey" }).click();
-    await expect(page.locator("#step-title")).toHaveText("The reply comes home");
+    await expect(page.locator("#step-title")).toHaveText("Try it in the lab");
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.learning.v1")!).lessons["local-delivery-routing"]);
     expect(saved.experimentsCompleted).toHaveLength(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

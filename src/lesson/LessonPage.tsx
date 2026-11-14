@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
-import { getEngine } from "../learning/registry.ts";
-import { loadEngine, onDemandEngines } from "../learning/engines/browser.ts";
+import { EngineGate } from "../mission/EngineGate.tsx";
 import { findJourney } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
@@ -13,10 +12,10 @@ import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.t
 import { askLessonTutor } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
 import { PathNext } from "../app/NetworkingPath.tsx";
-import { pathPosition } from "../learning/networking-path.ts";
+import { findActivity, pathPosition } from "../learning/networking-path.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { useFlip, useReducedMotion } from "../mission/motion.ts";
-import { loadScene, sceneFor } from "../mission/scenes/index.ts";
+import { sceneFor } from "../mission/scenes/index.ts";
 import type { GuideMood } from "../learning/guide.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { TermChips, TermFields } from "../ui/Terms.tsx";
@@ -47,39 +46,8 @@ type TutorState =
   | { status: "pending"; key: string }
   | { status: "answered"; key: string; text: string; source: "ai" | "fallback"; target: string | null; offline: boolean };
 
-/**
- * Lessons whose engine loads on demand (engines/browser.ts) wait here for the engine and its scene; every other
- * lesson's engine is already registered, so it renders at once with no loading state.
- */
 export function LessonPage({ lesson }: { lesson: Lesson }) {
-  const id = lesson.engine.id;
-  const [state, setState] = useState<"ready" | "loading" | "failed">(() => (getEngine(id) && (sceneFor(id) || !onDemandEngines[id]) ? "ready" : "loading"));
-  useEffect(() => {
-    if (state !== "loading") return;
-    // The page is keyed by lesson, so leaving it unmounts this; a late result is then ignored.
-    let current = true;
-    Promise.all([loadEngine(id), loadScene(id)]).then(
-      () => current && setState("ready"),
-      () => current && setState("failed"),
-    );
-    return () => {
-      current = false;
-    };
-  }, [id, state]);
-  if (state === "ready") return <LessonView lesson={lesson} />;
-  if (state === "loading") return <main id="main" className="page" aria-busy="true"><p role="status" className="lesson-loading">Opening {lesson.title}…</p></main>;
-  return (
-    <main id="main" className="page narrow">
-      <div role="alert" className="lesson-load-failed">
-        <h1>{lesson.title} couldn't load</h1>
-        <p>Part of this lesson didn't download. Check your connection and try again. Your saved progress is unchanged.</p>
-      </div>
-      <div className="actions">
-        <button type="button" className="button primary" onClick={() => setState("loading")}>Try again</button>
-        <a className="button" href="/">Back to Kitab</a>
-      </div>
-    </main>
-  );
+  return <EngineGate engineId={lesson.engine.id} title={lesson.title}>{() => <LessonView lesson={lesson} />}</EngineGate>;
 }
 
 function LessonView({ lesson }: { lesson: Lesson }) {
@@ -576,6 +544,7 @@ function ObjectPanel({ lesson, entity, selected, facts, onClear }: { lesson: Les
 function Completion({ lesson, status, completed, progress, onExperiment }: { lesson: Lesson; status: ReturnType<typeof lessonStatus>; completed: boolean; progress: ReturnType<typeof loadProgress>["progress"]; onExperiment: (id: string) => void }) {
   const nextLesson = lesson.nextLessonId ? findJourney(lesson.nextLessonId) : undefined;
   const practice = lesson.practice.map((item) => ({ ...item, mission: findMission(item.missionId)! })).filter((item) => item.mission);
+  const lab = (lesson.labPractice ?? []).map((item) => ({ ...item, activity: findActivity(item.missionId)! })).filter((item) => item.activity);
   const states = practice.map((item) => missionStatus(progress, item.mission.id, item.mission.version));
   const attempted = states.some((state) => state === "practiced" || state === "mastered");
   const mastered = states.some((state) => state === "mastered");
@@ -601,6 +570,16 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
           <ul className="practice-list">
             {practice.map((item) => (
               <li key={item.missionId}><a {...linkProps(`/missions/${item.missionId}`)}><b>{item.mission.title}</b><small>{item.why}</small></a></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {lab.length > 0 && (
+        <>
+          <h3 className="card-label">Fix a network in the lab</h3>
+          <ul className="practice-list">
+            {lab.map((item) => (
+              <li key={item.missionId}><a {...linkProps(item.activity.path)}><b>{item.activity.title}</b><small>{item.why}</small></a></li>
             ))}
           </ul>
         </>

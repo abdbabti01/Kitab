@@ -6,6 +6,7 @@ import "./eager.ts";
 
 export const onDemandEngines: Record<string, () => Promise<EngineAdapter<any, any>>> = {
   "local-delivery": () => import("./local-delivery.ts").then((m) => m.localDeliveryAdapter),
+  "gateway-practice": () => import("./gateway-practice.ts").then((m) => m.gatewayPracticeAdapter),
 };
 
 /** Resolves once the engine is registered. Rejects if its code fails to load; calling again retries. */

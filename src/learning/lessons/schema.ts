@@ -92,6 +92,11 @@ export const lessonSchema = z
       .max(3)
       .default([]),
     practice: z.array(z.object({ missionId: id, why: text(200) }).strict()).max(4).default([]),
+    /**
+     * Opt-in: missions in the network lab that practise this lesson, by their id in the networking path. A lesson
+     * without it shows exactly what it showed before; it records nothing and changes no progress.
+     */
+    labPractice: z.array(z.object({ missionId: id, why: text(200) }).strict()).max(4).optional(),
     nextLessonId: id.optional(),
     sources: z.array(z.object({ id, text: text(600) }).strict()).min(1).max(8),
   })

@@ -15,7 +15,7 @@ async function watch(page: Page) {
   // Records whether the on-demand loading state ever appears, however briefly.
   await page.addInitScript(() => {
     new MutationObserver(() => {
-      if (document.querySelector(".lesson-loading")) (window as unknown as { sawLoading: boolean }).sawLoading = true;
+      if (document.querySelector(".engine-loading")) (window as unknown as { sawLoading: boolean }).sawLoading = true;
     }).observe(document, { childList: true, subtree: true });
   });
   return requested;
@@ -39,7 +39,7 @@ test("Lesson 2 loads its engine on demand, then renders its first step", async (
   await page.goto("/learn/local-delivery-routing");
   await expect(page.locator("#step-title")).toBeVisible();
   await expect(page.locator(".ld-scene")).toBeVisible();
-  await expect(page.locator(".lesson-loading")).toHaveCount(0);
+  await expect(page.locator(".engine-loading")).toHaveCount(0);
   expect(requested.length).toBeGreaterThan(0);
 });
 
@@ -64,7 +64,7 @@ test("leaving Lesson 2 while it loads keeps the next page: the late result is ig
   let release = false;
   await page.route(lesson2, (route) => (release ? route.continue() : void held.push(route)));
   await page.goto("/learn/local-delivery-routing");
-  await expect(page.locator(".lesson-loading")).toBeVisible();
+  await expect(page.locator(".engine-loading")).toBeVisible();
   await expect.poll(() => held.length).toBeGreaterThan(0);
   await page.evaluate(() => {
     history.pushState(null, "", "/learn/ipv4-subnets");
@@ -76,7 +76,7 @@ test("leaving Lesson 2 while it loads keeps the next page: the late result is ig
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(300);
   await expect(page).toHaveTitle(`${subnets.title} · Kitab`);
-  await expect(page.locator(".ld-scene, .lesson-loading, .lesson-load-failed")).toHaveCount(0);
+  await expect(page.locator(".ld-scene, .engine-loading, .engine-load-failed")).toHaveCount(0);
   await expect(page.locator("#step-title")).toBeVisible();
   expect(errors).toEqual([]);
 });

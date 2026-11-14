@@ -12,8 +12,8 @@ const source = (path: string) => readFileSync(resolve(root, path), "utf8");
 test("one list of engines: the browser's eager set plus its on-demand set is exactly what the Worker registers", async () => {
   const { onDemandEngines, loadEngine } = await import("../src/learning/engines/browser.ts");
   const eager = engineIds();
-  assert.deepEqual(Object.keys(onDemandEngines), ["local-delivery"]);
-  assert.ok(!eager.includes("local-delivery"), "Lesson 2's engine is not registered until a page asks for it");
+  assert.deepEqual(Object.keys(onDemandEngines), ["local-delivery", "gateway-practice"]);
+  for (const id of Object.keys(onDemandEngines)) assert.ok(!eager.includes(id), `${id} is not registered until a page asks for it`);
   await loadEngine("local-delivery");
   assert.ok(engineIds().includes("local-delivery"));
   await import("../src/learning/engines/index.ts");
@@ -49,7 +49,7 @@ test("existing lesson and mission pages do not statically import Lesson 2's engi
   for (const page of ["src/lesson/LessonPage.tsx", "src/mission/MissionPage.tsx"]) {
     const graph = staticGraph(page);
     assert.ok(graph.includes("src/learning/engines/eager.ts"), `${page} reaches the eager engines`);
-    for (const file of ["src/learning/engines/local-delivery.ts", "src/mission/scenes/LocalDeliveryScene.tsx"]) {
+    for (const file of ["src/learning/engines/local-delivery.ts", "src/learning/engines/gateway-practice.ts", "src/mission/scenes/LocalDeliveryScene.tsx"]) {
       assert.ok(!graph.includes(file), `${page} must not statically import ${file}`);
     }
   }

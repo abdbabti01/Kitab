@@ -5,7 +5,7 @@ import { ipv4Terms } from "./ipv4-subnets.ts";
 // local-delivery engine; the text explains cause and purpose and never states a value on its own.
 const reuse = (...ids: string[]) => ids.map((id) => ipv4Terms.find((term) => term.id === id)!);
 
-const terms: Lesson["glossary"] = [
+export const localDeliveryTerms: Lesson["glossary"] = [
   ...reuse("same-subnet", "default-gateway", "arp"),
   {
     id: "next-hop", term: "Next hop",
@@ -73,7 +73,7 @@ export const localDeliveryRouting: Lesson = {
   summary: "Follow real simulated pings from your PC: the next-hop decision, ARP for the gateway, the frame and packet at every link, a router's routing decision and a home router's NAT. Then change one setting and see where the run stops.",
   topic: "Networks",
   review: { status: "reviewed", note: "Every networking value comes from a run of Kitab's network simulator." },
-  engine: { id: "local-delivery", version: "1.1.0" },
+  engine: { id: "local-delivery", version: "1.2.0" },
   scenario: {},
   scope: [
     "Every step is an event from a real run of Kitab's network simulator on the lab's own starter networks: “Two connected LANs”, “Your first LAN” and the internet starter.",
@@ -88,7 +88,7 @@ export const localDeliveryRouting: Lesson = {
     { id: "link", name: "Link", short: "Frames, MACs and ARP", intro: "On each link, a frame carries the packet between two neighbours, addressed with their MAC addresses." },
     { id: "network", name: "Network", short: "Packets, routers and routes", intro: "The IP packet keeps its source and destination end to end. Routers forward it by looking the destination up in a routing table." },
   ],
-  glossary: terms,
+  glossary: localDeliveryTerms,
   controls: [],
   experiments: [
     {
@@ -132,7 +132,13 @@ export const localDeliveryRouting: Lesson = {
       compare: [{ outcome: "serverSawSource", label: "Source address the server saw" }, { outcome: "pingSucceeded", label: "The ping succeeded" }, { outcome: "stopReason", label: "Simulator's stop reason" }, { outcome: "stoppedAt", label: "Where the run stopped" }],
     },
   ],
-  practice: [],
+  practice: [
+    { missionId: "gateway-or-direct", why: "Predict whose MAC goes on the frame, direct or through the gateway, including subnets that look local but aren’t." },
+  ],
+  labPractice: [
+    { missionId: "leave-the-lan", why: "Fix gateways and routes so a ping can leave its network and come back." },
+    { missionId: "bring-reply-home", why: "Websites don’t load: find what stops the reply on its way back through NAT." },
+  ],
   kinds: {
     device: { represents: "A device in the simulated network, shown at the step where it handles the packet.", matters: "Each device makes one decision: send, forward by MAC, or route by IP." },
   },
@@ -167,6 +173,9 @@ export const localDeliveryRouting: Lesson = {
       { id: "server-replies", title: "The server replies to the public address", frame: "server-replies", actor: "Internet server", focus: ["server"], terms: ["next-hop"], what: "The reply goes from {fact:internet-source-ip} to {fact:internet-destination-ip}. The server chooses “{fact:internet-route}”, next hop {fact:internet-next-hop}.", why: "The server answers the address it saw. Internet routers can deliver to it because that public address belongs to the home router." },
       { id: "nat-restore", title: "The home router restores the destination", frame: "nat-restore", actor: "Home router", focus: ["router"], terms: ["nat"], what: "The reply reaches the home router addressed to {fact:internet-before-destination-ip}. The router finds its saved pair, {fact:internet-after-outside} → {fact:internet-after-inside}, and changes the destination to {fact:internet-after-destination-ip}. The source stays {fact:internet-after-source-ip}.", why: "The entry saved on the way out is what lets the reply find your PC. Without it, the router wouldn't know which device in the home asked." },
       { id: "nat-home", title: "The reply comes home", frame: "nat-home", actor: "Your PC", focus: ["pc"], terms: [], what: "{fact:internet-summary} Your PC received the reply from {fact:internet-source-ip}: simulated run succeeded = {fact:internet-delivered}.", why: "Routing chose each next hop and NAT changed the address at the edge of the home network: two different jobs. The lab mission “Bring the reply home” asks you to find a broken NAT yourself." },
+    ] },
+    { id: "try-in-the-lab", title: "Try it in the lab", goal: "Take what you followed into the network lab: change a setting, run the ping again and fix what stops it.", steps: [
+      { id: "try-lab", title: "Try it in the lab", frame: "try-lab", actor: "You", focus: ["pc"], terms: [], what: "Apart from chapter 1’s subnet calculation, every step in this lesson was an event from the lab’s simulator. Open one of these networks, change an address, a gateway or NAT, and run the ping again: the lab shows each event, as here.", why: "Then practise below: “Gateway or direct?” checks the frame’s destination MAC on networks you haven’t seen, and the lab missions ask you to find and fix what stops a ping." },
     ] },
   ],
   sources: [

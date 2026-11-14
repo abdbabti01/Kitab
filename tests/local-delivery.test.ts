@@ -6,6 +6,7 @@ import "../src/learning/engines/index.ts";
 import { buildTrace } from "../src/learning/registry.ts";
 import { EXPERIMENTS, RUNS, frameOf, packetOf, runOf, type ExperimentId, type LocalDeliveryData, type RunId } from "../src/learning/engines/local-delivery.ts";
 import { findLesson } from "../src/learning/lessons/catalog.ts";
+import { findActivity } from "../src/learning/networking-path.ts";
 import { JOURNEY, resolveTrack, validateLessonContent } from "../src/learning/lessons/runtime.ts";
 import { buildLessonTutorContext, validateLessonTutorOutput } from "../src/learning/lessons/tutor.ts";
 import { lessonStatus, loadLearning, recordLessonVisit, saveLearning, LEARNING_KEY } from "../src/learning/lessons/progress.ts";
@@ -17,18 +18,21 @@ const fact = (frameId: string, id: string, t = trace) => t.frames.find((f) => f.
 const experimentIds = Object.keys(EXPERIMENTS) as ExperimentId[];
 const traceOf = (experiment: ExperimentId) => buildTrace<LocalDeliveryData>("local-delivery", { experiment });
 
-test("the lesson is registered with its permanent id, five chapters, three experiments and its own engine", () => {
+test("the lesson is registered with its permanent id, six chapters, three experiments and its own engine", () => {
   assert.equal(lesson.id, "local-delivery-routing");
   // Unchanged on purpose: chapter 5 and the experiments only add steps, so 1.0.0 records (and completions) stay valid.
   assert.equal(lesson.version, "1.0.0");
-  assert.deepEqual(lesson.chapters.map((c) => c.id), ["same-subnet", "arp-or-gateway", "two-addresses", "router-between-subnets", "leaving-home"]);
+  assert.deepEqual(lesson.chapters.map((c) => c.id), ["same-subnet", "arp-or-gateway", "two-addresses", "router-between-subnets", "leaving-home", "try-in-the-lab"]);
   assert.deepEqual(lesson.experiments.map((x) => x.id), ["wrong-gateway", "no-return-gateway", "nat-off"]);
+  // Practice: the framework mission, and lab missions that exist in the networking path.
+  assert.deepEqual(lesson.practice.map((p) => p.missionId), ["gateway-or-direct"]);
+  assert.deepEqual(lesson.labPractice!.map((p) => findActivity(p.missionId)?.track), ["network-mission", "network-mission"]);
   assert.deepEqual(validateLessonContent(lesson), []);
-  assert.equal(trace.frames.length, 21);
+  assert.equal(trace.frames.length, 22);
 });
 
 test("every packet, frame, ARP and decision value shown equals the simulator event it came from, in the journey and every experiment", () => {
-  for (const frame of [trace, ...experimentIds.map(traceOf)].flatMap((t) => t.frames).filter((f) => f.data.view !== "settings" && f.data.view !== "change")) {
+  for (const frame of [trace, ...experimentIds.map(traceOf)].flatMap((t) => t.frames).filter((f) => !["settings", "change", "lab"].includes(f.data.view))) {
     const pairs: [RunId, number, string][] = [[frame.data.run, frame.data.index, frame.data.view === "compare" ? "after-" : ""]];
     if (frame.data.before) pairs.push([frame.data.before.run, frame.data.before.index, "before-"]);
     for (const [run, index, side] of pairs) {
@@ -163,8 +167,8 @@ test("experiment steps: the change hides the result to predict, the stop shows t
   for (const x of experimentIds) {
     const t = traceOf(x),
       broken = runOf(x);
-    assert.deepEqual(t.frames.slice(0, 21).map((f) => f.id), trace.frames.map((f) => f.id), `${x}: the journey comes first, unchanged`);
-    const ids = t.frames.slice(21).map((f) => f.id);
+    assert.deepEqual(t.frames.slice(0, trace.frames.length).map((f) => f.id), trace.frames.map((f) => f.id), `${x}: the journey comes first, unchanged`);
+    const ids = t.frames.slice(trace.frames.length).map((f) => f.id);
     assert.equal(ids[0], `${x}-baseline`);
     assert.equal(ids.at(-1), `${x}-restore`);
     assert.ok(!t.frames.find((f) => f.id === `${x}-change`)!.facts.some((f) => /succeeded|summary/.test(f.id)), `${x}: no result on the change`);
@@ -217,7 +221,7 @@ test("visiting Lesson 2 keeps earlier lesson records byte-for-byte, and a comple
   assert.deepEqual(saved["ipv4-subnets"], old);
   assert.deepEqual(saved["ip-addressing"], { ...old, lessonVersion: "1.1.0" });
   assert.equal(saved["local-delivery-routing"].lessonVersion, "1.0.0");
-  assert.ok(resolveTrack(lesson, {}, JOURNEY).steps.length === 21);
+  assert.ok(resolveTrack(lesson, {}, JOURNEY).steps.length === 22);
   // A learner who completed the four-chapter release keeps the completion, the steps seen and the position.
   const done = {
     lessonVersion: "1.0.0", visits: 1, lastVisitedAt: "2026-11-14T16:00:00.000Z", seen: ["decide", "complete", "default-route"], total: 16,
