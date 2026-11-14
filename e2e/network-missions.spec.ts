@@ -11,18 +11,22 @@ async function selectDevice(page: Page, name: string) {
   await page.keyboard.press("Enter");
 }
 
-test("the missions index follows the networking path: TCP basics come before the lost-segment investigation", async ({ page }) => {
+test("the missions index follows the networking path: the IPv4 lessons' missions in their stages, TCP basics before the lost-segment investigation", async ({ page }) => {
   await page.goto("/practice/missions");
   await expect(page.locator(".mission-list-heading")).toHaveText([
     "Stage 2 · Inside your LAN",
-    "Stage 3 · Addresses, subnets and routes",
-    "Stage 4 · Across the Internet",
-    "Stage 5 · Show mastery",
+    "Stage 3 · IPv4 addresses and subnets",
+    "Stage 4 · Gateways, routing and NAT",
+    "Stage 5 · Across the Internet",
+    "Stage 6 · Show mastery",
   ]);
   await expect(page.locator(".mission-list b")).toHaveText([
     "No connection",
+    "Find the network address",
+    "Same subnet or not?",
     "Neighbours that look remote",
     "Join and get an address",
+    "Gateway or direct?",
     "Leave your LAN",
     "Bring the reply home",
     "The ACK that wouldn't move",
@@ -30,6 +34,10 @@ test("the missions index follows the networking path: TCP basics come before the
     "A segment goes missing",
     "TCP lab: count the transmissions",
   ]);
+  // Prediction missions are labelled by topic beside the lab's levelled missions.
+  await expect(page.getByRole("link", { name: /Find the network address/ }).locator(".mission-level")).toHaveText("IPv4");
+  await expect(page.getByRole("link", { name: /Gateway or direct\?/ }).locator(".mission-level")).toHaveText("Routing");
+  await expect(page.getByRole("link", { name: /Leave your LAN/ }).locator(".mission-level")).toHaveText(/^Level \d$/);
 });
 
 test("a learner investigates, diagnoses, fixes and checks a mission, and progress survives a reload", async ({ page }) => {

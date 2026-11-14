@@ -601,7 +601,7 @@ export function NetworkMissionRoute({ id, notFound }: { id: string; notFound: Re
 }
 
 /** Every networking mission, with the same progress states as the TCP missions. */
-export function NetworkMissionsIndex({ tcp }: { tcp: { id: string; title: string; summary: string; state: import("../learning/practice-state.ts").PracticeState }[] }) {
+export function NetworkMissionsIndex({ framework }: { framework: { id: string; title: string; summary: string; label: string; state: import("../learning/practice-state.ts").PracticeState }[] }) {
   const store = loadMissionStore(storage());
   useEffect(() => {
     document.title = "Networking missions · Kitab";
@@ -628,12 +628,12 @@ export function NetworkMissionsIndex({ tcp }: { tcp: { id: string; title: string
           <ol className="mission-list">
             {stage.practise.map((activity) => {
               const m = missions.find((x) => x.id === activity.id);
-              const t = tcp.find((x) => x.id === activity.id);
+              const t = framework.find((x) => x.id === activity.id);
               const state = m ? missionState(store.missions[m.id], m) : t?.state ?? "not-started";
               return (
                 <li key={activity.id}>
                   <a {...linkProps(activity.path)}>
-                    <span className="mission-level">{m ? `Level ${m.level}` : "TCP"}</span>
+                    <span className="mission-level">{m ? `Level ${m.level}` : t?.label}</span>
                     <b>{activity.title}</b>
                     <span>{m?.brief ?? t?.summary}</span>
                     <span className={`state-pill is-${state}`}>{practiceLabels[state]}</span>

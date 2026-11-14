@@ -59,8 +59,8 @@ test("the walkthrough links back into Kitab and on to practice, and missions lin
   await page.getByRole("link", { name: /Follow the walkthrough first: Packet Journey/ }).click();
   await expect(page).toHaveURL(new RegExp(path + "$"));
   await expect(page.locator("#step-number")).toHaveText("1 / 130");
-  await nav.getByRole("link", { name: "IP Addresses & Subnets" }).click();
-  await expect(page).toHaveURL(/\/learn\/ip-addressing$/);
+  await nav.getByRole("link", { name: "Local delivery, gateways and routing" }).click();
+  await expect(page).toHaveURL(/\/learn\/local-delivery-routing$/);
   await page.goto(path);
   await nav.getByRole("link", { name: "← Kitab" }).click();
   await expect(page.locator(".journey-hero")).toBeVisible();

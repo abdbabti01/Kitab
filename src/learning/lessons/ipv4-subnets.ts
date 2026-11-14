@@ -100,6 +100,7 @@ export const ipv4Subnets: Lesson = {
   review: { status: "reviewed", note: "Every value comes from Kitab's shared IPv4 helper." },
   engine: { id: "ipv4-subnets", version: "1.0.0" },
   scenario: { address: "10.20.30.77", prefix: 28, destination: "10.20.30.90", experiment: "none" },
+  nextLessonId: "local-delivery-routing",
   scope: [
     "One interface's address and prefix, and one destination. Change all three under Change the example: any valid IPv4 address and any prefix from /0 to /32.",
     "Everything here is arithmetic about addresses. Whether a packet actually arrives depends on cables, ARP, routes and NAT, which the network playground and the next lesson simulate.",

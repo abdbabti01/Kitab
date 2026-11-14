@@ -7,6 +7,7 @@ import { findJourney, journeys, lessons, lessonsForMission, packetJourney } from
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { HTTP_WALKTHROUGH_PATH, parseRoute } from "../src/app/routes.ts";
 import { starterOptions } from "../src/practice/network/starters.ts";
+import { pathPosition } from "../src/learning/networking-path.ts";
 
 // The original HttpWalkthrough export (LF line endings) before Kitab's navigation block was added.
 const EXPORT_SHA256 = "395555c5ed2cd4adbff3fc800a2794283d99dda812a657bab0f65ed7f82dc677";
@@ -37,6 +38,8 @@ test("every link in the walkthrough's navigation leads to existing Kitab content
   }
   for (const { missionId } of packetJourney.practice)
     assert.ok(links.some((link) => link.href === `/missions/${missionId}`), `walkthrough links its practice mission ${missionId}`);
+  // The static page names its stage; it must match where the path actually puts it.
+  assert.ok(links.some((link) => link.href === "/#path" && link.text === `Networking path · Stage ${pathPosition(packetJourney.id)!.stageNumber}`), "the walkthrough's stage number");
 });
 
 test("the walkthrough is the only implementation at its URL and every journey link resolves", () => {

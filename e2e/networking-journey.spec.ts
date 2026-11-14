@@ -11,8 +11,8 @@ async function follow(page: Page, title: string, url: RegExp) {
 }
 const workspace = (page: Page) => page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1") ?? "");
 
-test("networking path: home → explorer → starters → missions → lesson → Packet Journey → TCP missions, without Back", async ({ page }) => {
-  test.setTimeout(120_000);
+test("networking path: home → explorer → starters → missions → both IPv4 lessons → Packet Journey → TCP missions, without Back", async ({ page }) => {
+  test.setTimeout(180_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
 
@@ -46,16 +46,27 @@ test("networking path: home → explorer → starters → missions → lesson �
   await follow(page, "No connection", /\/practice\/missions\/no-connection$/);
   await expect(page.locator(".path-needs")).toContainText("Before you start: Your first LAN, A wireless home");
 
-  // Stage 3: lesson, starter and missions in order.
-  await follow(page, "IP Addresses & Subnets", /\/learn\/ip-addressing$/);
-  await page.locator(".chapter-pill", { hasText: "Follow NAT" }).click();
-  await page.locator(".lesson-controls .next-button").click();
-  await page.locator(".lesson-controls .next-button").click();
-  await expect(page.locator(".completion")).toContainText("Practise this stage: Neighbours that look remote");
-  await follow(page, "Two connected LANs", /\/practice\/network\?starter=routed$/);
+  // Stage 3: Lesson 1, the subnet explorer, then its prediction missions and the subnet lab missions.
+  await follow(page, "Understanding IPv4 addresses and subnets", /\/learn\/ipv4-subnets$/);
+  await page.locator(".chapter-pill").last().click();
+  while (!(await page.locator(".lesson-controls .next-button").isDisabled())) await page.locator(".lesson-controls .next-button").click();
+  await expect(page.locator(".completion")).toContainText("Practise this stage: Find the network address, Same subnet or not?, Neighbours that look remote, Join and get an address");
+  await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Local delivery, gateways and routing/ })).toHaveAttribute("href", "/learn/local-delivery-routing");
+  await follow(page, "Explore subnets", /\/practice\/subnets$/);
+  await follow(page, "Find the network address", /\/missions\/ipv4-network-address$/);
+  await follow(page, "Same subnet or not?", /\/missions\/ipv4-local-or-remote$/);
   await follow(page, "Neighbours that look remote", /\/practice\/missions\/neighbours$/);
   await follow(page, "Join and get an address", /\/practice\/missions\/join-and-address$/);
-  await expect(page.locator(".path-needs")).toContainText("Before you start: A wireless home, IP Addresses & Subnets");
+  await expect(page.locator(".path-needs")).toContainText("Before you start: A wireless home, Understanding IPv4 addresses and subnets");
+
+  // Stage 4: Lesson 2, its starter, then the gateway mission and the routing and NAT lab missions.
+  await follow(page, "Local delivery, gateways and routing", /\/learn\/local-delivery-routing$/);
+  await page.locator(".chapter-pill", { hasText: "Try it in the lab" }).click();
+  await expect(page.locator(".completion")).toContainText("Practise this stage: Gateway or direct?, Leave your LAN, Bring the reply home");
+  await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Packet Journey/ })).toBeVisible();
+  await follow(page, "Two connected LANs", /\/practice\/network\?starter=routed$/);
+  await follow(page, "Gateway or direct?", /\/missions\/gateway-or-direct$/);
+  await expect(page.locator(".learn-first")).toContainText("Follow the walkthrough first: Local delivery, gateways and routing");
   await follow(page, "Leave your LAN", /\/practice\/missions\/leave-the-lan$/);
   // Working in a mission never touches the saved design.
   await page.getByRole("button", { name: "Send request", exact: true }).click();
@@ -64,7 +75,7 @@ test("networking path: home → explorer → starters → missions → lesson �
   await follow(page, "Bring the reply home", /\/practice\/missions\/bring-reply-home$/);
   await expect(page.locator(".mission-meta .state-pill")).toHaveText("Completed");
 
-  // Stage 4: the DNS concept, the Internet starter, Packet Journey (a static page with its own links), then the TCP missions.
+  // Stage 5: the DNS concept, the Internet starter, Packet Journey (a static page with its own links), then the TCP missions.
   await follow(page, "DNS resolution", /\/concepts\/dns$/);
   await follow(page, "A request across the Internet", /\/practice\/network\?starter=internet$/);
   await follow(page, "Packet Journey", /\/learn\/hello-tcp$/);

@@ -421,7 +421,7 @@ export function NetworkPlayground() {
             starter is a small, fully simulated ISP network. This lab uses IPv4
             and simplified protocol rules, with no real network traffic.
           </p>
-          <a href="/learn/ip-addressing">
+          <a href="/learn/ipv4-subnets">
             Review IP addresses, LANs and subnets <ArrowRight size={14} />
           </a>
         </section>
@@ -756,7 +756,7 @@ export function NetworkPlayground() {
         <span>
           <span className="legend-dot link" /> Link frame
         </span>
-        <a href="/learn/ip-addressing">
+        <a href="/learn/ipv4-subnets">
           Need the basics? Start with IP addresses <ArrowRight size={13} />
         </a>
       </footer>

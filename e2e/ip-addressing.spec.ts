@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
 test("changing the printer’s subnet changes the hop and preserves the packet destination", async ({ page }) => {
+  // Replaced by Lessons 1 and 2, it is no longer on the path but still opens at its address.
   await page.goto("/");
-  await page.locator(".path-stages summary", { hasText: "Addresses, subnets and routes" }).click();
-  await page.locator(".path-activity", { hasText: "IP Addresses & Subnets" }).click();
-  await expect(page).toHaveURL(/\/learn\/ip-addressing$/);
+  await expect(page.locator(".path-activity", { hasText: "IP Addresses & Subnets" })).toHaveCount(0);
+  await page.goto("/learn/ip-addressing");
+  await expect(page.locator(".lesson-replaced")).toContainText("This lesson has been replaced by");
   await expect(page.getByRole("button", { name: "PC Wi-Fi interface" })).toBeVisible();
   await page.getByRole("button", { name: "PC Wi-Fi interface" }).click();
   await expect(page.locator(".object-panel")).toContainText("192.168.1.10");

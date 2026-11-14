@@ -53,7 +53,7 @@ function kindOf(a: Activity) {
   if (a.track) return "Mission";
   if (a.id.startsWith("starter:")) return "Playground";
   if (a.id.startsWith("concept:")) return "Concept";
-  return a.id === "connections" ? "Explorer" : "Walkthrough";
+  return a.id === "connections" || a.id === "subnet-explorer" ? "Explorer" : "Walkthrough";
 }
 
 function ActivityLink({ activity, evidence, next }: { activity: Activity; evidence: Evidence; next: boolean }) {
@@ -91,7 +91,7 @@ export function NetworkingPath({ evidence, recommendation }: { evidence: Evidenc
       <div className="path-head">
         <div>
           <h2 id="path-title">Networking path</h2>
-          <p className="section-lead">Five stages, from the boxes in your home to TCP. Follow them in order or start anywhere: nothing is locked.</p>
+          <p className="section-lead">{networkingPath.length} stages, from the boxes in your home to TCP. Follow them in order or start anywhere: nothing is locked.</p>
         </div>
         <div className="actions">
           <a className="button primary" {...linkProps(next.path)}>{next.label} <ArrowRight aria-hidden="true" /></a>
