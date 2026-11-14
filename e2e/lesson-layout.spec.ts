@@ -141,3 +141,23 @@ for (const lesson of lessons) {
     expect(await focused.evaluate((el) => getComputedStyle(el).outlineStyle)).not.toBe("none");
   });
 }
+
+test("crossing the stacked width moves the step bar without losing keyboard focus", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await open(page, "ipv4-subnets");
+  await next(page).click();
+  await next(page).focus();
+  for (const width of [800, 1024, 800]) {
+    await page.setViewportSize({ width, height: 800 });
+    await expect(page.locator(".lesson-controls")).toHaveCSS("position", width <= stackedWidth ? "fixed" : "sticky");
+    await expect(next(page)).toBeFocused();
+  }
+  // Focus is still a working control: Enter moves the lesson on.
+  const before = await page.locator("#step-title").textContent();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#step-title")).not.toHaveText(before!);
+  // Another control keeps its focus the same way.
+  await page.locator('.lesson-controls [data-control="back"]').focus();
+  await page.setViewportSize({ width: 1024, height: 800 });
+  await expect(page.locator('.lesson-controls [data-control="back"]')).toBeFocused();
+});

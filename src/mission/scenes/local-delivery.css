@@ -40,3 +40,7 @@
 .ld-starters a { display: grid; gap: 2px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); text-decoration: none; color: var(--ink); background: var(--surface); }
 .ld-starters a:hover { border-color: var(--primary); }
 .ld-starters small { color: var(--muted); }
+@media (max-width: 360px) {
+  /* The narrowest phones: each label above its value, so an address or MAC isn't split across lines. */
+  .ld-envelope dl > div, .ld-decision > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}

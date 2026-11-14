@@ -262,3 +262,12 @@ test("the explorer writes nothing to storage, runs no animations with reduced mo
   );
   expect(dangling).toEqual([]);
 });
+
+test("the same-subnet panel offers the playground only for prefixes the lab can simulate", async ({ page }) => {
+  await open(page, "?ip=203.0.113.6&prefix=31&to=203.0.113.7");
+  const caveat = page.locator(".subnet-caveat");
+  await expect(caveat).toContainText("The network playground simulates prefixes from /1 to /30, so /31 stays arithmetic here.");
+  await expect(caveat.getByRole("link")).toHaveCount(0);
+  await open(page, "?ip=192.168.1.10&prefix=24&to=192.168.1.20");
+  await expect(caveat.getByRole("link", { name: "Try it in the network playground" })).toHaveAttribute("href", "/practice/network");
+});

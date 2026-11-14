@@ -349,7 +349,9 @@ export function SameSubnetPanel({ address, prefix, destinationText, onDestinatio
             <p className="subnet-wait" role="status">{address ? "Enter a valid destination address to compare." : "Correct the address and mask above to compare."}</p>
           )}
           <p className="subnet-caveat">
-            This is only the arithmetic a device uses to choose between delivering directly and using its gateway. It does not prove the packet arrives: cables, ARP, routes and NAT decide that. <a {...linkProps("/practice/network")}>Try it in the network playground</a>.
+            This is only the arithmetic a device uses to choose between delivering directly and using its gateway. It does not prove the packet arrives: cables, ARP, routes and NAT decide that.{" "}
+            {/* The lab's devices take prefixes /1 to /30 (topology.ts), so /0, /31 and /32 can't be simulated there. */}
+            {prefix >= 1 && prefix <= 30 ? <a {...linkProps("/practice/network")}>Try it in the network playground</a> : <>The network playground simulates prefixes from /1 to /30, so /{prefix} stays arithmetic here.</>}
           </p>
         </div>
       </div>
