@@ -65,3 +65,45 @@ test("a mission run shows only the frames for its decision, never a prediction o
   assert.deepEqual(traceFor(network, network.variants[0].params).frames.map((f) => f.id), ["and", "block"]);
   assert.deepEqual(traceFor(local, local.variants[0].params).frames.map((f) => f.id), ["mask", "compare"]);
 });
+
+test("mastery needs two distinct versions; the same version twice, or just watching, never masters; other progress is untouched", async () => {
+  const { assessExplanation } = await import("../src/learning/assessment.ts");
+  const { attemptStatus, createAttempt, createMissionState, missionReducer } = await import("../src/learning/mission-controller.ts");
+  const { loadProgress, recordState } = await import("../src/learning/progress.ts");
+  // The attempt number picks the version: attempt n + (number of versions) repeats attempt n's version.
+  const solve = (mission: typeof network, number: number) => {
+    let state = createMissionState(mission, createAttempt(mission, number, undefined, `a${number}`));
+    const trace = traceFor(mission, state.attempt.params);
+    const right = resolvePredictionOptions(mission, trace).find((o) => assessPrediction(mission, trace, { optionId: o.id }).correct)!;
+    state = missionReducer(state, { type: "BEGIN_PREDICTION" });
+    state = missionReducer(state, { type: "SUBMIT_PREDICTION", answer: { optionId: right.id }, result: assessPrediction(mission, trace, { optionId: right.id }), reasoning: "" });
+    state = missionReducer(state, { type: "RUN_COMPLETED" });
+    const choice = mission.explanation.options.find((o) => o.correct)!;
+    return missionReducer(state, { type: "SUBMIT_EXPLANATION", choiceId: choice.id, ...assessExplanation(mission, choice.id) });
+  };
+  // Earlier progress: a mastered TCP mission and a completed Lesson 1, stored before these missions existed.
+  const tcp = { missionVersion: "1.1.0", visits: 3, lastVisitedAt: "2026-11-01T10:00:00.000Z", masteredAt: "2026-11-01T10:05:00.000Z", attempts: [], current: null };
+  const store = new Map([["kitab.progress.v1", JSON.stringify({ version: 1, missions: { "tcp-lost-segment": tcp } })]]);
+  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+  for (const mission of [network, local]) {
+    let progress = loadProgress(storage).progress;
+    const first = solve(mission, 1);
+    progress = recordState(progress, first, "key", attemptStatus(first.attempt), undefined, mission.masteryVariants);
+    const again = solve(mission, 1 + mission.variants.length);
+    assert.equal(again.attempt.variantId, first.attempt.variantId);
+    progress = recordState(progress, again, "key", attemptStatus(again.attempt), undefined, mission.masteryVariants);
+    assert.equal(progress.missions[mission.id].masteredAt, null, `${mission.id}: the same version twice`);
+    const other = solve(mission, 2);
+    assert.notEqual(other.attempt.variantId, first.attempt.variantId);
+    progress = recordState(progress, other, "key", attemptStatus(other.attempt), undefined, mission.masteryVariants);
+    assert.ok(progress.missions[mission.id].masteredAt, `${mission.id}: two distinct versions`);
+    assert.deepEqual(progress.missions["tcp-lost-segment"], tcp);
+  }
+  // Just watching: the run is shown, but the attempt can't be mastered even with the right explanation.
+  let watched = createMissionState(local, createAttempt(local, 1, undefined, "w"));
+  watched = missionReducer(watched, { type: "SKIP_PREDICTION" });
+  watched = missionReducer(watched, { type: "RUN_COMPLETED" });
+  const right = local.explanation.options.find((o) => o.correct)!;
+  watched = missionReducer(watched, { type: "SUBMIT_EXPLANATION", choiceId: right.id, correct: true });
+  assert.equal(watched.attempt.mastered, false);
+});
