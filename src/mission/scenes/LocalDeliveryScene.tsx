@@ -2,7 +2,7 @@
 // (runOf), so the diagram, the envelopes and the decision always match the step's facts. Predictions keep their state
 // in the scene only: nothing is scored or stored.
 import { lazy, Suspense, useState } from "react";
-import { RUN_NAMES, frameOf, packetOf, runOf, type LocalDeliveryData } from "../../learning/engines/local-delivery.ts";
+import { baseOf, frameOf, packetOf, runName, runOf, RUNS, type LocalDeliveryData } from "../../learning/engines/local-delivery.ts";
 import type { TraceEvent } from "../../practice/network/model.ts";
 import { compare } from "../../net/subnet-practice.ts";
 import { PredictionCard } from "../../practice/SubnetParts.tsx";
@@ -53,10 +53,49 @@ function Decision({ event }: { event: TraceEvent }) {
   );
 }
 
+const PHASE = { normal: "In the normal run", changed: "In this experiment", restored: "Put back" } as const;
+
+/** An experiment's one setting, and (except on the change itself, which the learner predicts) the run's result. */
+function Setting({ change, trace }: { change: NonNullable<LocalDeliveryData["change"]>; trace: ReturnType<typeof runOf>["trace"] }) {
+  const value = change.phase === "changed" ? change.changed : change.normal;
+  return (
+    <div className="ld-event">
+      <dl className="ld-decision" aria-label="The setting this experiment changes">
+        <div><dt>Device</dt><dd>{change.deviceName}</dd></div>
+        <div><dt>Setting</dt><dd>{change.setting}</dd></div>
+        <div><dt>Normal value</dt><dd><code>{change.normal}</code></dd></div>
+        <div className={change.phase === "changed" ? "is-changed" : ""}><dt>{PHASE[change.phase]}</dt><dd><code>{value}</code></dd></div>
+      </dl>
+      {change.phase !== "changed" && (
+        <p className={`ld-result${trace.success ? "" : " is-failed"}`} role="status">
+          <b>{trace.success ? "Simulated run succeeded." : "Simulated run failed."}</b> {trace.summary}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** The event where the run stops, and the simulator's own account of why. */
+function Stop({ trace, name }: { trace: ReturnType<typeof runOf>["trace"]; name: (id: string) => string }) {
+  const f = trace.failure!;
+  const rows: Row[] = [["Reason", f.reason], ["Observed", f.message]];
+  if (f.detail) rows.push(["Why", f.detail]);
+  if (f.cause && !f.message.includes(f.cause.message)) rows.push(["Underlying cause", f.cause.message]);
+  const advice = f.advice ?? f.cause?.advice;
+  if (advice) rows.push(["What to check", advice]);
+  return (
+    <section className="ld-stop" aria-label="Where the run stopped">
+      <h4>The run stops at {name(f.device)}</h4>
+      <dl className="ld-decision">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{label === "Reason" ? <code>{value}</code> : value}</dd></div>)}</dl>
+    </section>
+  );
+}
+
 export function LocalDeliveryScene(props: Props) {
   const d = props.frame.data,
     { network, trace } = runOf(d.run),
-    event = trace.events[d.index];
+    event = trace.events[d.index],
+    name = (id: string) => network.devices.find((x) => x.id === id)?.name ?? id;
   const key = `${props.trace.scenarioKey}:${props.frame.id}`;
   const [attempt, setAttempt] = useState({ key, tried: [] as number[], shown: false });
   const current = attempt.key === key ? attempt : { key, tried: [] as number[], shown: false };
@@ -86,25 +125,37 @@ export function LocalDeliveryScene(props: Props) {
       ra = rows(a),
       rb = rows(b),
       changed = Object.keys(rb).filter((label) => label !== "Outgoing port" && ra[label] !== undefined && ra[label] !== rb[label]);
+    // Two steps of one device (NAT) are named by what it did; otherwise by who sent the frame.
+    const same = before.actor === event.actor;
     evidence = (
       <div className="ld-compare">
-        <Envelope event={before} title={`Sent by ${network.devices.find((x) => x.id === before.actor)?.name ?? before.actor}`} />
-        <Envelope event={event} title={`Sent on by ${network.devices.find((x) => x.id === event.actor)?.name ?? event.actor}`} changed={changed} />
+        <Envelope event={before} title={same ? `Before: ${before.title}` : `Sent by ${name(before.actor)}`} />
+        <Envelope event={event} title={same ? `After: ${event.title}` : `Sent on by ${name(event.actor)}`} changed={changed} />
         <p className="ld-summary" role="status">{changed.length ? `Changed: ${changed.join(", ")}. Unchanged: ${Object.keys(rb).filter((l) => l !== "Outgoing port" && !changed.includes(l)).join(", ")}.` : "Nothing in the frame or the packet changed."}</p>
       </div>
     );
+  } else if (d.view === "change" && d.change) {
+    evidence = <Setting change={d.change} trace={trace} />;
   } else {
     evidence = (
       <div className="ld-event">
-        <Envelope event={event} title={`At ${network.devices.find((x) => x.id === event.actor)?.name ?? event.actor}`} />
+        <Envelope event={event} title={`At ${name(event.actor)}`} />
         <Decision event={event} />
+        {d.differences && (
+          <table className="ld-differences">
+            <caption>Where this run first differs from the normal run</caption>
+            <thead><tr><th scope="col">At {name(event.actor)}</th><th scope="col">Normal run</th><th scope="col">This run</th></tr></thead>
+            <tbody>{d.differences.map((row) => <tr key={row.what}><th scope="row">{row.what}</th><td>{row.normal}</td><td className="is-changed">{row.experiment}</td></tr>)}</tbody>
+          </table>
+        )}
+        {d.view === "stop" && <Stop trace={trace} name={name} />}
       </div>
     );
   }
   return (
     <SceneSection label={props.frame.title} className="ld-scene">
       <p className="ld-run">
-        Simulated run: <b>{RUN_NAMES[d.run]}</b>, step {d.index + 1} of {trace.events.length}
+        Simulated run: <b>{runName(d.run)}</b>, step {d.index + 1} of {trace.events.length}
       </p>
       <Suspense fallback={<p className="ld-loading" role="status">Loading the network diagram…</p>}>
         <LocalDeliveryCanvas network={network} events={trace.events} index={d.index} onSelect={props.onSelect} />
@@ -114,7 +165,8 @@ export function LocalDeliveryScene(props: Props) {
           onTry={(i) => setAttempt({ ...current, tried: [...current.tried, i] })} onShow={() => setAttempt({ ...current, shown: true })} />
       )}
       {answered && evidence}
-      <a className="ld-lab" {...linkProps(`/practice/network?starter=${d.run}`)}>Open this network in the lab →</a>
+      {d.mission && <a className="ld-lab" {...linkProps(`/practice/missions/${d.mission.id}`)}>Practise in the lab: {d.mission.title} →</a>}
+      <a className="ld-lab" {...linkProps(`/practice/network?starter=${RUNS[baseOf(d.run)].starter}`)}>Open this network in the lab →</a>
     </SceneSection>
   );
 }

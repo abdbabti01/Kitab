@@ -25,3 +25,13 @@
 @media (max-width: 600px) {
   .ld-canvas { height: 300px; }
 }
+/* Experiments: the setting, the run's result, where it first differs from the normal run, and where it stops. */
+.ld-decision .is-changed, .ld-differences .is-changed { background: var(--warning-soft); border-radius: 6px; }
+.ld-result { grid-column: 1 / -1; margin: 0; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--success-soft); }
+.ld-result.is-failed { background: var(--danger-soft); }
+.ld-differences { grid-column: 1 / -1; width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.ld-differences caption { text-align: left; font-weight: 700; padding-bottom: 4px; }
+.ld-differences th, .ld-differences td { text-align: left; padding: 4px 6px; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.ld-stop { grid-column: 1 / -1; border: 2px solid var(--danger); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); min-width: 0; }
+.ld-stop h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.ld-stop .ld-decision { border: 0; background: none; padding: 0; }
