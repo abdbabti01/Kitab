@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
-import "../learning/engines/index.ts";
+import { getEngine } from "../learning/registry.ts";
+import { loadEngine, onDemandEngines } from "../learning/engines/browser.ts";
 import { findJourney } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
@@ -15,7 +16,7 @@ import { PathNext } from "../app/NetworkingPath.tsx";
 import { pathPosition } from "../learning/networking-path.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { useFlip, useReducedMotion } from "../mission/motion.ts";
-import { sceneFor } from "../mission/scenes/index.ts";
+import { loadScene, sceneFor } from "../mission/scenes/index.ts";
 import type { GuideMood } from "../learning/guide.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { TermChips, TermFields } from "../ui/Terms.tsx";
@@ -46,7 +47,42 @@ type TutorState =
   | { status: "pending"; key: string }
   | { status: "answered"; key: string; text: string; source: "ai" | "fallback"; target: string | null; offline: boolean };
 
+/**
+ * Lessons whose engine loads on demand (engines/browser.ts) wait here for the engine and its scene; every other
+ * lesson's engine is already registered, so it renders at once with no loading state.
+ */
 export function LessonPage({ lesson }: { lesson: Lesson }) {
+  const id = lesson.engine.id;
+  const [state, setState] = useState<"ready" | "loading" | "failed">(() => (getEngine(id) && (sceneFor(id) || !onDemandEngines[id]) ? "ready" : "loading"));
+  useEffect(() => {
+    if (state !== "loading") return;
+    // The page is keyed by lesson, so leaving it unmounts this; a late result is then ignored.
+    let current = true;
+    Promise.all([loadEngine(id), loadScene(id)]).then(
+      () => current && setState("ready"),
+      () => current && setState("failed"),
+    );
+    return () => {
+      current = false;
+    };
+  }, [id, state]);
+  if (state === "ready") return <LessonView lesson={lesson} />;
+  if (state === "loading") return <main id="main" className="page" aria-busy="true"><p role="status" className="lesson-loading">Opening {lesson.title}…</p></main>;
+  return (
+    <main id="main" className="page narrow">
+      <div role="alert" className="lesson-load-failed">
+        <h1>{lesson.title} couldn't load</h1>
+        <p>Part of this lesson didn't download. Check your connection and try again. Your saved progress is unchanged.</p>
+      </div>
+      <div className="actions">
+        <button type="button" className="button primary" onClick={() => setState("loading")}>Try again</button>
+        <a className="button" href="/">Back to Kitab</a>
+      </div>
+    </main>
+  );
+}
+
+function LessonView({ lesson }: { lesson: Lesson }) {
   const trackFor = useCallback((params: Record<string, FactValue>, id: string) => resolveTrack(lesson, params, id), [lesson]);
   const [boot] = useState(() => {
     const { learning, recovered } = loadLearning(storage);

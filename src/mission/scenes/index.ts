@@ -17,6 +17,17 @@ const scenes: Record<string, SceneModule<any>> = {
   "ipv4-practice": ipv4SubnetsScene,
 };
 
+/** Scenes for on-demand engines (engines/browser.ts), loaded with their engine. */
+const onDemandScenes: Record<string, () => Promise<SceneModule<any>>> = {
+  "local-delivery": () => import("./LocalDeliveryScene.tsx").then((m) => m.localDeliveryScene),
+};
+
 export function sceneFor(engineId: string): SceneModule<any> | undefined {
   return scenes[engineId];
+}
+
+/** Resolves once the scene is available to sceneFor. Rejects if its code fails to load; calling again retries. */
+export async function loadScene(engineId: string) {
+  if (scenes[engineId] || !onDemandScenes[engineId]) return;
+  scenes[engineId] = await onDemandScenes[engineId]();
 }

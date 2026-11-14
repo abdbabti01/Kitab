@@ -77,3 +77,18 @@ test("lesson tutor: stale or malformed requests are refused without inference", 
   assert.equal((await ask(env, { extra: true })).status, 400);
   assert.equal(ai.calls.length, 0);
 });
+
+test("lesson tutor: the Worker still grounds Lesson 2, whose engine the browser loads on demand", async () => {
+  const lesson2 = findLesson("local-delivery-routing")!;
+  const patch = { lessonId: lesson2.id, lessonVersion: lesson2.version, params: {}, stepId: "the-frame", question: "Which MAC does the frame go to?" };
+  const right = { explanation: "Your PC's frame goes to destination MAC 02:3b:27:36:10:00, the router, not the server.", evidence: ["destination-mac"], misconception: null, attention: null, action: "none" };
+  const ai = new FakeAi(() => ({ response: right }));
+  const ok = await ask(envWith({ DB: new FakeD1(), AI: ai }), patch);
+  assert.equal(ok.status, 200);
+  assert.equal(ok.data.source, "ai");
+  assert.match(JSON.stringify(ai.calls[0].input), /\[destination-mac\] Destination MAC: 02:3b:27:36:10:00/);
+  const wrong = { ...right, explanation: "The destination MAC is 02:3c:4d:ce:0a:00, the server's." };
+  const refused = await ask(envWith({ DB: new FakeD1(), AI: new FakeAi(() => ({ response: wrong })) }), patch);
+  assert.equal(refused.data.source, "fallback");
+  assert.equal(refused.data.reason, "INVALID_OUTPUT");
+});

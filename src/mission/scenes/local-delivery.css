@@ -1,0 +1,27 @@
+/* "Local delivery, gateways and routing". The diagram is the lab's (practice.css, loaded with it); the rest is here. */
+.ld-scene { display: grid; gap: 10px; min-width: 0; }
+.ld-run { margin: 0; font-size: 0.86rem; color: var(--muted); }
+.ld-canvas { height: 330px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; background: var(--surface-2); }
+.ld-canvas .network-canvas { height: 100%; }
+.ld-loading { margin: 0; padding: 12px; color: var(--muted); }
+.ld-event, .ld-compare { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
+.ld-envelope { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); min-width: 0; }
+.ld-envelope h4 { margin: 0 0 6px; font-size: 0.92rem; }
+.ld-layer { margin: 6px 0 2px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.ld-frame, .ld-packet, .ld-decision { margin: 0; }
+.ld-frame { border-left: 3px solid var(--level-link); padding-left: 8px; }
+.ld-packet { border-left: 3px solid var(--level-network); padding-left: 8px; margin-top: 6px; }
+.ld-envelope dl > div, .ld-decision > div { display: grid; grid-template-columns: minmax(0, 9em) minmax(0, 1fr); gap: 6px; padding: 2px 0; }
+.ld-envelope dt, .ld-decision dt { font-size: 0.82rem; color: var(--muted); }
+.ld-envelope dd, .ld-decision dd { margin: 0; min-width: 0; }
+.ld-envelope code, .ld-decision code { font: 600 0.88rem var(--mono); overflow-wrap: anywhere; }
+.ld-envelope .is-changed { background: var(--warning-soft); border-radius: 6px; }
+.ld-changed { color: var(--warning); font-size: 0.78rem; font-weight: 700; }
+.ld-decision { border: 1px solid var(--primary-soft-line); background: var(--primary-soft); border-radius: var(--radius-sm); padding: 10px 12px; }
+.ld-summary { grid-column: 1 / -1; margin: 0; font-size: 0.92rem; color: var(--ink-2); }
+.ld-none { margin: 0; color: var(--muted); font-size: 0.88rem; }
+.ld-label { margin: 0 0 6px; font-size: 0.82rem; color: var(--muted); }
+.ld-lab { justify-self: start; font-size: 0.9rem; }
+@media (max-width: 600px) {
+  .ld-canvas { height: 300px; }
+}
