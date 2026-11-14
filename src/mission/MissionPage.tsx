@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import "../learning/engines/browser.ts";
+import { EngineGate } from "./EngineGate.tsx";
 import { assessExplanation, assessPrediction, evidenceFrameIndex, evidenceMatches, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.ts";
 import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionAction, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
@@ -41,7 +41,12 @@ function useStableHandlers<T extends Record<string, (...args: never[]) => unknow
   return useMemo(() => Object.fromEntries(Object.keys(handlers).map((key) => [key, (...args: never[]) => latest.current[key](...args)])) as T, []); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/** Missions whose engine loads on demand wait for it (EngineGate); all others render at once, as before. */
 export function MissionPage({ mission }: { mission: Mission }) {
+  return <EngineGate engineId={mission.engine.id} title={mission.title}>{() => <MissionView mission={mission} />}</EngineGate>;
+}
+
+function MissionView({ mission }: { mission: Mission }) {
   const [progress, setProgress] = useState(() => recordVisit(loadProgress(storage).progress, mission.id, mission.version));
   const restored = useMemo(() => restoreState(progress, mission.id, mission.version, Boolean(mission.evidence)), []); // eslint-disable-line react-hooks/exhaustive-deps
   const [state, dispatchMission] = useReducer(missionReducer, null, () => restored ?? createMissionState(mission));
