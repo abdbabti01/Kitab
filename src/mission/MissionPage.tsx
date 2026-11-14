@@ -14,7 +14,10 @@ import { askTutor, sendLearningEvent } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
 import { pathPosition } from "../learning/networking-path.ts";
-import { keyIdeas } from "../learning/missions/tcp-terms.ts";
+import { keyIdeas as tcpKeyIdeas } from "../learning/missions/tcp-terms.ts";
+import { ipv4KeyIdeas } from "../learning/missions/ipv4.ts";
+
+const keyIdeas = { ...tcpKeyIdeas, ...ipv4KeyIdeas };
 import { TermChips } from "../ui/Terms.tsx";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { Inspector } from "./Inspector.tsx";

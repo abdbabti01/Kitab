@@ -2,7 +2,7 @@ import type { Lesson } from "./schema.ts";
 
 // Lesson 1 of the IPv4 redesign. Every value shown comes from the ipv4-subnets engine, which computes it with the
 // shared helper (src/net/ipv4.ts); the text explains purpose and cause and never states a value on its own.
-const terms: Lesson["glossary"] = [
+export const ipv4Terms: Lesson["glossary"] = [
   {
     id: "ipv4-address", term: "IPv4 address",
     definition: "A 32-bit number that identifies one network interface, written as four decimal numbers from 0 to 255 separated by dots.",
@@ -115,7 +115,7 @@ export const ipv4Subnets: Lesson = {
     { id: "special", name: "Special cases", short: "/31, /32, /0 and reserved ranges", intro: "Some prefixes and ranges don't follow the usual rules. Knowing them avoids common mistakes." },
     { id: "decision", name: "Decision", short: "Local or remote", intro: "A device compares network bits, using its own prefix, to choose between sending directly and using its gateway." },
   ],
-  glossary: terms,
+  glossary: ipv4Terms,
   kinds: {
     interface: { represents: "A network interface and the address configured on it.", matters: "Packets are sent from and to interfaces, so each needs its own address." },
     address: { represents: "An IPv4 address: 32 bits written as four decimal octets.", matters: "Its network bits say which subnet it belongs to." },
@@ -190,7 +190,10 @@ export const ipv4Subnets: Lesson = {
       compare: [{ outcome: "usable", label: "Usable addresses" }, { outcome: "blockSize", label: "Addresses in the block" }],
     },
   ],
-  practice: [],
+  practice: [
+    { missionId: "ipv4-network-address", why: "Find the network address for boundaries in the second, third and fourth octets, with feedback on each common mistake." },
+    { missionId: "ipv4-local-or-remote", why: "Decide with a device's own prefix whether it sends directly or through its gateway, including look-alike addresses." },
+  ],
   sources: [
     { id: "ipv4-format", text: "RFC 791 §2.3 and §3.2. An IPv4 address is 32 bits; Internet addresses name interfaces, not hosts, so a host with several interfaces has several addresses." },
     { id: "cidr-prefix", text: "RFC 4632 §3.1. A prefix length from 0 to 32 gives the number of leading bits that identify the network; a prefix of n bits gives a block of 2^(32−n) addresses that starts on a multiple of its size." },

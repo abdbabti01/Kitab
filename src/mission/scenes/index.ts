@@ -13,6 +13,8 @@ const scenes: Record<string, SceneModule<any>> = {
   recursion: recursionScene,
   "ip-addressing": ipAddressingScene,
   "ipv4-subnets": ipv4SubnetsScene,
+  // Practice missions show the lesson's own frames for the decision they assess.
+  "ipv4-practice": ipv4SubnetsScene,
 };
 
 export function sceneFor(engineId: string): SceneModule<any> | undefined {

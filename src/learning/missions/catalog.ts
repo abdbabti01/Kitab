@@ -1,5 +1,6 @@
 import { structureInfo, structureKinds } from "../../visual-engine/data-structures/model.ts";
 import { parseMission, type Mission } from "../mission-schema.ts";
+import { ipv4Missions } from "./ipv4.ts";
 
 const reviewed = { status: "reviewed" as const, note: "Facts computed by Kitab's deterministic engine; text reviewed against the model." };
 
@@ -577,7 +578,7 @@ const raw: unknown[] = [
   },
 ];
 
-export const missions: Mission[] = raw.map(parseMission);
+export const missions: Mission[] = [...raw, ...ipv4Missions].map(parseMission);
 
 export function findMission(id: string) {
   return missions.find((mission) => mission.id === id);
