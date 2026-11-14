@@ -75,6 +75,7 @@ export const localDeliveryRouting: Lesson = {
   review: { status: "reviewed", note: "Every networking value comes from a run of Kitab's network simulator." },
   engine: { id: "local-delivery", version: "1.2.0" },
   scenario: {},
+  nextLessonId: "hello-tcp",
   scope: [
     "Every step is an event from a real run of Kitab's network simulator on the lab's own starter networks: “Two connected LANs”, “Your first LAN” and the internet starter.",
     "The first decision is the same-subnet arithmetic from Lesson 1, labelled as a calculation. Everything after it, including ARP replies, MAC addresses, routes, TTL and delivery, is what the simulator did.",

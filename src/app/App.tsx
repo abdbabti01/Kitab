@@ -41,10 +41,12 @@ export function App() {
   else if (route.name === "network-practice") view = <NetworkPlayground key={window.location.search} />;
   else if (route.name === "network-missions") {
     const progress = loadProgress(safeStorage()).progress;
-    const tcp = frameworkMissions
-      .filter((m) => m.concept === "tcp")
-      .map((m) => ({ id: m.id, title: m.title, summary: m.summary, state: practiceState(progress, m.id, m.version) }));
-    view = <NetworkMissionsIndex tcp={tcp} />;
+    // Prediction missions on the networking path, labelled by topic beside the lab's levelled missions.
+    const label: Record<string, string> = { tcp: "TCP", "ipv4-subnets": "IPv4", "local-delivery-routing": "Routing" };
+    const framework = frameworkMissions
+      .filter((m) => label[m.concept])
+      .map((m) => ({ id: m.id, title: m.title, summary: m.summary, label: label[m.concept], state: practiceState(progress, m.id, m.version) }));
+    view = <NetworkMissionsIndex framework={framework} />;
   } else if (route.name === "network-mission") {
     view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;
   }

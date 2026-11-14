@@ -15,6 +15,7 @@ import {
   readExplorerQuery,
 } from "../net/subnet-practice.ts";
 import { linkProps } from "../app/router.ts";
+import { PathNext } from "../app/NetworkingPath.tsx";
 import { BitRows, BlockFacts, PredictionCard } from "./SubnetParts.tsx";
 import "./subnets.css";
 
@@ -108,6 +109,7 @@ export function SubnetExplorer() {
       </div>
       <SameSubnetPanel address={address} prefix={prefix} destinationText={destinationText} onDestination={setDestinationText} />
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
+      <PathNext id="subnet-explorer" />
     </main>
   );
 }

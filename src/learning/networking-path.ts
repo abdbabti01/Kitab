@@ -11,7 +11,7 @@ import type { PracticeState } from "./practice-state.ts";
 import { missionState, type MissionStore } from "../practice/network/mission-progress.ts";
 
 export type Activity = {
-  /** Unique in the path: a lesson or mission id, "connections", "starter:<starter id>" or "concept:<chapter slug>". */
+  /** Unique in the path: a lesson or mission id, an explorer ("connections", "subnet-explorer"), "starter:<starter id>" or "concept:<chapter slug>". */
   id: string;
   title: string;
   /** What the learner does or sees there, in one line. */
@@ -54,18 +54,32 @@ export const networkingPath: Stage[] = [
   },
   {
     id: "addresses",
-    title: "Addresses, subnets and routes",
-    objective: "Read an address and its mask, decide what is local, and follow traffic through a gateway and NAT.",
+    title: "IPv4 addresses and subnets",
+    objective: "Read an address and its prefix, find the block it belongs to, and decide with a device's own prefix what is local.",
     learn: [
-      lesson("ip-addressing", "Read an IPv4 address, split a subnet, choose a next hop and follow NAT."),
+      lesson("ipv4-subnets", "Address bits, prefixes and masks, network and broadcast addresses, and the same-subnet decision."),
+      { id: "subnet-explorer", title: "Explore subnets", detail: "Any address and prefix: its bits, its block, and predictions with feedback.", path: "/practice/subnets" },
+    ],
+    practise: [
+      mission("ipv4-network-address", "Find the network address for boundaries inside the second, third and fourth octets.", ["ipv4-subnets"]),
+      mission("ipv4-local-or-remote", "Decide with a device's own prefix whether it sends directly or through its gateway.", ["ipv4-subnets"]),
+      networkMission("neighbours", "Neighbours that look remote", "1.0.0", "A wrong mask makes a local server look remote.", ["ipv4-subnets"]),
+      // Joining Wi-Fi and DHCP are met in stage 2; troubleshooting DHCP needs subnets, so it comes after the lesson.
+      networkMission("join-and-address", "Join and get an address", "1.0.0", "Troubleshoot Wi-Fi and DHCP: the pool must hold free addresses in the LAN's subnet.", ["starter:wifi", "ipv4-subnets"]),
+    ],
+  },
+  {
+    id: "routing",
+    title: "Gateways, routing and NAT",
+    objective: "Follow a packet to its gateway and through a router, see which addresses change at each hop, and bring replies home through NAT.",
+    learn: [
+      lesson("local-delivery-routing", "Next hop and ARP, frames and packets, a router's decision, NAT, and three experiments that break one setting."),
       starter("routed", "Two connected LANs", "Watch a router forward between two subnets using gateways."),
     ],
     practise: [
-      networkMission("neighbours", "Neighbours that look remote", "1.0.0", "A wrong mask makes a local server look remote.", ["ip-addressing"]),
-      // Joining Wi-Fi and DHCP are met in stage 2; troubleshooting DHCP needs subnets, so it comes after the lesson.
-      networkMission("join-and-address", "Join and get an address", "1.0.0", "Troubleshoot Wi-Fi and DHCP: the pool must hold free addresses in the LAN's subnet.", ["starter:wifi", "ip-addressing"]),
-      networkMission("leave-the-lan", "Leave your LAN", "1.0.0", "Fix gateways and routes so traffic can leave its network and come back.", ["ip-addressing", "starter:routed"]),
-      networkMission("bring-reply-home", "Bring the reply home", "1.0.0", "Websites don't load: find what stops the reply on its way back through NAT.", ["ip-addressing"]),
+      mission("gateway-or-direct", "Predict whose MAC goes on the frame: the destination's or the gateway's.", ["local-delivery-routing"]),
+      networkMission("leave-the-lan", "Leave your LAN", "1.0.0", "Fix gateways and routes so traffic can leave its network and come back.", ["local-delivery-routing", "starter:routed"]),
+      networkMission("bring-reply-home", "Bring the reply home", "1.0.0", "Websites don't load: find what stops the reply on its way back through NAT.", ["local-delivery-routing"]),
     ],
   },
   {

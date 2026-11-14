@@ -89,7 +89,8 @@ const arrayInsert = {
   ],
 };
 
-// ipv4-subnets and local-delivery-routing are reachable by URL and from Explore subnets; it joins Home and the networking path in the switchover PR.
+// ip-addressing stays in the catalog: its URL, saved positions and records keep working, and the Worker can still
+// ground a tutor request from a page opened before the switchover. Lessons 1 and 2 replace it everywhere it was listed.
 export const lessons: Lesson[] = [ipAddressing, arrayInsert, ipv4Subnets, localDeliveryRouting].map((item) => parseLesson(item));
 
 /**
@@ -110,8 +111,11 @@ export const packetJourney: Walkthrough = {
   ],
 };
 
-/** Home's learning journeys, in order: IP addressing leads into Packet Journey. */
-export const journeys: (Lesson | Walkthrough)[] = [lessons[0], packetJourney, lessons[1]];
+/** Home's learning journeys, in order: the two IPv4 lessons lead into Packet Journey. */
+export const journeys: (Lesson | Walkthrough)[] = [findLesson("ipv4-subnets")!, findLesson("local-delivery-routing")!, packetJourney, findLesson("array-insert")!];
+
+/** Lessons replaced by newer ones. A replaced lesson stays open at its address and says what replaced it; its records are kept. */
+export const replacedLessons: Record<string, string[]> = { "ip-addressing": ["ipv4-subnets", "local-delivery-routing"] };
 
 export function findLesson(id: string) {
   return lessons.find((lesson) => lesson.id === id);
