@@ -6,7 +6,8 @@ import { readFileSync } from "node:fs";
 import "../src/learning/engines/index.ts";
 import { assessExplanation, assessPrediction, fillTemplate, resolvePredictionOptions, traceFor, validateMissionContent } from "../src/learning/assessment.ts";
 import { VARIANTS, type VariantId } from "../src/learning/engines/gateway-practice.ts";
-import { frameOf, runOf } from "../src/learning/engines/local-delivery.ts";
+import { frameOf, runOf, type LocalDeliveryData } from "../src/learning/engines/local-delivery.ts";
+import type { LearningFrame } from "../src/learning/types.ts";
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { gatewayKeyIdeas } from "../src/learning/missions/gateway.ts";
 import { findLesson } from "../src/learning/lessons/catalog.ts";
@@ -82,7 +83,7 @@ test("each wrong choice names the mistake it is, and its message is true for tha
 
 test("before the prediction the learner sees only the PC's settings and the destination, never its decision", () => {
   for (const variant of mission.variants) {
-    const first = traceFor(mission, variant.params).frames[0];
+    const first = traceFor(mission, variant.params).frames[0] as LearningFrame<LocalDeliveryData>;
     assert.equal(first.id, "task");
     assert.equal(first.data.view, "task");
     assert.deepEqual(first.facts.map((f) => f.id), ["pc-address", "gateway", "destination"]);
