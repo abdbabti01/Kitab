@@ -12,7 +12,7 @@ import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.t
 import { askLessonTutor } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
 import { PathNext } from "../app/NetworkingPath.tsx";
-import { pathPosition } from "../learning/networking-path.ts";
+import { findActivity, pathPosition } from "../learning/networking-path.ts";
 import { KitabAvatar } from "../mission/KitabAvatar.tsx";
 import { useFlip, useReducedMotion } from "../mission/motion.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
@@ -544,6 +544,7 @@ function ObjectPanel({ lesson, entity, selected, facts, onClear }: { lesson: Les
 function Completion({ lesson, status, completed, progress, onExperiment }: { lesson: Lesson; status: ReturnType<typeof lessonStatus>; completed: boolean; progress: ReturnType<typeof loadProgress>["progress"]; onExperiment: (id: string) => void }) {
   const nextLesson = lesson.nextLessonId ? findJourney(lesson.nextLessonId) : undefined;
   const practice = lesson.practice.map((item) => ({ ...item, mission: findMission(item.missionId)! })).filter((item) => item.mission);
+  const lab = (lesson.labPractice ?? []).map((item) => ({ ...item, activity: findActivity(item.missionId)! })).filter((item) => item.activity);
   const states = practice.map((item) => missionStatus(progress, item.mission.id, item.mission.version));
   const attempted = states.some((state) => state === "practiced" || state === "mastered");
   const mastered = states.some((state) => state === "mastered");
@@ -569,6 +570,16 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
           <ul className="practice-list">
             {practice.map((item) => (
               <li key={item.missionId}><a {...linkProps(`/missions/${item.missionId}`)}><b>{item.mission.title}</b><small>{item.why}</small></a></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {lab.length > 0 && (
+        <>
+          <h3 className="card-label">Fix a network in the lab</h3>
+          <ul className="practice-list">
+            {lab.map((item) => (
+              <li key={item.missionId}><a {...linkProps(item.activity.path)}><b>{item.activity.title}</b><small>{item.why}</small></a></li>
             ))}
           </ul>
         </>
