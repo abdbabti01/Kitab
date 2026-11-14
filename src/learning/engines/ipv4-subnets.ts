@@ -59,7 +59,8 @@ function build(p: Params) {
     neighbourSame = sameSubnet(p.destination, p.address, neighbourPrefix);
   const frames: FrameDraft<Ipv4SubnetsData>[] = [];
   const add = (view: View, title: string, level: string, actor: string, objects: string[], facts: Fact[]) =>
-    frames.push({ id: view, title, narration: title, level, actor, entities: objects.map((id) => entities[id]), focus: objects.slice(0, 1), facts, durationMs: 900, data: { ...p, view, neighbourPrefix } });
+    // Every object a fact describes is selectable in that frame, so its values can be inspected.
+    frames.push({ id: view, title, narration: title, level, actor, entities: [...new Set([...objects, ...facts.map((fact) => fact.entityId!).filter(Boolean)])].map((id) => entities[id]), focus: objects.slice(0, 1), facts, durationMs: 900, data: { ...p, view, neighbourPrefix } });
 
   const f = {
     address: { id: "address", label: "IPv4 address", value: p.address, entityId: "address" },
@@ -197,14 +198,69 @@ function checkClaims(text: string, facts: Fact[], trace: Trace) {
     else if (match[1] !== b.broadcast) problems.push(`the broadcast address is ${b.broadcast}, not ${match[1]}`);
   }
   if (b.kind !== "normal" && /\b(its|the) (network|broadcast) address\b/.test(lower) && !/no (network|broadcast)/.test(lower)) problems.push(`/${prefix} has no network or broadcast address`);
-  const same = facts.find((fact) => fact.id === "same-subnet")?.value;
-  if (same === true && /\b(different|another) subnet\b/.test(lower) && !/\bnot (on )?(a )?different subnet\b/.test(lower)) problems.push("the addresses are on the same subnet");
-  if (same === false && /\b(same|one) subnet\b/.test(lower) && !/\bnot (on )?(the )?same subnet\b/.test(lower)) problems.push("the addresses are on different subnets");
+  // Only assertions count: "on the same subnet", "on a different subnet" or a verdict such as "Same subnet:". Negations and
+  // the step title "Same subnet or not" are not claims.
+  const same = facts.find((fact) => fact.id === "same-subnet")?.value,
+    claims = lower.replace(/\bnot (?:on|in) (?:the |a )?(?:same|different) subnets?\b/g, "").replace(/\b(?:same|different) subnets? or not\b/g, "");
+  if (same === true && /\b(?:on|in) (?:a |the )?different subnets?\b|\bdifferent subnets?\s*[:.]/.test(claims)) problems.push("the addresses are on the same subnet");
+  if (same === false && /\b(?:on|in) (?:the )?same subnet\b|\bsame subnet\s*[:.]/.test(claims)) problems.push("the addresses are on different subnets");
   // Subnet arithmetic is not a network simulation: it decides direct or gateway, never whether a packet arrives.
   if (/\b(will|would|does|is guaranteed to) (arrive|be delivered|reach|get through)\b|\bis reachable\b|\bcan reach\b/.test(lower))
     problems.push("subnet arithmetic alone does not show that a packet arrives; only the network simulator models delivery");
   return problems;
 }
+
+// Practice missions reuse the lesson's frames for the one decision they assess, and add the values the choices need.
+const practiceParams = z
+  .object({
+    address: address.default("10.20.30.77"),
+    prefix: z.number().int().min(1).max(30).default(28),
+    destination: address.default("10.20.30.90"),
+    task: z.enum(["network", "local"]).default("network"),
+  })
+  .strict();
+type PracticeParams = z.infer<typeof practiceParams>;
+
+function buildPractice(p: PracticeParams) {
+  const lesson = build({ address: p.address, prefix: p.prefix, destination: p.destination, experiment: "none" }),
+    keep = p.task === "network" ? ["and", "block"] : ["mask", "compare"],
+    b = block(p.address, p.prefix),
+    start = parseAddress(blockStart(b)),
+    whole = Math.floor(p.prefix / 8) * 8,
+    same = sameSubnet(p.address, p.destination, p.prefix);
+  return {
+    frames: lesson.frames.filter((frame) => keep.includes(frame.id)),
+    outcome: {
+      network: blockStart(b),
+      broadcast: b.broadcast ?? blockStart(b),
+      // Mistakes a learner can make, each a real helper result.
+      octetCut: blockStart(block(p.address, whole)),
+      unchanged: p.address,
+      mask: b.mask,
+      andLine: `${p.address} AND ${b.mask} = ${blockStart(b)}`,
+      blockSize: b.size,
+      nextBlock: start + b.size < 2 ** 32 ? formatAddress(start + b.size) : blockStart(b),
+      ownNetwork: blockStart(b),
+      destinationNetwork: blockStart(block(p.destination, p.prefix)),
+      decision: same ? "direct" : "gateway",
+    },
+    outcomeLabels: {
+      network: "Network address", broadcast: "Broadcast address", octetCut: "Address cut at a whole octet", unchanged: "The address itself",
+      mask: "Subnet mask", andLine: "Calculation", blockSize: "Addresses in the block", nextBlock: "Start of the next block",
+      ownNetwork: "Your address AND mask", destinationNetwork: "Destination AND mask", decision: "What the device does",
+    },
+  };
+}
+
+export const ipv4PracticeAdapter: EngineAdapter<PracticeParams, Ipv4SubnetsData> = {
+  id: "ipv4-practice",
+  version: "1.0.0",
+  title: "IPv4 subnet practice",
+  params: practiceParams,
+  build: buildPractice,
+  vocabulary: ["ipv4", "address", "prefix", "mask", "subnet", "network", "broadcast", "host", "block", "and", "octet", "bit", "gateway", "direct", "local", "remote"],
+  checkClaims,
+};
 
 export const ipv4SubnetsAdapter: EngineAdapter<Params, Ipv4SubnetsData> = {
   id: "ipv4-subnets",

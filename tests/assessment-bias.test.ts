@@ -54,7 +54,7 @@ test("assessment wording changes keep mission versions, so saved progress and ma
     "tcp-send-window": "1.1.0",
     "tcp-lab": "1.0.1",
     ...Object.fromEntries(
-      ["array-insert-shift", "ds-linked-list-delete", "ds-hash-insert", "ds-bst-search", "graph-bfs-reach", "recursion-depth", "recursion-base-case", "ds-lab"]
+      ["array-insert-shift", "ds-linked-list-delete", "ds-hash-insert", "ds-bst-search", "graph-bfs-reach", "recursion-depth", "recursion-base-case", "ds-lab", "ipv4-network-address", "ipv4-local-or-remote"]
         .concat(networkMissions.map((m) => m.id))
         .map((id) => [id, "1.0.0"]),
     ),
