@@ -40,9 +40,15 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Browser journeys (${{ matrix.project }})
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: results-${{ matrix.project }}.json
         run: |
           npx playwright install --with-deps chromium
-          npx playwright test --project=${{ matrix.project }}
+          npx playwright test --project=${{ matrix.project }} --reporter=list,json
+      # Publishes this project's totals as an annotation, so the five jobs can be added up against a single full run.
+      - name: Test counts (${{ matrix.project }})
+        if: always()
+        run: node -e "const s = require('./results-${{ matrix.project }}.json').stats; console.log('::notice title=Playwright ${{ matrix.project }}::' + s.expected + ' passed, ' + s.skipped + ' skipped, ' + s.unexpected + ' failed, ' + s.flaky + ' flaky')"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
