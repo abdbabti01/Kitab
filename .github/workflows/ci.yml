@@ -6,9 +6,9 @@ on:
   pull_request:
 
 jobs:
-  verify:
+  checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,13 +23,44 @@ jobs:
         run: npm test
       - name: Production build
         run: npx vite build
-      - name: Browser journeys (1440/1024/768/390 + Worker integration)
+
+  # Every Playwright project in full, in parallel: same config, tests, retries and skips as one run.
+  browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop-1440, laptop-1024, tablet-768, phone-390, worker-integration]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Browser journeys (${{ matrix.project }})
         run: |
           npx playwright install --with-deps chromium
-          npx playwright test
+          npx playwright test --project=${{ matrix.project }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-results
+          name: playwright-results-${{ matrix.project }}
           path: test-results/
           retention-days: 7
+
+  # The check protected main requires. It always runs, because GitHub treats a skipped required check as passing,
+  # and it passes only when every upstream job succeeded: failed, cancelled or skipped all fail it.
+  verify:
+    if: always()
+    needs: [checks, browsers]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every check and every browser project passed
+        run: |
+          echo "checks: ${{ needs.checks.result }}"
+          echo "browsers (all five projects): ${{ needs.browsers.result }}"
+          test "${{ needs.checks.result }}" = "success"
+          test "${{ needs.browsers.result }}" = "success"
