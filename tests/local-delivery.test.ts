@@ -84,6 +84,15 @@ test("chapter 3: the switch changes nothing, the router keeps the IPs, new MACs 
   assert.notEqual(fact("router-forwards", "before-destination-mac"), fact("router-forwards", "after-destination-mac"));
   assert.equal(Number(fact("router-forwards", "after-ttl")), Number(fact("router-forwards", "before-ttl")) - 1);
   assert.equal(fact("router-forwards", "nat"), "off");
+  // Before and after are the same packet, earlier and later in one simulator run.
+  for (const id of ["switch-forwards", "router-forwards"]) {
+    const { run, index, before } = trace.frames.find((f) => f.id === id)!.data;
+    const events = runOf(run).trace.events;
+    assert.equal(before!.run, run, `${id}: same run`);
+    assert.ok(before!.index < index, `${id}: before precedes after`);
+    assert.ok(events[index].packet, `${id}: the event carries a packet id`);
+    assert.equal(events[before!.index].packet, events[index].packet, `${id}: same packet`);
+  }
 });
 
 test("deterministic: the same lesson trace every time", () => {

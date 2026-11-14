@@ -1,17 +1,6 @@
+// Every engine, registered synchronously: for the Worker (tutor grounding) and tests. Browser pages import browser.ts instead.
 import { registerEngine } from "../registry.ts";
-import { dataStructuresAdapter } from "./data-structures.ts";
-import { ipAddressingAdapter } from "./ip-addressing.ts";
-import { ipv4PracticeAdapter, ipv4SubnetsAdapter } from "./ipv4-subnets.ts";
 import { localDeliveryAdapter } from "./local-delivery.ts";
-import { recursionAdapter } from "./recursion.ts";
-import { tcpAdapter } from "./tcp.ts";
+export * from "./eager.ts";
 
-registerEngine(tcpAdapter);
-registerEngine(dataStructuresAdapter);
-registerEngine(recursionAdapter);
-registerEngine(ipAddressingAdapter);
-registerEngine(ipv4SubnetsAdapter);
-registerEngine(ipv4PracticeAdapter);
 registerEngine(localDeliveryAdapter);
-
-export { dataStructuresAdapter, recursionAdapter, tcpAdapter };

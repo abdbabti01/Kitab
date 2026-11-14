@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
-import "../learning/engines/index.ts";
+import "../learning/engines/browser.ts";
 import { assessExplanation, assessPrediction, evidenceFrameIndex, evidenceMatches, fillTemplate, traceFor, type PredictionAnswer } from "../learning/assessment.ts";
 import { guideReducer, initialGuide, type GuideEvent } from "../learning/guide.ts";
 import { attemptStatus, createAttempt, createMissionState, missionReducer, paramsChangeIsCurrent, type MissionAction, type MissionState, type ParamsExpectation } from "../learning/mission-controller.ts";
