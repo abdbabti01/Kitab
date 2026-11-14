@@ -1,6 +1,6 @@
 // Explore subnets: any IPv4 address and prefix, its bits, its block and a same-subnet check. Every value comes from
 // the shared helper (src/net/ipv4.ts) through src/net/subnet-practice.ts. Nothing is stored and no progress is recorded.
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { block, formatAddress, maskOf, parseAddress, prefixOfMask, toBinary } from "../net/ipv4.ts";
 import {
   PRESETS,
@@ -11,11 +11,11 @@ import {
   describeRange,
   example,
   explain,
-  kindNote,
   question,
   readExplorerQuery,
 } from "../net/subnet-practice.ts";
 import { linkProps } from "../app/router.ts";
+import { BitRows, BlockFacts, PredictionCard } from "./SubnetParts.tsx";
 import "./subnets.css";
 
 const count = (n: number) => n.toLocaleString("en");
@@ -69,6 +69,7 @@ export function SubnetExplorer() {
         <p className="section-lead">
           Type any IPv4 address and choose a prefix. See its bits, its block, and whether another address is on the same subnet. Nothing here is recorded: explore freely.
         </p>
+        <a className="text-button subnet-lesson-link" {...linkProps("/learn/ipv4-subnets")}>New to subnets? Learn it step by step →</a>
       </header>
 
       <div className="subnet-layout">
@@ -192,28 +193,6 @@ export function BitStrip({ address, prefix, onAddress }: { address: string | nul
     setFocus(target);
     refs.current[target]?.focus();
   };
-  const row = (source: string, editable: boolean) =>
-    [0, 1, 2, 3].map((o) => (
-      <div className="subnet-octet" key={o}>
-        <div className="subnet-octet-bits">
-          {[...source.slice(o * 8, o * 8 + 8)].map((bit, k) => {
-            const i = o * 8 + k,
-              part = i < prefix ? "network" : "host",
-              className = `subnet-bit is-${part}${i === prefix ? " is-edge" : ""}`;
-            return editable ? (
-              <button key={i} ref={(el) => { refs.current[i] = el; }} type="button" className={className} aria-pressed={bit === "1"}
-                tabIndex={i === focus ? 0 : -1} onFocus={() => setFocus(i)} onClick={() => flip(i)} onKeyDown={(e) => move(e, i)}
-                aria-label={`Bit ${i + 1} of 32, ${part} bit, place value ${2 ** (7 - k)} in octet ${o + 1}`}>
-                {bit}
-              </button>
-            ) : (
-              <span key={i} className={className}>{bit}</span>
-            );
-          })}
-        </div>
-        {editable && <b className="subnet-octet-value" aria-hidden="true">{octets[o]}</b>}
-      </div>
-    ));
   return (
     <section className="card subnet-card" aria-labelledby="subnet-bits">
       <h2 id="subnet-bits">Address bits</h2>
@@ -221,9 +200,16 @@ export function BitStrip({ address, prefix, onAddress }: { address: string | nul
         Select a bit to flip it. That changes the <b>address</b>; the prefix stays <b>/{prefix}</b> until you change it with the slider, a preset or the mask.
       </p>
       <div className="subnet-rowlabel"><span>Address</span><code>{address}</code></div>
-      <div className="subnet-bits" role="group" aria-label={`Address bits of ${address}`} aria-describedby="subnet-bits-help">{row(bits, true)}</div>
+      <BitRows bits={bits} prefix={prefix} values={octets} role="group" aria-label={`Address bits of ${address}`} aria-describedby="subnet-bits-help"
+        renderBit={({ bit, i, k, o, part, className }) => (
+          <button key={i} ref={(el) => { refs.current[i] = el; }} type="button" className={className} aria-pressed={bit === "1"}
+            tabIndex={i === focus ? 0 : -1} onFocus={() => setFocus(i)} onClick={() => flip(i)} onKeyDown={(e) => move(e, i)}
+            aria-label={`Bit ${i + 1} of 32, ${part} bit, place value ${2 ** (7 - k)} in octet ${o + 1}`}>
+            {bit}
+          </button>
+        )} />
       <div className="subnet-rowlabel"><span>Mask, set by the prefix</span><code>{formatAddress(maskOf(prefix))} (/{prefix})</code></div>
-      <div className="subnet-bits is-mask" aria-hidden="true">{row(mask, false)}</div>
+      <BitRows bits={mask} prefix={prefix} className="is-mask" aria-hidden="true" />
       <p className="subnet-legend">
         <span><i className="subnet-swatch is-network" />Network bits: <b>{prefix}</b></span>
         <span><i className="subnet-swatch is-host" />Host bits: <b>{32 - prefix}</b></span>
@@ -265,75 +251,15 @@ export function BlockPanel(props: {
     right = q.choices.findIndex((c) => c.correct),
     solved = attempt.tried.includes(right),
     revealed = !predict || solved || attempt.shown,
-    last = attempt.tried.at(-1),
     start = parseAddress(blockStart(b)),
-    note = kindNote(b),
     range = describeRange(address);
-  const fact = (label: string, value: ReactNode) => (
-    <div className="subnet-fact" key={label}><span>{label}</span><code>{value}</code></div>
-  );
   return (
     <section className="card subnet-card" aria-labelledby="subnet-block">
       {header}
-      {predict && (
-        <div className="subnet-question">
-          <p className="subnet-prompt" id="subnet-prompt">{q.prompt}</p>
-          <ul className="subnet-choices" aria-labelledby="subnet-prompt">
-            {q.choices.map((c, i) => {
-              const tried = attempt.tried.includes(i),
-                state = tried || (revealed && c.correct) ? (c.correct ? "is-right" : "is-wrong") : "";
-              return (
-                <li key={c.label}>
-                  <button type="button" className={state} disabled={revealed || tried} onClick={() => props.onTry(i)}
-                    aria-describedby={tried && i === last ? "subnet-feedback" : undefined}>
-                    <code>{c.label}</code>
-                    {tried && <span className="sr-only">{c.correct ? " (right)" : " (not right)"}</span>}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="subnet-feedback" id="subnet-feedback" role="status">
-            {solved ? (
-              <p><b>Right.</b> {q.answer}</p>
-            ) : attempt.shown ? (
-              <p><b>Answer shown.</b> {q.answer}</p>
-            ) : last !== undefined ? (
-              <p><b>Not quite.</b> {q.choices[last].feedback} Try another choice, or show the answer.</p>
-            ) : null}
-          </div>
-          {!revealed && (
-            <button type="button" className="button subnet-show" onClick={props.onShow}>Show the answer</button>
-          )}
-        </div>
-      )}
+      {predict && <PredictionCard question={q} attempt={attempt} revealed={revealed} onTry={props.onTry} onShow={props.onShow} />}
       {revealed && (
         <>
-          <div className="subnet-facts">
-            {prefix === 0
-              ? [
-                  fact("Address block", b.cidr),
-                  fact("Block size", <>2<sup>32</sup> = {count(b.size)}</>),
-                  fact("Used as", "The default route"),
-                  fact("Usable hosts", "Not a host setting"),
-                ]
-              : b.kind === "normal"
-              ? [
-                  fact("Network address", b.network!),
-                  fact("Broadcast address", b.broadcast!),
-                  fact("Usable host range", `${b.firstUsable} – ${b.lastUsable}`),
-                  fact("Usable hosts", count(b.usable)),
-                  fact("Block", b.cidr),
-                  fact("Block size", <>2<sup>{32 - prefix}</sup> = {count(b.size)}</>),
-                ]
-              : [
-                  fact("Address block", b.cidr),
-                  fact(b.usable === 1 ? "Usable address" : "Usable addresses", b.usable === 1 ? b.firstUsable : `${b.firstUsable} and ${b.lastUsable}`),
-                  fact("Usable count", String(b.usable)),
-                  fact("Block size", String(b.size)),
-                ]}
-          </div>
-          {note && <p className="subnet-kind">{note}</p>}
+          <BlockFacts address={address} prefix={prefix} />
           <div className="subnet-ruler" aria-hidden="true">
             <span>{start > 0 ? `${formatAddress(start - b.size)}/${prefix}` : "—"}</span>
             <span className="is-current">

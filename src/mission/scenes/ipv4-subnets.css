@@ -1,0 +1,40 @@
+/* "Understanding IPv4 addresses and subnets". Bits, facts and predictions use Explore subnets' styles (subnets.css). */
+.v4-scene { display: grid; gap: 10px; min-width: 0; }
+.v4-chip { justify-self: start; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--ink); cursor: pointer; }
+.v4-chip code { font: 600 1rem var(--mono); }
+.v4-chip.is-focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.v4-chip.is-selected { background: var(--primary-soft); }
+.v4-device { display: flex; gap: 14px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.v4-device > svg { width: 40px; height: 40px; flex: none; color: var(--primary); }
+.v4-device > div { display: grid; gap: 6px; justify-items: start; min-width: 0; }
+.v4-device small { color: var(--muted); }
+.v4-octets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.v4-octets div { display: grid; gap: 4px; justify-items: center; padding: 12px 4px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
+.v4-octets code { font: 700 1.3rem var(--mono); }
+.v4-octets small { color: var(--muted); font-size: 0.78rem; text-align: center; }
+.v4-places { width: 100%; border-collapse: collapse; font: 600 0.95rem var(--mono); text-align: center; }
+.v4-places caption { text-align: left; font: 650 0.95rem var(--font); margin-bottom: 6px; }
+.v4-places th { font: 600 0.78rem var(--font); color: var(--muted); text-align: left; padding-right: 6px; white-space: nowrap; }
+.v4-places td { padding: 8px 0; border: 1px solid var(--line); }
+.v4-places td.is-network { background: #f6ead8; color: var(--level-network); }
+.v4-places td.is-host { background: #e6edf6; color: var(--level-application); }
+.v4-specials { display: grid; gap: 12px; }
+.v4-special h4 { margin: 0 0 4px; font: 700 1rem var(--mono); }
+.v4-ranges { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.v4-ranges th, .v4-ranges td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.v4-ranges thead th { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.v4-ranges tr.is-own td { background: var(--primary-soft); font-weight: 650; }
+.v4-ranges tfoot td { border: 0; color: var(--ink-2); padding-top: 10px; }
+.v4-link { display: flex; align-items: center; gap: 8px; }
+.v4-link span { display: inline-flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); min-width: 0; }
+.v4-link span code { font: 600 0.9rem var(--mono); overflow-wrap: anywhere; }
+.v4-link i { flex: 1; min-width: 16px; border-top: 3px solid var(--level-network); }
+.v4-explore { justify-self: start; font-size: 0.9rem; }
+@media (max-width: 600px) {
+  /* Explore subnets lets bit rows reach into its card padding for 44px bits; a lesson scene has little padding, so not here. */
+  .v4-scene .subnet-bits { margin-inline: 0; }
+  .v4-octets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .v4-places { font-size: 0.82rem; }
+  .v4-link { flex-direction: column; align-items: stretch; }
+  .v4-link i { border-top: 0; border-left: 3px solid var(--level-network); height: 16px; margin-left: 20px; flex: none; }
+}

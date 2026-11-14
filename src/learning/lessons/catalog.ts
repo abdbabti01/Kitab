@@ -1,4 +1,5 @@
 import { ipAddressing } from "./ip-addressing.ts";
+import { ipv4Subnets } from "./ipv4-subnets.ts";
 import { parseLesson, type Lesson } from "./schema.ts";
 
 /**
@@ -87,7 +88,8 @@ const arrayInsert = {
   ],
 };
 
-export const lessons: Lesson[] = [ipAddressing, arrayInsert].map((item) => parseLesson(item));
+// ipv4-subnets is reachable by URL and from Explore subnets; it joins Home and the networking path in the switchover PR.
+export const lessons: Lesson[] = [ipAddressing, arrayInsert, ipv4Subnets].map((item) => parseLesson(item));
 
 /**
  * A standalone page served as a file (public/learn/<id>.html) with a full page load, not rendered by

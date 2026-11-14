@@ -32,9 +32,25 @@ const chapter = z
   .object({ id, title: text(60), goal: text(300), steps: z.array(step).min(1).max(40) })
   .strict();
 
-const control = z.discriminatedUnion("control", [
+const control = z.union([
   z.object({ key: z.string().min(1).max(40), label: text(40), control: z.literal("text"), maxLength: z.number().int().min(1).max(64), help: text(160) }).strict(),
   z.object({ key: z.string().min(1).max(40), label: text(40), control: z.literal("choice"), options: z.array(z.object({ value: factValue, label: text(40) }).strict()).min(2).max(8), help: text(160) }).strict(),
+  /** Whole numbers from min to max in steps, as a slider, with optional one-tap presets. */
+  z
+    .object({
+      key: z.string().min(1).max(40),
+      label: text(40),
+      control: z.literal("range"),
+      min: z.number().int(),
+      max: z.number().int(),
+      step: z.number().int().positive(),
+      presets: z.array(z.number().int()).max(12).default([]),
+      unit: z.string().max(8).optional(),
+      help: text(160),
+    })
+    .strict()
+    .refine((c) => c.min < c.max && (c.max - c.min) / c.step <= 64, "A range needs min < max and at most 64 steps.")
+    .refine((c) => c.presets.every((p) => p >= c.min && p <= c.max && (p - c.min) % c.step === 0), "Presets must be values of the range."),
 ]);
 
 export const lessonSchema = z

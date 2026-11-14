@@ -6,7 +6,7 @@ import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
 import { createNav, currentStep, navReducer, restoreNav, visibleSteps, type NavAction, type NavState } from "../learning/lessons/navigation.ts";
 import { lessonStatus, loadLearning, recordLessonVisit, recordStep, saveLearning } from "../learning/lessons/progress.ts";
-import { JOURNEY, resolveTrack, safeParams, stepDelta, type ResolvedStep, type Track } from "../learning/lessons/runtime.ts";
+import { JOURNEY, checkParam, resolveTrack, safeParams, stepDelta, type ResolvedStep, type Track } from "../learning/lessons/runtime.ts";
 import type { Lesson } from "../learning/lessons/schema.ts";
 import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.ts";
 import { askLessonTutor } from "../app/api.ts";
@@ -25,6 +25,9 @@ const storage = safeStorage();
 const plain = new Intl.NumberFormat("en-US", { useGrouping: false });
 const format = (value: FactValue) => (typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "number" ? plain.format(value) : value);
 /** Matches the single-column layout in lesson.css, where the step bar is fixed to the bottom of the screen. */
+// Known accessibility gap (documented for a later fix): crossing this width while a step-bar button has keyboard focus
+// re-renders the bar in its other position, so that focus is lost (the lesson position is kept). Fix by restoring focus
+// to the same control after the move.
 const STACKED = "(max-width: 860px)";
 function useMedia(query: string) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
@@ -420,20 +423,47 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
 
 function ExampleControls({ lesson, params, onApply }: { lesson: Lesson; params: Record<string, FactValue>; onApply: (params: Record<string, FactValue>) => void }) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
   if (!lesson.controls.length) return null;
   return (
     <details className="example-controls card">
       <summary>Change the example</summary>
       {lesson.controls.map((control) =>
         control.control === "text" ? (
-          <form key={control.key} className="field" onSubmit={(event) => { event.preventDefault(); onApply({ [control.key]: drafts[control.key] ?? String(params[control.key]) }); }}>
+          <form key={control.key} className="field" onSubmit={(event) => {
+            event.preventDefault();
+            const value = (drafts[control.key] ?? String(params[control.key])).trim();
+            // An engine that checks this parameter keeps the learner's text and shows why, instead of applying it.
+            const problem = checkParam(lesson, control.key, value);
+            setErrors({ ...errors, [control.key]: problem });
+            if (!problem) onApply({ [control.key]: value });
+          }}>
             <label htmlFor={`control-${control.key}`}>{control.label}</label>
             <div className="ask-row">
-              <input id={`control-${control.key}`} value={drafts[control.key] ?? String(params[control.key] ?? "")} onChange={(event) => setDrafts({ ...drafts, [control.key]: event.target.value })} maxLength={control.maxLength * 2} />
+              <input id={`control-${control.key}`} value={drafts[control.key] ?? String(params[control.key] ?? "")} onChange={(event) => setDrafts({ ...drafts, [control.key]: event.target.value })} maxLength={control.maxLength * 2}
+                aria-invalid={errors[control.key] ? true : undefined} aria-describedby={errors[control.key] ? `control-${control.key}-error` : undefined} />
               <button type="submit" className="button">Use it</button>
             </div>
+            {errors[control.key] && <p className="control-error" id={`control-${control.key}-error`} role="alert">{errors[control.key]} The example still shows {String(params[control.key])}.</p>}
             <small className="muted">{control.help}</small>
           </form>
+        ) : control.control === "range" ? (
+          <div key={control.key} className="field range-control">
+            <div className="range-head">
+              <label htmlFor={`control-${control.key}`}>{control.label}</label>
+              <output htmlFor={`control-${control.key}`}>{control.unit ?? ""}{String(params[control.key])}</output>
+            </div>
+            <input id={`control-${control.key}`} type="range" min={control.min} max={control.max} step={control.step} value={Number(params[control.key])}
+              aria-valuetext={`${control.unit ?? ""}${String(params[control.key])}`} onChange={(event) => onApply({ [control.key]: Number(event.target.value) })} />
+            {control.presets.length > 0 && (
+              <div className="range-presets" role="group" aria-label={`${control.label} presets`}>
+                {control.presets.map((value) => (
+                  <button key={value} type="button" aria-pressed={params[control.key] === value} onClick={() => onApply({ [control.key]: value })}>{control.unit ?? ""}{value}</button>
+                ))}
+              </div>
+            )}
+            <small className="muted">{control.help}</small>
+          </div>
         ) : (
           <fieldset key={control.key} className="field">
             <legend>{control.label}</legend>
