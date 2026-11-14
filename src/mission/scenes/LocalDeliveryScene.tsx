@@ -55,6 +55,13 @@ function Decision({ event }: { event: TraceEvent }) {
 
 const PHASE = { normal: "In the normal run", changed: "In this experiment", restored: "Put back" } as const;
 
+/** What to try with each network this lesson ran, on the "Try it in the lab" step. */
+const LAB_TRY = {
+  lan: "Ping the local server: ARP and the switch deliver it with no router.",
+  routed: "Change your PC's or the server's default gateway, run the ping again and find where it stops.",
+  internet: "Turn off NAT on the home router and follow the reply to where it stops.",
+} as const;
+
 /** An experiment's one setting, and (except on the change itself, which the learner predicts) the run's result. */
 function Setting({ change, trace }: { change: NonNullable<LocalDeliveryData["change"]>; trace: ReturnType<typeof runOf>["trace"] }) {
   const value = change.phase === "changed" ? change.changed : change.normal;
@@ -102,7 +109,17 @@ export function LocalDeliveryScene(props: Props) {
   const q = d.question,
     answered = !q || current.shown || current.tried.includes(q.choices.findIndex((c) => c.correct));
   let evidence: React.ReactNode = null;
-  if (d.view === "settings") {
+  if (d.view === "task") {
+    // A mission's question: the PC's settings and the destination only. The diagram shows no event yet.
+    const value = (id: string) => String(props.frame.facts.find((f) => f.id === id)?.value ?? "");
+    evidence = (
+      <dl className="ld-decision ld-task" aria-label="Your PC's settings">
+        <div><dt>Your PC</dt><dd><code>{value("pc-address")}</code></dd></div>
+        <div><dt>Default gateway</dt><dd><code>{value("gateway")}</code></dd></div>
+        <div><dt>Destination</dt><dd><code>{value("destination")}</code></dd></div>
+      </dl>
+    );
+  } else if (d.view === "settings") {
     const pc = network.devices.find((x) => x.id === "pc")!.interfaces[0],
       c = compare(pc.ip, String(trace.events[0].facts?.Destination), pc.prefix);
     evidence = (
@@ -136,6 +153,14 @@ export function LocalDeliveryScene(props: Props) {
     );
   } else if (d.view === "change" && d.change) {
     evidence = <Setting change={d.change} trace={trace} />;
+  } else if (d.view === "lab") {
+    evidence = (
+      <ul className="ld-starters" aria-label="The networks this lesson ran, in the lab">
+        {(Object.keys(LAB_TRY) as (keyof typeof LAB_TRY)[]).map((id) => (
+          <li key={id}><a {...linkProps(`/practice/network?starter=${RUNS[id].starter}`)}><b>{runName(id)}</b><small>{LAB_TRY[id]}</small></a></li>
+        ))}
+      </ul>
+    );
   } else {
     evidence = (
       <div className="ld-event">
@@ -158,7 +183,7 @@ export function LocalDeliveryScene(props: Props) {
         Simulated run: <b>{runName(d.run)}</b>, step {d.index + 1} of {trace.events.length}
       </p>
       <Suspense fallback={<p className="ld-loading" role="status">Loading the network diagram…</p>}>
-        <LocalDeliveryCanvas network={network} events={trace.events} index={d.index} onSelect={props.onSelect} />
+        <LocalDeliveryCanvas network={network} events={trace.events} index={d.index} still={d.view === "task"} onSelect={props.onSelect} />
       </Suspense>
       {q && (
         <PredictionCard id={`lesson2-${props.frame.id}`} question={q} attempt={current} revealed={answered}
@@ -166,7 +191,8 @@ export function LocalDeliveryScene(props: Props) {
       )}
       {answered && evidence}
       {d.mission && <a className="ld-lab" {...linkProps(`/practice/missions/${d.mission.id}`)}>Practise in the lab: {d.mission.title} →</a>}
-      <a className="ld-lab" {...linkProps(`/practice/network?starter=${RUNS[baseOf(d.run)].starter}`)}>Open this network in the lab →</a>
+      {/* A practice network differs from the starter, so it isn't offered as "this network"; the lab step lists them all. */}
+      {!d.run.startsWith("practice-") && d.view !== "lab" && <a className="ld-lab" {...linkProps(`/practice/network?starter=${RUNS[baseOf(d.run)].starter}`)}>Open this network in the lab →</a>}
     </SceneSection>
   );
 }

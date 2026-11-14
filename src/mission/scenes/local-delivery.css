@@ -35,3 +35,8 @@
 .ld-stop { grid-column: 1 / -1; border: 2px solid var(--danger); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); min-width: 0; }
 .ld-stop h4 { margin: 0 0 6px; font-size: 0.95rem; }
 .ld-stop .ld-decision { border: 0; background: none; padding: 0; }
+/* "Try it in the lab": one link per network the lesson ran. */
+.ld-starters { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ld-starters a { display: grid; gap: 2px; padding: 10px 12px; min-height: 44px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); text-decoration: none; color: var(--ink); background: var(--surface); }
+.ld-starters a:hover { border-color: var(--primary); }
+.ld-starters small { color: var(--muted); }

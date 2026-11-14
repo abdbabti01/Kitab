@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { simulate } from "../../practice/network/engine.ts";
 import { divergence, experimentsFor, type FaultKind } from "../../practice/network/experiments.ts";
-import type { Network, Session, Trace as NetTrace, TraceEvent } from "../../practice/network/model.ts";
+import type { Action, Network, Session, Trace as NetTrace, TraceEvent } from "../../practice/network/model.ts";
 import { starter } from "../../practice/network/starters.ts";
 import { block } from "../../net/ipv4.ts";
 import { blockStart, compare, localQuestion, type Question } from "../../net/subnet-practice.ts";
@@ -29,15 +29,23 @@ export const EXPERIMENTS = {
   "nat-off": { base: "internet", name: "NAT turned off", lab: "nat" },
 } as const satisfies Record<string, { base: BaseRunId; name: string; lab: FaultKind | null }>;
 export type ExperimentId = keyof typeof EXPERIMENTS;
-/** A base run, an experiment's run, or the run after the experiment's setting is put back. */
-export type RunId = BaseRunId | ExperimentId | `${ExperimentId}-restored`;
+/** A base run, an experiment's run, the run after the experiment's setting is put back, or a practice network's run. */
+export type RunId = BaseRunId | ExperimentId | `${ExperimentId}-restored` | `practice-${string}`;
+
+/** Runs another engine defines on its own network (the gateway-or-direct practice), simulated here like every other run. */
+type DefinedRun = { base: BaseRunId; name: string; build: () => { network: Network; action: Action } };
+const defined = new Map<string, DefinedRun>();
+export function defineRun(id: `practice-${string}`, run: DefinedRun) {
+  defined.set(id, run);
+}
 
 const BASE_NAMES: Record<BaseRunId, string> = { routed: "Two connected LANs", lan: "Your first LAN", internet: "A request across the Internet" };
 const experimentOf = (id: RunId) => (id.replace(/-restored$/, "") in EXPERIMENTS ? (id.replace(/-restored$/, "") as ExperimentId) : null);
-/** The base run a run starts from: itself, or the run its experiment changes. */
-export const baseOf = (id: RunId): BaseRunId => (experimentOf(id) ? EXPERIMENTS[experimentOf(id)!].base : (id as BaseRunId));
+/** The base run a run starts from: itself, the run its experiment changes, or the starter a practice network varies. */
+export const baseOf = (id: RunId): BaseRunId => defined.get(id)?.base ?? (experimentOf(id) ? EXPERIMENTS[experimentOf(id)!].base : (id as BaseRunId));
 export const runName = (id: RunId) => {
   const x = experimentOf(id);
+  if (defined.has(id)) return defined.get(id)!.name;
   return !x ? BASE_NAMES[id as BaseRunId] : id.endsWith("-restored") ? `${EXPERIMENTS[x].name}, setting restored` : EXPERIMENTS[x].name;
 };
 
@@ -74,7 +82,13 @@ function changed(x: ExperimentId): { network: Network; change: Change } {
 /** The network and its simulated trace for a run, computed once. Deterministic, so the scene and the engine agree. */
 export function runOf(id: RunId): Run {
   let run = runs.get(id);
+  if (!run && defined.has(id)) {
+    const { network, action } = defined.get(id)!.build();
+    run = { network, trace: simulate(network, emptySession(), action) };
+    runs.set(id, run);
+  }
   if (!run) {
+    if (id.startsWith("practice-")) throw new Error(`No practice run ${id} is defined.`);
     const x = experimentOf(id),
       action = { ...RUNS[baseOf(id)].action };
     if (!x) {
@@ -123,7 +137,7 @@ export function frameOf(event: TraceEvent) {
   return event.layers.find((layer) => layer.kind === "link" && "Source MAC" in layer.fields)?.fields;
 }
 
-export type View = "settings" | "event" | "compare" | "change" | "stop";
+export type View = "settings" | "event" | "compare" | "change" | "stop" | "task" | "lab";
 export type LocalDeliveryData = {
   view: View;
   run: RunId;
@@ -146,7 +160,7 @@ const deviceEntity = (network: Network, id: string): Entity => {
   return { id, label: device.name, kind: "device" };
 };
 
-function eventFacts(id: RunId, index: number, prefix = ""): Fact[] {
+export function eventFacts(id: RunId, index: number, prefix = ""): Fact[] {
   // Before/after facts on one step need distinct labels as well as ids.
   // Facts from the other starters name their run, so a step is never compared with a step of a different run.
   const tag = prefix === "before-" ? "Before · " : prefix === "after-" ? "After · " : "",
@@ -345,6 +359,9 @@ function build(p: Params) {
     { id: "internet-summary", label: `Simulator summary (${runName("internet")})`, value: internet.trace.summary, entityId: "pc" },
   ]);
 
+  // Chapter 6: into the lab. No new event: the internet run as it ends, with links to the networks this lesson ran.
+  add("try-lab", "network", { view: "lab", run: "internet", index: home }, [], [], "Try it in the lab", "pc");
+
   const journey = {
     ...outcomeOf("routed"),
     delivered: routed.trace.success && internet.trace.success,
@@ -493,7 +510,7 @@ function checkClaims(text: string, facts: Fact[], trace: Trace) {
 
 export const localDeliveryAdapter: EngineAdapter<Params, LocalDeliveryData> = {
   id: "local-delivery",
-  version: "1.1.0",
+  version: "1.2.0",
   title: "Local delivery, gateways and routing",
   params,
   build,

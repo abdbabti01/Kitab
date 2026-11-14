@@ -20,6 +20,8 @@ const scenes: Record<string, SceneModule<any>> = {
 /** Scenes for on-demand engines (engines/browser.ts), loaded with their engine. */
 const onDemandScenes: Record<string, () => Promise<SceneModule<any>>> = {
   "local-delivery": () => import("./LocalDeliveryScene.tsx").then((m) => m.localDeliveryScene),
+  // The gateway-or-direct practice runs on the same simulator runs, so it uses the same scene.
+  "gateway-practice": () => import("./LocalDeliveryScene.tsx").then((m) => m.localDeliveryScene),
 };
 
 export function sceneFor(engineId: string): SceneModule<any> | undefined {

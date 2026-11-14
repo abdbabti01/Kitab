@@ -9,7 +9,8 @@ import "../../practice/practice.css";
 
 const ignore = () => {};
 
-export default function LocalDeliveryCanvas({ network, events, index, onSelect }: { network: Network; events: TraceEvent[]; index: number; onSelect: (id: string) => void }) {
+/** With `still`, the network is drawn as it is before the run: no event, no packet and nothing the run decided. */
+export default function LocalDeliveryCanvas({ network, events, index, still = false, onSelect }: { network: Network; events: TraceEvent[]; index: number; still?: boolean; onSelect: (id: string) => void }) {
   const event = events[index];
   // The packet sits where this event leaves it; no animation, so the step reads the same with reduced motion.
   const motion = useMemo(() => ({ ...motionAt(events, index, network), ms: 0, capsule: capsuleAt(events, index) }), [events, index, network]);
@@ -17,16 +18,16 @@ export default function LocalDeliveryCanvas({ network, events, index, onSelect }
     <div className="ld-canvas">
       <NetworkCanvas
         network={network}
-        session={event.snapshot}
-        event={event}
+        session={still ? events[0].snapshot : event.snapshot}
+        event={still ? undefined : event}
         selected={event.actor}
         onSelect={onSelect}
         onMove={ignore}
         onAdd={ignore}
         // Follow the device handling the packet, so a phone's stacked diagram shows it.
         follow
-        focus={{ devices: [event.actor], hops: event.hop ? [event.hop] : [] }}
-        motion={motion}
+        focus={still ? { devices: ["pc"], hops: [] } : { devices: [event.actor], hops: event.hop ? [event.hop] : [] }}
+        motion={still ? undefined : motion}
       />
     </div>
   );
