@@ -15,6 +15,7 @@
 .chapter-tag { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--primary-strong); }
 .small-button { min-height: 44px; white-space: nowrap; }
 .lesson-notice { max-width: var(--shell-width); margin: 12px auto 0; padding: 10px 20px; color: var(--warning); }
+.lesson-replaced { max-width: var(--shell-width); margin: 12px auto 0; padding: 10px 20px; color: var(--ink-2); }
 
 /* Three columns: levels · the mechanism · the explanation */
 .lesson-grid { max-width: var(--shell-width); margin: 0 auto; padding: 18px var(--page-gutter) 40px; display: grid; grid-template-columns: 200px minmax(0, 1fr) minmax(320px, 380px); gap: var(--layout-gap); align-items: start; }

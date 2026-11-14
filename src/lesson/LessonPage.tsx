@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
 import { EngineGate } from "../mission/EngineGate.tsx";
-import { findJourney } from "../learning/lessons/catalog.ts";
+import { findJourney, findLesson, replacedLessons } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
 import { createNav, currentStep, navReducer, restoreNav, visibleSteps, type NavAction, type NavState } from "../learning/lessons/navigation.ts";
-import { lessonStatus, loadLearning, recordLessonVisit, recordStep, saveLearning } from "../learning/lessons/progress.ts";
+import { lessonStatus, loadLearning, recordLessonVisit, recordStep, saveLearning, type Learning } from "../learning/lessons/progress.ts";
 import { JOURNEY, checkParam, resolveTrack, safeParams, stepDelta, type ResolvedStep, type Track } from "../learning/lessons/runtime.ts";
 import type { Lesson } from "../learning/lessons/schema.ts";
 import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.ts";
@@ -48,6 +48,27 @@ type TutorState =
 
 export function LessonPage({ lesson }: { lesson: Lesson }) {
   return <EngineGate engineId={lesson.engine.id} title={lesson.title}>{() => <LessonView lesson={lesson} />}</EngineGate>;
+}
+
+const lessonLinks = (ids: string[]) =>
+  ids.map((id, i) => <span key={id}>{i > 0 && " and "}<a {...linkProps(`/learn/${id}`)}>{findLesson(id)!.title}</a></span>);
+
+/**
+ * A replaced lesson says what replaced it, at every step: it still works, and its progress is kept. A replacing lesson
+ * tells a learner who has a record of the lesson it replaces (on its first step) that the record is kept, never moved.
+ */
+function Replacement({ lesson, learning, first }: { lesson: Lesson; learning: Learning; first: boolean }) {
+  const by = replacedLessons[lesson.id];
+  if (by) return <p className="lesson-replaced" role="note">This lesson has been replaced by {lessonLinks(by)}, which follow real simulated packets step by step. You can still finish this one: your progress here is kept.</p>;
+  const old = Object.keys(replacedLessons).find((id) => replacedLessons[id].includes(lesson.id));
+  const record = old ? learning.lessons[old] : undefined;
+  if (!old || !record || !first) return null;
+  const date = record.completedAt && !Number.isNaN(Date.parse(record.completedAt)) ? ` on ${new Date(record.completedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}` : "";
+  return (
+    <p className="lesson-replaced" role="note">
+      {record.completedAt ? `You completed the earlier lesson “${findLesson(old)!.title}”${date}.` : `You started the earlier lesson “${findLesson(old)!.title}”.`} It has been replaced by {lessonLinks(replacedLessons[old])}; your record of it is kept.
+    </p>
+  );
 }
 
 function LessonView({ lesson }: { lesson: Lesson }) {
@@ -273,6 +294,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
       {(boot.updated || boot.recovered) && stepIndex === 0 && (
         <p className="lesson-notice" role="status">{boot.updated ? "This lesson was updated since your last visit, so it starts from the beginning." : "Your saved place couldn't be read, so the lesson starts from the beginning."}</p>
       )}
+      <Replacement lesson={lesson} learning={boot.learning} first={stepIndex === 0} />
 
       <main id="main" className="lesson-grid">
         <nav className="level-rail" aria-label="Levels">
