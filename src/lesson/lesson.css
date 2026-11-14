@@ -97,7 +97,9 @@ html:has(.lesson-page) { scroll-padding-top: calc(var(--nav-height) + 12px); }
 /* Explanation column */
 .explain { display: grid; gap: 14px; min-width: 0; position: sticky; top: calc(var(--nav-height) + 16px); max-height: calc(100vh - 96px); overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
 .card-label { margin: 0 0 4px; font-size: 0.74rem; font-weight: 750; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.step-card { padding: 16px; }
+/* Long unbroken values (32-bit binary, addresses) wrap instead of widening the page on narrow screens. */
+.step-card { padding: 16px; min-width: 0; overflow-wrap: anywhere; }
+.stage > * { min-width: 0; }
 .step-what { font-size: 1.04rem; color: var(--ink); }
 .step-why { color: var(--ink-2); }
 .lesson-page .delta { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 0.88rem; }

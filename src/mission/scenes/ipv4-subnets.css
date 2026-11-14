@@ -31,6 +31,8 @@
 .v4-link i { flex: 1; min-width: 16px; border-top: 3px solid var(--level-network); }
 .v4-explore { justify-self: start; font-size: 0.9rem; }
 @media (max-width: 600px) {
+  /* Explore subnets lets bit rows reach into its card padding for 44px bits; a lesson scene has little padding, so not here. */
+  .v4-scene .subnet-bits { margin-inline: 0; }
   .v4-octets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .v4-places { font-size: 0.82rem; }
   .v4-link { flex-direction: column; align-items: stretch; }
