@@ -117,6 +117,14 @@ export function resolveTrack(lesson: Lesson, params: Record<string, FactValue>, 
   return track;
 }
 
+type RangeControl = Extract<Lesson["controls"][number], { control: "range" }>;
+const inRange = (control: RangeControl, value: number) => Number.isInteger(value) && value >= control.min && value <= control.max && (value - control.min) % control.step === 0;
+
+/** Why the engine refuses a learner's text for this parameter, or null when it accepts it (or doesn't check). */
+export function checkParam(lesson: Lesson, key: string, value: FactValue): string | null {
+  return getEngine(lesson.engine.id)?.checkParam?.(key, value) ?? null;
+}
+
 /** Parameters a learner may set, validated by the engine itself; anything else falls back to the lesson scenario. */
 export function safeParams(lesson: Lesson, raw: unknown): Record<string, FactValue> {
   const allowed = new Set(lesson.controls.map((control) => control.key));
@@ -126,7 +134,8 @@ export function safeParams(lesson: Lesson, raw: unknown): Record<string, FactVal
     const value = source[control.key];
     if (!allowed.has(control.key) || value === undefined) continue;
     if (control.control === "choice" && control.options.some((option) => option.value === value)) picked[control.key] = value as FactValue;
-    if (control.control === "text" && typeof value === "string") picked[control.key] = value.slice(0, control.maxLength * 4);
+    if (control.control === "text" && typeof value === "string" && !checkParam(lesson, control.key, value)) picked[control.key] = value.slice(0, control.maxLength * 4);
+    if (control.control === "range" && typeof value === "number" && inRange(control, value)) picked[control.key] = value;
   }
   try {
     const trace = buildTrace(lesson.engine.id, { ...lesson.scenario, ...picked });
@@ -150,12 +159,17 @@ export function stepDelta(track: Track, from: ResolvedStep | undefined, to: Reso
 
 // ---------------------------------------------------------------- content validation
 
-/** Every scenario a learner can reach: the base scenario, each choice option and sample texts (incl. multi-byte). */
+/**
+ * Every scenario a learner can reach: the base scenario, each choice option, every value of a range, and sample texts
+ * (incl. multi-byte). A text the engine's checkParam rejects is never applied, so it is not reachable.
+ */
 function reachableParams(lesson: Lesson): Record<string, FactValue>[] {
   const samples: Record<string, FactValue>[] = [{}];
   for (const control of lesson.controls) {
     if (control.control === "choice") samples.push(...control.options.map((option) => ({ [control.key]: option.value })));
-    if (control.control === "text") samples.push({ [control.key]: "A" }, { [control.key]: "héllo 👋" }, { [control.key]: "x".repeat(control.maxLength) });
+    if (control.control === "range") for (let value = control.min; value <= control.max; value += control.step) samples.push({ [control.key]: value });
+    if (control.control === "text")
+      samples.push(...["A", "héllo 👋", "x".repeat(control.maxLength)].filter((text) => !checkParam(lesson, control.key, text)).map((text) => ({ [control.key]: text })));
   }
   return samples;
 }

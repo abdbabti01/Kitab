@@ -189,3 +189,29 @@ test("the explorer route resolves, with or without a trailing slash", async () =
   assert.deepEqual(parseRoute("/practice/subnets"), { name: "subnet-explorer" });
   assert.deepEqual(parseRoute("/practice/subnets/"), { name: "subnet-explorer" });
 });
+
+test("the local-or-remote question has one right answer from sameSubnet and distinct, explained mistakes", async () => {
+  const { localQuestion, blockSummary } = await import("../src/net/subnet-practice.ts");
+  for (const address of addresses.slice(0, 300))
+    for (const prefix of prefixes) {
+      const other = addresses[(addresses.indexOf(address) * 13 + prefix * 3) % addresses.length],
+        q = localQuestion(address, other, prefix),
+        labels = q.choices.map((c) => c.label);
+      assert.equal(q.choices.filter((c) => c.correct).length, 1, `${address} ${other}/${prefix}`);
+      assert.ok(q.choices.length >= 3 && q.choices.length <= 4, labels.join(" | "));
+      assert.equal(new Set(labels).size, labels.length);
+      assert.equal(q.choices.find((c) => c.correct)!.label.startsWith("Same subnet"), sameSubnet(address, other, prefix));
+      for (const c of q.choices) if (!c.correct) assert.ok(c.feedback.length > 30);
+      assert.deepEqual(localQuestion(address, other, prefix), q);
+    }
+  const q = localQuestion("10.20.30.77", "10.20.30.90", 28);
+  assert.equal(q.prompt, "Is 10.20.30.90 on the same subnet as 10.20.30.77/28?");
+  assert.equal(q.choices.find((c) => c.correct)!.label, "Different subnet: 10.20.30.90 is in 10.20.30.80/28, not 10.20.30.64/28");
+  assert.match(q.choices.find((c) => c.label === "Same subnet: their first 3 octets match")!.feedback, /as \/24 would\. With \/28 the boundary is 4 bits into octet 4/);
+  assert.match(q.choices.find((c) => /destination's own prefix/.test(c.label))!.feedback, /its own address and prefix only/);
+  assert.match(blockSummary(block("10.20.30.77", 28)), /^network 10\.20\.30\.64, broadcast 10\.20\.30\.79, and 14 usable addresses from 10\.20\.30\.65 to 10\.20\.30\.78$/);
+  for (const [address, prefix] of [["203.0.113.7", 31], ["198.51.100.20", 32], ["8.8.8.8", 0]] as const) {
+    const text = blockSummary(block(address, prefix));
+    assert.doesNotMatch(text.replace("no network or broadcast address", ""), /network |broadcast /);
+  }
+});

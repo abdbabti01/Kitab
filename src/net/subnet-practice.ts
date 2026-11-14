@@ -149,6 +149,53 @@ export const describeRange = (address: string) => {
   return { ...c, note: rangeNotes[c.range] };
 };
 
+/** One line describing a block, worded for its kind: /0, /31 and /32 never get a network or broadcast address. */
+export function blockSummary(b: Block): string {
+  if (b.prefix === 0) return "every IPv4 address: used as the default route, not as a host setting";
+  if (b.kind === "point-to-point") return `a point-to-point link: both ${b.firstUsable} and ${b.lastUsable} are usable, with no network or broadcast address`;
+  if (b.kind === "host") return `the single address ${b.firstUsable}, usable on its own, with no network or broadcast address`;
+  return `network ${b.network}, broadcast ${b.broadcast}, and ${count(b.usable)} usable addresses from ${b.firstUsable} to ${b.lastUsable}`;
+}
+
+/**
+ * "Is the destination on my subnet?", from the device's own address and prefix. Each wrong choice is a common mistake:
+ * comparing whole octets, trusting matching leading numbers, or expecting to use the destination's mask.
+ */
+export function localQuestion(address: string, destination: string, prefix: number): Question {
+  const same = sameSubnet(address, destination, prefix),
+    own = block(address, prefix),
+    other = block(destination, prefix),
+    key = (parseAddress(address) ^ parseAddress(destination) ^ Math.imul(prefix + 7, 0x2c1b3c6d)) >>> 0;
+  const choices: Choice[] = [
+    same
+      ? { label: `Same subnet: both addresses are in ${own.cidr}`, correct: true, feedback: "" }
+      : { label: `Different subnet: ${destination} is in ${other.cidr}, not ${own.cidr}`, correct: true, feedback: "" },
+  ];
+  const add = (choice: Choice) => {
+    if (!choices.some((c) => c.label === choice.label)) choices.push(choice);
+  };
+  const whole = prefix % 8 ? Math.floor(prefix / 8) * 8 : null;
+  if (whole !== null && sameSubnet(address, destination, whole) !== same)
+    add({
+      label: same ? `Different subnet: their first ${whole / 8} octet${whole === 8 ? "" : "s"} differ` : `Same subnet: their first ${whole / 8} octet${whole === 8 ? "" : "s"} match`,
+      correct: false,
+      feedback: `That compares whole octets, as /${whole} would. With /${prefix} the boundary is ${prefix % 8} bit${prefix % 8 === 1 ? "" : "s"} into octet ${whole / 8 + 1}, so compare the network bits there too.`,
+    });
+  add(
+    same
+      ? { label: "Different subnet: the two addresses are not the same", correct: false, feedback: `Addresses on one subnet are always different; what they share is the network part. With /${prefix} both share ${own.cidr}.` }
+      : { label: "Same subnet: the addresses start with the same numbers", correct: false, feedback: `Matching leading numbers is not enough: only the first ${prefix} bits decide. They differ there, so the masked results differ.` },
+  );
+  add({ label: "It depends on the destination's own prefix", correct: false, feedback: "A device decides with its own address and prefix only. It does not know the destination's settings, and doesn't need them for this choice." });
+  return {
+    prompt: `Is ${destination} on the same subnet as ${address}/${prefix}?`,
+    choices: shuffle(choices, key),
+    answer: same
+      ? `Both addresses AND the /${prefix} mask to ${blockStart(own)}, so they are on the same subnet: the device delivers directly and uses ARP to find the destination's MAC address.`
+      : `${address} masks to ${blockStart(own)} but ${destination} masks to ${blockStart(other)}, so they are on different subnets: the device hands the packet to its default gateway.`,
+  };
+}
+
 /** Same subnet or not, from the first device's prefix only. Arithmetic, not a reachability check. */
 export function compare(address: string, destination: string, prefix: number) {
   return {

@@ -73,4 +73,9 @@ export type EngineAdapter<TParams extends Record<string, FactValue> = Record<str
    * supports. A clean result means "no supported claim is contradicted", not "the text is true".
    */
   checkClaims?(text: string, facts: Fact[], trace: Trace): string[];
+  /**
+   * Optional: why a learner's value for a text parameter can't be used, or null when it can. Lessons show the reason
+   * and keep the learner's text instead of applying it.
+   */
+  checkParam?(key: string, value: FactValue): string | null;
 };
