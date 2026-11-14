@@ -68,9 +68,9 @@ export function JourneyStage({
   const motion = useMemo(
     () =>
       j.trace
-        ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, (j.durations[j.index] ?? 1100) / j.speed) * 0.8), capsule: capsuleAt(j.trace.events, j.index) }
+        ? { ...motionAt(j.trace.events, j.index, network), ms: Math.round(Math.max(120, (j.durations[j.index] ?? 1100) / j.speed) * 0.8), capsule: capsuleAt(j.trace.events, j.index), paused: !j.playing }
         : undefined,
-    [j.trace, j.index, j.speed, j.durations, network],
+    [j.trace, j.index, j.speed, j.durations, j.playing, network],
   );
   return (
     <>

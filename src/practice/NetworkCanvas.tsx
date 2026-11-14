@@ -39,8 +39,8 @@ export function NetworkCanvas({
    * answers that choose that option when tapped (the card's "Check my prediction" still submits it). */
   ask?: { device: string; answers: { device: string; option: string; letter: string; text: string }[]; chosen: string; onAnswer: (option: string) => void };
   /** What moves at this step, read from the trace (see motion.ts), how long a hop takes in ms, and the message's
-   * layers and their changes at this step (capsuleAt). */
-  motion?: Motion & { ms: number; capsule?: Capsule };
+   * layers and their changes at this step (capsuleAt). `paused`: playback is paused, so a crossing holds where it is. */
+  motion?: Motion & { ms: number; capsule?: Capsule; paused?: boolean };
   /** Opens the current message's headers. */
   onPacket?: () => void;
   /** Shown in the canvas's own bar, such as the first-run start button. */
@@ -759,7 +759,7 @@ export function NetworkCanvas({
         {motion && (
           <PacketLayer
             motion={motion}
-            eventId={event?.id ?? 0}
+            event={event}
             place={place}
             cable={cable}
             stacked={stacked}
@@ -882,7 +882,7 @@ const reducedMotion = () => {
 /** The message on the diagram: crossing its link once, held at the device working on it, or stopped. */
 function PacketLayer({
   motion,
-  eventId,
+  event,
   place,
   cable,
   stacked,
@@ -894,8 +894,8 @@ function PacketLayer({
   /** Drawn size of the message, so it stays easy to find on a small or zoomed-out diagram. */
   scale?: number;
   pad?: { x: number; y: number };
-  motion: Motion & { ms: number; capsule?: Capsule };
-  eventId: number;
+  motion: Motion & { ms: number; capsule?: Capsule; paused?: boolean };
+  event?: TraceEvent;
   place: (id: string) => Point | undefined;
   cable: (a: Point, b: Point) => Cable;
   stacked: boolean;
@@ -903,6 +903,15 @@ function PacketLayer({
   onPacket?: () => void;
 }) {
   const { packet, held, halt } = motion;
+  // A frame starts crossing once per event of a run, also when stepped to by hand; other renders leave it alone.
+  // Pause holds it where it is on the link, and Play runs the crossing again, as the event's timer starts again.
+  const crossing = useRef<SVGAnimationElement>(null),
+    started = useRef<TraceEvent>(undefined);
+  useLayoutEffect(() => {
+    if (event !== started.current || !motion.paused) crossing.current?.beginElement();
+    else crossing.current?.endElement();
+    started.current = event;
+  }, [event, motion.paused]);
   let token: ReactNode = null;
   const select = {
     role: "button",
@@ -978,7 +987,7 @@ function PacketLayer({
     const still = reducedMotion() || motion.ms <= 0;
     token = (
       <g
-        key={eventId}
+        key={event?.id}
         className={`packet-token kind-${packet.kind}${packet.lost ? " is-lost" : ""}`}
         transform={still ? `translate(${end.x} ${end.y})` : undefined}
         aria-label={`${packet.label} ${packet.broadcast ? "broadcast " : ""}frame from ${name(packet.from)} to ${name(packet.to)}${packet.lost ? ", lost on this link" : ""}${carrying ? `: ${carrying}` : ""}. Inspect its headers`}
@@ -986,7 +995,7 @@ function PacketLayer({
       >
         {!still && (
           <animateMotion
-            ref={(el) => (el as SVGAnimationElement | null)?.beginElement()}
+            ref={crossing}
             begin="indefinite"
             dur={`${motion.ms}ms`}
             fill="freeze"
