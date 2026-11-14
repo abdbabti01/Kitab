@@ -52,10 +52,22 @@
 .stage-scene { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: clip; }
 .stage-scene .scene-body { padding: 16px; }
 .stage-scene.is-replaying { border-color: var(--warning); }
+/* Keyboard focus and anchor jumps stop clear of the sticky site header. */
+html:has(.lesson-page) { scroll-padding-top: calc(var(--nav-height) + 12px); }
 .replay-tag { position: absolute; top: 8px; right: 10px; z-index: 2; margin: 0; padding: 4px 10px; border-radius: 999px; background: var(--warning-soft); color: var(--warning); font-size: 0.8rem; font-weight: 700; }
 
-.lesson-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); position: sticky; bottom: 12px; z-index: 10; box-shadow: var(--shadow-lift); }
+/* At the top of the explanation column, beside the diagram, so it never floats over content. Stacked layouts fix it to the bottom (below). */
+.lesson-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); }
 .lesson-controls .next-button { flex: 1; min-width: 140px; justify-content: space-between; }
+/* In the explanation column the bar stays pinned to the column's top, so Next never scrolls out of view; the column
+   scrolls focus clear of it. It never overlaps the diagram, which is in the other column. */
+.explain .lesson-controls { position: sticky; top: 0; z-index: 2; }
+.explain { scroll-padding-top: calc(var(--lesson-bar-height, 120px) + 8px); }
+.explain .lesson-controls .next-button { flex-basis: 100%; order: -1; }
+.explain .lesson-controls .step-position { margin-left: auto; }
+.explain .lesson-controls .button { padding: 0 12px; }
+.explain .lesson-controls .replay-button { width: 44px; padding: 0; }
+.explain .lesson-controls .replay-button .control-label { display: none; }
 .lesson-controls .next-button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .step-position { min-width: 56px; text-align: center; color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
 .autoplay { display: flex; gap: 6px; align-items: center; }
@@ -63,6 +75,8 @@
 .autoplay [aria-pressed="true"] { background: var(--primary); border-color: var(--primary); color: #fff; }
 
 .example-controls, .scope { padding: 10px 14px; }
+/* "Change the example" is part of the diagram card, so the controls sit right under what they change. */
+.stage-scene .example-controls { margin: 0; border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: none; background: var(--surface-2); }
 .example-controls summary, .scope summary { cursor: pointer; font-weight: 650; min-height: 32px; display: flex; align-items: center; }
 .example-controls input:not([type="radio"]) { flex: 1; min-height: 44px; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); }
 .example-controls fieldset { border: 0; padding: 0; margin: 10px 0 0; }
@@ -134,12 +148,10 @@
   .level-rail li:nth-child(4) .level-button { border-top-color: var(--level-link); }
   .level-button.is-now { box-shadow: inset 0 3px 0 0 currentColor; }
 }
-.mobile-what { display: none; }
 @media (max-width: 860px) {
-  .mobile-what { display: block; margin: 0; font-size: 1rem; color: var(--ink); }
-  .step-card .step-what { display: none; }
-  .step-card .step-what + .card-label { margin-top: 0; }
-  .lesson-grid { grid-template-columns: minmax(0, 1fr); padding: 12px 16px 104px; gap: 14px; }
+  /* The fixed step bar publishes its height (LessonPage Controls): the page reserves it, and focus scrolls clear of it. */
+  .lesson-grid { grid-template-columns: minmax(0, 1fr); padding: 12px 16px calc(var(--lesson-bar-height, 72px) + 24px); gap: 14px; }
+  html:has(.lesson-page) { scroll-padding-bottom: calc(var(--lesson-bar-height, 72px) + 12px); }
   .explain { position: static; max-height: none; overflow: visible; }
   .lesson-top { padding-top: 12px; }
   .chapter-strip { padding: 8px var(--page-gutter); }

@@ -24,6 +24,19 @@ import "./lesson.css";
 const storage = safeStorage();
 const plain = new Intl.NumberFormat("en-US", { useGrouping: false });
 const format = (value: FactValue) => (typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "number" ? plain.format(value) : value);
+/** Matches the single-column layout in lesson.css, where the step bar is fixed to the bottom of the screen. */
+const STACKED = "(max-width: 860px)";
+function useMedia(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
+}
 
 type TutorState =
   | { status: "idle" }
@@ -56,6 +69,7 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
   const previous = track.steps[stepIndex - 1];
   const following = track.steps[stepIndex + 1];
   const reduced = useReducedMotion();
+  const stacked = useMedia(STACKED);
   const module = sceneFor(track.trace.engine.id);
   const levelOf = (id: string) => lesson.levels.find((level) => level.id === id)!;
   const chapter = track.chapters[step.chapterIndex];
@@ -187,6 +201,42 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
   // Reviewed content only: the step's own line, else the first new term, else where the evidence is.
   const guideLine = step.kitab
     ?? (relatedTerms[0] ? `New term: ${relatedTerms[0].term}. ${relatedTerms[0].definition}` : focusLabels.length ? `Look at the highlighted ${focusLabels.slice(0, 2).join(" and ")}. Select it to see its exact values.` : "Select anything in the picture to see what it is.");
+  // The step bar is rendered once: at the top of the explanation column, which stays in view beside the diagram, or
+  // fixed to the bottom of the screen when the layout is stacked. Either way it sits apart from the content it steps.
+  const controls = (
+    <Controls
+      onBack={() => manual({ type: "BACK" })}
+      onNext={() => manual({ type: "NEXT" })}
+      onReplay={() => manual({ type: "REPLAY" })}
+      canBack={listIndex > 0 || (listIndex < 0 && stepIndex > 0)}
+      canNext={!atEnd}
+      canReplay={replayable}
+      auto={auto}
+      onAuto={(value) => setAuto(value)}
+      position={`${(listIndex < 0 ? stepIndex : listIndex) + 1} / ${list.length}`}
+      nextLabel={following && following.chapterIndex !== step.chapterIndex && nav.level?.stage !== "explore" ? `Next: ${track.chapters[following.chapterIndex].title}` : "Next"}
+    />
+  );
+  // Rendered once: beside the diagram in the explanation column, or under it when the layout is stacked.
+  const stepText = (
+    <section className="step-card card" aria-labelledby="step-what">
+      <h2 id="step-what" className="card-label">What happens</h2>
+      <p className="step-what">{step.what}</p>
+      <h3 className="card-label">Why it's needed</h3>
+      <p className="step-why">{step.why}</p>
+      {delta.length > 0 && (
+        <>
+          <h3 className="card-label">Before → after</h3>
+          <ul className="delta">{delta.map((line) => <li key={line}>{line}</li>)}</ul>
+        </>
+      )}
+      {relatedTerms.length > 0 && <TermChips label="New terms" terms={relatedTerms} />}
+      <p className="connection">
+        {previous && <span><small>Before:</small> {previous.title}</span>}
+        {following && <span><small>Next:</small> {following.title}</span>}
+      </p>
+    </section>
+  );
 
   return (
     <div className="lesson-page">
@@ -242,6 +292,19 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
             <h1 id="step-title" className="step-title">{step.title}</h1>
             <p className="step-who"><span className={`level-badge level-${step.level}`}>{levelOf(step.level).name} level</span> <span>Who acts: <b>{step.actor}</b></span></p>
           </div>
+          {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
+          {/* The diagram comes first, with the controls that change it attached to its card. */}
+          <div className={`stage-scene ${replayFrame !== null ? "is-replaying" : ""}`}>
+            {replayFrame !== null && <p className="replay-tag" role="status">Before: {previous?.title}</p>}
+            <div className="scene-body" ref={sceneRef}>
+              {Scene ? <Scene frame={sceneFrame} trace={track.trace} selected={selected} attention={attention} onSelect={(id: string) => { setSelected(id); setAttention(null); }} /> : <p className="error-text">No scene is registered for “{track.trace.engine.id}”.</p>}
+            </div>
+            <ExampleControls lesson={lesson} params={track.trace.params} onApply={(params) => manual({ type: "SET_PARAMS", params: safeParams(lesson, { ...nav.params, ...params }) })} />
+          </div>
+          {/* Stacked layouts (phones, tablets) keep the step's explanation right under its diagram. */}
+          {stacked && stepText}
+          {stacked && controls}
+          <p className="sr-only" aria-live="polite">{auto.playing ? "" : `${step.title}. ${levelOf(step.level).name} level.`}</p>
           {featuredTerm && (
             <section className="key-concept card" aria-labelledby="key-concept-title">
               <div className="key-concept-heading">
@@ -251,28 +314,6 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
               <TermFields term={featuredTerm} />
             </section>
           )}
-          <div className={`stage-scene ${replayFrame !== null ? "is-replaying" : ""}`}>
-            {replayFrame !== null && <p className="replay-tag" role="status">Before: {previous?.title}</p>}
-            <div className="scene-body" ref={sceneRef}>
-              {Scene ? <Scene frame={sceneFrame} trace={track.trace} selected={selected} attention={attention} onSelect={(id: string) => { setSelected(id); setAttention(null); }} /> : <p className="error-text">No scene is registered for “{track.trace.engine.id}”.</p>}
-            </div>
-          </div>
-          <p className="mobile-what">{step.what}</p>
-          {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
-          <Controls
-            onBack={() => manual({ type: "BACK" })}
-            onNext={() => manual({ type: "NEXT" })}
-            onReplay={() => manual({ type: "REPLAY" })}
-            canBack={listIndex > 0 || (listIndex < 0 && stepIndex > 0)}
-            canNext={!atEnd}
-            canReplay={replayable}
-            auto={auto}
-            onAuto={(value) => setAuto(value)}
-            position={`${(listIndex < 0 ? stepIndex : listIndex) + 1} / ${list.length}`}
-            nextLabel={following && following.chapterIndex !== step.chapterIndex && nav.level?.stage !== "explore" ? `Next: ${track.chapters[following.chapterIndex].title}` : "Next"}
-          />
-          <p className="sr-only" aria-live="polite">{auto.playing ? "" : `${step.title}. ${levelOf(step.level).name} level.`}</p>
-          <ExampleControls lesson={lesson} params={track.trace.params} onApply={(params) => manual({ type: "SET_PARAMS", params: safeParams(lesson, { ...nav.params, ...params }) })} />
           {hasTermReference && (
             <details className="lesson-term-reference card" ref={termReference}>
               <summary id="lesson-terms">All lesson terms</summary>
@@ -291,26 +332,11 @@ export function LessonPage({ lesson }: { lesson: Lesson }) {
         </section>
 
         <aside className="explain" aria-label="Explanation">
+          {!stacked && controls}
           {nav.level && (
             <LevelPanel lesson={lesson} track={track} nav={nav} step={step} onExplore={() => manual({ type: "EXPLORE_LEVEL" })} onClose={(resume) => manual({ type: "CLOSE_LEVEL", resume })} />
           )}
-          <section className="step-card card" aria-labelledby="step-what">
-            <h2 id="step-what" className="card-label">What happens</h2>
-            <p className="step-what">{step.what}</p>
-            <h3 className="card-label">Why it's needed</h3>
-            <p className="step-why">{step.why}</p>
-            {delta.length > 0 && (
-              <>
-                <h3 className="card-label">Before → after</h3>
-                <ul className="delta">{delta.map((line) => <li key={line}>{line}</li>)}</ul>
-              </>
-            )}
-            {relatedTerms.length > 0 && <TermChips label="New terms" terms={relatedTerms} />}
-            <p className="connection">
-              {previous && <span><small>Before:</small> {previous.title}</span>}
-              {following && <span><small>Next:</small> {following.title}</span>}
-            </p>
-          </section>
+          {!stacked && stepText}
 
           <ObjectPanel lesson={lesson} entity={selectedEntity} selected={selected} facts={frame.facts} onClear={() => setSelected(null)} />
 
@@ -356,8 +382,21 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
   onBack: () => void; onNext: () => void; onReplay: () => void; canBack: boolean; canNext: boolean; canReplay: boolean;
   auto: { playing: boolean; speed: number }; onAuto: (value: { playing: boolean; speed: number }) => void; position: string; nextLabel: string;
 }) {
+  // Publishes the bar's height, so a stacked layout reserves exactly that much room and focus never lands under it.
+  const bar = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = bar.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const root = document.documentElement.style;
+    const observer = new ResizeObserver(() => root.setProperty("--lesson-bar-height", `${Math.ceil(element.getBoundingClientRect().height)}px`));
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      root.removeProperty("--lesson-bar-height");
+    };
+  }, []);
   return (
-    <div className="lesson-controls" role="group" aria-label="Step controls">
+    <div className="lesson-controls" role="group" aria-label="Step controls" ref={bar}>
       <button type="button" className="button" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Back</button>
       <button type="button" className="button replay-button" aria-label="Replay" onClick={onReplay} disabled={!canReplay} title={canReplay ? "Show the previous state, then this change again" : "Nothing moved in this step"}><RotateCcw aria-hidden="true" /> <span className="control-label">Replay</span></button>
       <button type="button" className="button primary next-button" onClick={onNext} disabled={!canNext}><span>{canNext ? nextLabel : "End of this path"}</span> <ChevronRight aria-hidden="true" /></button>
