@@ -48,6 +48,20 @@ const terms: Lesson["glossary"] = [
     id: "nat-vs-routing", term: "Routing is not NAT",
     definition: "Routing chooses where a packet goes next and keeps its IP addresses. NAT, which many home routers also do, rewrites addresses. Most routers on a network route without NAT.",
   },
+  {
+    id: "private-address", term: "Private address",
+    definition: "An address from the ranges set aside for private networks (RFC 1918), such as 192.168.0.0/16. Many homes reuse the same ones, so routers on the Internet don't route to them.",
+    purpose: "It's why a reply from the Internet can't be addressed to your PC directly.",
+  },
+  {
+    id: "nat", term: "NAT (network address translation)",
+    definition: "A home router rewrites the private source address and port of outgoing packets to its own public address and a port, saves the pair in its NAT table, and uses that entry to restore the private destination of the reply.",
+    purpose: "It lets every device in a home share one public address and still get its own replies.",
+  },
+  {
+    id: "experiment-change", term: "One change at a time",
+    definition: "An experiment changes a single setting, runs the same action again and compares the result with the normal run. Putting the setting back and running again confirms the cause.",
+  },
 ];
 
 export const localDeliveryRouting: Lesson = {
@@ -56,15 +70,16 @@ export const localDeliveryRouting: Lesson = {
   version: "1.0.0",
   title: "Local delivery, gateways and routing",
   question: "Who does my PC hand a packet to, and how does a router get it to another subnet?",
-  summary: "Follow a real simulated ping from your PC through a router to another subnet: the next-hop decision, ARP for the gateway, the frame and packet at every link, and the router's routing decision.",
+  summary: "Follow real simulated pings from your PC: the next-hop decision, ARP for the gateway, the frame and packet at every link, a router's routing decision and a home router's NAT. Then change one setting and see where the run stops.",
   topic: "Networks",
   review: { status: "reviewed", note: "Every networking value comes from a run of Kitab's network simulator." },
-  engine: { id: "local-delivery", version: "1.0.0" },
+  engine: { id: "local-delivery", version: "1.1.0" },
   scenario: {},
   scope: [
     "Every step is an event from a real run of Kitab's network simulator on the lab's own starter networks: “Two connected LANs”, “Your first LAN” and the internet starter.",
     "The first decision is the same-subnet arithmetic from Lesson 1, labelled as a calculation. Everything after it, including ARP replies, MAC addresses, routes, TTL and delivery, is what the simulator did.",
-    "The routers here forward without NAT, so the IP addresses stay as your PC wrote them. NAT and three experiments that break a setting come in the next part of this lesson.",
+    "The routers between the two LANs forward without NAT, so the IP addresses stay as your PC wrote them. Chapter 5 shows the home router's NAT, a separate step after routing.",
+    "Three experiments each change one setting, run the same ping in the simulator again and show where it stops, then put the setting back and run it once more.",
     "Predictions are for practice: nothing is scored or recorded.",
   ],
   prerequisites: "Lesson 1, Understanding IPv4 addresses and subnets: the same-subnet decision.",
@@ -75,7 +90,48 @@ export const localDeliveryRouting: Lesson = {
   ],
   glossary: terms,
   controls: [],
-  experiments: [],
+  experiments: [
+    {
+      id: "wrong-gateway", title: "A wrong default gateway", question: "What happens when your PC's default gateway is an address no device has?",
+      params: { experiment: "wrong-gateway" },
+      startFrame: "wrong-gateway-baseline",
+      chapters: [{ id: "wrong-gateway-run", title: "Wrong gateway", goal: "Change one setting, run the same ping, find where it stops, then put it back.", steps: [
+        { id: "wrong-gateway-normal", frame: "wrong-gateway-baseline", actor: "Your PC", focus: ["pc"], terms: ["experiment-change", "default-gateway"], what: "In the normal run, the setting “{fact:experiment-setting}” on {fact:experiment-device} is {fact:experiment-normal}. The simulated ping: {fact:experiment-summary}", why: "This is what the experiment is compared with: the same network and the same ping as the walkthrough." },
+        { id: "wrong-gateway-change", frame: "wrong-gateway-change", actor: "Your PC", focus: ["pc"], terms: [], what: "One change: “{fact:experiment-setting}” on {fact:experiment-device} goes from {fact:experiment-normal} to {fact:experiment-value}. Nothing else changes. Predict what happens, then step on: the simulator runs the same ping again.", why: "Changing a single setting means any difference in the run is caused by that setting." },
+        { id: "wrong-gateway-diverge", frame: "wrong-gateway-diverge", actor: "Your PC", focus: ["pc"], terms: ["next-hop"], what: "The two runs part at your PC's first decision: next hop {fact:difference-next-hop-experiment} instead of {fact:difference-next-hop-normal}, by route “{fact:wrong-gateway-route}” out of {fact:wrong-gateway-interface}.", why: "Your PC trusts its setting: for a remote destination it always hands the packet to its default gateway, whatever that address is." },
+        { id: "wrong-gateway-stop", frame: "wrong-gateway-stop", level: "link", actor: "Your PC", focus: ["pc"], terms: ["arp"], what: "The run stops at {fact:stopped-at}: {fact:stop-message} The simulator's reason is {fact:stop-reason}.", why: "{fact:stop-detail} Without the next hop's MAC, your PC can't build the frame, so the ping never leaves. {fact:stop-advice}" },
+        { id: "wrong-gateway-restore", frame: "wrong-gateway-restore", actor: "Your PC", focus: ["pc"], terms: [], what: "Put back: “{fact:experiment-setting}” is {fact:experiment-value} again. The same ping, run again: {fact:experiment-summary}", why: "Restoring the one setting brings the normal result back, which confirms it was the cause." },
+      ] }],
+      compare: [{ outcome: "pingSucceeded", label: "The ping succeeded" }, { outcome: "nextHop", label: "Your PC's next hop" }, { outcome: "stopReason", label: "Simulator's stop reason" }, { outcome: "stoppedAt", label: "Where the run stopped" }],
+    },
+    {
+      id: "no-return-gateway", title: "A server with no way back", question: "What happens when the server has no default gateway?",
+      params: { experiment: "no-return-gateway" },
+      startFrame: "no-return-gateway-baseline",
+      chapters: [{ id: "no-return-gateway-run", title: "No way back", goal: "See the request arrive, and the reply fail on its own routing decision.", steps: [
+        { id: "no-return-gateway-normal", frame: "no-return-gateway-baseline", actor: "Office server", focus: ["server"], terms: ["experiment-change", "default-gateway"], what: "In the normal run, the setting “{fact:experiment-setting}” on {fact:experiment-device} is {fact:experiment-normal}. The simulated ping: {fact:experiment-summary}", why: "This is what the experiment is compared with: the same network and the same ping as the walkthrough." },
+        { id: "no-return-gateway-change", frame: "no-return-gateway-change", actor: "Office server", focus: ["server"], terms: [], what: "One change: “{fact:experiment-setting}” on {fact:experiment-device} goes from {fact:experiment-normal} to {fact:experiment-value}. Your PC and the router stay as they were. Predict what happens, then step on.", why: "Changing a single setting means any difference in the run is caused by that setting." },
+        { id: "no-return-gateway-arrives", frame: "no-return-gateway-arrives", actor: "Office server", focus: ["server"], terms: [], what: "The request still arrives: {fact:no-return-gateway-device} receives {fact:no-return-gateway-source-ip} → {fact:no-return-gateway-destination-ip}, TTL {fact:no-return-gateway-ttl}.", why: "Nothing on the way there changed: your PC and the router never use the server's gateway." },
+        { id: "no-return-gateway-stop", frame: "no-return-gateway-stop", actor: "Office server", focus: ["server"], terms: ["next-hop"], what: "The run stops at {fact:stopped-at}, reason {fact:stop-reason}: {fact:stop-message}", why: "{fact:stop-detail} The reply is a new packet from the server to your PC, so it needs its own routing decision: the way back is never automatic." },
+        { id: "no-return-gateway-restore", frame: "no-return-gateway-restore", actor: "Office server", focus: ["server"], terms: [], what: "Put back: “{fact:experiment-setting}” is {fact:experiment-value} again. The same ping, run again: {fact:experiment-summary}", why: "Restoring the one setting brings the normal result back, which confirms it was the cause." },
+      ] }],
+      compare: [{ outcome: "requestArrived", label: "The request reached the server" }, { outcome: "pingSucceeded", label: "The ping succeeded" }, { outcome: "stopReason", label: "Simulator's stop reason" }, { outcome: "stoppedAt", label: "Where the run stopped" }],
+    },
+    {
+      id: "nat-off", title: "Turn off NAT", question: "What happens when the home router stops translating addresses?",
+      params: { experiment: "nat-off" },
+      startFrame: "nat-off-baseline",
+      chapters: [{ id: "nat-off-run", title: "NAT off", goal: "See the private address leave home and the reply stop on the Internet.", steps: [
+        { id: "nat-off-normal", frame: "nat-off-baseline", actor: "Home router", focus: ["router"], terms: ["experiment-change", "nat"], what: "In the normal run, the setting “{fact:experiment-setting}” on {fact:experiment-device} is {fact:experiment-normal}. The simulated ping: {fact:experiment-summary}", why: "This is what the experiment is compared with: the same network and the same ping as chapter 5." },
+        { id: "nat-off-change", frame: "nat-off-change", actor: "Home router", focus: ["router"], terms: [], what: "One change: “{fact:experiment-setting}” on {fact:experiment-device} goes from {fact:experiment-normal} to {fact:experiment-value}. Routing stays the same. Predict what happens, then step on.", why: "Changing a single setting means any difference in the run is caused by that setting." },
+        { id: "nat-off-diverge", frame: "nat-off-diverge", actor: "Home router", focus: ["router"], terms: ["nat-vs-routing"], what: "The two runs part at the home router: where the normal run did “{fact:difference-step-normal}”, this run goes straight to “{fact:difference-step-experiment}” for its next hop.", why: "With NAT off, the router still routes, but it no longer rewrites anything: the packet leaves with your PC's private source address." },
+        { id: "nat-off-arrives", frame: "nat-off-arrives", actor: "Internet server", focus: ["server"], terms: ["private-address"], what: "The request still reaches {fact:nat-off-device}, from {fact:nat-off-source-ip}, your PC's private address, to {fact:nat-off-destination-ip}.", why: "Routers on the way there look only at the destination, so the request gets through." },
+        { id: "nat-off-stop", frame: "nat-off-stop", actor: "ISP router", focus: ["isp"], terms: ["private-address"], what: "The run stops at {fact:stopped-at}, reason {fact:stop-reason}: {fact:stop-message}", why: "{fact:stop-advice} This is the fault the lab mission “Bring the reply home” asks you to find." },
+        { id: "nat-off-restore", frame: "nat-off-restore", actor: "Home router", focus: ["router"], terms: [], what: "Put back: “{fact:experiment-setting}” is {fact:experiment-value} again. The same ping, run again: {fact:experiment-summary}", why: "Restoring the one setting brings the normal result back, which confirms it was the cause." },
+      ] }],
+      compare: [{ outcome: "serverSawSource", label: "Source address the server saw" }, { outcome: "pingSucceeded", label: "The ping succeeded" }, { outcome: "stopReason", label: "Simulator's stop reason" }, { outcome: "stoppedAt", label: "Where the run stopped" }],
+    },
+  ],
   practice: [],
   kinds: {
     device: { represents: "A device in the simulated network, shown at the step where it handles the packet.", matters: "Each device makes one decision: send, forward by MAC, or route by IP." },
@@ -104,6 +160,13 @@ export const localDeliveryRouting: Lesson = {
       { id: "reply-route", title: "The reply's own route", frame: "reply-route", actor: "Router", focus: ["router"], terms: [], what: "The reply, {fact:source-ip} → {fact:destination-ip}, reaches the router, which chooses “{fact:route}” out of {fact:interface}.", why: "The way back is its own routing decision. Here the router is connected to both networks, so both directions work." },
       { id: "complete", title: "The simulated ping completes", frame: "ping-complete", actor: "Your PC", focus: ["pc"], terms: [], what: "{fact:summary}", why: "This is the simulator's result for this run: simulated run succeeded = {fact:delivered}. Every step above came from that run." },
       { id: "default-route", title: "When no connected route matches", frame: "default-route", actor: "Home router", focus: ["router"], terms: ["default-route"], what: "On the internet starter, the home router has no connected route for {fact:internet-destination-ip}, so it uses “{fact:internet-route}”: out of {fact:internet-interface} to next hop {fact:internet-next-hop}.", why: "A default route catches every destination no other route matches. When several routes match, the one with the longest prefix wins." },
+    ] },
+    { id: "leaving-home", title: "Leaving home: NAT", goal: "See the home router translate your PC's private address, the server answer the public one, and the router bring the reply home.", steps: [
+      { id: "nat-translate", title: "The home router translates the source", frame: "nat-translate", actor: "Home router", focus: ["router"], terms: ["nat", "private-address"], what: "Answer the question in the picture first. Routing has already chosen “{fact:internet-before-route}”. Then the home router rewrites the source: {fact:internet-after-inside} becomes {fact:internet-after-outside}. Source IP {fact:internet-before-source-ip}, then {fact:internet-after-source-ip}; the destination stays {fact:internet-after-destination-ip}.", why: "Your PC's address is private, so Internet routers couldn't send anything back to it. NAT swaps it for the router's public address and saves the pair. It's a separate step from routing, which only chose where the packet goes." },
+      { id: "server-sees", title: "What the server sees", frame: "server-sees", actor: "Internet server", focus: ["server"], terms: [], what: "{fact:internet-device} receives the packet from {fact:internet-source-ip} to {fact:internet-destination-ip}, with TTL {fact:internet-ttl}.", why: "The server only ever sees the public address. It can't tell that a translation happened or which device in the home asked." },
+      { id: "server-replies", title: "The server replies to the public address", frame: "server-replies", actor: "Internet server", focus: ["server"], terms: ["next-hop"], what: "The reply goes from {fact:internet-source-ip} to {fact:internet-destination-ip}. The server chooses “{fact:internet-route}”, next hop {fact:internet-next-hop}.", why: "The server answers the address it saw. Internet routers can deliver to it because that public address belongs to the home router." },
+      { id: "nat-restore", title: "The home router restores the destination", frame: "nat-restore", actor: "Home router", focus: ["router"], terms: ["nat"], what: "The reply reaches the home router addressed to {fact:internet-before-destination-ip}. The router finds its saved pair, {fact:internet-after-outside} → {fact:internet-after-inside}, and changes the destination to {fact:internet-after-destination-ip}. The source stays {fact:internet-after-source-ip}.", why: "The entry saved on the way out is what lets the reply find your PC. Without it, the router wouldn't know which device in the home asked." },
+      { id: "nat-home", title: "The reply comes home", frame: "nat-home", actor: "Your PC", focus: ["pc"], terms: [], what: "{fact:internet-summary} Your PC received the reply from {fact:internet-source-ip}: simulated run succeeded = {fact:internet-delivered}.", why: "Routing chose each next hop and NAT changed the address at the edge of the home network: two different jobs. The lab mission “Bring the reply home” asks you to find a broken NAT yourself." },
     ] },
   ],
   sources: [
