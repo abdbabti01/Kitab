@@ -35,7 +35,7 @@ test("the lesson is registered with its permanent id, its own engine and no chan
   assert.equal(lesson.version, "1.0.0");
   assert.equal(lesson.chapters.length, 6);
   assert.equal(lesson.experiments.length, 3);
-  assert.deepEqual(lessons.map((l) => l.id), ["ip-addressing", "array-insert", "ipv4-subnets"]);
+  assert.deepEqual(lessons.map((l) => l.id), ["ip-addressing", "array-insert", "ipv4-subnets", "local-delivery-routing"]);
   // The earlier lessons keep their ids, versions and controls; none of them uses the new range control.
   assert.equal(findLesson("ip-addressing")!.version, "1.1.0");
   assert.equal(findLesson("array-insert")!.version, "1.0.0");
