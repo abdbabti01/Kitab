@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
 import { EngineGate } from "../mission/EngineGate.tsx";
 import { findJourney, findLesson, replacedLessons } from "../learning/lessons/catalog.ts";
@@ -25,10 +25,12 @@ const storage = safeStorage();
 const plain = new Intl.NumberFormat("en-US", { useGrouping: false });
 const format = (value: FactValue) => (typeof value === "boolean" ? (value ? "yes" : "no") : typeof value === "number" ? plain.format(value) : value);
 /** Matches the single-column layout in lesson.css, where the step bar is fixed to the bottom of the screen. */
-// Known accessibility gap (documented for a later fix): crossing this width while a step-bar button has keyboard focus
-// re-renders the bar in its other position, so that focus is lost (the lesson position is kept). Fix by restoring focus
-// to the same control after the move.
 const STACKED = "(max-width: 860px)";
+/**
+ * Crossing STACKED moves the step bar: the old one unmounts and a new one mounts in the same commit. The control that
+ * had focus in the old bar is remembered here and focused in the new one, so keyboard focus isn't lost to the page.
+ */
+let movingFocus: string | null = null;
 function useMedia(query: string) {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
@@ -413,6 +415,17 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
 }) {
   // Publishes the bar's height, so a stacked layout reserves exactly that much room and focus never lands under it.
   const bar = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const element = bar.current!;
+    if (movingFocus) element.querySelector<HTMLElement>(`[data-control="${movingFocus}"]`)?.focus();
+    movingFocus = null;
+    return () => {
+      // Runs while the old bar is still in the page. If no new bar takes the focus in this commit, forget it.
+      const active = document.activeElement as HTMLElement | null;
+      movingFocus = active && element.contains(active) ? active.dataset.control ?? null : null;
+      setTimeout(() => (movingFocus = null));
+    };
+  }, []);
   useEffect(() => {
     const element = bar.current;
     if (!element || typeof ResizeObserver === "undefined") return;
@@ -426,17 +439,17 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
   }, []);
   return (
     <div className="lesson-controls" role="group" aria-label="Step controls" ref={bar}>
-      <button type="button" className="button" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Back</button>
-      <button type="button" className="button replay-button" aria-label="Replay" onClick={onReplay} disabled={!canReplay} title={canReplay ? "Show the previous state, then this change again" : "Nothing moved in this step"}><RotateCcw aria-hidden="true" /> <span className="control-label">Replay</span></button>
-      <button type="button" className="button primary next-button" onClick={onNext} disabled={!canNext}><span>{canNext ? nextLabel : "End of this path"}</span> <ChevronRight aria-hidden="true" /></button>
+      <button type="button" className="button" data-control="back" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Back</button>
+      <button type="button" className="button replay-button" data-control="replay" aria-label="Replay" onClick={onReplay} disabled={!canReplay} title={canReplay ? "Show the previous state, then this change again" : "Nothing moved in this step"}><RotateCcw aria-hidden="true" /> <span className="control-label">Replay</span></button>
+      <button type="button" className="button primary next-button" data-control="next" onClick={onNext} disabled={!canNext}><span>{canNext ? nextLabel : "End of this path"}</span> <ChevronRight aria-hidden="true" /></button>
       <span className="step-position" aria-label={`Step ${position}`}>{position}</span>
       <div className="autoplay">
-        <button type="button" className="icon-button" onClick={() => onAuto({ ...auto, playing: !auto.playing })} disabled={!canNext && !auto.playing} aria-pressed={auto.playing} aria-label={auto.playing ? "Pause autoplay" : "Autoplay the steps"}>
+        <button type="button" className="icon-button" data-control="autoplay" onClick={() => onAuto({ ...auto, playing: !auto.playing })} disabled={!canNext && !auto.playing} aria-pressed={auto.playing} aria-label={auto.playing ? "Pause autoplay" : "Autoplay the steps"}>
           {auto.playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </button>
         <label>
           <span className="sr-only">Autoplay speed</span>
-          <select value={auto.speed} onChange={(event) => onAuto({ ...auto, speed: Number(event.target.value) })}>
+          <select data-control="speed" value={auto.speed} onChange={(event) => onAuto({ ...auto, speed: Number(event.target.value) })}>
             <option value="0.75">0.75×</option>
             <option value="1">1×</option>
             <option value="1.5">1.5×</option>
