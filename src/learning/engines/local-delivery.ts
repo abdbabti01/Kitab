@@ -162,9 +162,10 @@ const deviceEntity = (network: Network, id: string): Entity => {
 
 export function eventFacts(id: RunId, index: number, prefix = ""): Fact[] {
   // Before/after facts on one step need distinct labels as well as ids.
-  // Facts from the other starters name their run, so a step is never compared with a step of a different run.
+  // Facts from the other starters name their run, so a step is never compared with a step of a different run. A
+  // practice run is the only run its mission shows, so its labels stay short.
   const tag = prefix === "before-" ? "Before · " : prefix === "after-" ? "After · " : "",
-    run = id === "routed" ? "" : ` (${runName(id)})`;
+    run = id === "routed" || id.startsWith("practice-") ? "" : ` (${runName(id)})`;
   return rawFacts(id, index, (id === "routed" ? "" : `${id}-`) + prefix).map((fact) => ({ ...fact, label: tag + fact.label + run }));
 }
 
