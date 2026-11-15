@@ -404,7 +404,7 @@ export function NetworkPlayground() {
           <Waypoints className="playground-mark" aria-hidden="true" />
           <div>
             <h1>Network Playground</h1>
-            <p>Build a network, send a request and watch every frame cross it, step by step. Predict each decision, or break one setting and compare.</p>
+            <p>Build a network, send a request and watch every frame cross it, step by step.<span className="heading-more"> Predict each decision, or break one setting and compare.</span></p>
           </div>
         </div>
         <HeadingArt />

@@ -209,6 +209,8 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 @media (max-width: 540px) {
   .site-header-inner { gap: 4px 6px; }
   .site-header nav a { padding-inline: 7px; font-size: .84rem; }
+  /* Icons go on a phone, so the three destinations stay on one line beside the brand. */
+  .site-header nav a svg { display: none; }
   .step-move span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .step-move { min-width: 44px; min-height: 44px; justify-content: center; }
 }
@@ -379,4 +381,6 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .ways .text-button { justify-self: start; padding-inline: 0; }
 .way-number { position: absolute; top: 16px; right: 18px; color: var(--muted); font: 650 .8rem var(--mono); }
 .path-playground { display: flex; align-items: flex-start; gap: 8px; }
+/* The text wraps within the panel, however narrow the column or large the text. */
+.path-playground span { min-width: 0; overflow-wrap: anywhere; }
 .path-playground svg { width: 18px; height: 18px; flex: none; margin-top: 3px; color: var(--primary); }

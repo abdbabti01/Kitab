@@ -625,9 +625,19 @@
   }
 }
 @media (max-width: 500px) {
+  /* A short heading: the diagram and its first-run button belong on the first screen. */
   .playground-mark {
-    width: 38px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
+  }
+  .network-playground .playground-heading {
+    margin-bottom: 12px;
+  }
+  .network-playground .playground-heading h1 {
+    font-size: 1.7rem;
+  }
+  .heading-more {
+    display: none;
   }
   .playground-title {
     gap: 10px;
