@@ -103,7 +103,7 @@
   margin-top: 8px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #fbfcf6;
+  background: var(--surface);
 }
 .compare-event p {
   margin: 2px 0 4px;
