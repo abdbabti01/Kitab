@@ -142,10 +142,10 @@ test("DNS is introduced as a concept between the NAT mission and the first activ
   await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("Unit 5 of 6");
   await page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: /Next: A request across the Internet/ }).click();
   await expect(page).toHaveURL(/\/practice\/network\?starter=internet$/);
-  // A reading outside the tracks gets no next step, but shows its place in the Library.
+  // A reading outside the tracks leads back to the Library, and shows its place there.
   await page.goto("/concepts/tcp");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Next step" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("Back to the Library");
   await expect(page.getByRole("navigation", { name: "Where you are" })).toContainText("Library");
   // The NAT mission before it requests the web server by address, so no name lookup runs.
   await page.goto("/practice/missions/bring-reply-home");
