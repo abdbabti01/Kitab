@@ -11,16 +11,18 @@ async function selectDevice(page: Page, name: string) {
   await page.keyboard.press("Enter");
 }
 
-test("the missions index follows the networking path: the IPv4 lessons' missions in their stages, TCP basics before the lost-segment investigation", async ({ page }) => {
-  await page.goto("/practice/missions");
-  await expect(page.locator(".mission-list-heading")).toHaveText([
-    "Stage 2 · Inside your LAN",
-    "Stage 3 · IPv4 addresses and subnets",
-    "Stage 4 · Gateways, routing and NAT",
-    "Stage 5 · Across the Internet",
-    "Stage 6 · Show mastery",
+test("the networking missions follow the path: the IPv4 lessons' missions in their units, TCP basics before the lost-segment investigation", async ({ page }) => {
+  // The earlier address of the missions index opens the Practice page.
+  await page.goto("/practice/missions?track=networking");
+  const networking = page.locator(".practice-track", { has: page.getByRole("heading", { name: "Networking", level: 2 }) });
+  await expect(networking.locator(".practice-unit h3")).toHaveText([
+    "Unit 2 · Inside your LAN",
+    "Unit 3 · IPv4 addresses and subnets",
+    "Unit 4 · Gateways, routing and NAT",
+    "Unit 5 · Across the Internet",
+    "Unit 6 · Show mastery",
   ]);
-  await expect(page.locator(".mission-list b")).toHaveText([
+  await expect(networking.locator(".practice-card b")).toHaveText([
     "No connection",
     "Find the network address",
     "Same subnet or not?",
@@ -34,10 +36,10 @@ test("the missions index follows the networking path: the IPv4 lessons' missions
     "A segment goes missing",
     "TCP lab: count the transmissions",
   ]);
-  // Prediction missions are labelled by topic beside the lab's levelled missions.
-  await expect(page.getByRole("link", { name: /Find the network address/ }).locator(".mission-level")).toHaveText("IPv4");
-  await expect(page.getByRole("link", { name: /Gateway or direct\?/ }).locator(".mission-level")).toHaveText("Routing");
-  await expect(page.getByRole("link", { name: /Leave your LAN/ }).locator(".mission-level")).toHaveText(/^Level \d$/);
+  // Every card says what the learner does there, in one vocabulary.
+  await expect(page.getByRole("link", { name: /Find the network address/ }).locator(".practice-kind")).toHaveText("Predict");
+  await expect(page.getByRole("link", { name: /Leave your LAN/ }).locator(".practice-kind")).toHaveText("Troubleshoot");
+  await expect(page.getByRole("link", { name: /TCP lab/ }).locator(".practice-kind")).toHaveText("Challenge");
 });
 
 test("a learner investigates, diagnoses, fixes and checks a mission, and progress survives a reload", async ({ page }) => {
@@ -121,7 +123,7 @@ test("a learner investigates, diagnoses, fixes and checks a mission, and progres
   await expect(page.locator(".mission-symptom")).toContainText("Its cable is plugged in.");
   // The mission list shows the same state.
   await page.goto("/practice/missions");
-  await expect(page.getByRole("link", { name: /No connection/ }).locator(".state-pill")).toHaveText("Completed");
+  await expect(page.getByRole("link", { name: /No connection/ }).locator(".status-chip")).toHaveText("Completed");
 });
 
 test("a fix completes the mission without a diagnosis, and locked settings say why", async ({ page }) => {
@@ -216,9 +218,11 @@ test("the playground links to the missions, earlier challenge completions are ke
   await page.reload();
   await expect.poll(() => page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toBeTruthy();
   const workspace = await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"));
-  await expect(page.getByRole("link", { name: /Practice missions/ })).toContainText("1/6 done");
+  // The counter covers every networking mission, troubleshooting and prediction alike.
+  await expect(page.getByRole("link", { name: /Practice missions/ })).toContainText("1/12 done");
   await page.getByRole("link", { name: /Practice missions/ }).click();
-  await expect(page.getByRole("link", { name: /Neighbours that look remote/ }).locator(".state-pill")).toHaveText("Completed");
+  await expect(page).toHaveURL(/\/practice\?track=networking$/);
+  await expect(page.getByRole("link", { name: /Neighbours that look remote/ }).locator(".status-chip")).toHaveText("Completed");
   await page.getByRole("link", { name: /Neighbours that look remote/ }).click();
   await expect(page.locator(".mission-meta .state-pill")).toHaveText("Completed");
   await page.getByRole("button", { name: "Open a copy in the playground" }).click();

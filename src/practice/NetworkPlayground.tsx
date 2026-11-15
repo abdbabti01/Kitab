@@ -30,8 +30,8 @@ import { createDevice, type Network, type DeviceKind, type Action } from "./netw
 import { starter, starterOptions } from "./network/starters.ts";
 import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
 import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
-import { missions } from "./network/missions.ts";
-import { loadMissionStore, missionState } from "./network/mission-progress.ts";
+import { activityState, loadEvidence, networkingPath } from "../learning/networking-path.ts";
+import { safeStorage } from "../learning/progress.ts";
 import { askingOf, PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
 import type { ExperimentData } from "./network/experiments.ts";
 import type { Trace } from "./network/model.ts";
@@ -198,14 +198,12 @@ export function NetworkPlayground() {
     [future, setFuture] = useState<Network[]>([]),
     [help, setHelp] = useState(false),
     [saveList, setSaveList] = useState(false);
+  // Every mission of the networking track, troubleshooting and prediction alike, as on the Practice page.
   const [practice] = useState(() => {
-    try {
-      const store = loadMissionStore(localStorage);
-      const states = missions.map((m) => missionState(store.missions[m.id], m));
-      return { done: states.filter((x) => x === "completed" || x === "mastered").length, mastered: states.filter((x) => x === "mastered").length };
-    } catch {
-      return { done: 0, mastered: 0 };
-    }
+    const evidence = loadEvidence(safeStorage());
+    const list = networkingPath.flatMap((stage) => stage.practise);
+    const states = list.map((activity) => activityState(activity, evidence));
+    return { done: states.filter((x) => x === "completed" || x === "mastered").length, total: list.length };
   });
   const fileRef = useRef<HTMLInputElement>(null);
   const inspectorRef = useRef<HTMLElement>(null);
@@ -367,10 +365,10 @@ export function NetworkPlayground() {
           <a className="heading-link" {...linkProps("/practice/connections")}>
             How does your home connect?
           </a>
-          <a className="small-button" {...linkProps("/practice/missions")}>
+          <a className="small-button" {...linkProps("/practice?track=networking")}>
             <GraduationCap size={16} /> Practice missions{" "}
             <span className="count">
-              {practice.done}/{missions.length} done
+              {practice.done}/{practice.total} done
             </span>
           </a>
           <button

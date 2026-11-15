@@ -73,9 +73,9 @@ test("the new lessons acknowledge the earlier completion, and Lesson 2's complet
 test("the lab's lesson links lead to Lesson 1, and the missions index lists the new missions with recorded states", async ({ page }) => {
   await seed(page);
   await page.goto("/practice/missions");
-  await expect(page.getByRole("link", { name: /Same subnet or not\?/ }).locator(".state-pill")).toHaveText("Mastered");
-  await expect(page.getByRole("link", { name: /Gateway or direct\?/ }).locator(".state-pill")).toHaveText("Not started");
-  await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".state-pill")).toHaveText("Completed");
+  await expect(page.getByRole("link", { name: /Same subnet or not\?/ }).locator(".status-chip")).toHaveText("Mastered");
+  await expect(page.getByRole("link", { name: /Gateway or direct\?/ }).locator(".status-chip")).toHaveText("Not started");
+  await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".status-chip")).toHaveText("Completed");
   await page.goto("/practice/network");
   await expect(page.locator('a[href="/learn/ip-addressing"]')).toHaveCount(0);
   await expect(page.locator('a[href="/learn/ipv4-subnets"]').first()).toBeAttached();
