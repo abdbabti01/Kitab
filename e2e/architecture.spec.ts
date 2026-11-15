@@ -99,6 +99,10 @@ test("designs are saved as you work, survive a reload, and can be renamed, dupli
   await expect(page.getByLabel("Design name")).toHaveValue("Shop catalogue");
   await page.getByRole("button", { name: "Designs", exact: true }).click();
   await expect(dialog.locator(".design-rows li")).toHaveCount(1);
+  // The deleted design stays deleted: nothing saves it again on the way out.
+  await page.reload();
+  await page.getByRole("button", { name: "Designs", exact: true }).click();
+  await expect(dialog.locator(".design-rows li")).toHaveCount(1);
   await dialog.getByRole("button", { name: "Close" }).click();
   // Reopening by address works; an unknown address says so.
   await page.goto(url);

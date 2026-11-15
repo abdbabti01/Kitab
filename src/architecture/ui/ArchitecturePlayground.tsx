@@ -70,15 +70,19 @@ export function ArchitecturePlayground() {
   const design = state.design;
   const latest = useRef(design);
   latest.current = design;
+  // A deleted design is never saved again, whichever save would otherwise run next.
+  const deleted = useRef(new Set<string>());
+  const keep = (d: Design) => !deleted.current.has(d.id) && saveDesign(storage, d);
   useEffect(() => {
     if (!open) return;
-    const flush = () => saveDesign(storage, latest.current);
+    const flush = () => keep(latest.current);
     window.addEventListener("pagehide", flush);
     return () => (window.removeEventListener("pagehide", flush), void flush());
   }, [open]);
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
+      if (deleted.current.has(design.id)) return;
       const ok = saveDesign(storage, design);
       setStatus(ok ? "Saved on this device" : "Couldn't save: storage is full or unavailable. Export the design to keep it.");
       if (ok) setSaved(loadDesigns(storage));
@@ -88,7 +92,7 @@ export function ArchitecturePlayground() {
 
   const openDesign = (next: Design) => {
     // Keep the last edits of the design being left (its debounced save would be cancelled).
-    if (open && next.id !== latest.current.id) saveDesign(storage, latest.current);
+    if (open && next.id !== latest.current.id) keep(latest.current);
     dispatch({ type: "load", design: next });
     setOpen(true);
     setQuery(next.id);
@@ -103,6 +107,7 @@ export function ArchitecturePlayground() {
   };
   const remove = (target: Design) => {
     if (!window.confirm(`Delete “${target.name}”? This can't be undone.`)) return;
+    deleted.current.add(target.id);
     deleteDesign(storage, target.id);
     const rest = loadDesigns(storage);
     setSaved(rest);
