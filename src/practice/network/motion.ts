@@ -71,7 +71,7 @@ export type Beat = "hop" | "stop" | "bridge" | "notable" | "routine";
 export const BEAT_MS: Record<Beat, number> = { hop: 1000, stop: 2500, bridge: 450, notable: 550, routine: 120 };
 export const STAGE_START_MS = 350;
 /** Reading time for a stage's summary: about 10 words a second, within limits. */
-export const stageEndMs = (summary: string) => Math.min(2000, Math.max(700, summary.split(/s+/).length * 100));
+export const stageEndMs = (summary: string) => Math.min(2000, Math.max(700, summary.split(/\s+/).length * 100));
 
 export function beatsOf(events: TraceEvent[], network: Network): Beat[] {
   const seen = new Set<string>();
