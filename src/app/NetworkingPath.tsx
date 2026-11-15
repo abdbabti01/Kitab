@@ -1,5 +1,6 @@
 import { ArrowRight } from "lucide-react";
-import { activityState, isRequired, networkingPath, pathPosition, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
+import { activityState, isRequired, networkingPath, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
+import { locate, unitPath } from "../learning/tracks.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
 import { linkProps } from "./router.ts";
 
@@ -18,32 +19,33 @@ export function recommendationLink(r: Recommendation) {
 const links = (list: Activity[]) => list.map((a, i) => <span key={a.id}>{i > 0 && ", "}<a {...linkProps(a.path)}>{a.title}</a></span>);
 
 /**
- * Where this page sits in the networking path and what follows it, in path order. It never reads progress:
- * it only points the way, so a learner can follow the path without going back to Home.
+ * The end of every step: what follows it in its track, the unit's practice after a learn step, and the way back
+ * to the roadmap. It never reads progress: it only points the way, so nobody has to go back to Home.
  */
 export function PathNext({ id }: { id: string }) {
-  const at = pathPosition(id);
+  const at = locate(id);
   if (!at) return null;
-  const learning = at.stage.learn.includes(at.activity);
   return (
-    <nav className="path-next" aria-label="Networking path">
-      <p className="path-kind">Networking path · Stage {at.stageNumber} of {networkingPath.length} · {at.stage.title}</p>
-      {learning && at.stage.practise.length > 0 && <p>Practise this stage: {links(at.stage.practise)}</p>}
+    <nav className="path-next" aria-label="Next step">
+      <p className="path-kind">{at.track.title} · Unit {at.stageNumber} of {at.track.stages.length} · {at.stage.title}</p>
+      {at.role === "learn" && at.stage.practise.length > 0 && <p>Practise this unit: {links(at.stage.practise)}</p>}
       <div className="actions">
         {at.next ? (
-          <a className="button primary" {...linkProps(at.next.path)}>Next in the path: {at.next.title} <ArrowRight aria-hidden="true" /></a>
+          <a className="button primary" {...linkProps(at.next.path)}>Next: {at.next.title} <ArrowRight aria-hidden="true" /></a>
+        ) : at.track.id === "networking" ? (
+          <span>You've reached the end of the track. Master each mission, or build freely in the <a {...linkProps("/practice/network")}>Playground</a>.</span>
         ) : (
-          <span>You've reached the end of the path. Master each mission, or build freely in the <a {...linkProps("/practice/network")}>playground</a>.</span>
+          <span>You've reached the end of the track. Master each mission, or read more in the <a {...linkProps("/learn/library")}>Library</a>.</span>
         )}
-        <a className="text-button" {...linkProps("/#path")}>See the whole path</a>
+        <a className="text-button" {...linkProps(unitPath(at.track, at.stage))}>Back to the roadmap</a>
       </div>
     </nav>
   );
 }
 
-/** What the path does before this activity. Suggestions only: nothing is locked. */
+/** What the track does before this activity. Suggestions only: nothing is locked. */
 export function PathNeeds({ id }: { id: string }) {
-  const needs = pathPosition(id)?.needs ?? [];
+  const needs = locate(id)?.needs ?? [];
   return needs.length ? <p className="path-needs">Before you start: {links(needs)}</p> : null;
 }
 

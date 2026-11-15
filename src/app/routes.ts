@@ -1,8 +1,14 @@
 // Pure route parsing (no DOM), shared by the router and tests.
 export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
 
+/** The Learn destination's views: a track's roadmap, or the library of readings. Never used as lesson ids. */
+export const LEARN_SECTIONS = ["data-structures", "library"] as const;
+export type LearnSection = "networking" | (typeof LEARN_SECTIONS)[number];
+
 export type Route =
   | { name: "home" }
+  | { name: "learn"; section: LearnSection }
+  | { name: "practice" }
   | { name: "network-practice" }
   | { name: "network-missions" }
   | { name: "network-mission"; id: string }
@@ -33,6 +39,10 @@ function segment(value: string) {
 export function parseRoute(pathname: string): Route {
   const path = pathname.replace(/\/+$/, "") || "/";
   if (path === "/") return { name: "home" };
+  if (path === "/learn") return { name: "learn", section: "networking" };
+  if (path === "/practice") return { name: "practice" };
+  const learnSection = /^\/learn\/([^/]+)$/.exec(path)?.[1];
+  if (learnSection && (LEARN_SECTIONS as readonly string[]).includes(learnSection)) return { name: "learn", section: learnSection as LearnSection };
   if (path === "/practice/connections") return { name: "access-explorer" };
   if (path === "/practice/subnets") return { name: "subnet-explorer" };
   if (path === "/practice/network") return { name: "network-practice" };
@@ -52,7 +62,11 @@ export function parseRoute(pathname: string): Route {
   return { name: "not-found", path };
 }
 
-export function redirectFor(pathname: string) {
+/** Home's old section anchors, kept working: each now has its own page. */
+const anchors: Record<string, string> = { "#path": "/learn", "#journeys": "/learn", "#missions": "/practice", "#concepts": "/learn/library" };
+
+export function redirectFor(pathname: string, hash = "") {
   const path = pathname.replace(/\/+$/, "") || "/";
+  if (path === "/" && anchors[hash]) return anchors[hash];
   return legacy[path] ?? (path.startsWith("/lesson/tcp") ? legacy["/lesson/tcp"] : undefined);
 }

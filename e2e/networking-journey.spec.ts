@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 // The whole networking path, followed as a learner would: only the path's own links, never the browser's Back
 // button. It starts with progress from before practice missions existed and checks that the learner's own
 // playground design survives every step, including the playground starters the path opens.
-const next = (page: Page) => page.getByRole("navigation", { name: "Networking path" }).getByRole("link", { name: /^Next in the path:/ });
+const next = (page: Page) => page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: /^Next: / });
 async function follow(page: Page, title: string, url: RegExp) {
   await expect(next(page)).toContainText(title);
   await next(page).click();
@@ -50,7 +50,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await follow(page, "Understanding IPv4 addresses and subnets", /\/learn\/ipv4-subnets$/);
   await page.locator(".chapter-pill").last().click();
   while (!(await page.locator(".lesson-controls .next-button").isDisabled())) await page.locator(".lesson-controls .next-button").click();
-  await expect(page.locator(".completion")).toContainText("Practise this stage: Find the network address, Same subnet or not?, Neighbours that look remote, Join and get an address");
+  await expect(page.locator(".completion")).toContainText("Practise this unit: Find the network address, Same subnet or not?, Neighbours that look remote, Join and get an address");
   await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Local delivery, gateways and routing/ })).toHaveAttribute("href", "/learn/local-delivery-routing");
   await follow(page, "Explore subnets", /\/practice\/subnets$/);
   await follow(page, "Find the network address", /\/missions\/ipv4-network-address$/);
@@ -62,7 +62,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   // Stage 4: Lesson 2, its starter, then the gateway mission and the routing and NAT lab missions.
   await follow(page, "Local delivery, gateways and routing", /\/learn\/local-delivery-routing$/);
   await page.locator(".chapter-pill", { hasText: "Try it in the lab" }).click();
-  await expect(page.locator(".completion")).toContainText("Practise this stage: Gateway or direct?, Leave your LAN, Bring the reply home");
+  await expect(page.locator(".completion")).toContainText("Practise this unit: Gateway or direct?, Leave your LAN, Bring the reply home");
   await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Packet Journey/ })).toBeVisible();
   await follow(page, "Two connected LANs", /\/practice\/network\?starter=routed$/);
   await follow(page, "Gateway or direct?", /\/missions\/gateway-or-direct$/);
@@ -96,15 +96,16 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await follow(page, "How full can the pipe get?", /\/missions\/tcp-send-window$/);
   await follow(page, "A segment goes missing", /\/practice\/missions\/missing-segment$/);
   await follow(page, "TCP lab: count the transmissions", /\/missions\/tcp-lab$/);
-  await expect(page.getByRole("navigation", { name: "Networking path" })).toContainText("You've reached the end of the path");
+  await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("You've reached the end of the track");
 
   // Progress reads the same on Home, the missions index and the playground, and survives a reload.
-  await page.getByRole("navigation", { name: "Networking path" }).getByRole("link", { name: "See the whole path" }).click();
-  await expect(page).toHaveURL(/\/#path$/);
+  await page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: "Back to the roadmap" }).click();
+  await expect(page).toHaveURL(/\/learn#unit-mastery$/);
   await expect(page.getByRole("heading", { name: "Networking path" })).toBeInViewport();
   await page.reload();
   await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Completed");
-  await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("In progress");
+  // Only opened on the way through, never attempted: a visit, not progress.
+  await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("Opened");
   await expect(page.locator(".path-activity", { hasText: "No connection" }).locator(".status-chip")).toHaveText("Completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
   await page.getByRole("link", { name: "All networking and TCP missions in one list →" }).click();

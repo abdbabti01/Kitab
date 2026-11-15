@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { activityState, findActivity, isRequired, networkingPath, pathPosition, recommend, stageProgress, type Evidence } from "../src/learning/networking-path.ts";
+import { activityState, findActivity, isRequired, loadEvidence, networkingPath, pathPosition, recommend, stageProgress, type Evidence } from "../src/learning/networking-path.ts";
 import { missions as networkMissions } from "../src/practice/network/missions.ts";
 import { loadMissionStore } from "../src/practice/network/mission-progress.ts";
 import { CHALLENGES_KEY } from "../src/practice/network/storage.ts";
@@ -251,4 +251,15 @@ test("pathPosition gives the stage, the next activity in order and prerequisites
   assert.equal(pathPosition("concept:dns")!.activity.path, "/concepts/dns");
   assert.equal(pathPosition("tcp-lab")!.next, undefined);
   assert.equal(pathPosition("array-insert"), undefined);
+});
+
+test("reading progress for display never writes, even when a store is damaged", () => {
+  const writes: string[] = [];
+  const data = new Map([["kitab.learning.v1", "{not json"], ["kitab.visits.v1", "{also broken"], ["kitab.progress.v1", JSON.stringify({ version: 9 })]]);
+  const storage = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string) => void writes.push(`set ${k}`), removeItem: (k: string) => void writes.push(`remove ${k}`) };
+  const e = loadEvidence(storage);
+  assert.deepEqual(writes, []);
+  assert.deepEqual(e.learning, { version: 1, lessons: {} });
+  assert.deepEqual(e.visits, { version: 1, activities: {} });
+  assert.equal(recommend(e).kind, "start");
 });

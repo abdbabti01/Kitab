@@ -13,7 +13,7 @@ import { frameAt } from "../learning/registry.ts";
 import { askTutor, sendLearningEvent } from "../app/api.ts";
 import { linkProps } from "../app/router.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
-import { pathPosition } from "../learning/networking-path.ts";
+import { locate } from "../learning/tracks.ts";
 import { keyIdeas as tcpKeyIdeas } from "../learning/missions/tcp-terms.ts";
 import { ipv4KeyIdeas } from "../learning/missions/ipv4.ts";
 import { gatewayKeyIdeas } from "../learning/missions/gateway.ts";
@@ -274,8 +274,8 @@ function MissionView({ mission }: { mission: Mission }) {
   });
 
   const missionIndex = missions.findIndex((item) => item.id === mission.id);
-  // A networking-path mission points to the path's next step instead of the next mission in the catalog.
-  const inPath = Boolean(pathPosition(mission.id));
+  // A mission in a track points to the track's next step instead of the next mission in the catalog.
+  const inPath = Boolean(locate(mission.id));
   const nextMission = inPath ? undefined : missions[missionIndex + 1]?.id;
   const firstLessons = lessonsForMission(mission.id);
   const Scene = module?.Scene;

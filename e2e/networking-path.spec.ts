@@ -92,7 +92,7 @@ test("a path starter opens as an unsaved copy, an unknown starter opens the lear
   expect(await page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1"))).toContain("My home lab");
   await page.goto("/practice/network?starter=not-a-starter");
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
-  await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Next step" })).toHaveCount(0);
 
   // Advanced activities open directly, with their prerequisites as suggestions only.
   await page.goto("/practice/missions/missing-segment");
@@ -139,13 +139,14 @@ test("DNS is introduced as a concept between the NAT mission and the first activ
   await expect(activities.nth(1)).toContainText("A request across the Internet");
   await activities.first().click();
   await expect(page).toHaveURL(/\/concepts\/dns$/);
-  await expect(page.getByRole("navigation", { name: "Networking path" })).toContainText("Stage 5 of 6");
-  await page.getByRole("link", { name: /Next in the path: A request across the Internet/ }).click();
+  await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("Unit 5 of 6");
+  await page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: /Next: A request across the Internet/ }).click();
   await expect(page).toHaveURL(/\/practice\/network\?starter=internet$/);
-  // A concept outside the path gets no path navigation.
+  // A reading outside the tracks gets no next step, but shows its place in the Library.
   await page.goto("/concepts/tcp");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Networking path" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Next step" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Where you are" })).toContainText("Library");
   // The NAT mission before it requests the web server by address, so no name lookup runs.
   await page.goto("/practice/missions/bring-reply-home");
   await expect(page.locator(".mission-brief")).toContainText("no DNS lookup is involved");

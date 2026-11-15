@@ -12,7 +12,7 @@ export function navigate(path: string, state?: unknown) {
 
 export function useRoute() {
   const read = () => {
-    const redirect = redirectFor(window.location.pathname);
+    const redirect = redirectFor(window.location.pathname, window.location.hash);
     if (redirect) window.history.replaceState(null, "", redirect);
     return parseRoute(window.location.pathname);
   };
