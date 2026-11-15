@@ -19,8 +19,11 @@ import {
   Smartphone,
   Undo2,
   Upload,
+  Waypoints,
   Wifi,
   X,
+  Info,
+  Sparkles,
 } from "lucide-react";
 import { JourneyStage } from "./JourneyStage.tsx";
 import { SendPanel } from "./SendPanel.tsx";
@@ -43,6 +46,7 @@ const BreakCompare = lazy(() => import("./BreakCompare.tsx"));
 const CompareNow = lazy(() => import("./BreakCompare.tsx").then((m) => ({ default: m.CompareNow })));
 const SIDE_LABEL: Record<Side, string> = { working: "Your network", broken: "With the fault" };
 import "./practice.css";
+import "./playground.css";
 const deviceTypes = [
   { kind: "pc", label: "PC", icon: Monitor },
   { kind: "phone", label: "Phone", icon: Smartphone },
@@ -88,6 +92,46 @@ function useIntro() {
   };
   return { intro, dismiss };
 }
+/** What pressing Send will do, in words: the form's own values, nothing the simulation has not decided yet. */
+function describe(action: Action, network: Network) {
+  const from = network.devices.find((d) => d.id === action.source)?.name;
+  if (!from) return "Choose the device that sends.";
+  if (action.kind === "dhcp") return `${from} asks a DHCP server for an IP address, a gateway and a DNS server. Follow each message of the exchange.`;
+  const to = action.target.trim() || "the destination";
+  if (action.kind === "ping") return `${from} pings ${to}. Follow the request and its reply across every device on the way.`;
+  return `${from} loads ${to} over HTTP. Follow each frame across the network, and what every device decides.`;
+}
+
+/** Decorative: a laptop sending packets to a server, in the lab's accent. */
+function HeadingArt() {
+  return (
+    <svg className="playground-art" viewBox="0 0 360 120" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="art-glow" x1="0" x2="1">
+          <stop offset="0" stopColor="#22d3ee" stopOpacity=".15" />
+          <stop offset="1" stopColor="#3b82f6" stopOpacity=".5" />
+        </linearGradient>
+      </defs>
+      <path d="M0 112 C90 80 170 120 360 60 V120 H0 Z" fill="url(#art-glow)" opacity=".35" />
+      <g fill="none" stroke="#5ee6f7" strokeWidth="2.5" strokeLinejoin="round">
+        <rect x="22" y="42" width="66" height="42" rx="5" />
+        <path d="M12 92 h86 l-8 8 h-70 z" />
+        <rect x="268" y="18" width="70" height="22" rx="5" />
+        <rect x="268" y="46" width="70" height="22" rx="5" />
+        <rect x="268" y="74" width="70" height="22" rx="5" />
+      </g>
+      <g fill="#5ee6f7">
+        <circle cx="324" cy="29" r="3" /><circle cx="324" cy="57" r="3" /><circle cx="324" cy="85" r="3" />
+      </g>
+      <path d="M104 66 C150 40 200 40 254 56" fill="none" stroke="#22d3ee" strokeWidth="2.5" strokeDasharray="5 8" strokeLinecap="round" />
+      <g fill="#0f3a4f" stroke="#5ee6f7" strokeWidth="2">
+        <rect x="150" y="38" width="20" height="20" rx="3" transform="rotate(-12 160 48)" />
+        <rect x="206" y="38" width="15" height="15" rx="3" transform="rotate(10 213 45)" />
+      </g>
+    </svg>
+  );
+}
+
 export function NetworkPlayground() {
   const { intro, dismiss: dismissIntro } = useIntro();
   const [path] = useState(pathStarter);
@@ -303,6 +347,7 @@ export function NetworkPlayground() {
     const at = steps.findIndex((s) => s.action === action);
     const next = at >= 0 ? steps[at + 1] : undefined;
     setNextStep(result.success && next ? { trace: result, step: next } : null);
+    return true;
   }
   const [nextStep, setNextStep] = useState<{ trace: Trace; step: (typeof steps)[number] } | null>(null);
   useEffect(() => {
@@ -347,20 +392,23 @@ export function NetworkPlayground() {
     if (scroll && window.matchMedia("(max-width: 850px)").matches)
       inspectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  // The starter this network came from, while it still carries the starter's name.
+  const scenario = starterOptions.find((s) => s.name === network.name);
   const select = (id: string) => {
     setSelected(id);
     setTab("device");
   };
   return (
-    <main id="main" className="network-playground">
+    <main id="main" className="network-playground lab-theme">
       <header className="playground-heading">
-        <div>
-          <span className="eyebrow">PLAYGROUND · BUILD AND EXPERIMENT FREELY</span>
-          <h1>
-            Network playground<span className="heading-dot">.</span>
-          </h1>
-          <p>Send a request and watch every frame cross your network. Predict each decision, or break one setting and compare.</p>
+        <div className="playground-title">
+          <Waypoints className="playground-mark" aria-hidden="true" />
+          <div>
+            <h1>Network Playground</h1>
+            <p>Build a network, send a request and watch every frame cross it, step by step. Predict each decision, or break one setting and compare.</p>
+          </div>
         </div>
+        <HeadingArt />
         <div className="playground-heading-actions">
           <a className="heading-link" {...linkProps("/practice/connections")}>
             How does your home connect?
@@ -460,28 +508,6 @@ export function NetworkPlayground() {
             </span>
           </div>
           <div className="workspace-actions">
-            <label className="sr-only" htmlFor="starter-network">
-              Starter network
-            </label>
-            <select
-              id="starter-network"
-              value=""
-              onChange={(e) => {
-                const option = starterOptions.find((s) => s.id === e.target.value);
-                replace(starter(e.target.value), option?.steps?.[0].action);
-                setSteps(option?.steps ?? []);
-                if (option?.steps) setNotice(option.steps[0].note);
-              }}
-            >
-              <option value="" disabled>
-                Starter networks
-              </option>
-              {starterOptions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
             <button
               aria-label="Save named network"
               title="Save named network"
@@ -614,6 +640,62 @@ export function NetworkPlayground() {
           </div>
         )}
         <div className="workspace-grid">
+          <div className="lab-side">
+            <section className="lab-card scenario-card" aria-labelledby="scenario-title">
+              <h2 id="scenario-title">
+                <Sparkles size={18} aria-hidden="true" /> Starter scenario
+              </h2>
+              <p className="scenario-current">
+                <b>{network.name}</b>
+                {scenario && <small>{scenario.detail}</small>}
+              </p>
+              <label className="scenario-label" htmlFor="starter-network">
+                Load a starter network
+              </label>
+              <select
+                id="starter-network"
+                value=""
+                onChange={(e) => {
+                  const option = starterOptions.find((s) => s.id === e.target.value);
+                  replace(starter(e.target.value), option?.steps?.[0].action);
+                  setSteps(option?.steps ?? []);
+                  if (option?.steps) setNotice(option.steps[0].note);
+                }}
+              >
+                <option value="" disabled>
+                  Choose a scenario…
+                </option>
+                {starterOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </section>
+            <SendPanel
+              network={network}
+              action={action}
+              onAction={setAction}
+              onSend={() => {
+                if (!run()) return;
+                // Beside the diagram (desktop) or under it (narrow), the form sends and the diagram with its
+                // playback comes into full view.
+                requestAnimationFrame(() => {
+                  const stage = journey.journeyRef.current;
+                  if (stage && Math.abs(stage.getBoundingClientRect().top) > 120)
+                    stage.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+                });
+              }}
+              inputError={journey.inputError}
+              onClearError={journey.clearInputError}
+              onRestart={() => resetSession()}
+            >
+              <p className="send-summary">
+                <Info size={16} aria-hidden="true" />
+                <span>{describe(action, network)}</span>
+              </p>
+            </SendPanel>
+          </div>
           <div className="workspace-stage">
             {experiment && (
               <div className={`experiment-banner is-${experiment.side}`}>
@@ -691,15 +773,6 @@ export function NetworkPlayground() {
                 const at = experiment?.x.divergence?.[experiment.side];
                 return at === undefined ? undefined : { index: at, label: `First difference, at ${shown.devices.find((d) => d.id === experiment!.x.divergence!.device)?.name ?? ""}` };
               })()}
-            />
-            <SendPanel
-              network={network}
-              action={action}
-              onAction={setAction}
-              onSend={run}
-              inputError={journey.inputError}
-              onClearError={journey.clearInputError}
-              onRestart={() => resetSession()}
             />
           </div>
           <InspectorPanel

@@ -12,6 +12,11 @@ test("every page shares one navigation, marks its section by its role in the cou
     return ["--bg", "--surface", "--primary", "--font"].map((token) => style.getPropertyValue(token).trim());
   });
   const homePalette = await palette();
+  // The Playground is drawn on the shared night palette: the same tokens, as they read on navy.
+  const nightPalette = await page.evaluate(() => {
+    const root = getComputedStyle(document.documentElement);
+    return [...["--night-bg", "--night-surface", "--night-primary"].map((token) => root.getPropertyValue(token).trim()), root.getPropertyValue("--font").trim()];
+  });
   for (const [path, label] of [
     ["/learn/ip-addressing", "Learn"],
     ["/learn/ipv4-subnets", "Learn"],
@@ -27,7 +32,7 @@ test("every page shares one navigation, marks its section by its role in the cou
     await expect(page.locator("#main h1")).toBeVisible();
     await expect(nav.getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
     await expect(nav.locator("[aria-current]")).toHaveCount(1);
-    expect(await palette()).toEqual(homePalette);
+    expect(await palette()).toEqual(label === "Playground" ? nightPalette : homePalette);
   }
   await nav.getByRole("link", { name: "Learn" }).click();
   await expect(page).toHaveURL(/\/learn$/);
@@ -37,8 +42,9 @@ test("every page shares one navigation, marks its section by its role in the cou
   await expect(page).toHaveURL(/\/learn\/library$/);
   await page.getByRole("link", { name: "Kitab", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  // By now the learner has opened pages, so Home greets a returning learner.
-  await expect(page.locator(".welcome h1")).toBeInViewport();
+  // Home is the same for a returning learner: the subjects first.
+  await expect(page.locator(".home-hero h1")).toBeInViewport();
+  await expect(page.locator(".subject-card")).toHaveCount(3);
 });
 
 test("reading playback keeps the same layout after a mission", async ({ page }) => {

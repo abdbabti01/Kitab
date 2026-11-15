@@ -1,0 +1,641 @@
+/* The Playground: Kitab's flagship lab on its navy surface (.lab-theme). Layout first, then the lab's own colours
+   for the few drawings practice.css colours directly. Missions keep the light lab. */
+
+.network-playground {
+  max-width: none;
+  min-height: calc(100vh - var(--nav-height));
+  background:
+    radial-gradient(60% 40% at 85% 0%, rgb(34 211 238 / 0.1), transparent 70%),
+    radial-gradient(50% 35% at 0% 0%, rgb(59 130 246 / 0.12), transparent 70%),
+    var(--bg);
+  /* Message colours, lightened to read on navy (the legend and the layer chips). */
+  --app-layer: #f2b764;
+  --transport-layer: #b69cf2;
+  --ip-layer: #7fb2f0;
+  --link-layer: #5fd6c4;
+}
+.network-playground > * {
+  max-width: 1760px;
+  margin-inline: auto;
+}
+
+/* ---- Heading ---- */
+.network-playground .playground-heading {
+  position: relative;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 18px;
+}
+.playground-title {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.playground-mark {
+  flex: none;
+  width: 54px;
+  height: 54px;
+  color: var(--accent);
+  filter: drop-shadow(0 0 12px rgb(34 211 238 / 0.45));
+}
+.network-playground .playground-heading h1 {
+  font: 750 clamp(1.9rem, 1.4rem + 1.8vw, 3rem) / 1.05 var(--display);
+  letter-spacing: -0.03em;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.network-playground .playground-heading p {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.playground-art {
+  flex: 0 1 300px;
+  min-width: 0;
+  height: auto;
+  margin-left: auto;
+}
+.network-playground .playground-heading-actions {
+  flex-wrap: wrap;
+}
+.network-playground .heading-link {
+  color: var(--primary-strong);
+}
+
+/* ---- Panels ---- */
+.network-playground .lab-shell {
+  border-color: var(--line);
+  border-radius: 18px;
+  background: rgb(13 28 54 / 0.82);
+  box-shadow: 0 20px 60px rgb(2 8 23 / 0.45);
+}
+.network-playground .workspace-toolbar,
+.network-playground .device-tray {
+  background: transparent;
+}
+.network-playground .workspace-grid {
+  grid-template-columns: 280px minmax(0, 1fr) 330px;
+  grid-template-areas: "side stage inspector";
+}
+.lab-side {
+  grid-area: side;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 16px;
+  border-right: 1px solid var(--line);
+  min-width: 0;
+}
+.network-playground .workspace-stage {
+  grid-area: stage;
+}
+.network-playground .network-inspector {
+  grid-area: inspector;
+  background: transparent;
+}
+.lab-card,
+.lab-side .send-panel {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgb(18 37 74 / 0.55);
+}
+.lab-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 10px;
+  font: 700 16px/1.3 var(--font);
+  color: var(--ink);
+}
+.lab-card h2 svg {
+  color: var(--accent);
+}
+.scenario-current {
+  display: grid;
+  gap: 3px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.scenario-current b {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.scenario-current small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.scenario-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.network-playground .lab-side select,
+.network-playground .lab-side .send-fields input {
+  width: 100%;
+  min-height: 42px;
+  font-size: 13px;
+  border-radius: 9px;
+}
+.network-playground select {
+  background-color: var(--surface);
+}
+.network-playground select option {
+  background: var(--night-surface);
+  color: var(--night-ink);
+}
+
+/* The request form, stacked in the side column. */
+.lab-side .send-panel {
+  border-bottom: 1px solid var(--line);
+}
+.lab-side .send-title b {
+  font-size: 16px;
+  font-weight: 700;
+}
+.lab-side .send-title small {
+  font-size: 12px;
+}
+.lab-side .step-marker {
+  background: var(--primary-soft);
+  border-color: var(--primary-soft-line);
+}
+.lab-side .send-fields {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 14px;
+}
+.lab-side .send-fields label {
+  flex: none;
+  min-width: 0;
+}
+.lab-side .send-fields label > span {
+  font-size: 12px;
+}
+.network-playground .lab-side .send-button {
+  order: 10;
+  width: 100%;
+  min-height: 48px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 11px;
+  box-shadow: 0 8px 24px rgb(34 211 238 / 0.25);
+}
+.lab-side .send-options {
+  gap: 8px 14px;
+}
+.lab-side .send-options > .text-button {
+  margin-left: 0;
+}
+.send-summary {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.send-summary svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+/* Inspector: Now, Packet and Device as one segmented control. */
+.network-playground .inspector-tabs {
+  gap: 4px;
+  margin: 12px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  top: 12px;
+}
+.network-playground .inspector-tabs button {
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.network-playground .inspector-tabs button.active {
+  background: linear-gradient(180deg, #1aa9d6, #0e84b8);
+  color: #fff;
+  box-shadow: 0 0 0 1px var(--accent), 0 4px 14px rgb(34 211 238 / 0.25);
+}
+.network-playground .inspector-body {
+  padding-top: 8px;
+}
+
+/* Primary actions on navy: the accent with dark ink. */
+.network-playground .button.primary,
+.network-playground .journey-buttons .play-button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04212b;
+}
+.network-playground .button.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+}
+.network-playground .inside-stack > div.active {
+  color: #04212b;
+}
+
+/* ---- The diagram ---- */
+.network-playground .network-canvas {
+  --surface-2: #081630;
+  background: radial-gradient(70% 60% at 50% 45%, #0c2142, var(--surface-2));
+}
+.network-playground .topology-svg pattern circle {
+  fill: #1e3760;
+}
+.network-playground .canvas-bar,
+.network-playground .canvas-foot {
+  background: rgb(13 28 54 / 0.9);
+}
+.network-playground .network-zone rect {
+  fill: rgb(34 211 238 / 0.035);
+  stroke: #24456e;
+}
+.network-playground .network-zone text {
+  fill: #8fb3d9;
+}
+.network-playground .zone-1 rect {
+  fill: rgb(129 140 248 / 0.06);
+  stroke: #33407a;
+}
+.network-playground .zone-1 text {
+  fill: #aab4f5;
+}
+.network-playground .zone-2 rect {
+  fill: rgb(251 191 36 / 0.04);
+  stroke: #4d4128;
+}
+.network-playground .zone-2 text {
+  fill: #e2c88f;
+}
+.network-playground .network-wire {
+  stroke: #2f4c76;
+}
+.network-playground .network-wire.wifi {
+  stroke: #3f6590;
+}
+.network-playground .network-wire.in-path {
+  stroke: #2d7f9c;
+}
+.network-playground .network-wire.active {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 5px rgb(34 211 238 / 0.7));
+}
+.network-playground .network-wire.active.kind-ip {
+  stroke: #60a5fa;
+}
+.network-playground .network-wire.active.kind-arp {
+  stroke: #2dd4bf;
+}
+.network-playground .network-wire.active.kind-dhcp {
+  stroke: #fbbf24;
+}
+.network-playground .network-wire.is-forward,
+.network-playground .network-wire.is-chosen {
+  stroke: #34d399;
+}
+.network-playground .network-wire.is-flood {
+  stroke: #f59e0b;
+}
+.network-playground .network-wire.active.is-lost {
+  stroke: #ff7b6b;
+}
+.network-playground .path-arrow {
+  stroke: var(--accent-strong);
+}
+.network-playground .kind-ip .packet-locate {
+  color: #60a5fa;
+}
+.network-playground .kind-arp .packet-locate {
+  color: #2dd4bf;
+}
+.network-playground .kind-dhcp .packet-locate {
+  color: #fbbf24;
+}
+.network-playground .link-label,
+.network-playground .device-ip,
+.network-playground .packet-broadcast,
+.network-playground .empty-canvas text,
+.network-playground .canvas-hint {
+  fill: var(--muted);
+  color: var(--muted);
+}
+.network-playground .device-tile {
+  fill: #0f2244;
+  stroke: #2c4a76;
+}
+.network-playground .network-device:hover .device-tile {
+  fill: #132a52;
+  stroke: #4b6a96;
+}
+.network-playground .network-device.selected .device-tile {
+  fill: #0f2c4c;
+  stroke: var(--accent);
+}
+.network-playground .network-device.is-active .device-tile {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 8px rgb(34 211 238 / 0.45));
+}
+.network-playground .device-shadow {
+  fill: #000;
+}
+.network-playground .device-led {
+  fill: #34d399;
+  stroke: var(--surface-2);
+}
+.network-playground .device-led.off {
+  fill: #475569;
+}
+.network-playground .network-device.kind-pc,
+.network-playground .network-device.kind-phone {
+  color: #5eead4;
+}
+.network-playground .network-device.kind-switch {
+  color: #7dd3fc;
+}
+.network-playground .network-device.kind-router {
+  color: #c4b5fd;
+}
+.network-playground .network-device.kind-ap {
+  color: #fcd34d;
+}
+.network-playground .network-device.kind-server {
+  color: #fdba74;
+}
+.network-playground .network-device.is-sender .device-tile,
+.network-playground .network-device.is-sender .device-ring {
+  stroke: #f59e0b;
+}
+.network-playground .network-device.is-receiver .device-ring {
+  stroke: #34d399;
+}
+.network-playground .network-device.is-receiver .device-tile {
+  stroke: #34d399;
+  animation-name: device-arrive-night;
+}
+@keyframes device-arrive-night {
+  to {
+    fill: #0f3a2f;
+    stroke: #34d399;
+    stroke-width: 4;
+    stroke-dasharray: none;
+  }
+}
+.network-playground .network-device.is-working .device-ring {
+  stroke: var(--accent);
+}
+.network-playground .network-device.is-forwarding .device-ring {
+  stroke: #7dd3fc;
+}
+.network-playground .network-device.is-stopped .device-ring {
+  stroke: #ff7b6b;
+}
+.network-playground .network-device.is-stopped .device-tile {
+  fill: #3a1a1d;
+  stroke: #ff7b6b;
+}
+.network-playground .network-device.is-discarded .device-ring {
+  stroke: #b8a37a;
+}
+.network-playground .packet-cross,
+.network-playground .packet-halt path {
+  stroke: #ff7b6b;
+}
+.network-playground .packet-halt circle {
+  fill: #3a1a1d;
+  stroke: #ff7b6b;
+}
+.network-playground .packet-halt text {
+  fill: #ffb4a8;
+}
+.network-playground .packet-halt.is-discarded circle {
+  fill: #2a2618;
+  stroke: #b8a37a;
+}
+.network-playground .packet-halt.is-discarded path {
+  stroke: #b8a37a;
+}
+.network-playground .packet-halt.is-discarded text {
+  fill: #e5d3a8;
+}
+.network-playground .action-tag rect,
+.network-playground .packet-note rect {
+  fill: #020a1a;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.network-playground .action-detail {
+  fill: #bae6fd;
+}
+.network-playground .packet-token:focus-visible .packet-shape {
+  stroke: var(--accent-strong);
+}
+
+/* ---- Packet layers, states and experiment colours ---- */
+.network-playground .layer-link {
+  border-color: #1d4d47;
+}
+.network-playground .layer-link summary {
+  background: #0f2f2c;
+  color: #5eead4;
+}
+.network-playground .layer-network {
+  border-color: #1e3a66;
+}
+.network-playground .layer-network summary {
+  background: #10264a;
+  color: #93c5fd;
+}
+.network-playground .layer-transport {
+  border-color: #3b2f63;
+}
+.network-playground .layer-transport summary {
+  background: #221a3d;
+  color: #c4b5fd;
+}
+.network-playground .layer-application {
+  border-color: #5a4520;
+}
+.network-playground .layer-application summary {
+  background: #2e2210;
+  color: #fcd34d;
+}
+.network-playground .layer-box.layer-application,
+.network-playground .field-glossary em {
+  color: #fcd34d;
+}
+.network-playground .layer-box.layer-transport {
+  color: #c4b5fd;
+}
+.network-playground .layer-box.layer-network {
+  color: #93c5fd;
+}
+.network-playground .layer-box.layer-link {
+  color: #5eead4;
+}
+.network-playground .layer-box.is-removed {
+  color: #b8a37a;
+}
+.network-playground .playback-state {
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.network-playground .playback-state.is-playing,
+.network-playground .playback-state.is-complete {
+  background: #0f3a2a;
+  color: #6ee7a8;
+}
+.network-playground .playback-state.is-stopped {
+  background: #3d1a1a;
+  color: #ff9d8f;
+}
+.network-playground .playback-state.is-waiting {
+  background: #3a2b12;
+  color: #f2b764;
+}
+.network-playground .state-pill.is-in-progress {
+  color: #fcd34d;
+  border-color: #5a4520;
+}
+.network-playground .inspector-empty > svg {
+  color: var(--accent);
+}
+.network-playground .network-notice {
+  border-bottom-color: #5a4520;
+}
+.network-playground .compare-switch {
+  color: #fcd34d;
+}
+.network-playground .compare-switch.is-on,
+.network-playground .compare-apart {
+  background: #3a2b12;
+  border-color: #c99a1d;
+}
+.network-playground .experiment-banner,
+.network-playground .compare-now {
+  background: #2e2410;
+  border-color: #8a6d1d;
+  color: #fde68a;
+}
+.network-playground .experiment-banner.is-working,
+.network-playground .compare-now.is-working {
+  background: #0f2f25;
+  border-color: #2f7a5c;
+  color: #a7f3d0;
+}
+.network-playground .track-run.is-working {
+  color: #5eead4;
+}
+.network-playground .track-run.is-broken,
+.network-playground .compare-after,
+.network-playground .k-diverge {
+  color: #fcd34d;
+}
+.network-playground .track-marker path {
+  fill: #f59e0b;
+}
+.network-playground .track-marker line {
+  stroke: #f59e0b;
+}
+.network-playground .network-device.is-asking .device-ring,
+.network-playground .network-device.is-answer .device-ring {
+  stroke: var(--accent);
+}
+.network-playground .ask-badge circle,
+.network-playground .answer-badge circle,
+.network-playground .answer-badge rect {
+  fill: #020a1a;
+  stroke: var(--accent);
+}
+.network-playground .exchange {
+  --exchange-lane: #2f4c76;
+}
+.network-playground .exchange-tag {
+  background: var(--surface-3);
+}
+.network-playground .exchange-arrow {
+  color: #60a5fa;
+}
+.network-playground .proto-arp .exchange-arrow {
+  color: #2dd4bf;
+}
+.network-playground .proto-dhcp .exchange-arrow,
+.network-playground .proto-dns .exchange-arrow {
+  color: #fbbf24;
+}
+.network-playground .proto-tcp .exchange-arrow {
+  color: #c4b5fd;
+}
+
+/* ---- Narrower screens: the diagram first, then the request and the inspector ---- */
+@media (min-width: 1600px) {
+  .network-playground .workspace-grid {
+    grid-template-columns: 320px minmax(0, 1fr) 380px;
+  }
+}
+@media (max-width: 1280px) {
+  .network-playground .workspace-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "stage stage" "side inspector";
+  }
+  .lab-side {
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .network-playground .network-inspector {
+    border-top: 1px solid var(--line);
+  }
+  .playground-art {
+    display: none;
+  }
+}
+@media (max-width: 850px) {
+  /* The stage joins the page grid (practice.css): the diagram, then the inspector, then the request forms. */
+  .network-playground .workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: none;
+  }
+  .network-playground .workspace-grid > * {
+    grid-area: auto;
+  }
+  .lab-side {
+    order: 2;
+  }
+  .network-playground .network-inspector {
+    border-left: 0;
+  }
+}
+@media (max-width: 500px) {
+  .playground-mark {
+    width: 38px;
+    height: 38px;
+  }
+  .playground-title {
+    gap: 10px;
+  }
+  .network-playground .playground-heading p {
+    font-size: 13px;
+  }
+  .lab-side {
+    padding: 12px;
+  }
+}
