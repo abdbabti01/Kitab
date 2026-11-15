@@ -21,14 +21,14 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await page.reload();
 
   // The free playground: the learner's own design is saved.
-  await page.getByRole("link", { name: "Build freely in the playground" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
   await page.getByLabel("Network name").fill("My home lab");
   await page.getByLabel("Network name").press("Tab");
   await expect.poll(() => workspace(page)).toContain("My home lab");
   // Earlier challenge completions count as completed missions, not mastered ones.
   await expect(page.getByRole("link", { name: /Practice missions/ })).toContainText("2/12 done");
-  await page.getByRole("link", { name: "Kitab", exact: true }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Learn" }).click();
 
   // Stage 1: the path starts with the Explorer.
   await page.locator(".path-stages summary", { hasText: "Your home connection" }).click();

@@ -85,10 +85,9 @@ test("finishing the array walkthrough records progress and links to practice", a
   for (const { missionId } of lesson.practice) {
     await expect(page.locator(`.completion .practice-list a[href="/missions/${missionId}"]`)).toBeVisible();
   }
-  await page.goto("/");
-  const card = page.locator('.journey-card[href="/learn/array-insert"]');
-  await expect(card.locator(".status-chip")).toHaveText("Walkthrough complete");
-  await expect(card).toContainText("Practice: not started");
+  await page.goto("/learn/data-structures");
+  await expect(page.locator(".path-activity", { hasText: "Make room in an array" }).first().locator(".status-chip")).toHaveText("Completed");
+  await expect(page.locator(".path-activity", { hasText: "Make room in an array" }).nth(1).locator(".status-chip")).toHaveText("Not started");
 });
 
 test("the array walkthrough uses the same runtime and recomputes the shifts for a new position", async ({ page }) => {

@@ -55,14 +55,19 @@ test("with reduced motion nothing moves; with motion it plays once and stops whe
   await expect(demo(page).getByRole("button", { name: "Play" })).toBeVisible();
 });
 
-test("the homepage opens the lab and keeps the learning path", async ({ page }) => {
+test("a first visit explains Kitab, starts Unit 1 with one primary action, and keeps the Playground one click away", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".journey-hero h1")).toBeInViewport();
-  await expect(page.locator(".journey-hero")).toContainText("Watch");
-  await expect(page.locator(".journey-hero")).toContainText("Predict");
-  await expect(page.locator(".journey-hero")).toContainText("Experiment");
-  await expect(page.locator("#path")).toBeAttached();
-  await page.getByRole("link", { name: "Open the network lab" }).click();
+  await expect(page.locator(".journey-hero")).toContainText("Learn networking from zero");
+  // One primary action, visible on the first screen, leading to the first activity of Unit 1.
+  await expect(page.locator("#main .button.primary")).toHaveCount(1);
+  const start = page.getByRole("link", { name: "Start learning" });
+  await expect(start).toBeInViewport();
+  await expect(start).toHaveAttribute("href", "/practice/connections");
+  // Learn, Practise and Experiment are explained, each with its place.
+  await expect(page.locator(".ways b")).toHaveText(["Learn", "Practise", "Experiment"]);
+  await expect(page.locator(".unit-strip li")).toHaveCount(6);
+  await page.locator(".ways").getByRole("link", { name: "Open the Playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
   await expect(page.getByRole("heading", { name: "Network playground." })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);

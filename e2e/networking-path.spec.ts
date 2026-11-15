@@ -14,12 +14,12 @@ async function seed(page: Page, items: Record<string, unknown>) {
     localStorage.clear();
     for (const [key, value] of Object.entries(entries)) localStorage.setItem(key, JSON.stringify(value));
   }, items);
-  await page.reload();
+  await page.goto("/learn");
 }
 
 test("a new learner starts at the beginning; nothing untracked shows progress", async ({ page }) => {
   await seed(page, {});
-  const hero = page.locator(".journey-hero").getByRole("link", { name: /Start the networking path/ });
+  const hero = page.locator(".track-roadmap .path-head").getByRole("link", { name: /Start: How your home connects/ });
   await expect(hero).toHaveAttribute("href", "/practice/connections");
   await expect(page.locator(".path-stages details[open]")).toHaveCount(1);
   await expect(stage(page, "Your home connection")).toHaveAttribute("open", "");
@@ -29,11 +29,7 @@ test("a new learner starts at the beginning; nothing untracked shows progress", 
   await expect(page.locator(".path-activity", { hasText: "Your first LAN" }).locator(".status-chip")).toHaveCount(0);
   await expect(page.locator(".path-activity", { hasText: "No connection" }).locator(".status-chip")).toHaveText("Not started");
   await expect(stage(page, "Inside your LAN").locator("summary")).toContainText("0 of 1 completed");
-  // Networking cards are not repeated elsewhere on Home.
-  await expect(page.locator(".mission-card", { hasText: "The ACK that wouldn't move" })).toHaveCount(0);
-  await expect(page.locator(".journey-card", { hasText: subnets.title })).toHaveCount(0);
-  await expect(page.locator(".journey-card", { hasText: routing.title })).toHaveCount(0);
-  await expect(page.locator(".networking-path .section-lead")).toContainText("6 stages");
+  await expect(page.locator(".networking-path .section-lead")).toContainText("6 units");
   await hero.click();
   await expect(page).toHaveURL(/\/practice\/connections$/);
 });
@@ -41,7 +37,7 @@ test("a new learner starts at the beginning; nothing untracked shows progress", 
 test("existing progress is shown as recorded, and the path moves forward from it, never back to Stage 1", async ({ page }) => {
   await seed(page, { "kitab.learning.v1": { version: 1, lessons: { [subnets.id]: done(subnets) } } });
   // Lesson 1 is done: the next step is the explorer after it, not the Stage 1 explorer that was never opened.
-  await expect(page.locator(".journey-hero").getByRole("link", { name: "Next: Explore subnets" })).toBeVisible();
+  await expect(page.locator(".track-roadmap .path-head").getByRole("link", { name: "Next: Explore subnets" })).toBeVisible();
   await expect(page.locator(".path-activity", { hasText: "Explore subnets" })).toHaveAttribute("aria-current", "step");
   await expect(page.locator(".path-activity", { hasText: "How your home connects" })).not.toHaveAttribute("aria-current", "step");
   await expect(page.locator(".path-activity", { hasText: subnets.title }).locator(".status-chip")).toHaveText("Completed");
@@ -52,7 +48,7 @@ test("existing progress is shown as recorded, and the path moves forward from it
   await expect(stage(page, "IPv4 addresses and subnets").locator("summary")).toContainText("2 of 5 completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
   // The earlier "subnet" challenge completed the mask mission, so the next step is the one after it.
-  await expect(page.locator(".journey-hero").getByRole("link", { name: "Next: Join and get an address" })).toBeVisible();
+  await expect(page.locator(".track-roadmap .path-head").getByRole("link", { name: "Next: Join and get an address" })).toBeVisible();
   // The starters it passed still show no progress: they are not marked done.
   await expect(page.locator(".path-activity", { hasText: "Two connected LANs" }).locator(".status-chip")).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("kitab.network.challenges.v1"))).toBe(JSON.stringify(["cable", "subnet"]));
@@ -75,7 +71,7 @@ test("the roadmap fits the screen, and the playground stays one click away with 
   await seed(page, { "kitab.network.workspace.v1": { version: 1, name: "My home lab", devices: [], links: [] } });
   for (const title of ["Inside your LAN", "IPv4 addresses and subnets", "Gateways, routing and NAT", "Across the Internet"]) await stage(page, title).locator("summary").click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole("link", { name: "Build freely in the playground" }).click();
+  await page.getByRole("link", { name: "Build freely in the Playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 });
@@ -115,14 +111,14 @@ test("with everything completed the path asks for mastery; with everything maste
     },
   });
   await seed(page, records(false));
-  await expect(page.locator(".journey-hero").getByRole("link", { name: "Work towards mastery: No connection" })).toHaveAttribute("href", "/practice/missions/no-connection");
+  await expect(page.locator(".track-roadmap .path-head").getByRole("link", { name: "Work towards mastery: No connection" })).toHaveAttribute("href", "/practice/missions/no-connection");
   await expect(stage(page, "IPv4 addresses and subnets").locator("summary")).toContainText("5 of 5 completed");
   await expect(stage(page, "Gateways, routing and NAT").locator("summary")).toContainText("4 of 4 completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
 
   await seed(page, records(true));
   await expect(page.locator(".path-note")).toContainText("You've mastered every mission");
-  await expect(page.locator(".path-head").getByRole("link", { name: /playground/ })).toHaveCount(1);
+  await expect(page.locator(".path-head").getByRole("link", { name: /playground/i })).toHaveCount(1);
   // Lessons have no mastery: stage 3 shows 4 mastered missions of 5 completed activities, stage 4 shows 3 of 4.
   await expect(stage(page, "IPv4 addresses and subnets").locator("summary")).toContainText("5 of 5 completed · 4 mastered");
   await expect(stage(page, "Gateways, routing and NAT").locator("summary")).toContainText("4 of 4 completed · 3 mastered");
@@ -134,7 +130,7 @@ test("DNS is introduced as a concept between the NAT mission and the first activ
   const internet = stage(page, "Across the Internet");
   await internet.locator("summary").click();
   const activities = internet.locator(".path-activity");
-  await expect(activities.first()).toContainText("Concept");
+  await expect(activities.first()).toContainText("Reading");
   await expect(activities.first()).toContainText("DNS resolution");
   await expect(activities.nth(1)).toContainText("A request across the Internet");
   await activities.first().click();
@@ -142,10 +138,10 @@ test("DNS is introduced as a concept between the NAT mission and the first activ
   await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("Unit 5 of 6");
   await page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: /Next: A request across the Internet/ }).click();
   await expect(page).toHaveURL(/\/practice\/network\?starter=internet$/);
-  // A reading outside the tracks gets no next step, but shows its place in the Library.
+  // A reading outside the tracks leads back to the Library, and shows its place there.
   await page.goto("/concepts/tcp");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Next step" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Next step" })).toContainText("Back to the Library");
   await expect(page.getByRole("navigation", { name: "Where you are" })).toContainText("Library");
   // The NAT mission before it requests the web server by address, so no name lookup runs.
   await page.goto("/practice/missions/bring-reply-home");

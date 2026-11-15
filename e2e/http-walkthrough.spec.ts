@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 const path = "/learn/hello-tcp";
 
 test("Kitab opens the original walkthrough as a full page at the lesson URL", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/learn");
   await page.locator(".path-stages summary", { hasText: "Across the Internet" }).click();
   await page.locator(".path-activity", { hasText: "Packet Journey" }).click();
   await expect(page).toHaveURL(new RegExp(path + "$"));
@@ -12,7 +12,7 @@ test("Kitab opens the original walkthrough as a full page at the lesson URL", as
   await expect(page.locator("#step-number")).toHaveText("1 / 130");
   await expect(page.locator("iframe")).toHaveCount(0);
   await page.goBack();
-  await expect(page.locator(".journey-hero")).toBeVisible();
+  await expect(page.locator(".track-roadmap")).toBeVisible();
 });
 
 test("the lesson URL serves the HTML file byte for byte", async ({ request }) => {
@@ -63,7 +63,8 @@ test("the walkthrough links back into Kitab and on to practice, and missions lin
   await expect(page).toHaveURL(/\/learn\/local-delivery-routing$/);
   await page.goto(path);
   await nav.getByRole("link", { name: "← Kitab" }).click();
-  await expect(page.locator(".journey-hero")).toBeVisible();
+  await expect(page.locator("#main h1")).toBeVisible();
+  await page.goto("/learn");
   await expect(page.locator(".path-activity", { hasText: "Packet Journey" })).toHaveAttribute("href", path);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

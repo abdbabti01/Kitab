@@ -78,7 +78,7 @@ export function App() {
     return { track: track.title, percent: trackProgress(track, evidence).percent, label: next.label, path: next.path };
   }, [evidence]);
   let view;
-  if (route.name === "home") view = <Home />;
+  if (route.name === "home") view = <Home evidence={evidence} />;
   else if (route.name === "learn") view = <LearnPage key={route.section} section={route.section} evidence={evidence} />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
   else if (route.name === "subnet-explorer") view = <SubnetExplorer />;
