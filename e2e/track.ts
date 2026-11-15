@@ -19,3 +19,22 @@ export async function openExchange(page: Page) {
   const open = page.getByRole("button", { name: "Open full exchange" });
   if (await open.isVisible()) await open.click();
 }
+/**
+ * Presses Send in the form and waits for what Send does to the page: the diagram glides up into view (a smooth
+ * scroll) when the form is beside or below it. A click made while the page is still gliding can land on whatever
+ * has moved under the pointer (seen in CI), so wait until the page has stopped scrolling with the diagram in view.
+ */
+export async function send(page: Page) {
+  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await page.waitForFunction(
+    () =>
+      new Promise<boolean>((done) => {
+        const top = () => document.querySelector(".journey-stage")!.getBoundingClientRect().top;
+        const at = [scrollY, top()];
+        // Still for three frames, with the top of the diagram on screen.
+        requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => done(scrollY === at[0] && top() === at[1] && top() >= -1 && top() < innerHeight))));
+      }),
+    undefined,
+    { polling: 50 },
+  );
+}

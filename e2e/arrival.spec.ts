@@ -41,8 +41,9 @@ test("with reduced motion nothing moves; with motion it plays once and stops whe
   // With motion: it plays by itself, and Pause holds it.
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.reload();
-  // It plays once seen: below the subjects, the learner scrolls to it.
-  await demo(page).scrollIntoViewIfNeeded();
+  // It plays once seen: below the subjects, the learner scrolls to it (the loaded demonstration, not the space
+  // held for it while it loads).
+  await caption(page).scrollIntoViewIfNeeded();
   await expect(caption(page)).toContainText("Step 2 of", { timeout: 8000 });
   await demo(page).getByRole("button", { name: "Pause" }).click();
   const paused = await caption(page).textContent();

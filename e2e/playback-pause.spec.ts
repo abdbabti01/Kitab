@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { toLast, openSteps } from "./track.ts";
+import { toLast, openSteps, send } from "./track.ts";
 
 // Play → Pause → Next: pausing freezes the run at its event, and stepping by hand moves one event at a time with the
 // diagram, the track and the card on that event. (Summary's Next moves a whole stage by design: see the playground spec.)
@@ -18,7 +18,7 @@ const frameAt = (page: Page) =>
   });
 async function start(page: Page) {
   await page.goto("/practice/network");
-  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await send(page);
   await page.getByRole("button", { name: "Pause playback" }).click();
   await page.getByRole("radio", { name: "Every event" }).click();
 }
@@ -60,7 +60,7 @@ test("Pause freezes a frame where it is on its link; Play runs that event again"
 
 test("after Play and Pause each Next and Previous moves exactly one event, up to the last one", async ({ page }) => {
   await page.goto("/practice/network");
-  await page.getByRole("button", { name: "Send request", exact: true }).click();
+  await send(page);
   await page.getByRole("radio", { name: "Every event" }).click();
   await page.getByRole("combobox", { name: "Playback speed" }).selectOption("8");
   const next = page.getByRole("button", { name: "Next event", exact: true }),
