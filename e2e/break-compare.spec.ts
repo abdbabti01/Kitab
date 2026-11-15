@@ -130,9 +130,12 @@ test("by keyboard and touch, with reduced motion, stacked on narrow screens", as
 
 test("with predictions on, an experiment's runs are not gated; focus follows the panel; the starting state is stated", async ({ page }) => {
   await open(page);
-  await page.getByLabel("Predict as you go").check();
-  await expect(panel(page).locator(".compare-option")).toHaveCount(6);
+  // Opening the panel moves the focus to its heading (once it has loaded); turning on predictions then focuses that
+  // switch, as any checkbox click does.
   await expect(panel(page).getByRole("heading", { name: "Break and compare" })).toBeFocused();
+  await page.getByLabel("Predict as you go").check();
+  await expect(page.getByLabel("Predict as you go")).toBeFocused();
+  await expect(panel(page).locator(".compare-option")).toHaveCount(6);
   await panel(page).getByRole("radio", { name: /Turn off NAT/ }).check();
   await panel(page).getByRole("button", { name: "Run both and compare" }).click();
   await expect(panel(page).getByRole("heading", { name: "Break and compare" })).toBeFocused();

@@ -4,7 +4,7 @@
 .subnet-layout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--layout-gap); align-items: start; }
 .subnet-column { display: grid; gap: var(--layout-gap); min-width: 0; }
 .subnet-card { padding: 18px; min-width: 0; }
-.subnet-card h2 { font: 400 1.3rem/1.2 var(--display); margin-bottom: 12px; }
+.subnet-card h2 { font: 700 1.3rem/1.2 var(--display); margin-bottom: 12px; }
 .subnet-compare { margin-top: var(--layout-gap); }
 
 .subnet-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }

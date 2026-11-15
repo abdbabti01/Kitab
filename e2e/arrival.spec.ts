@@ -41,6 +41,9 @@ test("with reduced motion nothing moves; with motion it plays once and stops whe
   // With motion: it plays by itself, and Pause holds it.
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.reload();
+  // It plays once seen: below the subjects, the learner scrolls to it (the loaded demonstration, not the space
+  // held for it while it loads).
+  await caption(page).scrollIntoViewIfNeeded();
   await expect(caption(page)).toContainText("Step 2 of", { timeout: 8000 });
   await demo(page).getByRole("button", { name: "Pause" }).click();
   const paused = await caption(page).textContent();
@@ -55,21 +58,20 @@ test("with reduced motion nothing moves; with motion it plays once and stops whe
   await expect(demo(page).getByRole("button", { name: "Play" })).toBeVisible();
 });
 
-test("a first visit explains Kitab, starts Unit 1 with one primary action, and keeps the Playground one click away", async ({ page }) => {
+test("a first visit explains Kitab by its subjects, each one click away, and keeps the Playground one click away", async ({ page }) => {
   await page.goto("/");
-  await expect(page.locator(".journey-hero h1")).toBeInViewport();
-  await expect(page.locator(".journey-hero")).toContainText("Learn networking from zero");
-  // One primary action, visible on the first screen, leading to the first activity of Unit 1.
-  await expect(page.locator("#main .button.primary")).toHaveCount(1);
-  const start = page.getByRole("link", { name: "Start learning" });
-  await expect(start).toBeInViewport();
-  await expect(start).toHaveAttribute("href", "/practice/connections");
+  await expect(page.locator(".home-hero h1")).toBeInViewport();
+  // Each subject and the Playground has one entry action.
+  const entries = page.locator(".subject-card .button.primary");
+  await expect(entries).toHaveText([/Explore Networking/, /Explore Data structures/, /Open the Playground/]);
+  await expect(entries.nth(0)).toHaveAttribute("href", "/learn");
+  await expect(entries.nth(1)).toHaveAttribute("href", "/learn/data-structures");
+  await expect(entries.nth(2)).toHaveAttribute("href", "/practice/network");
   // Learn, Practise and Experiment are explained, each with its place.
   await expect(page.locator(".ways b")).toHaveText(["Learn", "Practise", "Experiment"]);
-  await expect(page.locator(".unit-strip li")).toHaveCount(6);
   await page.locator(".ways").getByRole("link", { name: "Open the Playground" }).click();
   await expect(page).toHaveURL(/\/practice\/network$/);
-  await expect(page.getByRole("heading", { name: "Network playground." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Network Playground", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });
 
@@ -89,5 +91,5 @@ test("the lab introduces itself once, to new and returning learners alike, and n
   await page.locator(".journey-start").waitFor();
   await expect(page.locator(".lab-intro")).toHaveCount(0);
   // The heading still says what to do.
-  await expect(page.locator(".playground-heading")).toContainText("Send a request and watch every frame cross your network.");
+  await expect(page.locator(".playground-heading")).toContainText("send a request and watch every frame cross it, step by step.");
 });

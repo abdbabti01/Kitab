@@ -33,7 +33,7 @@
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-  background: #fbfcf6;
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 .exchange-heads li {
@@ -211,7 +211,7 @@
   margin: 0 8px 8px;
   padding: 8px 10px;
   border-left: 3px solid var(--primary);
-  background: #fbfcf6;
+  background: var(--surface);
   font-size: 12px;
 }
 .exchange-detail p {

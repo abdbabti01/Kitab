@@ -4,11 +4,11 @@ import { LEARNING_KEY } from "../learning/lessons/progress.ts";
 import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { findActivity, loadEvidence } from "../learning/networking-path.ts";
-import { activeTrack, hasHistory, locate, nextLink, recommendFor, trackProgress } from "../learning/tracks.ts";
+import { locate } from "../learning/tracks.ts";
 import { recordVisit } from "../learning/visits.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
-import { SiteHeader, type HeaderProgress, type Section } from "./SiteHeader.tsx";
+import { SiteHeader, type Section } from "./SiteHeader.tsx";
 import { StepBar } from "./StepBar.tsx";
 import { linkProps, useRoute, type Route } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
@@ -73,16 +73,10 @@ export function App() {
   useEffect(() => {
     if (activityId) recordVisit(safeStorage(), activityId);
   }, [key, search]);
-  // Read once per page: the header's progress and the step bar both come from the saved records.
+  // Read once per page: the track pages and the step bar both come from the saved records.
   const evidence = useMemo(() => loadEvidence(safeStorage()), [key, search]);
-  const progress = useMemo((): HeaderProgress | null => {
-    if (!hasHistory(evidence)) return null;
-    const track = activeTrack(evidence);
-    const next = nextLink(recommendFor(track, evidence), track);
-    return { track: track.title, percent: trackProgress(track, evidence).percent, label: next.label, path: next.path };
-  }, [evidence]);
   let view;
-  if (route.name === "home") view = <Home evidence={evidence} />;
+  if (route.name === "home") view = <Home />;
   else if (route.name === "learn") view = <LearnPage key={route.section} section={route.section} evidence={evidence} />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
   else if (route.name === "subnet-explorer") view = <SubnetExplorer />;
@@ -108,7 +102,7 @@ export function App() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
-      <SiteHeader section={sectionFor(route, activityId)} progress={progress} />
+      <SiteHeader section={sectionFor(route, activityId)} />
       {activityId && <StepBar id={activityId} evidence={evidence} />}
       <ErrorBoundary
         resetKey={key}
