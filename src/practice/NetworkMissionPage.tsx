@@ -21,7 +21,6 @@ import {
   type MissionAttempt,
 } from "./network/mission-progress.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
-import { networkingPath } from "../learning/networking-path.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
 import { keyIdeas } from "../learning/missions/tcp-terms.ts";
 import { TermChips } from "../ui/Terms.tsx";
@@ -461,8 +460,8 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
   return (
     <main id="main" className="network-playground network-mission">
       <header className="mission-heading">
-        <a className="eyebrow" {...linkProps("/practice/missions")}>
-          ← NETWORKING MISSIONS · LEVEL {mission.level}
+        <a className="eyebrow" {...linkProps("/practice")}>
+          ← Practice · Troubleshoot
         </a>
         <h1>{mission.title}</h1>
         <p className="mission-symptom">{variant.symptom}</p>
@@ -598,54 +597,4 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
 export function NetworkMissionRoute({ id, notFound }: { id: string; notFound: ReactNode }) {
   const mission = findNetworkMission(id);
   return mission ? <NetworkMissionPage mission={mission} /> : <>{notFound}</>;
-}
-
-/** Every networking mission, with the same progress states as the TCP missions. */
-export function NetworkMissionsIndex({ framework }: { framework: { id: string; title: string; summary: string; label: string; state: import("../learning/practice-state.ts").PracticeState }[] }) {
-  const store = loadMissionStore(storage());
-  useEffect(() => {
-    document.title = "Networking missions · Kitab";
-  }, []);
-  return (
-    <main id="main" className="network-playground network-missions">
-      <header className="mission-heading">
-        <span className="eyebrow">PRACTICE · NETWORKING</span>
-        <h1>Networking missions</h1>
-        <p>
-          Real problems on real simulated networks. Investigate with the journey, fix the configuration, and prove it with evidence. Each mission has several versions with different causes.
-        </p>
-        <div className="actions">
-          <a className="text-button" {...linkProps("/practice/network")}>
-            Prefer to build freely? Open the network playground →
-          </a>
-          <a className="text-button" {...linkProps("/practice/subnets")}>
-            Explore subnets: any address and prefix →
-          </a>
-        </div>
-      </header>
-      {/* In networking-path order, so each mission follows what it builds on. */}
-      {networkingPath.map((stage, index) => stage.practise.length > 0 && (
-        <section key={stage.id} aria-labelledby={`stage-${stage.id}`}>
-          <h2 className="mission-list-heading" id={`stage-${stage.id}`}>Stage {index + 1} · {stage.title}</h2>
-          <ol className="mission-list">
-            {stage.practise.map((activity) => {
-              const m = missions.find((x) => x.id === activity.id);
-              const t = framework.find((x) => x.id === activity.id);
-              const state = m ? missionState(store.missions[m.id], m) : t?.state ?? "not-started";
-              return (
-                <li key={activity.id}>
-                  <a {...linkProps(activity.path)}>
-                    <span className="mission-level">{m ? `Level ${m.level}` : t?.label}</span>
-                    <b>{activity.title}</b>
-                    <span>{m?.brief ?? t?.summary}</span>
-                    <span className={`state-pill is-${state}`}>{practiceLabels[state]}</span>
-                  </a>
-                </li>
-              );
-            })}
-          </ol>
-        </section>
-      ))}
-    </main>
-  );
 }

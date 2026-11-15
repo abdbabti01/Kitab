@@ -27,7 +27,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await page.getByLabel("Network name").press("Tab");
   await expect.poll(() => workspace(page)).toContain("My home lab");
   // Earlier challenge completions count as completed missions, not mastered ones.
-  await expect(page.getByRole("link", { name: /Practice missions/ })).toContainText("2/6 done");
+  await expect(page.getByRole("link", { name: /Practice missions/ })).toContainText("2/12 done");
   await page.getByRole("link", { name: "Kitab", exact: true }).click();
 
   // Stage 1: the path starts with the Explorer.
@@ -111,8 +111,8 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await expect(page.locator(".path-activity", { hasText: "No connection" }).locator(".status-chip")).toHaveText("Completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Practice" }).click();
-  await expect(page.getByRole("link", { name: /The ACK that wouldn't move/ }).locator(".state-pill")).toHaveText("Completed");
-  await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".state-pill")).toHaveText("Completed");
+  await expect(page.getByRole("link", { name: /The ACK that wouldn't move/ }).locator(".status-chip")).toHaveText("Completed");
+  await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".status-chip")).toHaveText("Completed");
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 

@@ -312,3 +312,24 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .unit-playground { display: flex; align-items: flex-start; gap: 10px; margin: 0 16px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-2); font-size: .92rem; }
 .unit-playground svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--primary); }
 
+
+/* Practice */
+.practice-kinds { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 6px; color: var(--ink-2); font-size: .93rem; }
+.practice-kind { display: inline-block; padding: 2px 8px; border-radius: 6px; font: 700 .7rem/1.5 var(--mono); text-transform: uppercase; letter-spacing: .06em; background: var(--surface-2); }
+.kind-predict { color: var(--level-application); background: #e7eef7; }
+.kind-troubleshoot { color: var(--level-network); background: #f6ecdf; }
+.kind-challenge { color: var(--level-link); background: #efe8f4; }
+.practice-filters { display: grid; gap: 8px; margin-top: 20px; }
+.practice-filters > div { display: flex; flex-wrap: wrap; gap: 6px; }
+.filter-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 620 .88rem var(--font); cursor: pointer; }
+.filter-chip:hover { border-color: var(--line-strong); }
+.filter-chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.filter-count { font: 600 .75rem var(--mono); opacity: .8; }
+.practice-track > h2 { margin-bottom: 4px; }
+.practice-unit { margin-top: 20px; }
+.practice-unit-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; margin-bottom: 10px; }
+.practice-unit-head h3 { margin: 0; font-size: 1.02rem; }
+.practice-unit-head p { margin: 0; color: var(--muted); font-size: .9rem; }
+.practice-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.practice-card .status-chip { justify-self: auto; }
+

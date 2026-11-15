@@ -2593,47 +2593,6 @@
   align-items: center;
   margin-top: 10px;
 }
-.mission-list {
-  list-style: none;
-  margin: 0 0 28px;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-}
-.mission-list a {
-  display: grid;
-  gap: 6px;
-  height: 100%;
-  padding: 16px 18px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--ink-2);
-  text-decoration: none;
-  font-size: 13px;
-  line-height: 1.55;
-}
-.mission-list a:hover {
-  border-color: var(--primary-soft-line);
-}
-.mission-list b {
-  font-size: 17px;
-  color: var(--ink);
-}
-.mission-list .state-pill {
-  justify-self: start;
-}
-.mission-level {
-  font-size: 10px;
-  letter-spacing: 1.4px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.mission-list-heading {
-  font: normal 26px var(--display);
-  margin: 10px 0 12px;
-}
 @media (max-width: 850px) {
   .mission-panel {
     grid-template-columns: 1fr;

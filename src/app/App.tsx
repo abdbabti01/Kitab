@@ -1,7 +1,7 @@
-import { findMission, missions as frameworkMissions } from "../learning/missions/catalog.ts";
+import { findMission } from "../learning/missions/catalog.ts";
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { LEARNING_KEY } from "../learning/lessons/progress.ts";
-import { PROGRESS_KEY, loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
+import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { findActivity, loadEvidence } from "../learning/networking-path.ts";
 import { activeTrack, hasHistory, locate, nextLink, recommendFor, trackProgress } from "../learning/tracks.ts";
@@ -17,7 +17,7 @@ const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(
 const SubnetExplorer = lazy(() => import("../practice/SubnetExplorer.tsx").then(m => ({default:m.SubnetExplorer})));
 const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
-const NetworkMissionsIndex = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionsIndex })));
+const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
 const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
 const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
@@ -84,15 +84,9 @@ export function App() {
   else if (route.name === "subnet-explorer") view = <SubnetExplorer />;
   // Keyed by the query, so moving between path starters (?starter=lan → ?starter=wifi) opens the new one.
   else if (route.name === "network-practice") view = <NetworkPlayground key={window.location.search} />;
-  else if (route.name === "network-missions" || route.name === "practice") {
-    const progress = loadProgress(safeStorage()).progress;
-    // Prediction missions on the networking path, labelled by topic beside the lab's levelled missions.
-    const label: Record<string, string> = { tcp: "TCP", "ipv4-subnets": "IPv4", "local-delivery-routing": "Routing" };
-    const framework = frameworkMissions
-      .filter((m) => label[m.concept])
-      .map((m) => ({ id: m.id, title: m.title, summary: m.summary, label: label[m.concept], state: practiceState(progress, m.id, m.version) }));
-    view = <NetworkMissionsIndex framework={framework} />;
-  } else if (route.name === "network-mission") {
+  // /practice/missions, the earlier address of the networking missions, shows the same page.
+  else if (route.name === "network-missions" || route.name === "practice") view = <PracticePage evidence={evidence} />;
+  else if (route.name === "network-mission") {
     view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;
   }
   else if (route.name === "mission") {
