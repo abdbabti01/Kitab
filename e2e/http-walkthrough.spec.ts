@@ -52,17 +52,23 @@ test("the original packet, diagram and source controls work", async ({ page }) =
 
 test("the walkthrough links back into Kitab and on to practice, and missions link back to it", async ({ page }) => {
   await page.goto(path);
-  const nav = page.getByRole("navigation", { name: "Kitab" });
+  // The same header and course location as every Kitab page.
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Learn" })).toHaveAttribute("aria-current", "page");
+  const nav = page.getByRole("navigation", { name: "Where you are" });
+  await expect(nav).toContainText("Unit 5: Across the Internet");
+  await expect(nav).toContainText("Step 3 of 6 · Lesson");
   await expect(nav).toBeVisible();
-  await nav.getByRole("link", { name: "The ACK that wouldn't move" }).click();
+  await nav.getByRole("link", { name: "The ACK that wouldn't move" }).first().click();
   await expect(page).toHaveURL(/\/missions\/tcp-lost-segment$/);
   await page.getByRole("link", { name: /Follow the walkthrough first: Packet Journey/ }).click();
   await expect(page).toHaveURL(new RegExp(path + "$"));
   await expect(page.locator("#step-number")).toHaveText("1 / 130");
-  await nav.getByRole("link", { name: "Local delivery, gateways and routing" }).click();
-  await expect(page).toHaveURL(/\/learn\/local-delivery-routing$/);
+  await nav.getByRole("link", { name: "A request across the Internet" }).click();
+  await expect(page).toHaveURL(/\/practice\/network\?starter=internet$/);
   await page.goto(path);
-  await nav.getByRole("link", { name: "← Kitab" }).click();
+  // Its visit is recorded like any page's, so the roadmap can show it opened.
+  expect(await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem("kitab.visits.v1")!).activities))).toContain("hello-tcp");
+  await page.getByRole("link", { name: "Kitab", exact: true }).click();
   await expect(page.locator("#main h1")).toBeVisible();
   await page.goto("/learn");
   await expect(page.locator(".path-activity", { hasText: "Packet Journey" })).toHaveAttribute("href", path);

@@ -96,7 +96,7 @@ export function NetworkPlayground() {
       return {
         network: starter(path.id),
         scratch: true,
-        error: `This is the “${path.name}” starter, opened from the networking path. Experiment freely: your own playground network is not changed, and nothing here is saved unless you save it under a name. ${path.steps?.[0].note ?? ""}`.trim(),
+        error: `This is the “${path.name}” starter, opened from the Networking track. Experiment freely: your own playground network is not changed, and nothing here is saved unless you save it under a name. ${path.steps?.[0].note ?? ""}`.trim(),
       };
     const copy = scratchCopy();
     if (copy)
@@ -355,7 +355,7 @@ export function NetworkPlayground() {
     <main id="main" className="network-playground">
       <header className="playground-heading">
         <div>
-          <span className="eyebrow">PRACTICE / NETWORK LAB</span>
+          <span className="eyebrow">PLAYGROUND · BUILD AND EXPERIMENT FREELY</span>
           <h1>
             Network playground<span className="heading-dot">.</span>
           </h1>
@@ -425,9 +425,9 @@ export function NetworkPlayground() {
         </section>
       )}
       {intro && (
-        <section className="lab-intro" aria-label={intro.returning ? "What is new in the network lab" : "Welcome to the network lab"}>
+        <section className="lab-intro" aria-label={intro.returning ? "What is new in the Playground" : "Welcome to the Playground"}>
           <p>
-            <b>{intro.returning ? "The network lab has changed." : "Welcome to the network lab."}</b> Three things to try:
+            <b>{intro.returning ? "The Playground has changed." : "Welcome to the Playground."}</b> Three things to try:
           </p>
           <ol>
             <li>

@@ -16,7 +16,7 @@ test("a learner returning mid-lesson continues at the exact step they left", asy
   await seed(page, {});
   await page.goto("/learn/ipv4-subnets");
   for (let i = 0; i < 4; i++) await page.locator(".lesson-controls .next-button").click();
-  const step = (await page.locator("#main h1").textContent())!;
+  const step = (await page.locator(".step-title").textContent())!;
   // Then a TCP mission is only opened, never attempted.
   await page.goto("/missions/tcp-send-window");
   await expect(page.locator("#main h1")).toBeVisible();
@@ -29,7 +29,7 @@ test("a learner returning mid-lesson continues at the exact step they left", asy
   await expect(page.locator("#main .button.primary")).toHaveCount(1);
   await continueCard(page).getByRole("link", { name: /Continue/ }).click();
   await expect(page).toHaveURL(/\/learn\/ipv4-subnets$/);
-  await expect(page.locator("#main h1")).toHaveText(step);
+  await expect(page.locator(".step-title")).toHaveText(step);
 });
 
 test("a learner with an unfinished mission continues it, and the dashboard shows the unit and what is ready to master", async ({ page }) => {
@@ -83,4 +83,14 @@ test("progress saved before the redesign shows as before, and nothing in it is r
   if ((page.viewportSize()?.width ?? 0) > 760) await expect(page.locator(".header-continue")).toContainText("Networking · 21%");
   for (const [key, value] of Object.entries(before)) expect(await page.evaluate((k) => localStorage.getItem(k), key)).toBe(JSON.stringify(value));
   expect(errors).toEqual([]);
+});
+
+test("a lesson's page heading is the lesson, and stays the same as its steps change", async ({ page }) => {
+  await page.goto("/learn/ipv4-subnets");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Understanding IPv4 addresses and subnets");
+  const first = await page.locator(".step-title").textContent();
+  await page.locator(".lesson-controls .next-button").click();
+  await expect(page.locator(".step-title")).not.toHaveText(first!);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Understanding IPv4 addresses and subnets");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
 });

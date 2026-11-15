@@ -80,7 +80,7 @@ test("finishing the array walkthrough records progress and links to practice", a
   for (const chapter of ["Stored side by side", "Insert 9 at index 1", "What it cost"]) {
     await page.locator(".chapter-pill", { hasText: chapter }).click();
   }
-  await expect(page.locator(".completion")).toContainText("Walkthrough completed");
+  await expect(page.locator(".completion")).toContainText("Lesson completed");
   await expect(page.locator(".completion")).toContainText("Mastery not shown yet");
   for (const { missionId } of lesson.practice) {
     await expect(page.locator(`.completion .practice-list a[href="/missions/${missionId}"]`)).toBeVisible();
