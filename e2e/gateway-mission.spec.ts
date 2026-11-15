@@ -70,7 +70,7 @@ test("the run shows the simulator's ARP and the frame the PC sent", async ({ pag
   await expect(scene.locator(".ld-envelope")).toContainText("Destination MAC02:12:4d:29:c7:00");
   await expect(scene.locator(".ld-envelope")).toContainText("Destination IP192.168.1.30");
   // A practice network isn't one of the lab's starters, so it isn't offered as "this network".
-  await expect(scene.getByRole("link", { name: "Open this network in the lab →" })).toHaveCount(0);
+  await expect(scene.getByRole("link", { name: "Open this network in the Playground →" })).toHaveCount(0);
 });
 
 test("just watching shows the run but never earns credit", async ({ page }) => {
@@ -104,7 +104,7 @@ test("Lesson 2 ends in the lab: its networks, the practice mission and the lab m
   await expect(starters.getByRole("link", { name: /Two connected LANs/ })).toHaveAttribute("href", "/practice/network?starter=routed");
   const practice = page.locator(".completion .practice-list");
   await expect(practice.getByRole("link", { name: /Gateway or direct\?/ })).toHaveAttribute("href", "/missions/gateway-or-direct");
-  await expect(page.locator(".completion")).toContainText("Fix a network in the lab");
+  await expect(page.locator(".completion")).toContainText("Troubleshoot a network");
   await expect(practice.getByRole("link", { name: /Leave your LAN/ })).toHaveAttribute("href", "/practice/missions/leave-the-lan");
   await expect(practice.getByRole("link", { name: /Bring the reply home/ })).toHaveAttribute("href", "/practice/missions/bring-reply-home");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

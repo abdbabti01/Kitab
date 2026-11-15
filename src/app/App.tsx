@@ -29,8 +29,12 @@ function NotFound({ what }: { what: string }) {
   return (
     <main id="main" className="page narrow">
       <h1>Not found</h1>
-      <p>Kitab couldn't find {what}.</p>
-      <a className="button primary" {...linkProps("/")}>Back to Kitab</a>
+      <p>Kitab couldn't find {what}. The address may have changed, or have a typing mistake.</p>
+      <div className="actions">
+        <a className="button primary" {...linkProps("/learn")}>See the learning tracks</a>
+        <a className="button" {...linkProps("/practice")}>All missions</a>
+        <a className="text-button" {...linkProps("/")}>Back to Kitab</a>
+      </div>
     </main>
   );
 }

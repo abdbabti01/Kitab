@@ -82,7 +82,7 @@ export function AccessExplorer() {
   return (
     <main id="main" className="access-page">
       <nav className="access-nav">
-        <a {...linkProps("/#path")}>← Networking path</a>
+        <a {...linkProps("/learn#unit-home")}>← Networking roadmap</a>
         <span>TECHNOLOGY EXPLORER</span>
       </nav>
       <header className="access-heading">
@@ -500,7 +500,7 @@ export function AccessExplorer() {
           is visible.
         </p>
         <a {...linkProps("/practice/network")}>
-          Inspect individual protocol packets in the network lab →
+          Inspect individual protocol packets in the Playground →
         </a>
         <details>
           <summary>Technology references</summary>

@@ -39,7 +39,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   // Stage 2: starters open as copies; the saved design is untouched.
   await follow(page, "Your first LAN", /\/practice\/network\?starter=lan$/);
   await expect(page.getByLabel("Network name")).toHaveValue("Your first LAN");
-  await expect(page.locator(".network-notice")).toContainText("opened from the networking path");
+  await expect(page.locator(".network-notice")).toContainText("opened from the Networking track");
   await follow(page, "A wireless home", /\/practice\/network\?starter=wifi$/);
   await expect(page.getByLabel("Network name")).toHaveValue("A wireless home");
   expect(await workspace(page)).toContain("My home lab");
@@ -80,7 +80,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await follow(page, "A request across the Internet", /\/practice\/network\?starter=internet$/);
   await follow(page, "Packet Journey", /\/learn\/hello-tcp$/);
   await expect(page).toHaveTitle("Packet Journey · C# Walkthrough");
-  await page.getByRole("navigation", { name: "Kitab" }).getByRole("link", { name: "The ACK that wouldn't move" }).click();
+  await page.getByRole("navigation", { name: "Where you are" }).getByRole("link", { name: "The ACK that wouldn't move" }).first().click();
   await expect(page).toHaveURL(/\/missions\/tcp-lost-segment$/);
   await page.locator("label.choice", { hasText: "ACK 4501" }).click();
   await page.getByRole("button", { name: "Test prediction" }).click();

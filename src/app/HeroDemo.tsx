@@ -104,7 +104,7 @@ export function HeroDemo() {
   return (
     <figure className="hero-demo" ref={figure} aria-labelledby="hero-demo-title">
       <div className="hero-demo-top">
-        <span>Recorded in the network lab</span>
+        <span>Recorded in the Playground</span>
         <span>{source.action}</span>
       </div>
       <figcaption id="hero-demo-title">Watch one ping cross a router, frame by frame.</figcaption>

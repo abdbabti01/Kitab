@@ -270,9 +270,9 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   );
 
   return (
-    <div className="lesson-page">
+    <main id="main" className="lesson-page">
       <div className="lesson-top">
-        <LearningHeading eyebrow={`${lesson.topic} · ${isJourney ? "Guided walkthrough" : "Experiment"}`} title={isJourney ? lesson.title : track.title} titleAs="p" review={lesson.review.status} reviewDetail="computed by Kitab" />
+        <LearningHeading eyebrow={`${lesson.topic} · ${isJourney ? "Lesson" : "Experiment"}`} title={isJourney ? lesson.title : track.title} review={lesson.review.status} reviewDetail="computed by Kitab" />
       </div>
 
       <nav className="chapter-strip" aria-label={isJourney ? "Chapters" : "Experiment"}>
@@ -299,7 +299,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
       )}
       <Replacement lesson={lesson} learning={boot.learning} first={stepIndex === 0} />
 
-      <main id="main" className="lesson-grid">
+      <div className="lesson-grid">
         <nav className="level-rail" aria-label="Levels">
           <p className="rail-title">Levels</p>
           <ol>
@@ -321,7 +321,8 @@ function LessonView({ lesson }: { lesson: Lesson }) {
         <section className="stage" aria-labelledby="step-title">
           <div className="stage-head">
             <p className="step-meta">{isJourney ? `Chapter ${step.chapterIndex + 1} · ${chapter.title}` : chapter.title} · step {step.indexInChapter + 1} of {step.chapterSize}</p>
-            <h1 id="step-title" className="step-title">{step.title}</h1>
+            {/* The lesson is the page heading; each step is a section of it, so the page title stays put as steps change. */}
+            <h2 id="step-title" className="step-title">{step.title}</h2>
             <p className="step-who"><span className={`level-badge level-${step.level}`}>{levelOf(step.level).name} level</span> <span>Who acts: <b>{step.actor}</b></span></p>
           </div>
           {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
@@ -405,8 +406,8 @@ function LessonView({ lesson }: { lesson: Lesson }) {
           {isJourney && atEnd && <Completion lesson={lesson} status={status} completed={Boolean(record?.completedAt)} progress={progress} onExperiment={(id) => manual({ type: "START_EXPERIMENT", id })} />}
           {!isJourney && atEnd && <Compare lesson={lesson} track={track} journey={journey} onBack={() => manual({ type: "END_EXPERIMENT" })} />}
         </aside>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
 
@@ -586,16 +587,16 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
   const mastered = states.some((state) => state === "mastered");
   return (
     <section className="completion card" aria-labelledby="completion-title">
-      <h2 id="completion-title">{completed ? "Walkthrough complete" : "End of the walkthrough"}</h2>
+      <h2 id="completion-title">{completed ? "Lesson complete" : "End of the lesson"}</h2>
       <ul className="status-list">
         <li className="is-yes">Visited</li>
         <li className={status.seen >= status.total ? "is-yes" : ""}>Learning progress: {status.seen} of {status.total} steps seen</li>
-        <li className={completed ? "is-yes" : ""}>{completed ? "Walkthrough completed" : "Walkthrough not complete yet: visit every chapter"}</li>
+        <li className={completed ? "is-yes" : ""}>{completed ? "Lesson completed" : "Lesson not complete yet: visit every chapter"}</li>
         {practice.length > 0 && <li className={attempted ? "is-yes" : ""}>{attempted ? "Practice attempted" : "Practice not attempted"}</li>}
         {practice.length > 0 && <li className={mastered ? "is-yes" : ""}>{mastered ? "Mastery demonstrated in practice" : "Mastery not shown yet: it's earned by predicting in practice"}</li>}
       </ul>
       <PathNext id={lesson.id} />
-      {/* In the networking path, the path's next step leads; the lesson's own next lesson stays available. */}
+      {/* In a track, the track's next step leads; the lesson's own next lesson stays available. */}
       {nextLesson && <a className={`button ${locate(lesson.id) ? "" : "primary"}`} {...linkProps(`/learn/${nextLesson.id}`)}>Next lesson: {nextLesson.title} <ChevronRight aria-hidden="true" /></a>}
       {lesson.experiments.map((experiment) => (
         <button type="button" className="button primary" key={experiment.id} onClick={() => onExperiment(experiment.id)}><FlaskConical aria-hidden="true" /> Experiment: {experiment.title}</button>
@@ -612,7 +613,7 @@ function Completion({ lesson, status, completed, progress, onExperiment }: { les
       )}
       {lab.length > 0 && (
         <>
-          <h3 className="card-label">Fix a network in the lab</h3>
+          <h3 className="card-label">Troubleshoot a network</h3>
           <ul className="practice-list">
             {lab.map((item) => (
               <li key={item.missionId}><a {...linkProps(item.activity.path)}><b>{item.activity.title}</b><small>{item.why}</small></a></li>

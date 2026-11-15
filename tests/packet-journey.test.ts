@@ -7,7 +7,7 @@ import { findJourney, journeys, lessons, lessonsForMission, packetJourney } from
 import { findMission } from "../src/learning/missions/catalog.ts";
 import { HTTP_WALKTHROUGH_PATH, parseRoute } from "../src/app/routes.ts";
 import { starterOptions } from "../src/practice/network/starters.ts";
-import { pathPosition } from "../src/learning/networking-path.ts";
+import { locate, unitPath } from "../src/learning/tracks.ts";
 
 // The original HttpWalkthrough export (LF line endings) before Kitab's navigation block was added.
 const EXPORT_SHA256 = "395555c5ed2cd4adbff3fc800a2794283d99dda812a657bab0f65ed7f82dc677";
@@ -32,14 +32,20 @@ test("every link in the walkthrough's navigation leads to existing Kitab content
     assert.notEqual(route.name, "not-found", href);
     const starter = url.searchParams.get("starter");
     if (starter) assert.equal(starterOptions.find((s) => s.id === starter)?.name, text, href);
-    if (url.hash === "#path") assert.equal(route.name, "home", href);
     if (route.name === "mission") assert.equal(findMission(route.id)?.title, text, href);
     if (route.name === "lesson") assert.equal(findJourney(route.id)?.title, text, href);
   }
   for (const { missionId } of packetJourney.practice)
     assert.ok(links.some((link) => link.href === `/missions/${missionId}`), `walkthrough links its practice mission ${missionId}`);
-  // The static page names its stage; it must match where the path actually puts it.
-  assert.ok(links.some((link) => link.href === "/#path" && link.text === `Networking path · Stage ${pathPosition(packetJourney.id)!.stageNumber}`), "the walkthrough's stage number");
+  // The static page states its place in the track; it must match where the track actually puts it.
+  const at = locate(packetJourney.id)!;
+  assert.ok(links.some((link) => link.href === unitPath(at.track, at.stage) && link.text === `Unit ${at.stageNumber}: ${at.stage.title}`), "the walkthrough's unit");
+  assert.ok(html.match(nav)![0].includes(`Step ${at.stepNumber} of ${at.stepCount} · Lesson`), "the walkthrough's step number");
+  const block = html.match(nav)![0];
+  assert.ok(block.includes(`Previous: <a href="${at.previous!.path}">${at.previous!.title}</a>`), "previous step");
+  assert.ok(block.includes(`Next: <a href="${at.next!.path}">${at.next!.title}</a>`), "next step");
+  // It records its visit in Kitab's visit store, as every other page does.
+  assert.ok(html.match(nav)![0].includes(`"kitab.visits.v1"`) && html.match(nav)![0].includes(`"${packetJourney.id}"`));
 });
 
 test("the walkthrough is the only implementation at its URL and every journey link resolves", () => {

@@ -190,9 +190,9 @@ export function LocalDeliveryScene(props: Props) {
           onTry={(i) => setAttempt({ ...current, tried: [...current.tried, i] })} onShow={() => setAttempt({ ...current, shown: true })} />
       )}
       {answered && evidence}
-      {d.mission && <a className="ld-lab" {...linkProps(`/practice/missions/${d.mission.id}`)}>Practise in the lab: {d.mission.title} →</a>}
+      {d.mission && <a className="ld-lab" {...linkProps(`/practice/missions/${d.mission.id}`)}>Practise: {d.mission.title} →</a>}
       {/* A practice network differs from the starter, so it isn't offered as "this network"; the lab step lists them all. */}
-      {!d.run.startsWith("practice-") && d.view !== "lab" && <a className="ld-lab" {...linkProps(`/practice/network?starter=${RUNS[baseOf(d.run)].starter}`)}>Open this network in the lab →</a>}
+      {!d.run.startsWith("practice-") && d.view !== "lab" && <a className="ld-lab" {...linkProps(`/practice/network?starter=${RUNS[baseOf(d.run)].starter}`)}>Open this network in the Playground →</a>}
     </SceneSection>
   );
 }

@@ -75,14 +75,14 @@ test("a first visit explains Kitab, starts Unit 1 with one primary action, and k
 
 test("the lab introduces itself once, to new and returning learners alike, and never takes the focus", async ({ page }) => {
   await page.goto("/practice/network");
-  const intro = page.getByRole("region", { name: "Welcome to the network lab" });
+  const intro = page.getByRole("region", { name: "Welcome to the Playground" });
   await expect(intro).toContainText("Send");
   await expect(intro).toContainText("Predict as you go");
   await expect(intro).toContainText("Break and compare");
   await expect(intro.getByRole("button", { name: "Got it" })).not.toBeFocused();
   // A learner who has used the lab before sees what is new.
   await page.reload();
-  await expect(page.getByRole("region", { name: "What is new in the network lab" })).toContainText("The network lab has changed.");
+  await expect(page.getByRole("region", { name: "What is new in the Playground" })).toContainText("The Playground has changed.");
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.locator(".lab-intro")).toHaveCount(0);
   await page.reload();

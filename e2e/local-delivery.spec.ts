@@ -80,7 +80,7 @@ test("a router between subnets: the interface question, then the route the simul
   await expect(scene(page).locator(".subnet-feedback")).toContainText("looks the destination up in its routing table");
   await scene(page).locator(".subnet-choices button", { hasText: /^wan/ }).click();
   await expect(scene(page).locator(".ld-decision")).toContainText("RouteConnected 192.168.2.0/24");
-  await expect(scene(page).getByRole("link", { name: "Open this network in the lab →" })).toHaveAttribute("href", "/practice/network?starter=routed");
+  await expect(scene(page).getByRole("link", { name: "Open this network in the Playground →" })).toHaveAttribute("href", "/practice/network?starter=routed");
   await toStep(page, "The simulated ping completes");
   await expect(page.locator(".step-why")).toContainText("simulated run succeeded = yes");
 });
@@ -95,8 +95,8 @@ test("leaving home: the server sees the router's public address, and the router 
   await expect(scene(page).locator(".subnet-feedback")).toContainText("Right.");
   await expect(scene(page).locator(".ld-envelope h4")).toHaveText(["Before: Choose a route", "After: Translate source with NAT"]);
   await expect(scene(page).locator(".ld-summary")).toHaveText("Changed: Source IP. Unchanged: Destination IP, TTL.");
-  await expect(scene(page).getByRole("link", { name: "Practise in the lab: Bring the reply home →" })).toHaveAttribute("href", "/practice/missions/bring-reply-home");
-  await expect(scene(page).getByRole("link", { name: "Open this network in the lab →" })).toHaveAttribute("href", "/practice/network?starter=internet");
+  await expect(scene(page).getByRole("link", { name: "Practise: Bring the reply home →" })).toHaveAttribute("href", "/practice/missions/bring-reply-home");
+  await expect(scene(page).getByRole("link", { name: "Open this network in the Playground →" })).toHaveAttribute("href", "/practice/network?starter=internet");
   await toStep(page, "What the server sees");
   await expect(scene(page).locator(".ld-envelope")).toContainText("Source IP203.0.113.2");
   await toStep(page, "The home router restores the destination");

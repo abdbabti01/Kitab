@@ -48,7 +48,7 @@ test("the six chapters run end to end with values from the helper, and finishing
   await expect(page.locator(".step-what")).toContainText("Your PC decides: different subnet: hand the packet to the default gateway");
   await expect(page.locator(".step-why")).toContainText("not proof that the packet arrives");
   await expect(next(page)).toBeDisabled();
-  await expect(page.locator(".completion")).toContainText("Walkthrough completed");
+  await expect(page.locator(".completion")).toContainText("Lesson completed");
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.learning.v1")!).lessons);
   expect(saved["ip-addressing"]).toEqual(old);
   expect(saved["ipv4-subnets"].completedAt).toBeTruthy();

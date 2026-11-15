@@ -65,14 +65,51 @@ body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
 </style>
 </head>
 <body>
-<!-- kitab:nav start: Kitab's links around the original HttpWalkthrough export. Everything outside this block is the export, byte for byte. -->
-<style>.kitab-nav{max-width:1580px;margin:auto;padding:10px 16px 0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:13px}.kitab-nav a{color:var(--blue);font-weight:600;text-decoration:none}.kitab-nav a:hover{text-decoration:underline}.kitab-nav span{color:var(--muted)}.kitab-nav .kitab-home{margin-right:auto}@media(max-width:580px){.kitab-nav{padding:8px 12px 2px;font-size:12px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;scrollbar-width:thin}.kitab-nav .kitab-home{margin-right:6px}}</style>
-<nav class="kitab-nav" aria-label="Kitab">
-<a class="kitab-home" href="/">← Kitab</a>
-<a href="/#path">Networking path · Stage 5</a>
-<span>Before this:</span><a href="/learn/local-delivery-routing">Local delivery, gateways and routing</a><a href="/practice/network?starter=internet">A request across the Internet</a>
-<span>Practice:</span><a href="/missions/tcp-lost-segment">The ACK that wouldn't move</a><a href="/missions/tcp-send-window">How full can the pipe get?</a><a href="/practice/network">Network playground</a>
-</nav>
+<!-- kitab:nav start: Kitab's header and course location around the original HttpWalkthrough export. Everything outside this block is the export, byte for byte. -->
+<style>
+.kitab-bar{font:14px/1.4 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#39463d}
+.kitab-bar a{color:inherit;text-decoration:none;font-weight:620}
+.kitab-bar a:hover{text-decoration:underline}
+.kitab-bar a:focus-visible{outline:2px solid #2f7254;outline-offset:2px;border-radius:6px}
+.kitab-top,.kitab-where{max-width:1580px;margin:auto;padding:6px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px}
+.kitab-top-wrap{background:#fffef9;border-bottom:1px solid #d9ded2}
+.kitab-where-wrap{background:#eeefe6;border-bottom:1px solid #d9ded2;font-size:13px}
+.kitab-brand{display:inline-flex;align-items:center;gap:8px;min-height:44px;font:700 20px Georgia,serif!important;color:#1a2721!important;letter-spacing:-.04em;margin-right:auto}
+.kitab-brand::before{content:"";width:28px;height:28px;border-radius:8px;background:#255a45}
+.kitab-top nav{display:flex;gap:2px}
+.kitab-top nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:10px}
+.kitab-top nav a[aria-current]{background:#e4eee5;color:#164331}
+.kitab-where .kitab-step{color:#546158;font-weight:400}
+.kitab-where .kitab-moves{margin-left:auto;display:flex;gap:12px}
+.kitab-where .kitab-moves a{color:#164331}.kitab-where .kitab-moves>span{color:#546158}
+.kitab-where .kitab-practise a+a::before{content:", ";font-weight:400}
+@media(max-width:580px){.kitab-top,.kitab-where{padding:4px 12px}.kitab-top nav a{padding:0 8px}.kitab-where .kitab-moves{margin-left:0}}
+</style>
+<div class="kitab-bar">
+<div class="kitab-top-wrap"><div class="kitab-top">
+<a class="kitab-brand" href="/">Kitab</a>
+<nav aria-label="Main navigation"><a href="/learn" aria-current="page">Learn</a><a href="/practice">Practice</a><a href="/practice/network">Playground</a></nav>
+</div></div>
+<div class="kitab-where-wrap"><nav class="kitab-where" aria-label="Where you are">
+<a href="/learn">Networking</a><span aria-hidden="true">›</span><a href="/learn#unit-internet">Unit 5: Across the Internet</a>
+<span class="kitab-step">Step 3 of 6 · Lesson</span>
+<span class="kitab-practise">Practise this unit: <a href="/missions/tcp-lost-segment">The ACK that wouldn't move</a><a href="/missions/tcp-send-window">How full can the pipe get?</a></span>
+<span class="kitab-moves"><span>← Previous: <a href="/practice/network?starter=internet">A request across the Internet</a></span><span>Next: <a href="/missions/tcp-lost-segment">The ACK that wouldn't move</a> →</span></span>
+</nav></div>
+</div>
+<script>
+/* Records that Packet Journey was opened, in Kitab's visit store (kitab.visits.v1), as Kitab's own pages do.
+   A visit is never completion. Unreadable data is left as it is. */
+try {
+  var key = "kitab.visits.v1", now = new Date().toISOString(), raw = localStorage.getItem(key);
+  var store = raw ? JSON.parse(raw) : { version: 1, activities: {} };
+  if (store && store.version === 1 && store.activities && typeof store.activities === "object") {
+    var prev = store.activities["hello-tcp"];
+    store.activities["hello-tcp"] = { first: prev && prev.first || now, last: now, count: (prev && prev.count || 0) + 1 };
+    localStorage.setItem(key, JSON.stringify(store));
+  }
+} catch (e) {}
+</script>
 <!-- kitab:nav end -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
         <defs>
