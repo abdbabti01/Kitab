@@ -100,7 +100,7 @@ test("wrong prediction → run → evidence → explanation → retry on new sce
   await expect(page.getByRole("heading", { name: "Mission mastered" })).toBeVisible();
   await expect(page.locator(".kitab-avatar.mood-celebrating").first()).toBeVisible();
 
-  await page.goto("/");
+  await page.goto("/learn");
   await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Mastered");
 });
 
@@ -119,7 +119,7 @@ test("blank answers and watch-only runs never grant mastery", async ({ page }) =
 });
 
 test("progress and reasoning survive a refresh; back and forward keep routes", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/practice");
   await page.locator(".mission-card", { hasText: "How deep does the stack go?" }).click();
   await expect(page).toHaveURL(/\/missions\/recursion-depth$/);
   await choose(page, "4 frames");
@@ -130,7 +130,7 @@ test("progress and reasoning survive a refresh; back and forward keep routes", a
   await expect(page.locator(".phase").getByText("You predicted 4 frames")).toBeVisible();
   await expect(page.getByText("One frame per call")).toBeVisible();
   await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/practice$/);
   await page.goForward();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("How deep does the stack go?");
 });

@@ -37,7 +37,8 @@ test("every page shares one navigation, marks its section by its role in the cou
   await expect(page).toHaveURL(/\/learn\/library$/);
   await page.getByRole("link", { name: "Kitab", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator(".journey-hero h1")).toBeInViewport();
+  // By now the learner has opened pages, so Home greets a returning learner.
+  await expect(page.locator(".welcome h1")).toBeInViewport();
 });
 
 test("reading playback keeps the same layout after a mission", async ({ page }) => {

@@ -28,9 +28,9 @@ async function seed(page: Page) {
 }
 const stored = (page: Page, key: string) => page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "null"), key);
 
-test("Home shows the new path with the recorded progress, and the old lesson only where it was saved", async ({ page }) => {
+test("the roadmap shows the recorded progress, and the old lesson only where it was saved", async ({ page }) => {
   await seed(page);
-  await page.reload();
+  await page.goto("/learn");
   const stage = page.locator(".path-stages details", { has: page.locator("summary", { hasText: "IPv4 addresses and subnets" }) });
   await stage.locator("summary").click();
   await expect(stage.locator(".path-activity", { hasText: "Same subnet or not?" }).locator(".status-chip")).toHaveText("Mastered");

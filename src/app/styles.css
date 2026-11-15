@@ -122,8 +122,6 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .hero h1 { font-size: clamp(2.45rem, 1.75rem + 3vw, 4.55rem); letter-spacing: -.055em; max-width: 15ch; margin: .35rem 0 .9rem; }
 .hero .lead { max-width: 46ch; }
 .hero .actions { margin-top: 22px; }
-.journey-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.journey-card b .inline-icon { color: var(--primary); }
 .search { position: relative; margin-top: 36px; }
 .search > svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 20px; color: var(--muted); }
 .search .spin { left: auto; right: 16px; }
@@ -187,20 +185,14 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .hero-demo-steps { font-size: .82rem; color: var(--feature-muted); }
 .hero-demo-steps summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
 .hero-demo-steps ol { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 3px; }
-/* The three things to do in the lab, beside the demonstration. */
-.hero-actions-list { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; max-width: 48ch; }
-.hero-actions-list li { display: flex; gap: 10px; align-items: flex-start; color: var(--ink-2); }
-.hero-actions-list svg { flex: none; width: 20px; height: 20px; margin-top: 2px; color: var(--primary); }
-.hero-actions-list b { color: var(--ink); }
-/* Desktop: the copy and what to do on the left, the demonstration on the right. Narrow: heading, demonstration,
-   then what to do, so a phone's first screen shows the lab at work. */
-.hero.journey-hero { grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); grid-template-areas: "copy demo" "next demo"; row-gap: 0; }
-.hero-copy { grid-area: copy; align-self: end; }
+/* Desktop: what Kitab teaches and where to start on the left, the demonstration on the right. Narrow: the
+   start button comes first, then the demonstration. */
+.hero.journey-hero { grid-template-columns: minmax(0, 1fr) minmax(0, .95fr); grid-template-areas: "copy demo"; }
+.hero-copy { grid-area: copy; }
 .hero-demo { grid-area: demo; }
-.hero-next { grid-area: next; align-self: start; }
 @media (max-width: 900px) {
   .hero-demo.is-loading { min-height: 560px; }
-  .hero.journey-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "demo" "next"; row-gap: 18px; }
+  .hero.journey-hero { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "demo"; row-gap: 18px; }
 }
 
 /* Concept & draft pages */
@@ -230,11 +222,9 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
   .header-continue { display: none; }
   .step-moves { margin-left: 0; }
   .brand-arabic, .review-chip .chip-detail { display: none; }
-  .journey-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   #main, .section[id] { scroll-margin-top: 12px; }
 }
 @media (max-width: 540px) {
-  .journey-grid { grid-template-columns: minmax(0, 1fr); }
   .site-header-inner { gap: 4px 6px; }
   .site-header nav a { padding-inline: 7px; font-size: .84rem; }
   .step-move span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
@@ -294,7 +284,8 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .learn-head h1 { font: 500 clamp(2rem, 1.5rem + 2vw, 3rem)/1.08 var(--display); letter-spacing: -.035em; margin: 0; }
 .learn-head .section-lead { margin: 6px 0 0; }
 .section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
-.section-head h2 { margin: 0; }
+.section-head h2 { margin: 0; font: 500 clamp(1.55rem, 1.25rem + 1vw, 2.15rem)/1.15 var(--display); letter-spacing: -.025em; }
+.dash-card .section-head h2 { font: 500 1.35rem/1.2 var(--display); }
 .learn-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .learn-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-weight: 620; text-decoration: none; }
 .learn-tabs a:hover { border-color: var(--line-strong); }
@@ -333,3 +324,49 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .practice-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .practice-card .status-chip { justify-self: auto; }
 
+
+/* Home */
+.hero-facts { margin: 14px 0 0; color: var(--muted); font-size: .9rem; }
+.ways { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 12px; }
+.ways li { position: relative; display: grid; gap: 6px; align-content: start; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.ways li > svg { width: 22px; height: 22px; color: var(--primary); }
+.ways b { font-size: 1.1rem; }
+.ways span:not(.way-number) { color: var(--ink-2); }
+.ways .text-button { justify-self: start; padding-inline: 0; }
+.way-number { position: absolute; top: 16px; right: 18px; color: var(--muted); font: 650 .8rem var(--mono); }
+.unit-strip { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 10px; }
+.unit-tile { display: grid; gap: 6px; align-content: start; height: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); text-decoration: none; }
+.unit-tile:hover { border-color: var(--primary-soft-line); }
+.unit-tile.is-current { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.unit-tile b { font-size: .95rem; line-height: 1.3; }
+.unit-tile small { color: var(--muted); font-size: .8rem; }
+.more-tracks { list-style: none; padding: 0; margin: 14px 0 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.track-card { display: grid; gap: 6px; height: 100%; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); text-decoration: none; align-content: start; }
+.track-card:hover { border-color: var(--primary-soft-line); box-shadow: var(--shadow-lift); }
+.track-card b { font: 500 1.3rem/1.2 var(--display); }
+.track-card > span:not(.eyebrow) { color: var(--ink-2); }
+.track-card small { color: var(--primary-strong); font-weight: 600; }
+.welcome h1 { font: 500 clamp(2rem, 1.5rem + 2vw, 3rem)/1.08 var(--display); letter-spacing: -.035em; margin: 4px 0 16px; }
+.continue-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px 24px; padding: clamp(16px, 3vw, 26px); border: 1.5px solid var(--primary); border-radius: calc(var(--radius) + 4px); background: var(--surface); }
+.continue-card h2 { font: 500 clamp(1.4rem, 1.2rem + .8vw, 1.9rem)/1.15 var(--display); margin: 4px 0 6px; }
+.continue-where { margin: 0; color: var(--muted); font-size: .88rem; font-weight: 600; }
+.continue-meta { margin: 0 0 10px; color: var(--ink-2); }
+.continue-card .unit-meter { max-width: 420px; }
+.dashboard { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; margin-top: 20px; }
+.dash-card { padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.dash-card h2 { font: 500 1.35rem/1.2 var(--display); margin: 0 0 8px; }
+.dash-card h3 { margin: 18px 0 2px; font-size: .95rem; }
+.dash-total { margin: 4px 0 0; color: var(--ink-2); }
+.dash-total b { font: 650 1.2rem var(--font); color: var(--primary-strong); }
+.dash-list { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 6px; }
+.dash-list a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); text-decoration: none; font-weight: 600; }
+.dash-list a:hover { border-color: var(--primary-soft-line); }
+.dash-links { margin: 16px 0 0; color: var(--muted); }
+@media (max-width: 860px) {
+  .dashboard { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 540px) {
+  .continue-card { grid-template-columns: minmax(0, 1fr); }
+  .continue-card .button { justify-content: center; }
+  .learn-tabs a { padding: 0 12px; font-size: .9rem; }
+}
