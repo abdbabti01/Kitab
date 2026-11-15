@@ -296,9 +296,10 @@
 .network-playground .network-wire.in-path {
   stroke: #2d7f9c;
 }
+/* The current link and device are marked by colour only: no SVG filters (glows), because the diagram repaints
+   every frame while a packet moves, and a filter there makes playback stutter on a slower machine. */
 .network-playground .network-wire.active {
   stroke: var(--accent);
-  filter: drop-shadow(0 0 5px rgb(34 211 238 / 0.7));
 }
 .network-playground .network-wire.active.kind-ip {
   stroke: #60a5fa;
@@ -353,7 +354,6 @@
 }
 .network-playground .network-device.is-active .device-tile {
   stroke: var(--accent);
-  filter: drop-shadow(0 0 8px rgb(34 211 238 / 0.45));
 }
 .network-playground .device-shadow {
   fill: #000;

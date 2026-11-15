@@ -347,7 +347,6 @@ export function NetworkPlayground() {
     const at = steps.findIndex((s) => s.action === action);
     const next = at >= 0 ? steps[at + 1] : undefined;
     setNextStep(result.success && next ? { trace: result, step: next } : null);
-    return true;
   }
   const [nextStep, setNextStep] = useState<{ trace: Trace; step: (typeof steps)[number] } | null>(null);
   useEffect(() => {
@@ -676,16 +675,7 @@ export function NetworkPlayground() {
               network={network}
               action={action}
               onAction={setAction}
-              onSend={() => {
-                if (!run()) return;
-                // Beside the diagram (desktop) or under it (narrow), the form sends and the diagram with its
-                // playback comes into full view.
-                requestAnimationFrame(() => {
-                  const stage = journey.journeyRef.current;
-                  if (stage && Math.abs(stage.getBoundingClientRect().top) > 120)
-                    stage.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-                });
-              }}
+              onSend={run}
               inputError={journey.inputError}
               onClearError={journey.clearInputError}
               onRestart={() => resetSession()}

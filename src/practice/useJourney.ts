@@ -104,10 +104,11 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
       return null;
     }
     setInputError(null);
-    // Bring the diagram into view if the learner pressed Send from further down the page.
+    // Bring the diagram and its playback into view if the learner pressed Send from beside or below it: its top goes
+    // near the top of the screen. The only scroll a run makes.
     requestAnimationFrame(() => {
       const box = journeyRef.current?.getBoundingClientRect();
-      if (box && (box.top < 0 || box.top > innerHeight * 0.4))
+      if (box && (box.top < 0 || box.top > Math.min(120, innerHeight * 0.4)))
         journeyRef.current!.scrollIntoView({
           block: "start",
           behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
@@ -154,8 +155,9 @@ export function useJourney(network: Network, onShowStop?: (trace: Trace, index: 
     setPlaying((p) => !p);
   }
   function chooseMode(next: JourneyMode) {
-    // A transition keeps the current view on screen while the Exchange view loads, instead of a fallback.
-    startTransition(() => setMode(next));
+    // An urgent update: Summary and Every event load nothing, and as a transition the switch could wait behind
+    // playback's own updates on a slow machine (the learner chose Every event; Pause then still showed Summary).
+    setMode(next);
     try {
       localStorage.setItem(MODE_KEY, next);
     } catch {
