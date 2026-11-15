@@ -13,11 +13,14 @@ async function press(target: Locator) {
 }
 
 test("Practice lists the explorer, and a direct link opens it with that example", async ({ page }) => {
+  // Home's old Practice anchor now opens the Practice page.
   await page.goto("/#missions");
+  await expect(page).toHaveURL(/\/practice$/);
   await press(page.getByRole("link", { name: /Explore subnets/ }));
   await expect(page).toHaveURL(/\/practice\/subnets$/);
   await expect(page.getByRole("heading", { name: "Explore subnets", level: 1 })).toBeVisible();
-  await expect(page.locator(".site-header nav a", { hasText: "Practice" })).toHaveAttribute("aria-current", "true");
+  // The explorer is a learn step of Unit 3, so Learn is the current section.
+  await expect(page.locator(".site-header nav a", { hasText: "Learn" })).toHaveAttribute("aria-current", "page");
   await expect(page).toHaveTitle("Explore subnets · Kitab");
 
   await page.goto("/practice/missions");

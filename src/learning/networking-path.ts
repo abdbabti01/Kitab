@@ -116,8 +116,14 @@ export const findActivity = (id: string) => steps.find((step) => step.activity.i
 export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-export function loadEvidence(storage: StorageLike): Evidence {
-  return { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage), visits: loadVisits(storage) };
+/**
+ * Reads every progress store without ever writing. The loaders set damaged data aside when they find it; here
+ * that is suppressed, so showing progress (in the header, on any page) can never move or remove a record. The
+ * page that owns a store still repairs it when the learner uses that page, as before.
+ */
+export function loadEvidence(storage: Pick<Storage, "getItem">): Evidence {
+  const readOnly: StorageLike = { getItem: (key) => storage.getItem(key), setItem: () => {}, removeItem: () => {} };
+  return { learning: loadLearning(readOnly).learning, progress: loadProgress(readOnly).progress, network: loadMissionStore(readOnly), visits: loadVisits(readOnly) };
 }
 
 /** Lessons and missions record completion; explorations, starters, readings and Packet Journey record only visits. */

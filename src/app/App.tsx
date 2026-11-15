@@ -2,12 +2,14 @@ import { findMission, missions as frameworkMissions } from "../learning/missions
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { LEARNING_KEY } from "../learning/lessons/progress.ts";
 import { PROGRESS_KEY, loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
-import { lazy, Suspense, useEffect } from "react";
-import { findActivity } from "../learning/networking-path.ts";
+import { lazy, Suspense, useEffect, useMemo } from "react";
+import { findActivity, loadEvidence } from "../learning/networking-path.ts";
+import { activeTrack, hasHistory, locate, nextLink, recommendFor, trackProgress } from "../learning/tracks.ts";
 import { recordVisit } from "../learning/visits.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
-import { SiteHeader } from "./SiteHeader.tsx";
+import { SiteHeader, type HeaderProgress, type Section } from "./SiteHeader.tsx";
+import { StepBar } from "./StepBar.tsx";
 import { linkProps, useRoute, type Route } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
 
@@ -17,6 +19,7 @@ const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx")
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
 const NetworkMissionsIndex = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionsIndex })));
 
+const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
 const MissionPage = lazy(() => import("../mission/MissionPage.tsx").then((module) => ({ default: module.MissionPage })));
 const LessonPage = lazy(() => import("../lesson/LessonPage.tsx").then((module) => ({ default: module.LessonPage })));
 const ConceptPage = lazy(() => import("./ConceptPage.tsx").then((module) => ({ default: module.ConceptPage })));
@@ -47,21 +50,41 @@ export function activityIdFor(route: Route, search: string): string | null {
   return null;
 }
 
+/** The main-navigation section a page belongs to, by its role in the course rather than its address. */
+export function sectionFor(route: Route, activityId: string | null): Section | null {
+  if (route.name === "network-practice") return "playground";
+  if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
+  if (route.name === "practice" || route.name === "network-missions") return "practice";
+  const at = activityId ? locate(activityId) : undefined;
+  if (at) return at.role === "learn" ? "learn" : "practice";
+  if (route.name === "mission" || route.name === "network-mission") return "practice";
+  return null;
+}
+
 export function App() {
   const route = useRoute();
   const key = JSON.stringify(route);
   const search = window.location.search;
+  const activityId = activityIdFor(route, search);
   useEffect(() => {
-    const id = activityIdFor(route, search);
-    if (id) recordVisit(safeStorage(), id);
+    if (activityId) recordVisit(safeStorage(), activityId);
   }, [key, search]);
+  // Read once per page: the header's progress and the step bar both come from the saved records.
+  const evidence = useMemo(() => loadEvidence(safeStorage()), [key, search]);
+  const progress = useMemo((): HeaderProgress | null => {
+    if (!hasHistory(evidence)) return null;
+    const track = activeTrack(evidence);
+    const next = nextLink(recommendFor(track, evidence), track);
+    return { track: track.title, percent: trackProgress(track, evidence).percent, label: next.label, path: next.path };
+  }, [evidence]);
   let view;
   if (route.name === "home") view = <Home />;
+  else if (route.name === "learn") view = <LearnPage key={route.section} section={route.section} evidence={evidence} />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
   else if (route.name === "subnet-explorer") view = <SubnetExplorer />;
   // Keyed by the query, so moving between path starters (?starter=lan → ?starter=wifi) opens the new one.
   else if (route.name === "network-practice") view = <NetworkPlayground key={window.location.search} />;
-  else if (route.name === "network-missions") {
+  else if (route.name === "network-missions" || route.name === "practice") {
     const progress = loadProgress(safeStorage()).progress;
     // Prediction missions on the networking path, labelled by topic beside the lab's levelled missions.
     const label: Record<string, string> = { tcp: "TCP", "ipv4-subnets": "IPv4", "local-delivery-routing": "Routing" };
@@ -87,7 +110,8 @@ export function App() {
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
-      <SiteHeader route={route} />
+      <SiteHeader section={sectionFor(route, activityId)} progress={progress} />
+      {activityId && <StepBar id={activityId} evidence={evidence} />}
       <ErrorBoundary
         resetKey={key}
         onReset={() => {

@@ -83,7 +83,7 @@ test("finishing the array walkthrough records progress and links to practice", a
   await expect(page.locator(".completion")).toContainText("Walkthrough completed");
   await expect(page.locator(".completion")).toContainText("Mastery not shown yet");
   for (const { missionId } of lesson.practice) {
-    await expect(page.locator(`.completion a[href="/missions/${missionId}"]`)).toBeVisible();
+    await expect(page.locator(`.completion .practice-list a[href="/missions/${missionId}"]`)).toBeVisible();
   }
   await page.goto("/");
   const card = page.locator('.journey-card[href="/learn/array-insert"]');

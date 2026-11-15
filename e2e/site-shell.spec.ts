@@ -1,9 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("home, lessons, practice and concepts share navigation and surface tokens", async ({ page }) => {
+test("every page shares one navigation, marks its section by its role in the course, and shares surface tokens", async ({ page }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "Learn" })).toBeVisible({ timeout: 3000 });
+  await expect(nav.getByRole("link")).toHaveText(["Learn", "Practice", "Playground"]);
+  await expect(nav.locator("[aria-current]")).toHaveCount(0);
   const palette = () => page.evaluate(() => {
     const content = document.querySelector("#main")!;
     const style = getComputedStyle(content);
@@ -12,19 +14,27 @@ test("home, lessons, practice and concepts share navigation and surface tokens",
   const homePalette = await palette();
   for (const [path, label] of [
     ["/learn/ip-addressing", "Learn"],
+    ["/learn/ipv4-subnets", "Learn"],
+    ["/practice/connections", "Learn"],
     ["/missions/tcp-lost-segment", "Practice"],
     ["/practice/missions", "Practice"],
     ["/practice/missions/neighbours", "Practice"],
-    ["/concepts/message-queues", "Concepts"],
+    ["/practice/network", "Playground"],
+    ["/practice/network?starter=lan", "Playground"],
+    ["/concepts/message-queues", "Learn"],
   ]) {
     await page.goto(path);
     await expect(page.locator("#main h1")).toBeVisible();
-    await expect(nav.getByRole("link", { name: label })).toHaveAttribute("aria-current", "true");
+    await expect(nav.getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
+    await expect(nav.locator("[aria-current]")).toHaveCount(1);
     expect(await palette()).toEqual(homePalette);
   }
   await nav.getByRole("link", { name: "Learn" }).click();
-  await expect(page).toHaveURL(/\/#path$/);
-  await expect(page.getByRole("heading", { name: "Networking path" })).toBeInViewport();
+  await expect(page).toHaveURL(/\/learn$/);
+  await expect(page.getByRole("heading", { name: "Networking path" })).toBeVisible();
+  // Home's old anchors open their pages.
+  await page.goto("/#concepts");
+  await expect(page).toHaveURL(/\/learn\/library$/);
   await page.getByRole("link", { name: "Kitab", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.locator(".journey-hero h1")).toBeInViewport();
