@@ -239,7 +239,7 @@ test("the bit layout holds across phone widths: 44 × 44 from 390px, smaller but
   }
 });
 
-test("the explorer writes nothing to storage, runs no animations with reduced motion, and leaves no dangling references", async ({ page }) => {
+test("the explorer writes nothing but its visit to storage, runs no animations with reduced motion, and leaves no dangling references", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await page.evaluate(() => {
@@ -253,7 +253,10 @@ test("the explorer writes nothing to storage, runs no animations with reduced mo
   await press(page.getByRole("button", { name: "/31", exact: true }));
   await page.getByLabel("IPv4 address").fill("1.2.3.4");
   await press(page.getByRole("button", { name: /^Bit 8 of 32/ }));
-  expect(await page.evaluate(() => JSON.stringify(Object.entries(localStorage).sort()))).toBe(before);
+  // Every other record is untouched, even one the progress loaders would call damaged; only the visit is added.
+  const after = await page.evaluate(() => Object.entries(localStorage).sort());
+  expect(JSON.stringify(after.filter(([key]) => key !== "kitab.visits.v1"))).toBe(before);
+  expect(Object.keys(JSON.parse(after.find(([key]) => key === "kitab.visits.v1")![1]).activities)).toEqual(["subnet-explorer"]);
   expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
   const dangling = await page.evaluate(() =>
     [...document.querySelectorAll("[aria-controls], [aria-describedby], [aria-labelledby]")].flatMap((el) =>

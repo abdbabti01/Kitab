@@ -614,12 +614,14 @@ export function NetworkMissionsIndex({ framework }: { framework: { id: string; t
         <p>
           Real problems on real simulated networks. Investigate with the journey, fix the configuration, and prove it with evidence. Each mission has several versions with different causes.
         </p>
-        <a className="text-button" {...linkProps("/practice/network")}>
-          Prefer to build freely? Open the network playground →
-        </a>
-        <a className="text-button" {...linkProps("/practice/subnets")}>
-          Explore subnets: any address and prefix →
-        </a>
+        <div className="actions">
+          <a className="text-button" {...linkProps("/practice/network")}>
+            Prefer to build freely? Open the network playground →
+          </a>
+          <a className="text-button" {...linkProps("/practice/subnets")}>
+            Explore subnets: any address and prefix →
+          </a>
+        </div>
       </header>
       {/* In networking-path order, so each mission follows what it builds on. */}
       {networkingPath.map((stage, index) => stage.practise.length > 0 && (

@@ -1,23 +1,25 @@
 // The networking path: existing lessons, playground starters and missions in teaching order. Data and pure
-// functions only. Progress is read from the existing lesson, mission and networking-mission records; the path
-// stores nothing. Nothing is locked: every activity stays open, and the playground stays free to use.
+// functions only. Progress is read from the existing lesson, mission and networking-mission records and the
+// visit store; the path itself stores nothing. Nothing is locked: every activity stays open, and the playground
+// stays free to use.
 import { HTTP_WALKTHROUGH_PATH } from "../app/routes.ts";
 import { chapters } from "../content/chapters.ts";
 import { findLesson, packetJourney } from "./lessons/catalog.ts";
-import { lessonStatus, type Learning } from "./lessons/progress.ts";
+import { lessonStatus, loadLearning, type Learning } from "./lessons/progress.ts";
 import { findMission } from "./missions/catalog.ts";
-import { practiceState, type Progress } from "./progress.ts";
+import { loadProgress, practiceState, type Progress } from "./progress.ts";
 import type { PracticeState } from "./practice-state.ts";
-import { missionState, type MissionStore } from "../practice/network/mission-progress.ts";
+import { loadVisits, type Visits } from "./visits.ts";
+import { loadMissionStore, missionState, type MissionStore } from "../practice/network/mission-progress.ts";
 
 export type Activity = {
-  /** Unique in the path: a lesson or mission id, an explorer ("connections", "subnet-explorer"), "starter:<starter id>" or "concept:<chapter slug>". */
+  /** Unique across tracks: a lesson or mission id, an explorer ("connections", "subnet-explorer"), "starter:<starter id>" or "concept:<chapter slug>". */
   id: string;
   title: string;
   /** What the learner does or sees there, in one line. */
   detail: string;
   path: string;
-  /** Where completion is recorded; absent when the activity records none (exploration, playground, concept, Packet Journey). */
+  /** Where completion is recorded; absent when the activity records only visits (exploration, playground, concept, Packet Journey). */
   track?: "lesson" | "mission" | "network-mission";
   /** Networking missions are loaded with the engine, so their version is repeated here (a test keeps it in step). */
   version?: string;
@@ -26,13 +28,13 @@ export type Activity = {
 };
 export type Stage = { id: string; title: string; objective: string; learn: Activity[]; practise: Activity[] };
 
-const lesson = (id: string, detail: string): Activity => ({ id, title: findLesson(id)!.title, detail, path: `/learn/${id}`, track: "lesson" });
-const mission = (id: string, detail: string, needs?: string[]): Activity => ({ id, title: findMission(id)!.title, detail, path: `/missions/${id}`, track: "mission", needs });
+export const lesson = (id: string, detail: string): Activity => ({ id, title: findLesson(id)!.title, detail, path: `/learn/${id}`, track: "lesson" });
+export const mission = (id: string, detail: string, needs?: string[]): Activity => ({ id, title: findMission(id)!.title, detail, path: `/missions/${id}`, track: "mission", needs });
 const networkMission = (id: string, title: string, version: string, detail: string, needs?: string[]): Activity => ({
   id, title, version, detail, path: `/practice/missions/${id}`, track: "network-mission", needs,
 });
 const starter = (id: string, title: string, detail: string): Activity => ({ id: `starter:${id}`, title, detail, path: `/practice/network?starter=${id}` });
-const concept = (slug: string, detail: string): Activity => ({ id: `concept:${slug}`, title: chapters.find((c) => c.slug === slug)!.title, detail, path: `/concepts/${slug}` });
+export const concept = (slug: string, detail: string): Activity => ({ id: `concept:${slug}`, title: chapters.find((c) => c.slug === slug)!.title, detail, path: `/concepts/${slug}` });
 
 export const networkingPath: Stage[] = [
   {
@@ -110,59 +112,106 @@ export const networkingPath: Stage[] = [
 const steps = networkingPath.flatMap((stage) => [...stage.learn, ...stage.practise].map((activity) => ({ stage, activity })));
 export const findActivity = (id: string) => steps.find((step) => step.activity.id === id)?.activity;
 
-/** The existing progress records the path reads. */
-export type Evidence = { learning: Learning; progress: Progress; network: MissionStore };
+/** The progress records the path reads: the lesson, mission and networking stores, and the visit store. */
+export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits };
 
-/** Recorded progress, or null when the activity records none: never read as completed. */
-export function activityState(activity: Activity, evidence: Evidence): PracticeState | null {
-  if (activity.track === "lesson") {
-    const state = lessonStatus(evidence.learning, findLesson(activity.id)!).state;
-    return state === "completed" ? "completed" : state === "new" ? "not-started" : "in-progress";
-  }
-  if (activity.track === "mission") {
-    const found = findMission(activity.id)!;
-    return practiceState(evidence.progress, found.id, found.version);
-  }
-  if (activity.track === "network-mission") return missionState(evidence.network.missions[activity.id], { version: activity.version! });
-  return null;
+type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+export function loadEvidence(storage: StorageLike): Evidence {
+  return { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage), visits: loadVisits(storage) };
 }
 
-const done = (state: PracticeState | null) => state === "completed" || state === "mastered";
+/** Lessons and missions record completion; explorations, starters, readings and Packet Journey record only visits. */
+export const isRequired = (activity: Activity) => activity.track !== undefined;
 
-/** Tracked activities only: exploration never counts towards completion. Lessons have no mastery. */
+/**
+ * Every activity's state from what was recorded. A visit alone is "visited": never in progress, never completed.
+ * A lesson part-way through is in progress; a lesson only opened, or last opened in an earlier version, is visited.
+ */
+export function activityState(activity: Activity, evidence: Evidence): PracticeState {
+  let state: PracticeState = "not-started";
+  if (activity.track === "lesson") {
+    const status = lessonStatus(evidence.learning, findLesson(activity.id)!).state;
+    state = status === "completed" ? "completed" : status === "learning" ? "in-progress" : status === "visited" ? "visited" : "not-started";
+  } else if (activity.track === "mission") {
+    const found = findMission(activity.id)!;
+    state = practiceState(evidence.progress, found.id, found.version);
+  } else if (activity.track === "network-mission") {
+    state = missionState(evidence.network.missions[activity.id], { version: activity.version! });
+  }
+  return state === "not-started" && evidence.visits.activities[activity.id] ? "visited" : state;
+}
+
+const done = (state: PracticeState) => state === "completed" || state === "mastered";
+const started = (state: PracticeState) => state === "in-progress" || done(state);
+
+/** Lessons and missions decide completion; explorations are counted apart and never complete a stage. */
 export function stageProgress(stage: Stage, evidence: Evidence) {
-  const states = [...stage.learn, ...stage.practise].map((activity) => activityState(activity, evidence)).filter((state) => state !== null);
-  return { tracked: states.length, completed: states.filter(done).length, mastered: states.filter((state) => state === "mastered").length };
+  const all = [...stage.learn, ...stage.practise];
+  const states = all.filter(isRequired).map((activity) => activityState(activity, evidence));
+  const explorations = all.filter((activity) => !isRequired(activity));
+  return {
+    tracked: states.length,
+    completed: states.filter(done).length,
+    mastered: states.filter((state) => state === "mastered").length,
+    explorations: explorations.length,
+    explored: explorations.filter((activity) => activityState(activity, evidence) !== "not-started").length,
+  };
+}
+
+/** The latest moment any record shows the learner on this activity, as an ISO time ("" if never). */
+export function lastActive(activity: Activity, evidence: Evidence): string {
+  const times = [evidence.visits.activities[activity.id]?.last ?? ""];
+  if (activity.track === "lesson") times.push(evidence.learning.lessons[activity.id]?.lastVisitedAt ?? "");
+  if (activity.track === "mission") {
+    const item = evidence.progress.missions[activity.id];
+    times.push(item?.lastVisitedAt ?? "", ...(item?.attempts ?? []).map((a) => a.at));
+  }
+  if (activity.track === "network-mission") {
+    for (const a of evidence.network.missions[activity.id]?.attempts ?? []) times.push(a.startedAt, a.completedAt ?? "");
+  }
+  // Only ISO times compare; placeholders such as "earlier" (migrated challenges) count as never.
+  return times.filter((t) => /^\d{4}-/.test(t)).sort().at(-1) ?? "";
 }
 
 /**
- * What to do next, from recorded progress only:
- * - "start": nothing recorded yet, so the path's first activity.
- * - "suggested": an untracked activity after the last completed tracked one and before the next unfinished one.
- *   It may already have been done; the path cannot know, so it is offered, never marked done or skipped silently.
- * - "continue": the first tracked activity not completed is in progress (it wins over a suggestion before it).
- * - "next": the first tracked activity not completed, not started yet.
- * - "mastery": everything tracked is completed; the first mission not yet mastered.
- * - "done": every mission mastered.
+ * What to do next, from recorded progress only. Deterministic, in this order:
+ * 1. "continue": the most recently active lesson or mission in progress, or a lesson that was opened. A mission
+ *    only opened is not in progress and is not offered here.
+ * 2. "start" / "next": from the furthest lesson or mission with real progress (the frontier), the first later
+ *    activity still to do: a lesson or mission not completed, or an exploration not yet opened. Explorations
+ *    behind the frontier are not offered again, so progress in Stage 3 never sends a learner back to Stage 1,
+ *    and opening something out of order never moves the frontier.
+ * 3. "next": a lesson or mission skipped earlier on the path, in path order.
+ * 4. "mastery": every lesson and mission completed; the first mission not yet mastered.
+ * 5. "done": every mission mastered.
  */
-export type Recommendation = { kind: "start" | "suggested" | "continue" | "next" | "mastery" | "done"; activity: Activity; stage: Stage };
+export type Recommendation = { kind: "start" | "continue" | "next" | "mastery" | "done"; activity: Activity; stage: Stage };
 
-export function recommend(evidence: Evidence): Recommendation {
-  const states = steps.map((step) => activityState(step.activity, evidence));
-  const at = (kind: Recommendation["kind"], index: number): Recommendation => ({ kind, ...steps[index] });
-  const unfinished = states.findIndex((state) => state !== null && !done(state));
-  if (unfinished === -1) {
-    const notMastered = states.findIndex((state, index) => state === "completed" && steps[index].activity.track !== "lesson");
-    return notMastered === -1 ? at("done", steps.length - 1) : at("mastery", notMastered);
-  }
-  if (states[unfinished] === "in-progress") return at("continue", unfinished);
-  let lastTracked = -1;
-  for (let index = 0; index < unfinished; index++) if (states[index] !== null) lastTracked = index;
-  if (lastTracked + 1 < unfinished) {
-    const nothingYet = states.every((state) => state === null || state === "not-started");
-    return at(nothingYet && lastTracked === -1 ? "start" : "suggested", lastTracked + 1);
-  }
-  return at("next", unfinished);
+export function recommend(evidence: Evidence, path: Stage[] = networkingPath): Recommendation {
+  const list = path.flatMap((stage) => [...stage.learn, ...stage.practise].map((activity) => ({ stage, activity })));
+  const states = list.map((step) => activityState(step.activity, evidence));
+  const at = (kind: Recommendation["kind"], index: number): Recommendation => ({ kind, ...list[index] });
+
+  let resume = -1;
+  let resumeAt = "";
+  list.forEach((step, index) => {
+    const open = states[index] === "in-progress" || (step.activity.track === "lesson" && states[index] === "visited");
+    if (!open) return;
+    const when = lastActive(step.activity, evidence);
+    if (resume === -1 || when > resumeAt) [resume, resumeAt] = [index, when];
+  });
+  if (resume !== -1) return at("continue", resume);
+
+  let frontier = -1;
+  list.forEach((step, index) => {
+    if (isRequired(step.activity) && started(states[index])) frontier = index;
+  });
+  const ahead = list.findIndex((step, index) => index > frontier && (isRequired(step.activity) ? !done(states[index]) : states[index] === "not-started"));
+  if (ahead !== -1) return at(frontier === -1 && states.every((state) => state === "not-started") ? "start" : "next", ahead);
+  const skipped = list.findIndex((step, index) => isRequired(step.activity) && !done(states[index]));
+  if (skipped !== -1) return at("next", skipped);
+  const notMastered = list.findIndex((step, index) => step.activity.track !== undefined && step.activity.track !== "lesson" && states[index] === "completed");
+  return notMastered === -1 ? at("done", list.length - 1) : at("mastery", notMastered);
 }
 
 /** Where an activity sits: its stage and number, the next activity in path order, and what to do first. */

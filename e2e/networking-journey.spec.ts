@@ -104,7 +104,8 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await expect(page.getByRole("heading", { name: "Networking path" })).toBeInViewport();
   await page.reload();
   await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Completed");
-  await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("In progress");
+  // Only opened on the way through, never attempted: a visit, not progress.
+  await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("Opened");
   await expect(page.locator(".path-activity", { hasText: "No connection" }).locator(".status-chip")).toHaveText("Completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
   await page.getByRole("link", { name: "All networking and TCP missions in one list →" }).click();

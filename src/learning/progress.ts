@@ -171,13 +171,17 @@ export function recordState(progress: Progress, state: MissionState, scenarioKey
   return { ...progress, missions: { ...progress.missions, [state.missionId]: { ...item, attempts, masteredAt, current: { ...state, attempt: stored } } } };
 }
 
-/** The shared four-state view of a framework mission: a finished run counts as completed. */
+/**
+ * The shared view of a framework mission: a finished run counts as completed. Opening the page records a visit
+ * only; it becomes in progress once the learner has an attempt or has committed a prediction.
+ */
 export function practiceState(progress: Progress, missionId: string, missionVersion: string): PracticeState {
   const item = progress.missions[missionId];
   if (!item) return "not-started";
   if (item.missionVersion === missionVersion && item.masteredAt) return "mastered";
   if (item.attempts.some((a) => a.explanationCorrect !== null)) return "completed";
-  return "in-progress";
+  if (item.attempts.length || item.current?.attempt.prediction) return "in-progress";
+  return "visited";
 }
 
 export function missionStatus(progress: Progress, missionId: string, missionVersion: string) {

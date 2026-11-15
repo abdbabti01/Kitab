@@ -8,6 +8,7 @@ import { journeys } from "../learning/lessons/catalog.ts";
 import { lessonStatus, loadLearning } from "../learning/lessons/progress.ts";
 import { findActivity, recommend } from "../learning/networking-path.ts";
 import { loadMissionStore } from "../practice/network/mission-progress.ts";
+import { loadVisits } from "../learning/visits.ts";
 import { api, ApiError } from "./api.ts";
 import { linkProps, navigate } from "./router.ts";
 import { LibraryHero } from "./LibraryHero.tsx";
@@ -20,7 +21,7 @@ const learningLabel = { new: "Not started", visited: "Opened", learning: "In pro
 export function Home() {
   const progress = useMemo(() => loadProgress(safeStorage()).progress, []);
   const learning = useMemo(() => loadLearning(safeStorage()).learning, []);
-  const evidence = useMemo(() => ({ learning, progress, network: loadMissionStore(safeStorage()) }), [learning, progress]);
+  const evidence = useMemo(() => ({ learning, progress, network: loadMissionStore(safeStorage()), visits: loadVisits(safeStorage()) }), [learning, progress]);
   const recommendation = useMemo(() => recommend(evidence), [evidence]);
   const [query, setQuery] = useState("");
   const [saved, setSaved] = useState<SavedConcept[]>([]);

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { activityState, findActivity, networkingPath, pathPosition, recommend, stageProgress, type Evidence } from "../src/learning/networking-path.ts";
+import { activityState, findActivity, isRequired, networkingPath, pathPosition, recommend, stageProgress, type Evidence } from "../src/learning/networking-path.ts";
 import { missions as networkMissions } from "../src/practice/network/missions.ts";
 import { loadMissionStore } from "../src/practice/network/mission-progress.ts";
 import { CHALLENGES_KEY } from "../src/practice/network/storage.ts";
@@ -9,6 +9,7 @@ import { missions as frameworkMissions } from "../src/learning/missions/catalog.
 import { findLesson } from "../src/learning/lessons/catalog.ts";
 import { loadLearning } from "../src/learning/lessons/progress.ts";
 import { loadProgress } from "../src/learning/progress.ts";
+import { loadVisits } from "../src/learning/visits.ts";
 
 const activities = networkingPath.flatMap((stage) => [...stage.learn, ...stage.practise]);
 const ids = activities.map((activity) => activity.id);
@@ -16,7 +17,22 @@ const memory = (initial: Record<string, string> = {}) => {
   const data = new Map(Object.entries(initial));
   return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
 };
-const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} } });
+const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} }, visits: { version: 1, activities: {} } });
+const visit = (e: Evidence, id: string, at = "2026-11-10T10:00:00.000Z") => {
+  e.visits.activities[id] = { first: at, last: at, count: 1 };
+};
+/** A lesson part-way through: steps seen beyond the first, a saved place, last opened at `at`. */
+const lessonPartway = (e: Evidence, id: string, seen: number, at: string) => {
+  const lesson = findLesson(id)!;
+  e.learning.lessons[id] = {
+    lessonVersion: lesson.version, visits: 2, lastVisitedAt: at, seen: Array.from({ length: seen }, (_, i) => `s${i}`), total: 13, chaptersSeen: [], completedAt: null, experimentsCompleted: [],
+    position: { params: {}, track: "journey", stepId: `s${seen - 1}`, journeyStepId: `s${seen - 1}` }, updated: false,
+  };
+};
+const tcpOpened = (e: Evidence, id: string, at: string) => {
+  const m = frameworkMissions.find((x) => x.id === id)!;
+  e.progress.missions[id] = { missionVersion: m.version, visits: 1, lastVisitedAt: at, masteredAt: null, current: null, attempts: [] };
+};
 const lessonDone = (e: Evidence, id = "ipv4-subnets") => {
   const lesson = findLesson(id)!;
   e.learning.lessons[id] = { lessonVersion: lesson.version, visits: 1, lastVisitedAt: "t", seen: [], total: 0, chaptersSeen: [], completedAt: "t", experimentsCompleted: [], position: null, updated: false };
@@ -74,13 +90,27 @@ test("every networking mission and every TCP and IPv4 mission is in the path exa
   assert.ok(ids.indexOf("tcp-lost-segment") < ids.indexOf("missing-segment"));
 });
 
-test("untracked activities never count as completed", () => {
+test("explorations are only ever visited, and never count towards a stage's completion", () => {
   const e = empty();
-  for (const id of ["connections", "starter:lan", "subnet-explorer", "hello-tcp", "starter:internet"]) assert.equal(activityState(findActivity(id)!, e), null);
-  assert.deepEqual(stageProgress(networkingPath[0], e), { tracked: 0, completed: 0, mastered: 0 });
+  for (const id of ["connections", "starter:lan", "subnet-explorer", "hello-tcp", "starter:internet", "concept:dns"]) {
+    assert.equal(isRequired(findActivity(id)!), false, id);
+    assert.equal(activityState(findActivity(id)!, e), "not-started");
+    visit(e, id);
+    assert.equal(activityState(findActivity(id)!, e), "visited", `${id}: a visit is never completion`);
+  }
+  assert.deepEqual(stageProgress(networkingPath[0], e), { tracked: 0, completed: 0, mastered: 0, explorations: 1, explored: 1 });
   lessonDone(e);
   netDone(e, "neighbours", true);
-  assert.deepEqual(stageProgress(networkingPath[2], e), { tracked: 5, completed: 2, mastered: 1 });
+  assert.deepEqual(stageProgress(networkingPath[2], e), { tracked: 5, completed: 2, mastered: 1, explorations: 1, explored: 1 });
+});
+
+test("opening a lesson or mission is a visit, not progress", () => {
+  const e = empty();
+  visit(e, "no-connection");
+  tcpOpened(e, "ipv4-network-address", "2026-11-10T10:00:00.000Z");
+  assert.equal(activityState(findActivity("no-connection")!, e), "visited");
+  assert.equal(activityState(findActivity("ipv4-network-address")!, e), "visited");
+  assert.deepEqual(stageProgress(networkingPath[1], e), { tracked: 1, completed: 0, mastered: 0, explorations: 2, explored: 0 });
 });
 
 test("progress is read from the existing stores, including legacy challenges and damaged data", () => {
@@ -89,42 +119,86 @@ test("progress is read from the existing stores, including legacy challenges and
     "kitab.learning.v1": "{not json",
     "kitab.progress.v1": JSON.stringify({ version: 2 }),
   });
-  const e: Evidence = { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage) };
+  const e: Evidence = { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage), visits: loadVisits(storage) };
   assert.equal(activityState(findActivity("no-connection")!, e), "completed", "an earlier challenge counts as completed");
   assert.equal(activityState(findActivity("ipv4-subnets")!, e), "not-started");
   assert.equal(activityState(findActivity("tcp-lost-segment")!, e), "not-started");
 });
 
-test("recommend: honest next steps from recorded progress", () => {
+test("recommend: a first-time learner starts at the very first activity", () => {
+  const r = recommend(empty());
+  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["start", "connections", "home"]);
+});
+
+test("recommend: explorations are walked forward once, never sent back to after later progress", () => {
   const e = empty();
+  // Visiting Stage 1's explorer moves on to the next exploration, in order.
+  visit(e, "connections");
   let r = recommend(e);
-  assert.equal(r.kind, "start");
-  assert.equal(r.activity.id, "connections");
+  assert.deepEqual([r.kind, r.activity.id], ["next", "starter:lan"]);
+  // Opening a later exploration out of curiosity does not skip what comes before it.
+  visit(e, "starter:internet");
+  r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id], ["next", "starter:lan"]);
 
-  // Progress elsewhere does not skip the exploration that comes first.
+  // A learner who completed Lesson 1 without ever opening Stage 1 or 2 is not sent back there.
+  const later = empty();
+  lessonDone(later);
+  r = recommend(later);
+  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["next", "subnet-explorer", "addresses"]);
+  visit(later, "subnet-explorer");
+  r = recommend(later);
+  assert.deepEqual([r.kind, r.activity.id], ["next", "ipv4-network-address"]);
+});
+
+test("recommend: a learner part-way through IPv4 Lesson 1 continues it, even after opening other things", () => {
+  const e = empty();
+  lessonPartway(e, "ipv4-subnets", 5, "2026-11-12T09:00:00.000Z");
+  // The audit's case: the lesson in progress, then a TCP mission only opened afterwards.
+  tcpOpened(e, "tcp-send-window", "2026-11-12T09:30:00.000Z");
+  visit(e, "tcp-send-window", "2026-11-12T09:30:00.000Z");
+  const r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["continue", "ipv4-subnets", "addresses"]);
+  assert.equal(activityState(findActivity("ipv4-subnets")!, e), "in-progress");
+  assert.equal(activityState(findActivity("tcp-send-window")!, e), "visited");
+});
+
+test("recommend: of several things in progress, the most recently active is continued", () => {
+  const e = empty();
+  lessonPartway(e, "ipv4-subnets", 5, "2026-11-12T09:00:00.000Z");
+  e.network.missions["neighbours"] = { missionVersion: "1.0.0", attempts: [{ variant: "pc-mask", startedAt: "2026-11-13T09:00:00.000Z", completedAt: null, diagnosis: null, evidence: false, explanation: null, prediction: null, hints: 0 }], completedAt: null, masteredAt: null };
+  let r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id], ["continue", "neighbours"], "the unfinished mission was touched last");
+  // Returning to the lesson makes it the most recent again.
+  lessonPartway(e, "ipv4-subnets", 6, "2026-11-14T09:00:00.000Z");
+  r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id], ["continue", "ipv4-subnets"]);
+});
+
+test("recommend: an unfinished framework mission is continued; one only opened is not", () => {
+  const e = empty();
   lessonDone(e);
+  tcpOpened(e, "ipv4-network-address", "2026-11-12T10:00:00.000Z");
+  let r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id], ["next", "subnet-explorer"], "opened only: not offered as continue");
+  e.progress.missions["ipv4-network-address"].attempts.push({ attemptId: "a", number: 1, variantId: "v", scenarioKey: "k", status: "running", predictionCorrect: true, explanationCorrect: null, reasoning: "", at: "2026-11-12T10:05:00.000Z" });
   r = recommend(e);
-  assert.deepEqual([r.kind, r.activity.id], ["suggested", "connections"]);
+  assert.deepEqual([r.kind, r.activity.id], ["continue", "ipv4-network-address"]);
+});
 
-  // Past the first tracked checkpoint: the explorer between Lesson 1 and its first mission is suggested.
+test("recommend: honest next steps through the whole path, then mastery, then done", () => {
+  const e = empty();
   netDone(e, "no-connection");
-  r = recommend(e);
-  assert.deepEqual([r.kind, r.activity.id], ["suggested", "subnet-explorer"]);
+  let r = recommend(e);
+  // Past the first mission, the next activity still to do: Lesson 1.
+  assert.deepEqual([r.kind, r.activity.id], ["next", "ipv4-subnets"]);
+  lessonDone(e);
   tcpDone(e, "ipv4-network-address");
   r = recommend(e);
+  // The explorer behind the frontier is not offered again; the next mission is.
   assert.deepEqual([r.kind, r.activity.id], ["next", "ipv4-local-or-remote"]);
-
-  // A mission already started is continued instead.
   tcpDone(e, "ipv4-local-or-remote");
-  e.network.missions["neighbours"] = { missionVersion: "1.0.0", attempts: [{ variant: "pc-mask", startedAt: "s", completedAt: null, diagnosis: null, evidence: false, explanation: null, prediction: null, hints: 0 }], completedAt: null, masteredAt: null };
-  r = recommend(e);
-  assert.deepEqual([r.kind, r.activity.id], ["continue", "neighbours"]);
-
-  // Untracked activities between two tracked ones are suggested, not assumed done.
   netDone(e, "neighbours");
-  r = recommend(e);
-  assert.deepEqual([r.kind, r.activity.id], ["next", "join-and-address"]);
-  // Lesson 1's stage done: Lesson 2 is next.
   netDone(e, "join-and-address");
   r = recommend(e);
   assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["next", "local-delivery-routing", "routing"]);
@@ -132,8 +206,8 @@ test("recommend: honest next steps from recorded progress", () => {
   tcpDone(e, "gateway-or-direct");
   for (const id of ["leave-the-lan", "bring-reply-home"]) netDone(e, id);
   r = recommend(e);
-  // DNS is met as a concept before the first activity that looks up a name.
-  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["suggested", "concept:dns", "internet"]);
+  // DNS is met as a reading before the first activity that looks up a name.
+  assert.deepEqual([r.kind, r.activity.id, r.stage.id], ["next", "concept:dns", "internet"]);
 
   for (const id of ["tcp-lost-segment", "tcp-send-window", "tcp-lab"]) tcpDone(e, id);
   netDone(e, "missing-segment");
@@ -143,6 +217,17 @@ test("recommend: honest next steps from recorded progress", () => {
   for (const m of networkMissions) netDone(e, m.id, true);
   for (const id of ["tcp-lost-segment", "tcp-send-window", "tcp-lab", "ipv4-network-address", "ipv4-local-or-remote", "gateway-or-direct"]) tcpDone(e, id, true);
   assert.equal(recommend(e).kind, "done");
+});
+
+test("recommend: required work skipped earlier is offered once everything ahead is done", () => {
+  const e = empty();
+  // Everything from Stage 3 on is completed; Stage 2's mission was skipped.
+  lessonDone(e);
+  lessonDone(e, "local-delivery-routing");
+  for (const id of ["ipv4-network-address", "ipv4-local-or-remote", "gateway-or-direct", "tcp-lost-segment", "tcp-send-window", "tcp-lab"]) tcpDone(e, id);
+  for (const id of ["neighbours", "join-and-address", "leave-the-lan", "bring-reply-home", "missing-segment"]) netDone(e, id);
+  const r = recommend(e);
+  assert.deepEqual([r.kind, r.activity.id], ["next", "no-connection"]);
 });
 
 test("a mission version bump keeps completion but not mastery, as on the missions page", () => {

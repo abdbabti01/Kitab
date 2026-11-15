@@ -2,11 +2,13 @@ import { findMission, missions as frameworkMissions } from "../learning/missions
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { LEARNING_KEY } from "../learning/lessons/progress.ts";
 import { PROGRESS_KEY, loadProgress, practiceState, safeStorage } from "../learning/progress.ts";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { findActivity } from "../learning/networking-path.ts";
+import { recordVisit } from "../learning/visits.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
 import { SiteHeader } from "./SiteHeader.tsx";
-import { linkProps, useRoute } from "./router.ts";
+import { linkProps, useRoute, type Route } from "./router.ts";
 import { chapters } from "../content/chapters.ts";
 
 const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(m => ({default:m.AccessExplorer})));
@@ -30,9 +32,29 @@ function NotFound({ what }: { what: string }) {
   );
 }
 
+/** The learning activity a page shows, if it is one: its visit is recorded so progress can tell "opened" apart. */
+export function activityIdFor(route: Route, search: string): string | null {
+  if (route.name === "lesson") return findLesson(route.id) ? route.id : null;
+  if (route.name === "mission") return findMission(route.id) ? route.id : null;
+  if (route.name === "concept") return chapters.some((c) => c.slug === route.slug) ? `concept:${route.slug}` : null;
+  if (route.name === "network-mission") return findActivity(route.id) ? route.id : null;
+  if (route.name === "access-explorer") return "connections";
+  if (route.name === "subnet-explorer") return "subnet-explorer";
+  if (route.name === "network-practice") {
+    const starter = new URLSearchParams(search).get("starter");
+    return starter && findActivity(`starter:${starter}`) ? `starter:${starter}` : null;
+  }
+  return null;
+}
+
 export function App() {
   const route = useRoute();
   const key = JSON.stringify(route);
+  const search = window.location.search;
+  useEffect(() => {
+    const id = activityIdFor(route, search);
+    if (id) recordVisit(safeStorage(), id);
+  }, [key, search]);
   let view;
   if (route.name === "home") view = <Home />;
   else if (route.name === "access-explorer") view = <AccessExplorer />;
