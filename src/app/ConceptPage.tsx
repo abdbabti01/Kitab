@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Info } from "lucide-react";
-import type { Chapter } from "../content/chapters.ts";
+import { chapters, type Chapter } from "../content/chapters.ts";
+import { locate } from "../learning/tracks.ts";
 import { missions } from "../learning/missions/catalog.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { ReadingWalkthrough } from "../ui/ReadingWalkthrough.tsx";
@@ -13,6 +14,8 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
   const spec = useMemo(() => visualizationForChapter(chapter), [chapter]);
   const [index, setIndex] = useState(0);
   const related = missions.filter((mission) => mission.concept === chapter.slug);
+  // Two other readings outside the tracks, starting with the same family.
+  const more = chapters.filter((c) => c.slug !== chapter.slug && !locate(`concept:${c.slug}`)).sort((x, y) => Number(y.family === chapter.family) - Number(x.family === chapter.family)).slice(0, 2);
   useEffect(() => { document.title = `${chapter.title} · Kitab`; }, [chapter]);
 
   return (
@@ -48,7 +51,18 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
             </ul>
           </section>
         )}
-        <PathNext id={`concept:${chapter.slug}`} />
+        {locate(`concept:${chapter.slug}`) ? (
+          <PathNext id={`concept:${chapter.slug}`} />
+        ) : (
+          <nav className="path-next" aria-label="Next step">
+            <p className="path-kind">Library · {chapter.family}</p>
+            {more.length > 0 && <p>More readings: {more.map((c, i) => <span key={c.slug}>{i > 0 && ", "}<a {...linkProps(`/concepts/${c.slug}`)}>{c.title}</a></span>)}</p>}
+            <div className="actions">
+              <a className="button primary" {...linkProps("/learn/library")}>Back to the Library <ArrowRight aria-hidden="true" /></a>
+              <a className="text-button" {...linkProps("/learn")}>See the learning tracks</a>
+            </div>
+          </nav>
+        )}
       </main>
     </div>
   );

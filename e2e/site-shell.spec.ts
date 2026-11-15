@@ -48,7 +48,8 @@ test("reading playback keeps the same layout after a mission", async ({ page }) 
 
   await page.goto("/missions/tcp-lost-segment");
   await expect(page.locator(".scene .playback")).toBeVisible();
-  await page.getByRole("link", { name: "Kitab", exact: true }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Learn" }).click();
+  await page.getByRole("link", { name: "Library" }).click();
   await page.locator('.concept-list a[href="/concepts/message-queues"]').click();
   await expect(controls).toHaveCSS("flex-wrap", wrap);
 });

@@ -74,3 +74,35 @@ test("units open with the keyboard, and Tab reaches their steps in order", async
   await page.keyboard.press("Tab");
   await expect(page.locator(".path-activity", { hasText: "DNS resolution" })).toBeFocused();
 });
+
+test("the Library lists every reading by where it is used, and one search finds lessons, readings and missions", async ({ page }) => {
+  await seed(page, {});
+  await page.goto("/learn/library");
+  await expect(page).toHaveTitle("Library · Learn · Kitab");
+  const inTracks = page.locator("section", { has: page.getByRole("heading", { name: "Readings in the tracks" }) });
+  await expect(inTracks.locator(".concept-list a")).toHaveCount(7);
+  await expect(inTracks.getByRole("link", { name: /DNS resolution/ })).toContainText("Networking · Unit 5");
+  await expect(inTracks.getByRole("link", { name: /Hash tables/ })).toContainText("Data structures & recursion · Unit 3");
+  const more = page.locator("section", { has: page.getByRole("heading", { name: "More readings" }) });
+  await expect(more.locator(".concept-list a")).toHaveCount(6);
+
+  await page.getByRole("searchbox").fill("subnet");
+  await expect(page.getByRole("heading", { name: "Results for “subnet”" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Understanding IPv4 addresses and subnets/ })).toContainText("Lesson · Networking · Unit 3");
+  await expect(page.getByRole("link", { name: /Same subnet or not\?/ })).toContainText("Predict");
+  await expect(page.getByRole("link", { name: /^Explore subnets/ })).toContainText("Explore");
+  await page.getByRole("searchbox").fill("message queue");
+  await expect(page.getByRole("link", { name: /Message queues/ })).toBeVisible();
+});
+
+test("a reading outside the tracks ends in the Library; one in a track continues the track", async ({ page }) => {
+  await seed(page, {});
+  await page.goto("/concepts/message-queues");
+  await expect(page.getByRole("navigation", { name: "Where you are" })).toContainText("Learn›Library›Message queues");
+  const end = page.getByRole("navigation", { name: "Next step" });
+  await expect(end.getByRole("link", { name: /Back to the Library/ })).toHaveAttribute("href", "/learn/library");
+  await expect(end).toContainText("More readings:");
+  await page.goto("/concepts/hash-tables");
+  await expect(page.getByRole("navigation", { name: "Where you are" })).toContainText("Unit 3: Hash tables");
+  await expect(page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: /Next: Collisions in a hash table/ })).toBeVisible();
+});
