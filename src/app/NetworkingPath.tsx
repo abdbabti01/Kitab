@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Waypoints } from "lucide-react";
 import type { Activity } from "../learning/networking-path.ts";
 import { locate, unitPath } from "../learning/tracks.ts";
 import { linkProps } from "./router.ts";
@@ -12,10 +12,19 @@ const links = (list: Activity[]) => list.map((a, i) => <span key={a.id}>{i > 0 &
 export function PathNext({ id }: { id: string }) {
   const at = locate(id);
   if (!at) return null;
+  // Networking steps point to the Playground: this unit's starter network, or a free one.
+  const starter = at.stage.learn.find((a) => a.id.startsWith("starter:"));
+  const playground = at.track.id === "networking" && !id.startsWith("starter:") && at.next;
   return (
     <nav className="path-next" aria-label="Next step">
       <p className="path-kind">{at.track.title} · Unit {at.stageNumber} of {at.track.stages.length} · {at.stage.title}</p>
       {at.role === "learn" && at.stage.practise.length > 0 && <p>Practise this unit: {links(at.stage.practise)}</p>}
+      {playground && (
+        <p className="path-playground">
+          <Waypoints aria-hidden="true" />
+          <span>Try it in the Playground: <a {...linkProps(starter?.path ?? "/practice/network")}>{starter ? `open “${starter.title}”` : "build your own network"}</a>, change one setting and send again.</span>
+        </p>
+      )}
       <div className="actions">
         {at.next ? (
           <a className="button primary" {...linkProps(at.next.path)}>Next: {at.next.title} <ArrowRight aria-hidden="true" /></a>
