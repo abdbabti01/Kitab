@@ -23,7 +23,7 @@ test("a new learner starts at the beginning; nothing untracked shows progress", 
   await expect(hero).toHaveAttribute("href", "/practice/connections");
   await expect(page.locator(".path-stages details[open]")).toHaveCount(1);
   await expect(stage(page, "Your home connection")).toHaveAttribute("open", "");
-  await expect(stage(page, "Your home connection").locator("summary")).toContainText("progress not recorded");
+  await expect(stage(page, "Your home connection").locator("summary")).toContainText("Exploration · 0 of 1 opened");
   // Untracked activities never carry a status chip; tracked ones start at "Not started".
   await expect(page.locator(".path-activity", { hasText: "How your home connects" }).locator(".status-chip")).toHaveCount(0);
   await expect(page.locator(".path-activity", { hasText: "Your first LAN" }).locator(".status-chip")).toHaveCount(0);
@@ -38,12 +38,12 @@ test("a new learner starts at the beginning; nothing untracked shows progress", 
   await expect(page).toHaveURL(/\/practice\/connections$/);
 });
 
-test("existing progress is shown as recorded, and the path suggests rather than skips untracked steps", async ({ page }) => {
+test("existing progress is shown as recorded, and the path moves forward from it, never back to Stage 1", async ({ page }) => {
   await seed(page, { "kitab.learning.v1": { version: 1, lessons: { [subnets.id]: done(subnets) } } });
-  // The lesson is done, but the Explorer before it records nothing: it is suggested, not assumed done.
-  await expect(page.locator(".journey-hero").getByRole("link", { name: "Suggested next: How your home connects" })).toBeVisible();
-  await expect(page.locator(".path-note")).toContainText("this is a suggestion");
-  await expect(page.locator(".path-activity", { hasText: "How your home connects" })).toHaveAttribute("aria-current", "step");
+  // Lesson 1 is done: the next step is the explorer after it, not the Stage 1 explorer that was never opened.
+  await expect(page.locator(".journey-hero").getByRole("link", { name: "Next: Explore subnets" })).toBeVisible();
+  await expect(page.locator(".path-activity", { hasText: "Explore subnets" })).toHaveAttribute("aria-current", "step");
+  await expect(page.locator(".path-activity", { hasText: "How your home connects" })).not.toHaveAttribute("aria-current", "step");
   await expect(page.locator(".path-activity", { hasText: subnets.title }).locator(".status-chip")).toHaveText("Completed");
 
   // Earlier challenge completions (legacy store) count as completed, never mastered.
@@ -51,9 +51,8 @@ test("existing progress is shown as recorded, and the path suggests rather than 
   await expect(stage(page, "Inside your LAN").locator("summary")).toContainText("1 of 1 completed");
   await expect(stage(page, "IPv4 addresses and subnets").locator("summary")).toContainText("2 of 5 completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
-  // After Lesson 1 the explorer, which records nothing, is suggested before Lesson 1's first mission.
-  await expect(page.locator(".journey-hero").getByRole("link", { name: "Suggested next: Explore subnets" })).toBeVisible();
-  await expect(page.locator(".path-note")).toContainText("this is a suggestion");
+  // The earlier "subnet" challenge completed the mask mission, so the next step is the one after it.
+  await expect(page.locator(".journey-hero").getByRole("link", { name: "Next: Join and get an address" })).toBeVisible();
   // The starters it passed still show no progress: they are not marked done.
   await expect(page.locator(".path-activity", { hasText: "Two connected LANs" }).locator(".status-chip")).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem("kitab.network.challenges.v1"))).toBe(JSON.stringify(["cable", "subnet"]));

@@ -82,7 +82,7 @@ export function AccessExplorer() {
   return (
     <main id="main" className="access-page">
       <nav className="access-nav">
-        <a {...linkProps("/practice/network")}>← Network playground</a>
+        <a {...linkProps("/#path")}>← Networking path</a>
         <span>TECHNOLOGY EXPLORER</span>
       </nav>
       <header className="access-heading">

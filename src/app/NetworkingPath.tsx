@@ -1,5 +1,5 @@
 import { ArrowRight } from "lucide-react";
-import { activityState, networkingPath, pathPosition, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
+import { activityState, isRequired, networkingPath, pathPosition, stageProgress, type Activity, type Evidence, type Recommendation } from "../learning/networking-path.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
 import { linkProps } from "./router.ts";
 
@@ -8,7 +8,6 @@ export function recommendationLink(r: Recommendation) {
   if (r.kind === "done") return { label: "Open the network playground", path: "/practice/network" };
   const label = {
     start: "Start the networking path",
-    suggested: `Suggested next: ${r.activity.title}`,
     continue: `Continue: ${r.activity.title}`,
     next: `Next: ${r.activity.title}`,
     mastery: `Work towards mastery: ${r.activity.title}`,
@@ -57,14 +56,15 @@ function kindOf(a: Activity) {
 }
 
 function ActivityLink({ activity, evidence, next }: { activity: Activity; evidence: Evidence; next: boolean }) {
-  const state = activityState(activity, evidence);
+  // Explorations record visits only: they show "Opened" once visited and no chip before.
+  const recorded = activityState(activity, evidence);
+  const state = isRequired(activity) || recorded !== "not-started" ? recorded : null;
   return (
     <li>
       <a className={`path-activity${next ? " is-next" : ""}`} aria-current={next ? "step" : undefined} {...linkProps(activity.path)}>
         <span className="path-kind">{kindOf(activity)}{next && " · Next step"}</span>
         <b>{activity.title}</b>
         <small>{activity.detail}</small>
-        {/* Only recorded progress is shown: explorations and the playground record none. */}
         {state && <span className={`status-chip status-${state}`}>{practiceLabels[state]}</span>}
       </a>
     </li>
@@ -100,9 +100,6 @@ export function NetworkingPath({ evidence, recommendation }: { evidence: Evidenc
         </div>
       </div>
       {recommendation.kind === "done" && <p className="path-note">You've mastered every mission on the networking path. Keep experimenting in the playground.</p>}
-      {recommendation.kind === "suggested" && (
-        <p className="path-note">Kitab doesn't record explorations or playground sessions, so this is a suggestion. If you've done it already, carry on with the next step.</p>
-      )}
       <ol className="path-stages">
         {networkingPath.map((stage, index) => {
           const progress = stageProgress(stage, evidence);
@@ -116,7 +113,7 @@ export function NetworkingPath({ evidence, recommendation }: { evidence: Evidenc
                     <small>
                       {progress.tracked
                         ? `${progress.completed} of ${progress.tracked} completed${progress.mastered ? ` · ${progress.mastered} mastered` : ""}`
-                        : "Exploration · progress not recorded"}
+                        : `Exploration · ${progress.explored} of ${progress.explorations} opened`}
                     </small>
                   </span>
                 </summary>

@@ -10,7 +10,7 @@ import { resolveTrack, safeParams } from "../src/learning/lessons/runtime.ts";
 import { loadProgress, practiceState, PROGRESS_KEY } from "../src/learning/progress.ts";
 import { loadMissionStore, MISSIONS_KEY } from "../src/practice/network/mission-progress.ts";
 import { CHALLENGES_KEY } from "../src/practice/network/storage.ts";
-import { activityState, findActivity, recommend, type Evidence } from "../src/learning/networking-path.ts";
+import { activityState, findActivity, loadEvidence, recommend, type Evidence } from "../src/learning/networking-path.ts";
 
 const position = (stepId: string, params: Record<string, string | number> = {}) => ({ params, track: "journey", stepId, journeyStepId: stepId });
 const before = {
@@ -84,9 +84,15 @@ test("visiting and stepping through the new lessons never rewrites another lesso
 
 test("the path reads the same records: mastery and challenge completions kept, the replaced lesson off the path", () => {
   const s = storage();
-  const evidence: Evidence = { learning: loadLearning(s).learning, progress: loadProgress(s).progress, network: loadMissionStore(s) };
+  const keys = [...s.data.keys()].sort();
+  const evidence: Evidence = loadEvidence(s);
+  // Reading progress never writes: no store is rewritten and the new visit store is not created by a read.
+  assert.deepEqual([...s.data.keys()].sort(), keys);
+  for (const [key, value] of Object.entries(before)) assert.equal(s.data.get(key), JSON.stringify(value), key);
+  assert.deepEqual(evidence.visits, { version: 1, activities: {} }, "learners from before the visit store start with no visits");
   const state = (id: string) => activityState(findActivity(id)!, evidence);
-  assert.equal(state("ipv4-subnets"), "in-progress");
+  // Lesson 1 was opened and only its first step seen: opened, not in progress. It is still the one to continue.
+  assert.equal(state("ipv4-subnets"), "visited");
   assert.equal(state("local-delivery-routing"), "completed");
   assert.equal(state("ipv4-local-or-remote"), "mastered");
   assert.equal(state("tcp-lost-segment"), "mastered");

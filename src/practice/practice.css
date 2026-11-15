@@ -17,6 +17,14 @@
 .network-playground textarea {
   font: inherit;
 }
+/* Small toolbar controls keep their own size: the rule above outranks their single-class font sizes. */
+.network-playground :is(.canvas-layout, .internet-toggle) {
+  font-size: 12px;
+}
+.network-playground .compare-switch {
+  font-size: 12px;
+  font-weight: 600;
+}
 .network-playground button {
   cursor: pointer;
 }
@@ -172,6 +180,7 @@
   border-bottom: 1px solid var(--line);
 }
 .workspace-title {
+  flex: 1 1 auto;
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -2408,6 +2417,11 @@
   color: var(--muted);
   white-space: nowrap;
 }
+.state-pill.is-visited {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
 .state-pill.is-in-progress {
   color: #8a5a17;
   border-color: #e3c99a;
@@ -2459,6 +2473,7 @@
 }
 .mission-steps {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   align-content: start;
 }

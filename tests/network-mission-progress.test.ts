@@ -87,12 +87,16 @@ test("damaged mission progress is recovered without crashing or touching other s
   assert.equal(storage.getItem(PROGRESS_KEY), "untouched");
 });
 
-test("TCP missions use the same four states", () => {
+test("TCP missions use the same states, and opening one is only a visit", () => {
   const p = (missions: object) => ({ version: 1, missions }) as never;
   assert.equal(practiceState(p({}), "tcp-lab", "1.0.0"), "not-started");
   const base = { missionVersion: "1.0.0", visits: 1, lastVisitedAt: "", masteredAt: null, attempts: [], current: null };
-  assert.equal(practiceState(p({ "tcp-lab": base }), "tcp-lab", "1.0.0"), "in-progress");
+  // Opening the page records a visit: not in progress until there is an attempt or a committed prediction.
+  assert.equal(practiceState(p({ "tcp-lab": base }), "tcp-lab", "1.0.0"), "visited");
+  assert.equal(practiceState(p({ "tcp-lab": { ...base, current: { attempt: { prediction: { value: "a" } } } } }), "tcp-lab", "1.0.0"), "in-progress");
   const done = { attemptId: "a", number: 1, variantId: "v", scenarioKey: "", status: "explanation-missed", predictionCorrect: true, explanationCorrect: false, reasoning: "", at: "" };
+  const unfinished = { ...done, status: "running", explanationCorrect: null };
+  assert.equal(practiceState(p({ "tcp-lab": { ...base, attempts: [unfinished] } }), "tcp-lab", "1.0.0"), "in-progress");
   assert.equal(practiceState(p({ "tcp-lab": { ...base, attempts: [done] } }), "tcp-lab", "1.0.0"), "completed");
   assert.equal(practiceState(p({ "tcp-lab": { ...base, attempts: [done], masteredAt: "x" } }), "tcp-lab", "1.0.0"), "mastered");
 });
