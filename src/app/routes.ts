@@ -2,7 +2,7 @@
 export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
 
 /** The Learn destination's views: a track's roadmap, or the library of readings. Never used as lesson ids. */
-export const LEARN_SECTIONS = ["data-structures", "library"] as const;
+export const LEARN_SECTIONS = ["data-structures", "system-design", "library"] as const;
 export type LearnSection = "networking" | (typeof LEARN_SECTIONS)[number];
 
 export type Route =
@@ -14,6 +14,9 @@ export type Route =
   | { name: "network-mission"; id: string }
   | { name: "access-explorer" }
   | { name: "subnet-explorer" }
+  | { name: "architecture-playground" }
+  | { name: "architecture-challenge"; id: string }
+  | { name: "architecture-lesson"; id: string }
   | { name: "mission"; id: string }
   | { name: "lesson"; id: string }
   | { name: "concept"; slug: string }
@@ -47,6 +50,13 @@ export function parseRoute(pathname: string): Route {
   if (path === "/practice/subnets") return { name: "subnet-explorer" };
   if (path === "/practice/network") return { name: "network-practice" };
   if (path === "/practice/missions") return { name: "network-missions" };
+  if (path === "/practice/architecture") return { name: "architecture-playground" };
+  const architecture = /^\/practice\/architecture\/challenges\/([^/]+)$/.exec(path) ?? /^\/learn\/system-design\/([^/]+)$/.exec(path);
+  if (architecture) {
+    const id = segment(architecture[1]);
+    if (!id) return { name: "not-found", path };
+    return path.startsWith("/learn/") ? { name: "architecture-lesson", id } : { name: "architecture-challenge", id };
+  }
   const practice = /^\/practice\/missions\/([^/]+)$/.exec(path);
   if (practice) {
     const id = segment(practice[1]);

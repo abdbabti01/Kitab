@@ -3,10 +3,8 @@ import assert from "node:assert/strict";
 import { connectionRules, configFor, MAX_NODES, newDesign, nextLabel, nextNodeId, type Design } from "../src/architecture/model.ts";
 import { connectableTargets, DesignFormatError, parseDesign, validateDesign } from "../src/architecture/validate.ts";
 import { build, templates } from "../src/architecture/templates.ts";
-import {
-  challengeRecordFor, deleteDesign, DESIGNS_KEY, duplicateDesign, exportDesign, importDesign, loadArchitectureProgress, loadDesigns,
-  MAX_DESIGNS, MAX_IMPORT_BYTES, PROGRESS_KEY, recordChallengeCheck, recordExperiment, saveChallengeDesign, saveDesign,
-} from "../src/architecture/persistence.ts";
+import { deleteDesign, DESIGNS_KEY, duplicateDesign, exportDesign, importDesign, loadDesigns, MAX_DESIGNS, MAX_IMPORT_BYTES, saveDesign } from "../src/architecture/persistence.ts";
+import { challengeRecordFor, loadArchitectureProgress, PROGRESS_KEY, recordChallengeCheck, recordExperiment, saveChallengeDesign } from "../src/architecture/progress.ts";
 
 const memory = (initial: Record<string, string> = {}) => {
   const data = new Map(Object.entries(initial));
@@ -222,4 +220,54 @@ test("a working design is kept per challenge; experiments are recorded per lesso
   assert.deepEqual(loadArchitectureProgress(damaged), { version: 1, challenges: {}, lessons: {} });
   assert.equal(damaged.data.get(`${PROGRESS_KEY}.corrupt`), "[]");
   assert.deepEqual(newDesign("x", "d-1", "t").nodes, []);
+});
+
+// ---- Editing ----
+
+test("editing: add, connect by rule, configure within bounds, remove with its connections", async () => {
+  const { editorReducer, initEditor } = await import("../src/architecture/editor.ts");
+  let s = initEditor(basic(), ["client-1"]);
+  s = editorReducer(s, { type: "add-node", kind: "cache", x: 340, y: 200 });
+  assert.equal(s.added, "cache-1");
+  const cache = s.design.nodes.find((n) => n.id === "cache-1")!;
+  assert.ok(!s.design.nodes.some((n) => n !== cache && Math.abs(n.x - cache.x) < 150 && Math.abs(n.y - cache.y) < 60), "placed on a free spot");
+  s = editorReducer(s, { type: "connect", from: "api-1", to: "cache-1" });
+  assert.equal(s.design.edges.at(-1)!.kind, "request");
+  const refused = editorReducer(s, { type: "connect", from: "client-1", to: "cache-1" });
+  assert.equal(refused, s, "a connection the rules refuse changes nothing");
+  assert.equal(editorReducer(s, { type: "set-config", id: "api-1", field: "concurrency", value: 9999 }), s, "out of range is refused");
+  s = editorReducer(s, { type: "set-config", id: "api-1", field: "concurrency", value: 16 });
+  assert.equal((s.design.nodes[1].config as { concurrency: number }).concurrency, 16);
+  s = editorReducer(s, { type: "remove-node", id: "cache-1" });
+  assert.ok(!s.design.edges.some((e) => e.to === "cache-1"));
+  assert.equal(editorReducer(s, { type: "remove-node", id: "client-1" }), s, "locked components stay");
+  assert.ok(validateDesign(s.design).ok);
+});
+
+test("undo and redo step through changes; a drag or typing is one step", async () => {
+  const { editorReducer, initEditor } = await import("../src/architecture/editor.ts");
+  let s = initEditor(basic());
+  for (let x = 0; x < 10; x++) s = editorReducer(s, { type: "move-node", id: "api-1", x: 300 + x * 5, y: 200 });
+  s = editorReducer(s, { type: "settle" });
+  s = editorReducer(s, { type: "move-node", id: "api-1", x: 500, y: 200 });
+  assert.equal(s.past.length, 2);
+  s = editorReducer(s, { type: "undo" });
+  assert.equal(s.design.nodes[1].x, 345);
+  s = editorReducer(s, { type: "undo" });
+  assert.deepEqual(s.design, basic());
+  assert.equal(editorReducer(s, { type: "undo" }), s);
+  s = editorReducer(s, { type: "redo" });
+  assert.equal(s.design.nodes[1].x, 345);
+  s = editorReducer(s, { type: "rename-design", name: "Changed" });
+  assert.deepEqual(s.future, [], "a new change clears redo");
+});
+
+test("faults are added for existing components, bounded, and removed with their component", async () => {
+  const { editorReducer, initEditor } = await import("../src/architecture/editor.ts");
+  let s = initEditor(basic());
+  s = editorReducer(s, { type: "add-fault", node: "sql-1" });
+  assert.deepEqual(s.design.faults, [{ node: "sql-1", fromS: 2, toS: 4 }]);
+  assert.equal(editorReducer(s, { type: "set-fault", index: 0, fault: { node: "sql-1", fromS: -1, toS: 4 } }), s);
+  s = editorReducer(s, { type: "remove-node", id: "sql-1" });
+  assert.deepEqual(s.design.faults, []);
 });

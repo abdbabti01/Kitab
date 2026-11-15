@@ -328,7 +328,7 @@ test("a cache that fails comes back empty, and reads fall through to the databas
 test("stepping through events and seeking by time read the same state", () => {
   const run = simulate(balanced(true));
   const middle = run.events[Math.floor(run.events.length / 2)];
-  const index = run.events.findLastIndex((e) => e.t <= middle.t) + 1;
+  const index = run.events.filter((e) => e.t <= middle.t).length;
   const byTime = foldTo(run, null, middle.t);
   const byStep = foldEvents(run, null, index);
   assert.deepEqual(byStep.nodes, byTime.nodes);

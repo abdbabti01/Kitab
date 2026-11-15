@@ -88,3 +88,9 @@ export async function askLessonTutor(request: LessonTutorRequest, signal?: Abort
   const data = await api<{ response: unknown; source: "ai" | "fallback"; reason?: string }>("/api/lesson-tutor", { method: "POST", body: JSON.stringify(request), signal, timeoutMs: 15_000 });
   return { response: tutorResponseSchema.parse(data.response), source: data.source === "ai" ? "ai" : "fallback", reason: data.reason };
 }
+
+/** Optional AI coach on a design challenge. The Worker rebuilds the design's facts; failures fall back to reviewed hints. */
+export async function askArchitectureCoach(request: import("../architecture/coach.ts").CoachRequest, signal?: AbortSignal): Promise<TutorReply> {
+  const data = await api<{ response: unknown; source: "ai" | "fallback"; reason?: string }>("/api/architecture-coach", { method: "POST", body: JSON.stringify(request), signal, timeoutMs: 15_000 });
+  return { response: tutorResponseSchema.parse(data.response), source: data.source === "ai" ? "ai" : "fallback", reason: data.reason };
+}

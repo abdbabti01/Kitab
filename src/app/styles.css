@@ -291,6 +291,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .kind-predict { color: var(--level-application); background: #e7eef7; }
 .kind-troubleshoot { color: var(--level-network); background: #f6ecdf; }
 .kind-challenge { color: var(--level-link); background: #efe8f4; }
+.kind-design { color: var(--level-transport); background: #e2f1ec; }
 .practice-filters { display: grid; gap: 8px; margin-top: 20px; }
 .practice-filters > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .filter-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 620 .88rem var(--font); cursor: pointer; }
@@ -323,6 +324,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .subject-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 12px; background: var(--primary-soft); color: var(--primary-strong); }
 .subject-icon svg { width: 24px; height: 24px; }
 .subject-card.is-structures .subject-icon { background: #ede7f6; color: #5b3d8a; }
+.subject-card.is-design .subject-icon { background: #e2f1ec; color: #1d5c4a; }
 .subject-kind { color: var(--muted); font: 650 .72rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
 .subject-units { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; align-content: start; color: var(--ink-2); font-size: .92rem; }
 .subject-units li { display: flex; gap: 8px; align-items: baseline; }

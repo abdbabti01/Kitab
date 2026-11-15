@@ -30,7 +30,7 @@ export type NodeState = {
   unhealthy: string[];
 };
 
-export type Transit = { edge?: string; from: string; to: string; until: number; type: SimEvent["type"]; ok?: boolean; req?: number };
+export type Transit = { edge?: string; from: string; to: string; since: number; until: number; type: SimEvent["type"]; ok?: boolean; req?: number };
 export type Bucket = { ok: number; failed: number; latencies: number[]; queued: number };
 type Totals = { requests: number; ok: number; failed: number; timeouts: number; retries: number; late: number; latencies: number[] };
 
@@ -90,7 +90,7 @@ export function apply(fold: Fold, e: SimEvent) {
   fold.next = e.i + 1;
   const n = fold.nodes[e.node];
   const part = e.part ?? 0;
-  if (e.arriveAt !== undefined && e.to) fold.transit.push({ edge: e.edge, from: e.node, to: e.to, until: e.arriveAt, type: e.type, ok: e.ok, req: e.req });
+  if (e.arriveAt !== undefined && e.to) fold.transit.push({ edge: e.edge, from: e.node, to: e.to, since: e.t, until: e.arriveAt, type: e.type, ok: e.ok, req: e.req });
   const op = e.op ? (fold.byOp[e.op] ??= totals()) : undefined;
   switch (e.type) {
     case "request":

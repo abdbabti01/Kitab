@@ -1,3 +1,4 @@
+import { handleArchitectureCoach } from "./architecture-coach.ts";
 import { handleCompose } from "./compose.ts";
 import type { Env, WorkerContext } from "./env.ts";
 import { handleEvent, handleFeedback } from "./feedback.ts";
@@ -16,6 +17,7 @@ const routes: Route[] = [
   { method: "POST", match: (path) => path === "/api/concept", handle: handleGenerate },
   { method: "POST", match: (path) => path === "/api/tutor", handle: handleTutor },
   { method: "POST", match: (path) => path === "/api/lesson-tutor", handle: handleLessonTutor },
+  { method: "POST", match: (path) => path === "/api/architecture-coach", handle: handleArchitectureCoach },
   { method: "POST", match: (path) => path === "/api/scenario", handle: handleCompose },
   { method: "POST", match: (path) => path === "/api/feedback", handle: handleFeedback },
   { method: "POST", match: (path) => path === "/api/events", handle: handleEvent },

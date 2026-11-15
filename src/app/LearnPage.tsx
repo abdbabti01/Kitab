@@ -9,6 +9,7 @@ import { TrackRoadmap } from "./TrackRoadmap.tsx";
 const views: { id: LearnSection; label: string; path: string }[] = [
   { id: "networking", label: "Networking", path: "/learn" },
   { id: "data-structures", label: "Data structures & recursion", path: "/learn/data-structures" },
+  { id: "system-design", label: "System design", path: "/learn/system-design" },
   { id: "library", label: "Library", path: "/learn/library" },
 ];
 

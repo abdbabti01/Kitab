@@ -1,12 +1,10 @@
 // Saved designs and System Design progress, in this browser only (localStorage). Two additive stores; no other
 // Kitab store is read or written here. Entries that can't be read (damaged, or saved by a newer Kitab) are left
 // exactly as they are, never overwritten or silently dropped.
-import { z } from "zod";
 import { DESIGN_FORMAT, MAX_NODES, type Design } from "./model.ts";
 import { DesignFormatError, parseDesign } from "./validate.ts";
 
 export const DESIGNS_KEY = "kitab.architecture.designs.v1";
-export const PROGRESS_KEY = "kitab.architecture.progress.v1";
 export const MAX_DESIGNS = 50;
 /** An imported file larger than this is refused before it is parsed. */
 export const MAX_IMPORT_BYTES = 200_000;
@@ -108,84 +106,3 @@ export function importDesign(text: string, id = newDesignId(), now = new Date().
   return design;
 }
 
-// ---- Progress: challenges passed, and lesson experiments run ----
-
-const challengeRecord = z.object({
-  /** The challenge version the record was made against; a new version starts a fresh record. */
-  version: z.string().max(20),
-  attempts: z.number().int().min(0),
-  lastAt: z.string().max(40),
-  passedAt: z.string().max(40).optional(),
-  /** The learner's working design for this challenge (parsed when used). */
-  design: z.unknown().optional(),
-  /** The cheapest passing design's cost and p95, for comparing solutions. */
-  best: z.object({ cost: z.number(), p95: z.number().nullable() }).strict().optional(),
-}).strict();
-const progressSchema = z.object({
-  version: z.literal(1),
-  challenges: z.record(z.string().max(80), challengeRecord),
-  lessons: z.record(z.string().max(80), z.object({ experimentAt: z.string().max(40) }).strict()),
-}).strict();
-export type ArchitectureProgress = z.infer<typeof progressSchema>;
-export type ChallengeRecord = z.infer<typeof challengeRecord>;
-
-export const emptyProgress = (): ArchitectureProgress => ({ version: 1, challenges: {}, lessons: {} });
-
-/** Damaged data reads as no progress and is kept aside. */
-export function loadArchitectureProgress(storage: StorageLike): ArchitectureProgress {
-  let raw: string | null = null;
-  try {
-    raw = storage.getItem(PROGRESS_KEY);
-    if (!raw) return emptyProgress();
-    return progressSchema.parse(JSON.parse(raw));
-  } catch {
-    try {
-      if (raw) storage.setItem(`${PROGRESS_KEY}.corrupt`, raw.slice(0, 500_000));
-    } catch {
-      // storage unavailable
-    }
-    return emptyProgress();
-  }
-}
-
-function updateProgress(storage: StorageLike, change: (progress: ArchitectureProgress) => void) {
-  const progress = loadArchitectureProgress(storage);
-  change(progress);
-  try {
-    storage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-  } catch {
-    // storage full or unavailable: progress is not remembered
-  }
-  return progress;
-}
-
-export function recordExperiment(storage: StorageLike, lessonId: string, now = new Date().toISOString()) {
-  return updateProgress(storage, (p) => {
-    p.lessons[lessonId] = { experimentAt: now };
-  });
-}
-
-/** The challenge's record for this version, or a fresh one (an older version's record is not carried over). */
-export function challengeRecordFor(progress: ArchitectureProgress, id: string, version: string): ChallengeRecord | undefined {
-  const record = progress.challenges[id];
-  return record && record.version === version ? record : undefined;
-}
-
-export function saveChallengeDesign(storage: StorageLike, id: string, version: string, design: Design, now = new Date().toISOString()) {
-  return updateProgress(storage, (p) => {
-    const record = challengeRecordFor(p, id, version) ?? { version, attempts: 0, lastAt: now };
-    p.challenges[id] = { ...record, lastAt: now, design };
-  });
-}
-
-export function recordChallengeCheck(storage: StorageLike, id: string, version: string, result: { passed: boolean; cost: number; p95: number | null }, now = new Date().toISOString()) {
-  return updateProgress(storage, (p) => {
-    const record = challengeRecordFor(p, id, version) ?? { version, attempts: 0, lastAt: now };
-    const next: ChallengeRecord = { ...record, attempts: record.attempts + 1, lastAt: now };
-    if (result.passed) {
-      next.passedAt = record.passedAt ?? now;
-      if (!record.best || result.cost < record.best.cost) next.best = { cost: result.cost, p95: result.p95 };
-    }
-    p.challenges[id] = next;
-  });
-}

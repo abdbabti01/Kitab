@@ -11,6 +11,7 @@ import { loadProgress, practiceState, type Progress } from "./progress.ts";
 import type { PracticeState } from "./practice-state.ts";
 import { loadVisits, type Visits } from "./visits.ts";
 import { loadMissionStore, missionState, type MissionStore } from "../practice/network/mission-progress.ts";
+import { challengeRecordFor, loadArchitectureProgress, type ArchitectureProgress } from "../architecture/progress.ts";
 
 export type Activity = {
   /** Unique across tracks: a lesson or mission id, an explorer ("connections", "subnet-explorer"), "starter:<starter id>" or "concept:<chapter slug>". */
@@ -19,13 +20,19 @@ export type Activity = {
   /** What the learner does or sees there, in one line. */
   detail: string;
   path: string;
-  /** Where completion is recorded; absent when the activity records only visits (exploration, playground, concept, Packet Journey). */
-  track?: "lesson" | "mission" | "network-mission";
-  /** Networking missions are loaded with the engine, so their version is repeated here (a test keeps it in step). */
+  /**
+   * Where completion is recorded; absent when the activity records only visits (exploration, playground, concept,
+   * Packet Journey). System Design lessons complete when their experiment has been run; challenges when passed.
+   */
+  track?: "lesson" | "mission" | "network-mission" | "architecture-lesson" | "architecture-challenge";
+  /** Networking missions and design challenges are loaded with their engine, so their version is repeated here (a test keeps it in step). */
   version?: string;
   /** Path activities to do first. Shown as links, never enforced. */
   needs?: string[];
 };
+/** A System Design activity's lesson or challenge id ("sd:fundamentals" → "fundamentals"). */
+export const architectureId = (activity: Activity) => activity.id.slice(activity.id.indexOf(":") + 1);
+
 export type Stage = { id: string; title: string; objective: string; learn: Activity[]; practise: Activity[] };
 
 export const lesson = (id: string, detail: string): Activity => ({ id, title: findLesson(id)!.title, detail, path: `/learn/${id}`, track: "lesson" });
@@ -113,7 +120,7 @@ const steps = networkingPath.flatMap((stage) => [...stage.learn, ...stage.practi
 export const findActivity = (id: string) => steps.find((step) => step.activity.id === id)?.activity;
 
 /** The progress records the path reads: the lesson, mission and networking stores, and the visit store. */
-export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits };
+export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits; architecture: ArchitectureProgress };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 /**
@@ -123,7 +130,7 @@ type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
  */
 export function loadEvidence(storage: Pick<Storage, "getItem">): Evidence {
   const readOnly: StorageLike = { getItem: (key) => storage.getItem(key), setItem: () => {}, removeItem: () => {} };
-  return { learning: loadLearning(readOnly).learning, progress: loadProgress(readOnly).progress, network: loadMissionStore(readOnly), visits: loadVisits(readOnly) };
+  return { learning: loadLearning(readOnly).learning, progress: loadProgress(readOnly).progress, network: loadMissionStore(readOnly), visits: loadVisits(readOnly), architecture: loadArchitectureProgress(readOnly) };
 }
 
 /** Lessons and missions record completion; explorations, starters, readings and Packet Journey record only visits. */
@@ -143,6 +150,11 @@ export function activityState(activity: Activity, evidence: Evidence): PracticeS
     state = practiceState(evidence.progress, found.id, found.version);
   } else if (activity.track === "network-mission") {
     state = missionState(evidence.network.missions[activity.id], { version: activity.version! });
+  } else if (activity.track === "architecture-lesson") {
+    state = evidence.architecture.lessons[architectureId(activity)] ? "completed" : "not-started";
+  } else if (activity.track === "architecture-challenge") {
+    const record = challengeRecordFor(evidence.architecture, architectureId(activity), activity.version!);
+    state = record?.passedAt ? "completed" : record ? "in-progress" : "not-started";
   }
   return state === "not-started" && evidence.visits.activities[activity.id] ? "visited" : state;
 }
@@ -175,6 +187,8 @@ export function lastActive(activity: Activity, evidence: Evidence): string {
   if (activity.track === "network-mission") {
     for (const a of evidence.network.missions[activity.id]?.attempts ?? []) times.push(a.startedAt, a.completedAt ?? "");
   }
+  if (activity.track === "architecture-lesson") times.push(evidence.architecture.lessons[architectureId(activity)]?.experimentAt ?? "");
+  if (activity.track === "architecture-challenge") times.push(evidence.architecture.challenges[architectureId(activity)]?.lastAt ?? "");
   // Only ISO times compare; placeholders such as "earlier" (migrated challenges) count as never.
   return times.filter((t) => /^\d{4}-/.test(t)).sort().at(-1) ?? "";
 }

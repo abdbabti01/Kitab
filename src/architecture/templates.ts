@@ -2,7 +2,7 @@
 import { configFor, newDesign, ruleFor, workloadSchema, type ComponentKind, type Design, type DesignNode, type Fault, type Workload } from "./model.ts";
 import { parseDesign } from "./validate.ts";
 
-type NodeSpec = [id: string, kind: ComponentKind, label: string, x: number, y: number, config?: Record<string, unknown>];
+export type NodeSpec = readonly [id: string, kind: ComponentKind, label: string, x: number, y: number, config?: Record<string, unknown>];
 
 /** A design from compact specs; connections take their kind from the rules. Throws on a spec the rules refuse. */
 export function build(name: string, nodes: NodeSpec[], edges: [string, string][], workload: Partial<Workload> = {}, faults: Fault[] = []): Design {
