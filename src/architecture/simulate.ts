@@ -306,7 +306,7 @@ export function simulate(design: Design): SimRun {
 
   function refuse(call: Call, failure: Failure) {
     call.live = false;
-    emit({ type: "reject", node: call.to, op: call.op, reason: failure, part: call.part, ...tag(call.root) });
+    emit({ type: "reject", node: call.to, op: call.op, key: call.key, reason: failure, part: call.part, ...tag(call.root) });
     if (!call.background) answer(call, false, failure);
   }
 

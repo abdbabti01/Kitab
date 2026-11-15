@@ -27,8 +27,8 @@ function startingDesign(challenge: Challenge): Design {
 function Results({ challenge, result }: { challenge: Challenge; result: Evaluation }) {
   const scenario = (id: string) => challenge.scenarios.find((s) => s.id === id)!;
   return (
-    <section className={`check-results ${result.passed ? "is-passed" : "is-failed"}`} aria-labelledby="results-title" tabIndex={-1} id="challenge-results">
-      <h3 id="results-title">{result.passed ? "Every requirement is met" : `${result.checks.filter((c) => c.passed).length} of ${result.checks.length} requirements met`}</h3>
+    <section className={`check-results ${result.passed ? "is-passed" : "is-failed"}`} aria-labelledby="results-title">
+      <h3 id="results-title" tabIndex={-1}>{result.passed ? "Every requirement is met" : `${result.checks.filter((c) => c.passed).length} of ${result.checks.length} requirements met`}</h3>
       {!result.validation.ok && <p className="inline-issue is-error">The design isn't valid yet: {result.validation.errors[0].message}</p>}
       <ul>
         {result.checks.map((check) => (
@@ -69,6 +69,10 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
     return () => clearTimeout(timer);
   }, [design]);
   useEffect(() => setResult(null), [design]);
+  // Move to the results once they are shown, so they are read out.
+  useEffect(() => {
+    if (result) document.getElementById("results-title")?.focus();
+  }, [result]);
 
   const scenario = challenge.scenarios.find((s) => s.id === scenarioId)!;
   const runDesign = useMemo(() => (d: Design) => {
@@ -84,7 +88,6 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
       setChecking(false);
       const progress = recordChallengeCheck(storage, challenge.id, challenge.version, { passed: evaluation.passed, cost: evaluation.cost, p95: evaluation.outcomes.normal?.[0]?.summary.p95 ?? null });
       setRecord(challengeRecordFor(progress, challenge.id, challenge.version));
-      requestAnimationFrame(() => document.getElementById("challenge-results")?.focus());
     }, 0);
   };
 

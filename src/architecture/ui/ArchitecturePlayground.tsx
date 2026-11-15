@@ -66,8 +66,16 @@ export function ArchitecturePlayground() {
     document.title = "Architecture Playground · Kitab";
   }, []);
 
-  // Every change is saved on this device, shortly after the last edit.
+  // Every change is saved on this device, shortly after the last edit, and at once when the page is left.
   const design = state.design;
+  const latest = useRef(design);
+  latest.current = design;
+  useEffect(() => {
+    if (!open) return;
+    const flush = () => saveDesign(storage, latest.current);
+    window.addEventListener("pagehide", flush);
+    return () => (window.removeEventListener("pagehide", flush), void flush());
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const timer = setTimeout(() => {
@@ -79,6 +87,8 @@ export function ArchitecturePlayground() {
   }, [design, open]);
 
   const openDesign = (next: Design) => {
+    // Keep the last edits of the design being left (its debounced save would be cancelled).
+    if (open && next.id !== latest.current.id) saveDesign(storage, latest.current);
     dispatch({ type: "load", design: next });
     setOpen(true);
     setQuery(next.id);

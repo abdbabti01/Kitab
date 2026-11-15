@@ -69,6 +69,7 @@ function ThroughputChart({ fold, run }: { fold: Fold; run: SimRun }) {
   const h = 120;
   const bw = w / buckets;
   const [hover, setHover] = useState<number | null>(null);
+  const [table, setTable] = useState(false);
   const shown = hover !== null ? series[hover] : undefined;
   return (
     <figure className="throughput">
@@ -95,14 +96,14 @@ function ThroughputChart({ fold, run }: { fold: Fold; run: SimRun }) {
       <p className="chart-tip" aria-live="off">
         {shown && hover !== null ? `${(hover * BUCKET_MS / 1000).toFixed(1)}–${((hover + 1) * BUCKET_MS / 1000).toFixed(1)} s: ${shown.ok} succeeded, ${shown.failed} failed, 95% within ${ms(percentile(shown.latencies, 95))}` : "Point at a bar for its numbers."}
       </p>
-      <details className="chart-table">
+      <details className="chart-table" onToggle={(event) => setTable(event.currentTarget.open)}>
         <summary>Show as a table</summary>
-        <table>
+        {table && <table>
           <thead><tr><th scope="col">Time</th><th scope="col">Succeeded</th><th scope="col">Failed</th><th scope="col">95% within</th></tr></thead>
           <tbody>
             {series.map((b, i) => (b.ok || b.failed ? <tr key={i}><td>{(i * BUCKET_MS / 1000).toFixed(1)} s</td><td>{b.ok}</td><td>{b.failed}</td><td>{ms(percentile(b.latencies, 95))}</td></tr> : null))}
           </tbody>
-        </table>
+        </table>}
       </details>
     </figure>
   );
@@ -156,18 +157,19 @@ export function RunView({ design, run, fold, playback, summary, findings, focus,
   const { cursor, playing, speed, controls } = playback;
   const timeline = useMemo(() => {
     if (!run) return [];
-    const upTo = run.events.slice(0, cursor.count);
-    let list: SimEvent[];
-    if (focus?.kind === "request") list = run.events.filter((e) => e.req === focus.req);
-    else if (focus?.kind === "message") list = run.events.filter((e) => e.msg === focus.msg);
-    else if (filter === "notable") list = upTo.filter(isNotable);
-    else if (filter === "component" && selectedNode) list = upTo.filter((e) => e.node === selectedNode || e.to === selectedNode);
-    else list = upTo;
-    return focus?.kind === "request" || focus?.kind === "message" ? list : list.slice(-50).reverse();
+    if (focus?.kind === "request") return run.events.filter((e) => e.req === focus.req);
+    if (focus?.kind === "message") return run.events.filter((e) => e.msg === focus.msg);
+    const keep = filter === "notable" ? isNotable : filter === "component" && selectedNode ? (e: SimEvent) => e.node === selectedNode || e.to === selectedNode : () => true;
+    // The latest 50 matches before the cursor, newest first, without copying the whole stream on every frame.
+    const list: SimEvent[] = [];
+    for (let i = cursor.count - 1; i >= 0 && list.length < 50; i--) if (keep(run.events[i])) list.push(run.events[i]);
+    return list;
   }, [run, cursor.count, filter, focus, selectedNode]);
+  // Percentiles sort every latency so far: recompute only when a request finishes, not on every frame.
+  const finished = fold?.totals.latencies.length ?? 0;
+  const latency = useMemo(() => ({ p50: percentile(fold?.totals.latencies ?? [], 50), p95: percentile(fold?.totals.latencies ?? [], 95) }), [fold, finished]);
   if (!run || !fold) return null;
   const current = cursor.count ? run.events[cursor.count - 1] : null;
-  const latencies = fold.totals.latencies;
 
   return (
     <div className="run-view">
@@ -204,8 +206,8 @@ export function RunView({ design, run, fold, playback, summary, findings, focus,
         <div><dt>Requests sent</dt><dd>{fold.totals.requests.toLocaleString("en")}</dd></div>
         <div><dt>Succeeded</dt><dd>{fold.totals.ok.toLocaleString("en")}{fold.totals.requests ? <small> {pct(fold.totals.ok / Math.max(1, fold.totals.ok + fold.totals.failed))} of finished</small> : null}</dd></div>
         <div><dt>Failed</dt><dd className={fold.totals.failed ? "is-bad" : undefined}>{fold.totals.failed.toLocaleString("en")}</dd></div>
-        <div><dt>Half within</dt><dd>{ms(percentile(latencies, 50))}</dd></div>
-        <div><dt>95% within</dt><dd>{ms(percentile(latencies, 95))}</dd></div>
+        <div><dt>Half within</dt><dd>{ms(latency.p50)}</dd></div>
+        <div><dt>95% within</dt><dd>{ms(latency.p95)}</dd></div>
         <div><dt>Retries · timeouts</dt><dd>{fold.totals.retries} · {fold.totals.timeouts}</dd></div>
       </dl>
       <ThroughputChart fold={fold} run={run} />
