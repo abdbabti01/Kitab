@@ -21,7 +21,7 @@ test("Home leads with the subjects and the Playground, the same for a first visi
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("See how computers really work, one step at a time.");
   const cards = page.locator(".subject-card");
-  await expect(cards.locator("h3")).toHaveText(["Networking", "Data structures & recursion", "Network Playground"]);
+  await expect(cards.locator("h3")).toHaveText(["Networking", "Data structures & recursion", "System design & architecture", "Network Playground"]);
   // The subjects are on the first screen: all three side by side on a wide screen, the first one on a phone.
   const shown = page.viewportSize()!.width >= 1024 ? await cards.all() : [cards.first()];
   for (const card of shown) await expect(card).toBeInViewport();
@@ -32,7 +32,7 @@ test("Home leads with the subjects and the Playground, the same for a first visi
   await page.goto("/learn/ipv4-subnets");
   await page.locator(".lesson-controls .next-button").click();
   await page.goto("/");
-  await expect(page.locator(".subject-card")).toHaveCount(3);
+  await expect(page.locator(".subject-card")).toHaveCount(4);
   expect(await homeText(page)).toEqual(first);
   await expect(page.locator(".site-header").getByText(/Continue/)).toHaveCount(0);
 });
@@ -41,6 +41,7 @@ test("each subject on Home opens its own track, and the Playground opens the lab
   for (const [name, url, heading] of [
     ["Explore Networking", /\/learn$/, "Networking"],
     ["Explore Data structures", /\/learn\/data-structures$/, "Data structures & recursion"],
+    ["Explore System design", /\/learn\/system-design$/, "System design & architecture"],
     ["Open the Playground", /\/practice\/network$/, "Network Playground"],
   ] as const) {
     await page.goto("/");
@@ -138,7 +139,7 @@ test("progress saved before the redesign shows as before, and nothing in it is r
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
-  await expect(page.locator(".subject-card")).toHaveCount(3);
+  await expect(page.locator(".subject-card")).toHaveCount(4);
   await page.goto("/learn");
   await expect(page.locator(".track-meter")).toContainText("3 of 14 lessons and missions completed · 1 mastered");
   await page.goto("/practice/network");

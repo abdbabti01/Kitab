@@ -316,7 +316,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .home-hero h1 { font: 750 clamp(2.1rem, 1.5rem + 2.6vw, 3.6rem)/1.06 var(--display); letter-spacing: -.035em; margin: .3rem 0 .7rem; max-width: 22ch; }
 .home-hero .lead { margin: 0; }
 .subjects { margin-top: clamp(20px, 3vw, 32px); }
-.subject-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 16px; }
+.subject-grid { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
 .subject-card { display: grid; grid-template-rows: auto auto auto auto 1fr auto; gap: 8px; padding: clamp(18px, 2.4vw, 26px); border: 1px solid var(--line); border-radius: calc(var(--radius) + 2px); background: var(--surface); box-shadow: var(--shadow); }
 .subject-card h3 { font: 700 1.45rem/1.15 var(--display); letter-spacing: -.02em; margin: 0; }
 .subject-card p { margin: 0; color: var(--ink-2); }
