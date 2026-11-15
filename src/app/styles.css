@@ -288,3 +288,27 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .path-next .actions > .button, .path-next .actions > .button.primary { white-space: normal; text-align: left; padding-block: 8px; }
 .path-needs { color: var(--ink-2); }
 
+
+/* ---- Learn, Practice and Home: shared page heads, tabs, meters and cards ---- */
+.learn-head { display: grid; gap: 4px; }
+.learn-head h1 { font: 500 clamp(2rem, 1.5rem + 2vw, 3rem)/1.08 var(--display); letter-spacing: -.035em; margin: 0; }
+.learn-head .section-lead { margin: 6px 0 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+.section-head h2 { margin: 0; }
+.learn-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.learn-tabs a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-weight: 620; text-decoration: none; }
+.learn-tabs a:hover { border-color: var(--line-strong); }
+.learn-tabs a[aria-current] { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+
+.track-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-top: 16px; color: var(--ink-2); }
+.track-meter p { margin: 0; font-size: .94rem; }
+.track-meter-bar, .unit-meter { display: block; height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.track-meter-bar { flex: 0 1 260px; min-width: 120px; }
+.track-meter-bar i, .unit-meter i { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+.unit-meter { height: 6px; }
+.path-number.is-complete { background: var(--primary); color: var(--feature-text); }
+.path-number svg { width: 16px; height: 16px; }
+.path-objective b { color: var(--ink); }
+.unit-playground { display: flex; align-items: flex-start; gap: 10px; margin: 0 16px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-2); font-size: .92rem; }
+.unit-playground svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--primary); }
+

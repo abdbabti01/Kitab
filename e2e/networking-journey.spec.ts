@@ -101,17 +101,19 @@ test("networking path: home → explorer → starters → missions → both IPv4
   // Progress reads the same on Home, the missions index and the playground, and survives a reload.
   await page.getByRole("navigation", { name: "Next step" }).getByRole("link", { name: "Back to the roadmap" }).click();
   await expect(page).toHaveURL(/\/learn#unit-mastery$/);
-  await expect(page.getByRole("heading", { name: "Networking path" })).toBeInViewport();
+  const mastery = page.locator(".path-stages details", { has: page.locator("summary", { hasText: "Show mastery" }) });
+  await expect(mastery).toHaveAttribute("open", "");
+  await expect(mastery).toBeInViewport();
   await page.reload();
   await expect(page.locator(".path-activity", { hasText: "The ACK that wouldn't move" }).locator(".status-chip")).toHaveText("Completed");
   // Only opened on the way through, never attempted: a visit, not progress.
   await expect(page.locator(".path-activity", { hasText: "How full can the pipe get?" }).locator(".status-chip")).toHaveText("Opened");
   await expect(page.locator(".path-activity", { hasText: "No connection" }).locator(".status-chip")).toHaveText("Completed");
   await expect(page.locator(".path-stages summary", { hasText: "mastered" })).toHaveCount(0);
-  await page.getByRole("link", { name: "All networking and TCP missions in one list →" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Practice" }).click();
   await expect(page.getByRole("link", { name: /The ACK that wouldn't move/ }).locator(".state-pill")).toHaveText("Completed");
   await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".state-pill")).toHaveText("Completed");
-  await page.getByRole("link", { name: "Prefer to build freely? Open the network playground →" }).click();
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 
   expect(errors).toEqual([]);
