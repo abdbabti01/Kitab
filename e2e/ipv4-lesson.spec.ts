@@ -75,7 +75,8 @@ test("predictions run in the scene: specific feedback, retry, show the answer, a
   // Progress only notes the steps seen, as for any lesson: no score, no mastery and no record of the answers.
   const after = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.learning.v1")!).lessons["ipv4-subnets"]);
   expect(Object.keys(after).sort()).toEqual(Object.keys(JSON.parse(before!).lessons["ipv4-subnets"]).sort());
-  expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual(["kitab.learning.v1"]);
+  // Besides the lesson record, only the visit store (which pages were opened) is written.
+  expect(await page.evaluate(() => Object.keys(localStorage).sort())).toEqual(["kitab.learning.v1", "kitab.visits.v1"]);
 });
 
 test("invalid addresses keep the learner's text and aren't applied; the slider and presets change the prefix", async ({ page }) => {
