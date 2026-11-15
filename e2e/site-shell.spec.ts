@@ -31,7 +31,7 @@ test("every page shares one navigation, marks its section by its role in the cou
   }
   await nav.getByRole("link", { name: "Learn" }).click();
   await expect(page).toHaveURL(/\/learn$/);
-  await expect(page.getByRole("heading", { name: "Networking path" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "The roadmap" })).toBeVisible();
   // Home's old anchors open their pages.
   await page.goto("/#concepts");
   await expect(page).toHaveURL(/\/learn\/library$/);
