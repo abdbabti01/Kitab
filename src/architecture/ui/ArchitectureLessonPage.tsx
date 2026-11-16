@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, FlaskConical, Play, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps, navigate } from "../../app/router.ts";
@@ -15,8 +15,8 @@ import { Inspector } from "./Inspector.tsx";
 import { RunView, type TimelineFocus } from "./SimulationPanel.tsx";
 import { useRunPlayback } from "./useRun.ts";
 import { validateDesign } from "../validate.ts";
-import { findConceptUnit } from "../concepts/index.ts";
-import { ConceptUnitPage } from "./ConceptUnitPage.tsx";
+// Concept units are text-heavy: their page loads only when one is opened.
+const ConceptUnitRoute = lazy(() => import("./ConceptUnitPage.tsx").then((m) => ({ default: m.ConceptUnitRoute })));
 import "./architecture.css";
 
 /** The lesson's experiment: pick a design and a rate, run it in the simulator, and play the run back. */
@@ -128,6 +128,5 @@ export function ArchitectureLessonPage({ lesson }: { lesson: ArchitectureLesson 
 export function ArchitectureLessonRoute({ id, notFound }: { id: string; notFound: ReactNode }) {
   const lesson = findArchitectureLesson(id);
   if (lesson) return <ArchitectureLessonPage key={lesson.id} lesson={lesson} />;
-  const unit = findConceptUnit(id);
-  return unit ? <ConceptUnitPage key={unit.id} unit={unit} /> : <>{notFound}</>;
+  return <ConceptUnitRoute id={id} notFound={notFound} />;
 }

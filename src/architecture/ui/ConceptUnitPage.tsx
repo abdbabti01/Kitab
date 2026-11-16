@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { findConceptUnit } from "../concepts/index.ts";
 import { ArrowRight, CircleCheck, CircleX, FlaskConical } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps } from "../../app/router.ts";
-import { locate } from "../../learning/tracks.ts";
-import { labPath } from "../catalog.ts";
-import { findLab } from "../labs/index.ts";
+import { findTrackActivity, locate } from "../../learning/tracks.ts";
+import { labCatalog, labPath } from "../catalog.ts";
 import { loadLabProgress, recordConceptCheck } from "../labs/progress.ts";
 import { judgeDecision, unitCheckIds, type Concept, type ConceptUnit, type Decision } from "../concepts/types.ts";
 import "./architecture.css";
@@ -46,7 +46,7 @@ function Check({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept:
 }
 
 function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept: Concept; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
-  const lab = concept.lab ? findLab(concept.lab) : undefined;
+  const lab = concept.lab ? labCatalog.find((l) => l.id === concept.lab) : undefined;
   return (
     <article id={concept.id} className="concept" aria-labelledby={`${concept.id}-title`}>
       <h2 id={`${concept.id}-title`}>{concept.title}</h2>
@@ -129,6 +129,11 @@ function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right
 }
 
 /** /learn/system-design/:id for a concept unit: every concept, its check, then the unit's labs. */
+export function ConceptUnitRoute({ id, notFound }: { id: string; notFound: ReactNode }) {
+  const unit = findConceptUnit(id);
+  return unit ? <ConceptUnitPage key={unit.id} unit={unit} /> : <>{notFound}</>;
+}
+
 export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
   const storage = safeStorage();
   const [record, setRecord] = useState(() => loadLabProgress(storage).units[unit.id]);
@@ -170,8 +175,8 @@ export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
           <p>Reading completes the lesson; mastery comes from the lab: predict the failure, fix it for every scenario, and explain why the fix works.</p>
           <ul className="unit-labs">
             {unit.labs.map((id) => {
-              const lab = findLab(id)!;
-              return <li key={id}><a {...linkProps(labPath(id))}><b><FlaskConical aria-hidden="true" className="inline-icon" /> {lab.title}</b><small>{lab.summary}</small></a></li>;
+              const lab = findTrackActivity(`lab:${id}`)!;
+              return <li key={id}><a {...linkProps(labPath(id))}><b><FlaskConical aria-hidden="true" className="inline-icon" /> {lab.title}</b><small>{lab.detail}</small></a></li>;
             })}
           </ul>
         </section>
