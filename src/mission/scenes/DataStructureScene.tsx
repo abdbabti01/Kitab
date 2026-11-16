@@ -2,6 +2,7 @@ import { ArrowRight, Hash } from "lucide-react";
 import { complexityTable, structureInfo, type StructureItem, type StructureSnapshot } from "../../visual-engine/data-structures/model.ts";
 import type { DataStructureFrameData } from "../../learning/engines/data-structures.ts";
 import type { Trace } from "../../learning/types.ts";
+import { TableScroll } from "../../ui/TableScroll.tsx";
 import { entity, SceneSection, type SceneProps } from "./common.tsx";
 
 type Props = SceneProps<DataStructureFrameData>;
@@ -233,20 +234,24 @@ function Scene(props: Props) {
 function Reference({ trace }: { trace: Trace<DataStructureFrameData> }) {
   const kind = trace.frames[0].data.kind;
   const row = { array: "Array", "linked-list": "Linked list", stack: "Stack / queue", queue: "Stack / queue", "hash-table": "Hash table", "binary-tree": "Balanced BST", graph: "Graph adjacency list" }[kind];
+  // The footnote sits outside the table: a caption is as wide as the table, so it would scroll out of view with it.
   return (
-    <div className="table-wrap">
-      <table className="complexity">
-        <caption>Typical costs. Linked-list insert/remove are O(1) only once the position is known.</caption>
-        <thead><tr><th scope="col">Structure</th><th scope="col">Access</th><th scope="col">Search</th><th scope="col">Insert</th><th scope="col">Remove</th></tr></thead>
-        <tbody>
-          {complexityTable.map((item) => (
-            <tr className={item.structure === row ? "is-current" : ""} key={item.structure}>
-              <th scope="row">{item.structure}</th><td>{item.access}</td><td>{item.search}</td><td>{item.insert}</td><td>{item.remove}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <TableScroll label="Complexity of each structure">
+        <table className="complexity">
+          <caption>Typical cost of each operation</caption>
+          <thead><tr><th scope="col">Structure</th><th scope="col">Access</th><th scope="col">Search</th><th scope="col">Insert</th><th scope="col">Remove</th></tr></thead>
+          <tbody>
+            {complexityTable.map((item) => (
+              <tr className={item.structure === row ? "is-current" : ""} key={item.structure}>
+                <th scope="row">{item.structure}</th><td>{item.access}</td><td>{item.search}</td><td>{item.insert}</td><td>{item.remove}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
+      <p className="complexity-note">* Linked-list insert and remove are O(1) only once the position is known.</p>
+    </>
   );
 }
 
