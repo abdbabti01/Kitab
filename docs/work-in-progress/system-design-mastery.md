@@ -39,15 +39,18 @@ mastery challenges. UNDERSTAND → OBSERVE → FIX → MASTER. Reading or openin
 
 - [x] P0 slice 1: lab kernel, progress store, lab page UI, idempotent payments lab, track wiring, tests (19df229)
 - [x] P0 slice 2: retry storm (backoff/jitter), retries across layers (timeouts/deadlines), circuit breaker + bulkhead (df37ccf)
-- [x] P0 slice 3: lost update, duplicate delivery, hot partition; transactions + messaging units
-- [ ] P1: outbox, saga, replication lag, cache stampede, hot partition, fencing tokens, rate limiting
-- [ ] P1/P2: concept units (idempotency, resilience, overload, transactions, messaging, data across services,
-      consistency, coordination, performance, security, production)
-- [ ] Docs, e2e, full verification, report
+- [x] P0 slice 3: lost update, duplicate delivery, hot partition; transactions + messaging units (a03e066)
+- [x] P1: outbox + saga (63c6d35), replication lag (58f91f9), fencing (89828af), cache stampede (4ea6389),
+      rate limiting (ce5028c); their concept units
+- [x] P2: security and production units with design decisions (059ae36)
+- [x] e2e/architecture-labs.spec.ts (a28d590), docs (ced7d6b), lazy-loaded concept units (22a3671)
+- [ ] Full Playwright suite on all projects, then the final report
 
 ## Status
 
-Phase: P1 (outbox, saga, replication lag, cache stampede, fencing, rate limiting). Baseline 531/531 on b4dbcb8; 553/553 at df37ccf.
+13 labs, 11 concept units (76 concepts), 4 decisions. `npm run build` passes (590 unit tests, typechecks, Vite).
+New spec: 32/32 across desktop, laptop, tablet, phone. Bundle: index 527 → 538 kB (+3.4 kB gzip); lab and concept
+pages are lazy (59 kB and 66 kB gzip). Remaining: full e2e run and report.
 
 How labs are tuned: `tests/support/lab-designs.ts` lists passing designs and wrong designs with the exact
 checks they must fail. Explore a lab with a scratch script that runs `evaluateLab` over candidate configs.
