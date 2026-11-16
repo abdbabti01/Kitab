@@ -48,7 +48,7 @@ src/learning/lessons/          lesson schema, runtime (steps bound to frames), n
 src/mission/MissionPage.tsx    generic shell (no topic branches)
 src/mission/scenes/            one scene module per engine id (+ optional Reference)
 src/mission/{PhasePanel,Playback,Inspector,KitabGuide,KitabAvatar,motion}.tsx
-src/lesson/LessonPage.tsx      generic walkthrough page (levels, chapters, scene, explanation, Kitab)
+src/lesson/LessonPage.tsx      generic walkthrough page (one step sequence, chapter outline, level marker, scene, Kitab)
 src/app/                       router (History API, legacy redirects), home, concept, draft pages
 src/ui/                        shared tokens, learning controls and reading walkthrough
 worker/                        index (routes) · generation · tutor · feedback · quota · ai · http · env
@@ -119,6 +119,13 @@ kernel: one event stream per run, facts folded from it, checks per scenario, mas
 explanation in one attempt (`kitab.architecture.labs.v1`). Concept units (`src/architecture/concepts/`) are reviewed
 lesson content with a check per concept. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact models and
 their limits.
+
+## Lessons
+
+Track → Unit → Lesson → Step, with one control that moves through a lesson (its Previous / Next) and one way on
+from every activity (its closing "Next step"). The course bar is context only; chapters are an outline and levels a
+marker. Shared pieces live in `src/ui/LessonShell.tsx`. Stored progress is unchanged. See
+[docs/LESSON-EXPERIENCE.md](docs/LESSON-EXPERIENCE.md).
 
 ## Playgrounds
 

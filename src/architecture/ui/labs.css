@@ -133,7 +133,7 @@
 .unit-labs a { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--feature); color: var(--feature-text); text-decoration: none; }
 .unit-labs a:hover { border-color: var(--accent); }
 .unit-labs small { color: var(--feature-muted); }
-.unit-progress { font-weight: 600; color: var(--ink-2); }
+.unit-progress { margin-top: 10px; font-size: 0.92rem; font-weight: 600; color: var(--ink-2); }
 
 @media (max-width: 900px) {
   .lab-fix { grid-template-columns: minmax(0, 1fr); }

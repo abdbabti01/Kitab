@@ -152,12 +152,8 @@ export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
         <h1>{unit.title}</h1>
         <p className="section-lead">{unit.summary}</p>
       </header>
-      <section className="lesson-goals" aria-labelledby="goals-title">
-        <h2 id="goals-title">You'll be able to</h2>
-        <ul>{unit.objectives.map((o) => <li key={o}>{o}</li>)}</ul>
-      </section>
-      <section className="lesson-section">{unit.intro.map((p) => <p key={p}>{p}</p>)}</section>
-      {/* Where the learner is: the checks answered right, and the lesson's concepts as an outline to jump to. */}
+      {/* Where the learner is, right under the title as in every lesson: the checks answered right, and the concepts
+          as an outline to jump to. */}
       <div className="lesson-where unit-where">
         <LessonProgress label={`${right} of ${ids.length} checks answered right`} value={right} max={ids.length} />
         <LessonOutline
@@ -171,6 +167,11 @@ export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
         />
       </div>
       <p className="unit-progress" role="status">{record?.completedAt ? `Lesson complete: all ${ids.length} checks answered right.` : `Answer every check${unit.decisions?.length ? " and decision" : ""} to complete the lesson.`}</p>
+      <section className="lesson-goals" aria-labelledby="goals-title">
+        <h2 id="goals-title">You'll be able to</h2>
+        <ul>{unit.objectives.map((o) => <li key={o}>{o}</li>)}</ul>
+      </section>
+      <section className="lesson-section">{unit.intro.map((p) => <p key={p}>{p}</p>)}</section>
       {unit.concepts.map((c) => <ConceptCard key={c.id} unit={unit} concept={c} right={record?.answers[c.id]?.correct} onAnswer={(ok) => answer(c.id, ok)} />)}
       {unit.decisions?.map((d) => <DecisionCard key={d.id} decision={d} right={record?.answers[`decision:${d.id}`]?.correct} onAnswer={(ok) => answer(`decision:${d.id}`, ok)} />)}
       {unit.labs.length > 0 && (
