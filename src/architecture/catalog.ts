@@ -31,6 +31,7 @@ export const unitCatalog = [
   { id: "consistency", title: "Replication and consistency" },
   { id: "coordination", title: "Consensus, leaders and locks" },
   { id: "performance", title: "Performance and caching at scale" },
+  { id: "overload", title: "Rate limiting, backpressure and load shedding" },
 ] as const;
 
 export const labCatalog = [
@@ -46,6 +47,7 @@ export const labCatalog = [
   { id: "replication-lag", title: "Scale reads without stale surprises", version: "1" },
   { id: "fencing-token", title: "Make a distributed lock safe", version: "1" },
   { id: "cache-stampede", title: "Handle a cache stampede", version: "1" },
+  { id: "rate-limit", title: "Protect an API from overload", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

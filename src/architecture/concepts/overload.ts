@@ -1,0 +1,126 @@
+import type { ConceptUnit } from "./types.ts";
+
+export const overloadUnit: ConceptUnit = {
+  id: "overload",
+  title: "Rate limiting, backpressure and load shedding",
+  summary: "What to do when more work arrives than a system can do: limit each client, push back on producers, and refuse early rather than queue forever.",
+  objectives: [
+    "Compare fixed-window, sliding-window and token-bucket rate limiters, and size a limit from real traffic.",
+    "Explain backpressure, and why unbounded queues turn overload into outages.",
+    "Use load shedding and admission control to keep latency bounded and goodput high.",
+    "Prioritise work so that the important requests survive an overload.",
+  ],
+  intro: [
+    "Every system has a capacity, and sooner or later demand exceeds it: a scraper, a marketing email, a retry storm, a dependency slowing down. A system without a plan for overload doesn't degrade; it queues everything, answers nothing in time, and falls over. A plan for overload decides, explicitly, what to refuse.",
+  ],
+  concepts: [
+    {
+      id: "rate-limiting",
+      title: "Rate limiting",
+      plain: "A rate limiter caps how many requests a client (an API key, a user, an IP) may make in a period; requests over the limit get a quick refusal (HTTP 429), not service.",
+      why: "Capacity is shared. Without per-client limits, one buggy integration or scraper can take all of it, and everyone else waits.",
+      example: "A public API allows each key 100 requests per minute with bursts of 20; responses carry RateLimit headers (and Retry-After on 429) so well-behaved clients slow down.",
+      mechanism: [
+        "Fixed window: count per calendar period. Simple, but a client can send its full limit at the end of one window and again at the start of the next: twice the limit in a moment.",
+        "Sliding window: count the last T seconds (a log of timestamps, or an approximation weighting the previous window). No boundary burst.",
+        "Token bucket: tokens refill at rate r up to a capacity b; each request takes one. Allows bursts up to b and an average of r. The leaky bucket shapes output to a steady rate.",
+        "Across many servers, counters live in a shared store (Redis) or are approximated per node; exactness costs a round trip per request.",
+        "Size limits from real clients: their average rate and their legitimate bursts (a page load firing a dozen calls).",
+      ],
+      failure: "A limit tuned on averages that rejects normal page loads (bursts), or a fixed window that lets a client double its contracted rate around every boundary.",
+      solution: "Token bucket or sliding window per client, sized from measured behaviour, with informative 429 responses; enforce at the edge (gateway).",
+      tradeoffs: ["Exact distributed limits need shared state on every request; local approximations allow some overshoot."],
+      avoid: ["Rate limiting alone doesn't protect against overload from many legitimate clients: that needs shedding."],
+      check: {
+        prompt: "A fixed window allows 100 requests per minute. What's the most a client can get through in a few seconds?",
+        options: [
+          { text: "100.", why: "Around a boundary, two windows' worth fit in a short span." },
+          { text: "About 200: 100 at the end of one window and 100 at the start of the next.", correct: true, why: "Right. That's the boundary problem sliding windows and token buckets avoid." },
+          { text: "1.67, the per-second average.", why: "Fixed windows don't spread the allowance." },
+        ],
+      },
+      lab: "rate-limit",
+    },
+    {
+      id: "backpressure",
+      title: "Backpressure and bounded queues",
+      plain: "Backpressure is a consumer telling producers to slow down when it can't keep up, instead of silently accumulating work. Bounded queues are how it starts: when the queue is full, the producer has to wait or be told no.",
+      why: "An unbounded queue hides overload: memory grows, latency grows, and by the time anyone notices, the work in the queue is too old to matter.",
+      example: "A reactive stream signals demand (“send me 64 more”); TCP's receive window stops a fast sender; a message queue with a maximum depth makes publishers block or fail; Kafka consumers simply fall behind and alert on lag.",
+      mechanism: [
+        "Bound every queue and buffer; decide what happens when it's full: block the producer, refuse, or drop the oldest.",
+        "Propagate the signal upstream: a blocked producer slows its own intake, until the edge refuses new work (429/503).",
+        "Measure queue depth and age; a queue whose age exceeds what callers will wait is wasted work.",
+      ],
+      failure: "An in-memory queue in front of a slow dependency grows to millions of items; the process runs out of memory and loses all of them.",
+      solution: "Bounded queues everywhere, backpressure signals that reach the producer, and alerts on depth and age.",
+      tradeoffs: ["Blocking producers couples their availability to the consumer; refusing pushes the problem to callers (which is usually right)."],
+      avoid: ["Don't use backpressure where data must never be refused (orders): accept them durably first, then process at the consumer's pace."],
+      check: {
+        prompt: "Why is an unbounded in-memory queue dangerous under overload?",
+        options: [
+          { text: "It grows until memory runs out, and its items wait so long they're useless when served.", correct: true, why: "Right. It turns a slowdown into an outage and loses everything queued." },
+          { text: "It's slower than a bounded one.", why: "Speed isn't the problem; growth is." },
+          { text: "It reorders items.", why: "A FIFO queue keeps order; the risk is size and age." },
+        ],
+      },
+    },
+    {
+      id: "load-shedding",
+      title: "Load shedding",
+      plain: "When a server is past capacity, it refuses some requests at once, cheaply, so that the ones it accepts are served in time.",
+      why: "Past capacity, someone isn't served either way. Queuing everything makes everyone wait until they give up, so the server ends up finishing work for no one.",
+      example: "A service tracks how long requests have waited; when the queue holds more than 200 ms of work, new requests get an immediate 503. Users retrying in a few seconds get through; nobody waits ten seconds for a timeout.",
+      mechanism: [
+        "Shed by queue length or, better, by expected or observed wait (queue time), so the threshold tracks real speed.",
+        "Shedding must be cheap: decide before doing expensive work (parsing, authentication, database calls).",
+        "Drop requests that have already waited longer than their caller's deadline; serve last-in-first-out under overload to favour callers still waiting (a technique some large services use).",
+        "Pair it with client backoff, or shed requests come straight back as a retry storm.",
+      ],
+      failure: "A server with a 5,000-deep queue during a spike: latency climbs to seconds, every client times out and retries, goodput falls to nearly zero.",
+      solution: "Bounded queues by wait time, early cheap rejection, deadline-aware dequeuing, and clients that back off on 503.",
+      tradeoffs: ["Users see explicit errors sooner; in exchange, the system stays useful for the rest."],
+      avoid: ["Not a substitute for capacity: chronic shedding means you need more of it."],
+      check: {
+        prompt: "Demand is 600 requests a second; capacity is 400. What does shedding achieve?",
+        options: [
+          { text: "Everyone gets served, just more slowly.", why: "Only 400 a second can be served regardless." },
+          { text: "About 400 a second are served quickly and the rest are refused at once, instead of everyone waiting until they give up.", correct: true, why: "Right. It protects latency and goodput for what can be served." },
+          { text: "It increases capacity.", why: "Capacity is unchanged; shedding decides who gets it." },
+        ],
+      },
+      lab: "rate-limit",
+    },
+    {
+      id: "admission-priority",
+      title: "Admission control and priorities",
+      plain: "Not all work is equally important. Under overload, admit the critical requests first and shed the optional ones.",
+      why: "Shedding at random drops checkouts and analytics pings alike. Users care far more about some requests than others.",
+      example: "During a spike, a shop keeps checkout and payment at full priority, serves product pages from cache, and drops recommendation and tracking requests.",
+      mechanism: [
+        "Tag requests with a priority (by endpoint, by client tier) at the edge, and propagate it downstream.",
+        "Shed from the lowest priority first; reserve capacity for critical traffic (a bulkhead per priority).",
+        "Health and control traffic (load balancer checks, deploy tooling) gets its own capacity so the system stays manageable.",
+      ],
+      failure: "A batch export from one customer, sent at normal priority, crowds out interactive requests for all customers.",
+      solution: "Classify traffic, admit by priority under pressure, and keep separate quotas for batch and interactive work.",
+      tradeoffs: ["Priority schemes add policy to maintain, and low-priority work can starve during long overloads."],
+      avoid: ["Don't let clients choose their own priority without authorisation."],
+      check: {
+        prompt: "Under overload, which request should be shed first?",
+        options: [
+          { text: "Submitting a payment.", why: "That's the request the business depends on." },
+          { text: "A health check from the load balancer.", why: "Shedding it may get the server removed from rotation, making things worse." },
+          { text: "Refreshing a recommendations widget.", correct: true, why: "Right. Optional features go first." },
+        ],
+      },
+    },
+  ],
+  labs: ["rate-limit"],
+  takeaways: [
+    "Limit each client with a token bucket or sliding window sized from real traffic.",
+    "Bound every queue; let backpressure reach the producer.",
+    "Past capacity, refuse early and cheaply so accepted work is served in time.",
+    "Shed the least important work first.",
+  ],
+};

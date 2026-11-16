@@ -83,6 +83,13 @@ export const systemDesignPath: Stage[] = [
     ],
   },
   {
+    id: "overload",
+    title: "Rate limiting, backpressure and load shedding",
+    objective: "Per-client rate limiting algorithms, bounded queues and backpressure, load shedding and priorities when demand exceeds capacity.",
+    learn: [sdUnit("overload", "What to refuse, and when, so a system stays useful past its capacity.")],
+    practise: [sdLab("rate-limit", "A scraper, a bursty partner and a viral spike: keep the API useful for real users.", ["sd:overload"])],
+  },
+  {
     id: "messaging",
     title: "Messaging and event streams",
     objective: "Queues and logs, Kafka partitions and consumer groups, delivery guarantees, idempotent consumers, ordering, dead letters and schema evolution.",

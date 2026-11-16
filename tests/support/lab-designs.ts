@@ -178,4 +178,18 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "too little jitter for 200 keys", config: { coalesce: "global", refresh: "stale", jitterPercent: 40 }, failing: ["mass-expiry:db"] },
     ],
   },
+  "rate-limit": {
+    pass: [
+      { limiter: "sliding", shedMs: 200 },
+      { limiter: "token", rate: 10, burst: 20, shedMs: 200 },
+      { limiter: "fixed", rate: 15, shedMs: 200 },
+    ],
+    fail: [
+      { why: "a fixed window lets the partner double its limit around each boundary", config: { limiter: "fixed", shedMs: 200 }, failing: ["boundary:partner"] },
+      { why: "limits without shedding: genuine overload still makes everyone wait", config: { limiter: "sliding" }, failing: ["viral:fast", "viral:nobody-waits-in-vain"] },
+      { why: "shedding alone: the scraper takes most of what's accepted", config: { shedMs: 200 }, failing: ["scraper:users", "scraper:share", "boundary:users", "boundary:partner"] },
+      { why: "a bucket smaller than a page load rate-limits normal users", config: { limiter: "token", rate: 5, burst: 8, shedMs: 200 }, failing: ["scraper:users", "boundary:users"] },
+      { why: "a queue allowed to hold 500 ms of work is too long for p99", config: { limiter: "token", rate: 10, burst: 20, shedMs: 500 }, failing: ["viral:fast"] },
+    ],
+  },
 };
