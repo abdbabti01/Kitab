@@ -1,9 +1,10 @@
 /* Data Structures & Recursion Playground. A lab page (.lab-page, .lab-theme): shared tokens only. */
 .sp-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
-.sp-side, .sp-main { display: grid; gap: 16px; min-width: 0; align-content: start; }
+/* Single-column grids take their container's width; a wide child (the complexity table) scrolls inside it. */
+.sp-side, .sp-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; align-content: start; }
 .sp-main { display: contents; }
 .sp-panel, .sp-stage { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
-.sp-panel { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.sp-panel { padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; }
 .sp-panel h2 { margin: 0; font-size: 1.05rem; }
 .sp-stage { overflow: hidden; box-shadow: 0 20px 60px rgb(2 8 23 / 0.35); }
 .sp-op { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 600 0.86rem/1.4 var(--mono); color: var(--primary-strong); }
@@ -45,7 +46,6 @@
 .sp-details summary { cursor: pointer; font-weight: 650; min-height: 32px; }
 .sp-details .facts { margin: 8px 0; }
 .sp-limits { margin: 0; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
-.structures-playground .table-wrap { overflow-x: auto; }
 
 @media (max-width: 1279px) {
   .sp-layout { grid-template-columns: 290px minmax(0, 1fr); }

@@ -99,3 +99,65 @@ test("visiting and using the Playground records no progress", async ({ page }) =
   expect(await storage(page)).toBe(before);
   await expect(page.locator(".track-meter")).toContainText("0 of 9");
 });
+
+// Window widths, and browser zoom as Chrome applies it: a CSS viewport of window ÷ zoom at a matching pixel ratio.
+const sizes = [
+  { name: "desktop 1440", width: 1440, scale: 1 },
+  { name: "laptop 1280", width: 1280, scale: 1 },
+  { name: "laptop 1024", width: 1024, scale: 1 },
+  { name: "tablet 768", width: 768, scale: 1 },
+  { name: "phone 390", width: 390, scale: 3 },
+  { name: "phone 320", width: 320, scale: 2 },
+  { name: "1440 at 125%", width: 1152, scale: 1.25 },
+  { name: "1440 at 150%", width: 960, scale: 1.5 },
+  { name: "1280 at 200%", width: 640, scale: 2 },
+];
+
+test("the complexity table stays inside the explanation panel and scrolls on its own to its last column", async ({ browser, baseURL }, info) => {
+  test.skip(info.project.name !== "desktop-1440", "sets its own viewport and zoom for every size");
+  for (const size of sizes) {
+    const context = await browser.newContext({ baseURL, viewport: { width: size.width, height: 900 }, deviceScaleFactor: size.scale });
+    const page = await context.newPage();
+    await page.goto("/practice/structures");
+    await page.getByText("Complexity of each structure").click();
+    const region = page.getByRole("region", { name: "Complexity of each structure" });
+    await expect(region).toBeVisible();
+    // A table with a caption and header cells, in a keyboard-reachable scroller.
+    await expect(region.locator("table caption")).toHaveText("Typical cost of each operation");
+    await expect(region.locator('th[scope="col"]')).toHaveCount(5);
+    await expect(region).toHaveAttribute("tabindex", "0");
+
+    const box = (selector: string) => page.locator(selector).first().evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right };
+    });
+    const at = `${size.name}`;
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), `page scrolls sideways at ${at}`).toBeLessThanOrEqual(0);
+    const panel = await box(".sp-explain");
+    // The scroller and its neighbours stay within the panel.
+    for (const selector of [".table-scroll", ".sp-explain details:first-of-type summary", ".sp-explain details:last-of-type summary", ".complexity-note", ".sp-limits"]) {
+      const b = await box(selector);
+      expect(b.left, `${selector} starts before the panel at ${at}`).toBeGreaterThanOrEqual(panel.left - 0.5);
+      expect(b.right, `${selector} ends past the panel at ${at}`).toBeLessThanOrEqual(panel.right + 0.5);
+    }
+
+    // The last column is reachable from the keyboard alone, then fully readable inside the scroller.
+    const overflowing = await region.evaluate((el) => el.scrollWidth > el.clientWidth);
+    if (overflowing) {
+      await region.focus();
+      await expect.poll(async () => {
+        await page.keyboard.press("ArrowRight");
+        return region.evaluate((el) => Math.ceil(el.scrollLeft + el.clientWidth) >= el.scrollWidth);
+      }, { message: `keyboard reaches the end of the table at ${at}` }).toBe(true);
+    }
+    const scroller = await box(".table-scroll");
+    for (const cell of ["table.complexity thead th:last-child", "table.complexity tbody tr:last-child td:last-child"]) {
+      const b = await box(cell);
+      expect(b.left, `last column hidden at ${at}`).toBeGreaterThanOrEqual(scroller.left - 0.5);
+      expect(b.right, `last column cut off at ${at}`).toBeLessThanOrEqual(scroller.right + 0.5);
+    }
+    await expect(page.locator("table.complexity thead th:last-child")).toHaveText("Remove");
+    await expect(page.locator("table.complexity tbody tr:last-child td:last-child")).toHaveText("Depends");
+    await context.close();
+  }
+});
