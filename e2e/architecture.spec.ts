@@ -190,6 +190,22 @@ test("a challenge: the starter fails its checks, a cache passes, and progress sh
   await expect(page.locator("#unit-storage-caching .status-chip")).toContainText(["Completed"]);
 });
 
+test("a challenge keeps an edit made just before the page is left", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/practice/architecture/challenges/cache-read-heavy");
+  await expect(nodes(page)).toHaveCount(3);
+  await add(page, "Cache");
+  await expect(nodes(page)).toHaveCount(4);
+  // Leave at once, well inside the autosave's 400 ms wait.
+  await page.reload();
+  await expect(nodes(page)).toHaveCount(4);
+  await add(page, "Message queue");
+  await page.goto("/learn/system-design");
+  await page.goBack();
+  await expect(page.locator("[data-node=queue-1]")).toHaveCount(1);
+});
+
 test("a lesson experiment runs in the simulator and counts the lesson as done", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());

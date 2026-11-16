@@ -62,12 +62,25 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
   useEffect(() => {
     document.title = `${challenge.title} · Design challenge · Kitab`;
   }, [challenge]);
-  // The working design is kept on this device, so the challenge reopens where it was left.
+  // The working design is kept on this device, so the challenge reopens where it was left: shortly after the
+  // last edit, and at once when the page is hidden or left (a debounced save alone loses the last edit).
+  const unsaved = useRef<Design | null>(null);
+  const keep = () => {
+    if (!unsaved.current) return;
+    const progress = saveChallengeDesign(storage, challenge.id, challenge.version, unsaved.current);
+    unsaved.current = null;
+    setRecord(challengeRecordFor(progress, challenge.id, challenge.version));
+  };
   useEffect(() => {
     if (opened.current) return void (opened.current = false);
-    const timer = setTimeout(() => setRecord(challengeRecordFor(saveChallengeDesign(storage, challenge.id, challenge.version, design), challenge.id, challenge.version)), 400);
+    unsaved.current = design;
+    const timer = setTimeout(keep, 400);
     return () => clearTimeout(timer);
   }, [design]);
+  useEffect(() => {
+    window.addEventListener("pagehide", keep);
+    return () => (window.removeEventListener("pagehide", keep), keep());
+  }, []);
   useEffect(() => setResult(null), [design]);
   // Move to the results once they are shown, so they are read out.
   useEffect(() => {
@@ -82,6 +95,7 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
 
   const check = () => {
     setChecking(true);
+    keep();
     setTimeout(() => {
       const evaluation = evaluate(challenge, design);
       setResult(evaluation);
