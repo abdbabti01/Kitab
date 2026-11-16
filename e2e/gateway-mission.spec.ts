@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { goToChapter } from "./lesson.ts";
 
 // "Gateway or direct?": every MAC address comes from a simulator run; wrong choices get their mistake explained with
 // this version's own values; mastery needs two different versions; just watching earns nothing.
@@ -97,7 +98,7 @@ test("the engine loads on demand; a failed download shows an accessible error an
 
 test("Lesson 2 ends in the lab: its networks, the practice mission and the lab missions", async ({ page }) => {
   await fresh(page, "/learn/local-delivery-routing");
-  await page.locator(".chapter-pill", { hasText: "Try it in the lab" }).click();
+  await goToChapter(page, "Try it in the lab");
   await expect(page.locator("#step-title")).toHaveText("Try it in the lab");
   const starters = page.locator(".ld-starters");
   await expect(starters.getByRole("link")).toHaveCount(3);

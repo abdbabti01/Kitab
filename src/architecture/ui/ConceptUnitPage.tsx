@@ -3,6 +3,7 @@ import { findConceptUnit } from "../concepts/index.ts";
 import { ArrowRight, CircleCheck, CircleX, FlaskConical } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps } from "../../app/router.ts";
+import { LessonOutline, LessonProgress } from "../../ui/LessonShell.tsx";
 import { findTrackActivity, locate } from "../../learning/tracks.ts";
 import { labCatalog, labPath } from "../catalog.ts";
 import { loadLabProgress, recordConceptCheck } from "../labs/progress.ts";
@@ -151,22 +152,26 @@ export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
         <h1>{unit.title}</h1>
         <p className="section-lead">{unit.summary}</p>
       </header>
+      {/* Where the learner is, right under the title as in every lesson: the checks answered right, and the concepts
+          as an outline to jump to. */}
+      <div className="lesson-where unit-where">
+        <LessonProgress label={`${right} of ${ids.length} checks answered right`} value={right} max={ids.length} />
+        <LessonOutline
+          label="Concepts in this lesson"
+          doneLabel="answered right"
+          summary={<><b>{unit.concepts.length} concepts</b>{unit.decisions?.length ? ` and ${unit.decisions.length} decisions` : ""}, each with a check</>}
+          items={[
+            ...unit.concepts.map((c) => ({ id: c.id, title: c.title, href: `#${c.id}`, state: record?.answers[c.id]?.correct ? ("done" as const) : ("todo" as const) })),
+            ...(unit.decisions ?? []).map((d) => ({ id: `decision-${d.id}`, title: `Decision: ${d.title}`, href: `#decision-${d.id}`, state: record?.answers[`decision:${d.id}`]?.correct ? ("done" as const) : ("todo" as const) })),
+          ]}
+        />
+      </div>
+      <p className="unit-progress" role="status">{record?.completedAt ? `Lesson complete: all ${ids.length} checks answered right.` : `Answer every check${unit.decisions?.length ? " and decision" : ""} to complete the lesson.`}</p>
       <section className="lesson-goals" aria-labelledby="goals-title">
         <h2 id="goals-title">You'll be able to</h2>
         <ul>{unit.objectives.map((o) => <li key={o}>{o}</li>)}</ul>
       </section>
       <section className="lesson-section">{unit.intro.map((p) => <p key={p}>{p}</p>)}</section>
-      <nav aria-label="Concepts in this lesson">
-        <p className="unit-progress" role="status">{record?.completedAt ? `Lesson complete: all ${ids.length} checks answered right.` : `${right} of ${ids.length} checks${unit.decisions?.length ? " and decisions" : ""} answered right. Answer them all to complete the lesson.`}</p>
-        <ul className="concept-nav">
-          {unit.concepts.map((c) => (
-            <li key={c.id}><a href={`#${c.id}`} className={record?.answers[c.id]?.correct ? "is-right" : undefined}>{record?.answers[c.id]?.correct && <CircleCheck aria-hidden="true" className="inline-icon" />}{c.title}</a></li>
-          ))}
-          {unit.decisions?.map((d) => (
-            <li key={d.id}><a href={`#decision-${d.id}`} className={record?.answers[`decision:${d.id}`]?.correct ? "is-right" : undefined}>{record?.answers[`decision:${d.id}`]?.correct && <CircleCheck aria-hidden="true" className="inline-icon" />}Decision: {d.title}</a></li>
-          ))}
-        </ul>
-      </nav>
       {unit.concepts.map((c) => <ConceptCard key={c.id} unit={unit} concept={c} right={record?.answers[c.id]?.correct} onAnswer={(ok) => answer(c.id, ok)} />)}
       {unit.decisions?.map((d) => <DecisionCard key={d.id} decision={d} right={record?.answers[`decision:${d.id}`]?.correct} onAnswer={(ok) => answer(`decision:${d.id}`, ok)} />)}
       {unit.labs.length > 0 && (

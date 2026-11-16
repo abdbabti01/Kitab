@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ArrowLeft, Check, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Crosshair, FlaskConical, Pause, Play, RotateCcw, Send } from "lucide-react";
 import { EngineGate } from "../mission/EngineGate.tsx";
 import { findJourney, findLesson, replacedLessons } from "../learning/lessons/catalog.ts";
 import { findMission } from "../learning/missions/catalog.ts";
 import { loadProgress, missionStatus, safeStorage } from "../learning/progress.ts";
-import { createNav, currentStep, navReducer, restoreNav, visibleSteps, type NavAction, type NavState } from "../learning/lessons/navigation.ts";
+import { createNav, currentStep, navReducer, restoreNav, type NavAction, type NavState } from "../learning/lessons/navigation.ts";
 import { lessonStatus, loadLearning, recordLessonVisit, recordStep, saveLearning, type Learning } from "../learning/lessons/progress.ts";
-import { JOURNEY, checkParam, resolveTrack, safeParams, stepDelta, type ResolvedStep, type Track } from "../learning/lessons/runtime.ts";
+import { JOURNEY, checkParam, resolveTrack, safeParams, stepDelta, type Track } from "../learning/lessons/runtime.ts";
 import type { Lesson } from "../learning/lessons/schema.ts";
 import type { Entity, Fact, FactValue, LearningFrame } from "../learning/types.ts";
 import { askLessonTutor } from "../app/api.ts";
@@ -19,6 +19,7 @@ import { useFlip, useReducedMotion } from "../mission/motion.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
 import type { GuideMood } from "../learning/guide.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
+import { LessonOutline, LessonProgress } from "../ui/LessonShell.tsx";
 import { TermChips, TermFields } from "../ui/Terms.tsx";
 import "./lesson.css";
 
@@ -95,8 +96,6 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const hasTermReference = lesson.glossary.some((term) => term.purpose);
   const termReference = useRef<HTMLDetailsElement>(null);
   const stepIndex = track.steps.indexOf(step);
-  const list = visibleSteps(nav, track);
-  const listIndex = list.indexOf(step);
   const previous = track.steps[stepIndex - 1];
   const following = track.steps[stepIndex + 1];
   const reduced = useReducedMotion();
@@ -105,7 +104,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const levelOf = (id: string) => lesson.levels.find((level) => level.id === id)!;
   const chapter = track.chapters[step.chapterIndex];
   const isJourney = track.id === JOURNEY;
-  const atEnd = listIndex === list.length - 1 || (listIndex < 0 && stepIndex === track.steps.length - 1);
+  const atEnd = stepIndex === track.steps.length - 1;
 
   useEffect(() => {
     document.title = `${lesson.title} · Kitab`;
@@ -225,7 +224,6 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   const status = lessonStatus(learning, lesson, journey.steps.length);
   const record = learning.lessons[lesson.id];
   const seenChapter = (id: string) => isJourney && Boolean(record?.chaptersSeen.includes(id));
-  const nextChapter = track.chapters[step.chapterIndex + 1];
   const mood: GuideMood = tutor.status === "pending" ? "thinking" : attention ? "pointing" : stepIndex === 0 ? "welcoming" : atEnd && isJourney ? "celebrating" : "explaining";
   const Scene = module?.Scene;
   const focusLabels = step.focus.map((id) => entities.get(id)?.label).filter(Boolean);
@@ -239,13 +237,12 @@ function LessonView({ lesson }: { lesson: Lesson }) {
       onBack={() => manual({ type: "BACK" })}
       onNext={() => manual({ type: "NEXT" })}
       onReplay={() => manual({ type: "REPLAY" })}
-      canBack={listIndex > 0 || (listIndex < 0 && stepIndex > 0)}
+      canBack={stepIndex > 0}
       canNext={!atEnd}
       canReplay={replayable}
       auto={auto}
       onAuto={(value) => setAuto(value)}
-      position={`${(listIndex < 0 ? stepIndex : listIndex) + 1} / ${list.length}`}
-      nextLabel={following && following.chapterIndex !== step.chapterIndex && nav.level?.stage !== "explore" ? `Next: ${track.chapters[following.chapterIndex].title}` : "Next"}
+      nextLabel={following && following.chapterIndex !== step.chapterIndex ? `Next: ${track.chapters[following.chapterIndex].title}` : "Next"}
     />
   );
   // Rendered once: beside the diagram in the explanation column, or under it when the layout is stacked.
@@ -271,28 +268,26 @@ function LessonView({ lesson }: { lesson: Lesson }) {
 
   return (
     <main id="main" className="lesson-page">
-      <div className="lesson-top">
+      <header className="lesson-top">
         <LearningHeading eyebrow={`${lesson.topic} · ${isJourney ? "Lesson" : "Experiment"}`} title={isJourney ? lesson.title : track.title} review={lesson.review.status} reviewDetail="computed by Kitab" />
-      </div>
+        <div className="lesson-where">
+          <LessonProgress label={`Step ${stepIndex + 1} of ${track.steps.length}`} value={stepIndex + 1} max={track.steps.length} />
+          <LessonOutline
+            label={isJourney ? "Chapters" : "Experiment chapters"}
+            doneLabel="seen"
+            summary={<>Chapter {step.chapterIndex + 1} of {track.chapters.length}: <b>{chapter.title}</b></>}
+            items={track.chapters.map((item, index) => ({
+              id: item.id,
+              title: item.title,
+              detail: `${item.stepIds.length} step${item.stepIds.length === 1 ? "" : "s"}`,
+              state: index === step.chapterIndex ? "current" : seenChapter(item.id) ? "done" : "todo",
+              onSelect: () => manual({ type: "GOTO_CHAPTER", chapterId: item.id }),
+            }))}
+          />
+          {!isJourney && <button type="button" className="button small-button" onClick={() => manual({ type: "END_EXPERIMENT" })}><ArrowLeft aria-hidden="true" /> Back to the journey</button>}
+        </div>
+      </header>
 
-      <nav className="chapter-strip" aria-label={isJourney ? "Chapters" : "Experiment"}>
-        <ol>
-          {track.chapters.map((item, index) => {
-            const current = index === step.chapterIndex;
-            const recommended = !current && item.id === nextChapter?.id && step.indexInChapter === step.chapterSize - 1;
-            return (
-              <li key={item.id}>
-                <button type="button" className={`chapter-pill ${current ? "is-current" : ""} ${seenChapter(item.id) && !current ? "is-seen" : ""} ${recommended ? "is-recommended" : ""}`} aria-current={current ? "step" : undefined} onClick={() => manual({ type: "GOTO_CHAPTER", chapterId: item.id })}>
-                  <span className="chapter-num" aria-hidden="true">{seenChapter(item.id) && !current ? <Check /> : index + 1}</span>
-                  <span className="chapter-name">{item.title}</span>
-                  {recommended && <span className="chapter-tag">Next</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-        {!isJourney && <button type="button" className="button small-button" onClick={() => manual({ type: "END_EXPERIMENT" })}><ArrowLeft aria-hidden="true" /> Back to the journey</button>}
-      </nav>
 
       {(boot.updated || boot.recovered) && stepIndex === 0 && (
         <p className="lesson-notice" role="status">{boot.updated ? "This lesson was updated since your last visit, so it starts from the beginning." : "Your saved place couldn't be read, so the lesson starts from the beginning."}</p>
@@ -300,30 +295,15 @@ function LessonView({ lesson }: { lesson: Lesson }) {
       <Replacement lesson={lesson} learning={boot.learning} first={stepIndex === 0} />
 
       <div className="lesson-grid">
-        <nav className="level-rail" aria-label="Levels">
-          <p className="rail-title">Levels</p>
-          <ol>
-            {lesson.levels.map((level) => {
-              const now = level.id === step.level;
-              const open = nav.level?.id === level.id;
-              return (
-                <li key={level.id}>
-                  <button type="button" className={`level-button ${now ? "is-now" : ""} ${open ? "is-open" : ""}`} aria-current={now ? "true" : undefined} aria-expanded={open} aria-controls={nav.level ? "level-panel" : undefined} onClick={() => manual(open ? { type: "CLOSE_LEVEL", resume: "return" } : { type: "OPEN_LEVEL", levelId: level.id })}>
-                    <span className="level-name">{level.name}{now && <em className="level-now-tag">Now</em>}</span>
-                    <small>{level.short}</small>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-        </nav>
 
         <section className="stage" aria-labelledby="step-title">
           <div className="stage-head">
-            <p className="step-meta">{isJourney ? `Chapter ${step.chapterIndex + 1} · ${chapter.title}` : chapter.title} · step {step.indexInChapter + 1} of {step.chapterSize}</p>
             {/* The lesson is the page heading; each step is a section of it, so the page title stays put as steps change. */}
             <h2 id="step-title" className="step-title">{step.title}</h2>
-            <p className="step-who"><span className={`level-badge level-${step.level}`}>{levelOf(step.level).name} level</span> <span>Who acts: <b>{step.actor}</b></span></p>
+            <div className="step-who">
+              <LevelScale lesson={lesson} current={step.level} />
+              <span>Who acts: <b>{step.actor}</b></span>
+            </div>
           </div>
           {step.indexInChapter === 0 && <p className="chapter-goal"><b>{chapter.title}.</b> {chapter.goal}</p>}
           {/* The diagram comes first, with the controls that change it attached to its card. */}
@@ -355,6 +335,13 @@ function LessonView({ lesson }: { lesson: Lesson }) {
               </div>
             </details>
           )}
+          <details className="lesson-levels card">
+            <summary>About the levels in this lesson</summary>
+            <p className="muted small">Each step happens at one level. The marker under the step's title shows which one.</p>
+            <dl>
+              {lesson.levels.map((level) => <div key={level.id} className={level.id === step.level ? "is-now" : undefined}><dt>{level.name} <small>{level.short}</small></dt><dd>{level.intro}</dd></div>)}
+            </dl>
+          </details>
           {stepIndex === 0 && isJourney && (
             <details className="scope card" open>
               <summary>About this example</summary>
@@ -366,9 +353,6 @@ function LessonView({ lesson }: { lesson: Lesson }) {
 
         <aside className="explain" aria-label="Explanation">
           {!stacked && controls}
-          {nav.level && (
-            <LevelPanel lesson={lesson} track={track} nav={nav} step={step} onExplore={() => manual({ type: "EXPLORE_LEVEL" })} onClose={(resume) => manual({ type: "CLOSE_LEVEL", resume })} />
-          )}
           {!stacked && stepText}
 
           <ObjectPanel lesson={lesson} entity={selectedEntity} selected={selected} facts={frame.facts} onClear={() => setSelected(null)} />
@@ -384,13 +368,16 @@ function LessonView({ lesson }: { lesson: Lesson }) {
                 <Crosshair aria-hidden="true" /> Show me where
               </button>
             </div>
-            <form className="ask" onSubmit={ask}>
-              <label htmlFor="ask-input">Ask a follow-up question <span className="muted">(optional, uses AI)</span></label>
-              <div className="ask-row">
-                <input id="ask-input" value={question} maxLength={300} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about this step…" autoComplete="off" />
-                <button type="submit" className="icon-button" aria-label="Ask Kitab" disabled={question.trim().length < 3 || tutor.status === "pending"}><Send aria-hidden="true" /></button>
-              </div>
-            </form>
+            <details className="ask-details" open={tutor.status !== "idle" || undefined}>
+              <summary>Ask a follow-up question <span className="muted">(optional, uses AI)</span></summary>
+              <form className="ask" onSubmit={ask}>
+                <label htmlFor="ask-input" className="sr-only">Ask a follow-up question</label>
+                <div className="ask-row">
+                  <input id="ask-input" value={question} maxLength={300} onChange={(event) => setQuestion(event.target.value)} placeholder="Ask about this step…" autoComplete="off" />
+                  <button type="submit" className="icon-button" aria-label="Ask Kitab" disabled={question.trim().length < 3 || tutor.status === "pending"}><Send aria-hidden="true" /></button>
+                </div>
+              </form>
+            </details>
             {tutor.status === "pending" && <p className="guide-source" role="status">Kitab is checking this step…</p>}
             {tutor.status === "answered" && (
               <div className="tutor-answer" role="status">
@@ -411,9 +398,9 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   );
 }
 
-function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto, onAuto, position, nextLabel }: {
+function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto, onAuto, nextLabel }: {
   onBack: () => void; onNext: () => void; onReplay: () => void; canBack: boolean; canNext: boolean; canReplay: boolean;
-  auto: { playing: boolean; speed: number }; onAuto: (value: { playing: boolean; speed: number }) => void; position: string; nextLabel: string;
+  auto: { playing: boolean; speed: number }; onAuto: (value: { playing: boolean; speed: number }) => void; nextLabel: string;
 }) {
   // Publishes the bar's height, so a stacked layout reserves exactly that much room and focus never lands under it.
   const bar = useRef<HTMLDivElement>(null);
@@ -439,12 +426,32 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
       root.removeProperty("--lesson-bar-height");
     };
   }, []);
+  // While the bar is fixed to the bottom of the screen, a focused control must never sit under it. scroll-padding asks
+  // the browser for this, but Chrome does not always scroll an element that is already inside the viewport, so a
+  // control straddling the bar's edge could stay half hidden. Measure after the browser's own scroll, then finish it.
+  useEffect(() => {
+    let frame = 0;
+    const keepClear = (event: FocusEvent) => {
+      const element = bar.current;
+      const target = event.target as HTMLElement | null;
+      if (!element || !target?.getBoundingClientRect || element.contains(target) || getComputedStyle(element).position !== "fixed") return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const overlap = target.getBoundingClientRect().bottom - element.getBoundingClientRect().top + 12;
+        if (overlap > 0 && document.activeElement === target) window.scrollBy({ top: overlap, behavior: "instant" });
+      });
+    };
+    document.addEventListener("focusin", keepClear);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("focusin", keepClear);
+    };
+  }, []);
   return (
     <div className="lesson-controls" role="group" aria-label="Step controls" ref={bar}>
-      <button type="button" className="button" data-control="back" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Back</button>
+      <button type="button" className="button" data-control="back" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Previous</button>
       <button type="button" className="button replay-button" data-control="replay" aria-label="Replay" onClick={onReplay} disabled={!canReplay} title={canReplay ? "Show the previous state, then this change again" : "Nothing moved in this step"}><RotateCcw aria-hidden="true" /> <span className="control-label">Replay</span></button>
       <button type="button" className="button primary next-button" data-control="next" onClick={onNext} disabled={!canNext}><span>{canNext ? nextLabel : "End of this path"}</span> <ChevronRight aria-hidden="true" /></button>
-      <span className="step-position" aria-label={`Step ${position}`}>{position}</span>
       <div className="autoplay">
         <button type="button" className="icon-button" data-control="autoplay" onClick={() => onAuto({ ...auto, playing: !auto.playing })} disabled={!canNext && !auto.playing} aria-pressed={auto.playing} aria-label={auto.playing ? "Pause autoplay" : "Autoplay the steps"}>
           {auto.playing ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
@@ -524,26 +531,18 @@ function ExampleControls({ lesson, params, onApply }: { lesson: Lesson; params: 
   );
 }
 
-function LevelPanel({ lesson, track, nav, step, onExplore, onClose }: { lesson: Lesson; track: Track; nav: NavState; step: ResolvedStep; onExplore: () => void; onClose: (resume: "return" | "here") => void }) {
-  const level = lesson.levels.find((item) => item.id === nav.level!.id)!;
-  const own = track.steps.filter((item) => item.level === level.id);
-  const chapters = [...new Set(own.map((item) => track.chapters[item.chapterIndex].title))];
-  const returnStep = track.steps.find((item) => item.id === nav.level!.returnStepId);
-  const exploring = nav.level!.stage === "explore";
+/** The lesson's levels in order, with the current step's level marked. An indicator, not a control. */
+function LevelScale({ lesson, current }: { lesson: Lesson; current: string }) {
+  const id = useId();
   return (
-    <section id="level-panel" className={`level-panel card level-${level.id}`} aria-labelledby="level-panel-title">
-      <p className="card-label">{exploring ? "Exploring a level" : "Level"}</p>
-      <h2 id="level-panel-title">{level.name}: {level.short}</h2>
-      {!exploring && <p>{level.intro}</p>}
-      {exploring
-        ? <p className="muted small">Step {own.indexOf(step) + 1} of {own.length} at this level. Back and Next stay on this level.</p>
-        : <p className="muted small">{own.length} step{own.length === 1 ? "" : "s"} happen at this level{chapters.length ? `, in: ${chapters.join(", ")}` : ""}.</p>}
-      <div className="actions">
-        {!exploring && own.length > 0 && <button type="button" className="button primary" onClick={onExplore}>Explore these steps</button>}
-        <button type="button" className="button" onClick={() => onClose("return")}>Back to the journey{returnStep && returnStep.id !== step.id ? ` (${returnStep.title})` : ""}</button>
-        {exploring && returnStep?.id !== step.id && <button type="button" className="text-button" onClick={() => onClose("here")}>Continue the journey from here</button>}
-      </div>
-    </section>
+    <span className="level-scale">
+      <span className="level-scale-label" id={id}>Level</span>
+      <ol aria-labelledby={id}>
+        {lesson.levels.map((level) => (
+          <li key={level.id} className={level.id === current ? `is-now level-${level.id}` : undefined} aria-current={level.id === current ? "true" : undefined}>{level.name}</li>
+        ))}
+      </ol>
+    </span>
   );
 }
 

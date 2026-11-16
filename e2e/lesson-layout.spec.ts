@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { lessons } from "../src/learning/lessons/catalog.ts";
+import { askInput } from "./lesson.ts";
 
 // Shared lesson layout, for every lesson on every supported width: the step bar never covers content or focus,
 // the diagram comes first with its controls attached, and stacked layouts keep the explanation under the diagram.
@@ -96,9 +97,9 @@ for (const lesson of lessons) {
         await expect(page.locator(".explain .step-card")).toHaveCount(1);
       }
       if (await next(page).isDisabled()) break;
-      const label = await page.locator(".step-meta").textContent();
+      const label = await page.locator(".lesson-top .lesson-progress-label").textContent();
       await next(page).click();
-      await expect(page.locator(".step-meta")).not.toHaveText(label!);
+      await expect(page.locator(".lesson-top .lesson-progress-label")).not.toHaveText(label!);
     }
     expect(await endCovered(page)).toEqual([]);
   });
@@ -114,7 +115,7 @@ for (const lesson of lessons) {
     if (!stacked) {
       await expect(page.locator(".explain .lesson-controls")).toHaveCount(1);
       expect(await nextOnScreen()).toBe(true);
-      await page.locator("#ask-input").focus();
+      await (await askInput(page)).focus();
       expect(await nextOnScreen()).toBe(true);
     }
     if (stacked) {

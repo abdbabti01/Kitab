@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { goToChapter } from "./lesson.ts";
 
 // The whole networking path, followed as a learner would: only the path's own links, never the browser's Back
 // button. It starts with progress from before practice missions existed and checks that the learner's own
@@ -54,7 +55,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
 
   // Stage 3: Lesson 1, the subnet explorer, then its prediction missions and the subnet lab missions.
   await follow(page, "Understanding IPv4 addresses and subnets", /\/learn\/ipv4-subnets$/);
-  await page.locator(".chapter-pill").last().click();
+  await goToChapter(page, "last");
   while (!(await page.locator(".lesson-controls .next-button").isDisabled())) await page.locator(".lesson-controls .next-button").click();
   await expect(page.locator(".completion")).toContainText("Practise this unit: Find the network address, Same subnet or not?, Neighbours that look remote, Join and get an address");
   await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Local delivery, gateways and routing/ })).toHaveAttribute("href", "/learn/local-delivery-routing");
@@ -67,7 +68,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
 
   // Stage 4: Lesson 2, its starter, then the gateway mission and the routing and NAT lab missions.
   await follow(page, "Local delivery, gateways and routing", /\/learn\/local-delivery-routing$/);
-  await page.locator(".chapter-pill", { hasText: "Try it in the lab" }).click();
+  await goToChapter(page, "Try it in the lab");
   await expect(page.locator(".completion")).toContainText("Practise this unit: Gateway or direct?, Leave your LAN, Bring the reply home");
   await expect(page.locator(".completion").getByRole("link", { name: /Next lesson: Packet Journey/ })).toBeVisible();
   await follow(page, "Two connected LANs", /\/practice\/network\?starter=routed$/);

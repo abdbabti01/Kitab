@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowRight, BookOpen, CircleCheck, CircleX, Eye, FlaskConical, Lightbulb, ListChecks, Pause, Play, RotateCcw, SkipBack, SkipForward, StepBack, StepForward, Trophy, Wrench } from "lucide-react";
+import { BookOpen, CircleCheck, CircleX, Eye, FlaskConical, Lightbulb, ListChecks, Pause, Play, RotateCcw, SkipBack, SkipForward, StepBack, StepForward, Trophy, Wrench } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
+import { PathNext } from "../../app/NetworkingPath.tsx";
 import { linkProps } from "../../app/router.ts";
 import { activityState, type Evidence } from "../../learning/networking-path.ts";
 import { findConceptUnitTitle } from "../catalog.ts";
@@ -415,21 +416,13 @@ export function LabPage({ lab }: { lab: Lab }) {
                 <p><b>Completed, not mastered yet.</b> Mastery needs one attempt with a right prediction, a passing fix and a right explanation{predicted && !predicted.correct ? "; this attempt's prediction was off" : ""}{!answered.correct ? "; this attempt's explanation was off" : ""}.</p>
               )}
               <button type="button" className="button" onClick={another}><RotateCcw aria-hidden="true" /> Try another variant</button>
-              <NextAfter lab={lab} />
             </div>
           )}
         </section>
       )}
+      <PathNext id={`lab:${lab.id}`} />
     </main>
   );
-}
-
-function NextAfter({ lab }: { lab: Lab }) {
-  const track = findTrack("system-design")!;
-  const list = track.stages.flatMap((s) => [...s.learn, ...s.practise]);
-  const here = list.findIndex((a) => a.id === `lab:${lab.id}`);
-  const next = here === -1 ? undefined : list[here + 1];
-  return next ? <a className="button primary" {...linkProps(next.path)}>Next: {next.title} <ArrowRight aria-hidden="true" /></a> : null;
 }
 
 /** The given system: each setting and its value. */

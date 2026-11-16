@@ -107,9 +107,8 @@
 .lab-tile > span:not(.status-chip) { color: var(--ink-2); font-size: .9rem; }
 
 /* ---- Concept units (light reading page) ---- */
-.concept-nav { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0 0 24px; padding: 0; }
-.concept-nav a { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); text-decoration: none; font-size: .9rem; }
-.concept-nav a.is-right { border-color: var(--success); color: var(--success); }
+.unit-where { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 1.6fr); gap: 10px 16px; align-items: center; margin-top: 18px; }
+@media (max-width: 760px) { .unit-where { grid-template-columns: minmax(0, 1fr); } }
 .concept { max-width: 78ch; margin: 0 0 28px; padding: 20px 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); scroll-margin-top: calc(var(--nav-height) + 12px); }
 .concept h2 { margin-top: 0; }
 .concept .lead { font-size: 1.08rem; color: var(--ink); }
@@ -134,7 +133,7 @@
 .unit-labs a { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--feature); color: var(--feature-text); text-decoration: none; }
 .unit-labs a:hover { border-color: var(--accent); }
 .unit-labs small { color: var(--feature-muted); }
-.unit-progress { font-weight: 600; color: var(--ink-2); }
+.unit-progress { margin-top: 10px; font-size: 0.92rem; font-weight: 600; color: var(--ink-2); }
 
 @media (max-width: 900px) {
   .lab-fix { grid-template-columns: minmax(0, 1fr); }

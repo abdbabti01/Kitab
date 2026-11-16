@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { goToChapter } from "./lesson.ts";
 
 test("networking terms explain their meaning and purpose before the calculations", async ({ page }) => {
   await page.goto("/learn/ip-addressing");
@@ -20,7 +21,7 @@ test("networking terms explain their meaning and purpose before the calculations
   await expect(page.locator(".ip-scene")).toContainText("192.168.1.0/25");
   await expect(page.locator(".ip-scene")).toContainText("Outside this subnet");
 
-  await page.locator(".chapter-pill", { hasText: "Follow NAT" }).click();
+  await goToChapter(page, "Follow NAT");
   await expect(term.getByRole("heading", { name: "NAT", exact: true })).toBeVisible();
   await expect(term).toContainText("share one public IP address");
   await term.getByRole("link", { name: "See all terms" }).click();
@@ -33,7 +34,7 @@ test("binary, AND and the two kinds of address are explained at the steps that u
   await page.goto("/learn/ip-addressing");
   const term = page.locator(".key-concept");
   const chips = page.getByLabel("New terms");
-  await page.locator(".chapter-pill", { hasText: "Read an address" }).click();
+  await goToChapter(page, "Read an address");
   await chips.getByText("Binary", { exact: true }).click();
   await expect(chips).toContainText("128, 64, 32, 16, 8, 4, 2 and 1");
   await expect(chips).toContainText("10 = 8 + 2 = 00001010");
@@ -42,7 +43,7 @@ test("binary, AND and the two kinds of address are explained at the steps that u
   await chips.getByText("Bitwise AND", { exact: true }).click();
   await expect(chips).toContainText("10000010 AND 10000000 = 10000000 = 128");
 
-  await page.locator(".chapter-pill", { hasText: "Choose a route" }).click();
+  await goToChapter(page, "Choose a route");
   await page.locator(".lesson-controls .next-button").click();
   await expect(term.getByRole("heading", { name: "Why both addresses", exact: true })).toBeVisible();
   await expect(term).toContainText("The frame's MAC addresses name the two devices on the current link");
