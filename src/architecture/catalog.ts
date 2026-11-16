@@ -32,6 +32,8 @@ export const unitCatalog = [
   { id: "coordination", title: "Consensus, leaders and locks" },
   { id: "performance", title: "Performance and caching at scale" },
   { id: "overload", title: "Rate limiting, backpressure and load shedding" },
+  { id: "security", title: "Security architecture" },
+  { id: "production", title: "Architecture in production" },
 ] as const;
 
 export const labCatalog = [

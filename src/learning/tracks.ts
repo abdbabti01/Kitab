@@ -124,6 +124,20 @@ export const systemDesignPath: Stage[] = [
     practise: [sdLab("fencing-token", "A paused lock holder overwrites its successor; make the storage refuse stale writers.", ["sd:coordination"])],
   },
   {
+    id: "security",
+    title: "Security architecture",
+    objective: "Authentication and authorization, OAuth and OpenID Connect, tokens and sessions, RBAC and ABAC, least privilege, zero trust, secrets, encryption, threat modelling, API security and tenant isolation.",
+    learn: [sdUnit("security", "The security decisions made in the architecture, with a reasoning check for each.")],
+    practise: [],
+  },
+  {
+    id: "production",
+    title: "Architecture in production",
+    objective: "Monoliths and microservices, bounded contexts, API versioning, observability, SLOs and error budgets, deployment, disaster recovery, infrastructure as code and technical debt.",
+    learn: [sdUnit("production", "How systems are split, evolved, observed, deployed and recovered, ending with four design decisions.")],
+    practise: [],
+  },
+  {
     id: "projects",
     title: "Real-world design projects",
     objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",

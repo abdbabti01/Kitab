@@ -9,7 +9,9 @@ import { consistencyUnit } from "./consistency.ts";
 import { coordinationUnit } from "./coordination.ts";
 import { performanceUnit } from "./performance.ts";
 import { overloadUnit } from "./overload.ts";
+import { securityUnit } from "./security.ts";
+import { productionUnit } from "./production.ts";
 
-export const conceptUnits: ConceptUnit[] = [idempotencyUnit, resilienceUnit, transactionsUnit, messagingUnit, dataAcrossServicesUnit, consistencyUnit, coordinationUnit, performanceUnit, overloadUnit];
+export const conceptUnits: ConceptUnit[] = [idempotencyUnit, resilienceUnit, transactionsUnit, messagingUnit, dataAcrossServicesUnit, consistencyUnit, coordinationUnit, performanceUnit, overloadUnit, securityUnit, productionUnit];
 
 export const findConceptUnit = (id: string) => conceptUnits.find((unit) => unit.id === id);

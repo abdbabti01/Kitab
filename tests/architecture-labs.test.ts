@@ -211,3 +211,35 @@ test("System Design recommends mastery only for what can be mastered", () => {
   assert.equal(r.kind, "mastery");
   assert.equal(r.activity.track, "architecture-lab");
 });
+
+test("decisions: several acceptable answers, enough supporting reasons, and plausible wrong reasons", async () => {
+  const { judgeDecision, unitCheckIds } = await import("../src/architecture/concepts/types.ts");
+  const decisions = conceptUnits.flatMap((u) => u.decisions ?? []);
+  assert.ok(decisions.length >= 4);
+  for (const d of decisions) {
+    const acceptable = d.choices.flatMap((c, i) => (c.acceptable ? [i] : []));
+    const relevant = d.reasons.flatMap((r, i) => (r.relevant ? [i] : []));
+    const irrelevant = d.reasons.flatMap((r, i) => (r.relevant ? [] : [i]));
+    assert.ok(acceptable.length >= 1 && acceptable.length < d.choices.length, d.id);
+    assert.ok(relevant.length >= d.minReasons && irrelevant.length >= 1, d.id);
+    for (const c of d.choices) assert.ok(c.why.length > 20, `${d.id}: ${c.text}`);
+    // Right choice with enough relevant reasons passes; each failure mode fails.
+    assert.equal(judgeDecision(d, acceptable[0], relevant.slice(0, d.minReasons)).correct, true, d.id);
+    const wrong = d.choices.findIndex((c) => !c.acceptable);
+    assert.equal(judgeDecision(d, wrong, relevant).correct, false, `${d.id}: wrong choice`);
+    assert.equal(judgeDecision(d, acceptable[0], [...relevant, irrelevant[0]]).correct, false, `${d.id}: an unsupported reason`);
+    assert.equal(judgeDecision(d, acceptable[0], relevant.slice(0, d.minReasons - 1)).correct, false, `${d.id}: too few reasons`);
+  }
+  // The monolith-or-microservices decision accepts more than one sound design.
+  const startup = decisions.find((d) => d.id === "startup-architecture")!;
+  assert.ok(startup.choices.filter((c) => c.acceptable).length >= 2);
+  // A unit with decisions completes only once they are made well too.
+  const production = conceptUnits.find((u) => u.id === "production")!;
+  const ids = unitCheckIds(production);
+  const s = memory();
+  for (const c of production.concepts) recordConceptCheck(s, production.id, c.id, true, ids);
+  const activity = findTrack("system-design")!.stages.flatMap((st) => st.learn).find((a) => a.id === "sd:production")!;
+  assert.equal(activityState(activity, loadEvidence(s)), "in-progress");
+  for (const d of production.decisions!) recordConceptCheck(s, production.id, `decision:${d.id}`, true, ids);
+  assert.equal(activityState(activity, loadEvidence(s)), "completed");
+});
