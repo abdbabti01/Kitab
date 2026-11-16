@@ -44,13 +44,15 @@ mastery challenges. UNDERSTAND → OBSERVE → FIX → MASTER. Reading or openin
       rate limiting (ce5028c); their concept units
 - [x] P2: security and production units with design decisions (059ae36)
 - [x] e2e/architecture-labs.spec.ts (a28d590), docs (ced7d6b), lazy-loaded concept units (22a3671)
-- [ ] Full Playwright suite on all projects, then the final report
+- [x] Full Playwright suite, CI-style (one project at a time, CI=1, 4 workers): all pass after updating two specs
+      that pinned the old track size (architecture.spec, practice.spec). Running all five projects at once on
+      this machine crashed Playwright's Vite server mid-run (connection refused afterwards); run one at a time.
 
 ## Status
 
 13 labs, 11 concept units (76 concepts), 4 decisions. `npm run build` passes (590 unit tests, typechecks, Vite).
 New spec: 32/32 across desktop, laptop, tablet, phone. Bundle: index 527 → 538 kB (+3.4 kB gzip); lab and concept
-pages are lazy (59 kB and 66 kB gzip). Remaining: full e2e run and report.
+pages are lazy (59 kB and 66 kB gzip). Done: ready for review.
 
 How labs are tuned: `tests/support/lab-designs.ts` lists passing designs and wrong designs with the exact
 checks they must fail. Explore a lab with a scratch script that runs `evaluateLab` over candidate configs.
