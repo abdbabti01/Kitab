@@ -15,6 +15,8 @@ import { Inspector } from "./Inspector.tsx";
 import { RunView, type TimelineFocus } from "./SimulationPanel.tsx";
 import { useRunPlayback } from "./useRun.ts";
 import { validateDesign } from "../validate.ts";
+import { findConceptUnit } from "../concepts/index.ts";
+import { ConceptUnitPage } from "./ConceptUnitPage.tsx";
 import "./architecture.css";
 
 /** The lesson's experiment: pick a design and a rate, run it in the simulator, and play the run back. */
@@ -125,5 +127,7 @@ export function ArchitectureLessonPage({ lesson }: { lesson: ArchitectureLesson 
 
 export function ArchitectureLessonRoute({ id, notFound }: { id: string; notFound: ReactNode }) {
   const lesson = findArchitectureLesson(id);
-  return lesson ? <ArchitectureLessonPage key={lesson.id} lesson={lesson} /> : <>{notFound}</>;
+  if (lesson) return <ArchitectureLessonPage key={lesson.id} lesson={lesson} />;
+  const unit = findConceptUnit(id);
+  return unit ? <ConceptUnitPage key={unit.id} unit={unit} /> : <>{notFound}</>;
 }

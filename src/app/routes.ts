@@ -17,6 +17,8 @@ export type Route =
   | { name: "architecture-playground" }
   | { name: "architecture-challenge"; id: string }
   | { name: "architecture-lesson"; id: string }
+  | { name: "architecture-labs" }
+  | { name: "architecture-lab"; id: string }
   | { name: "mission"; id: string }
   | { name: "lesson"; id: string }
   | { name: "concept"; slug: string }
@@ -51,6 +53,12 @@ export function parseRoute(pathname: string): Route {
   if (path === "/practice/network") return { name: "network-practice" };
   if (path === "/practice/missions") return { name: "network-missions" };
   if (path === "/practice/architecture") return { name: "architecture-playground" };
+  if (path === "/practice/architecture/labs") return { name: "architecture-labs" };
+  const lab = /^\/practice\/architecture\/labs\/([^/]+)$/.exec(path);
+  if (lab) {
+    const id = segment(lab[1]);
+    return id ? { name: "architecture-lab", id } : { name: "not-found", path };
+  }
   const architecture = /^\/practice\/architecture\/challenges\/([^/]+)$/.exec(path) ?? /^\/learn\/system-design\/([^/]+)$/.exec(path);
   if (architecture) {
     const id = segment(architecture[1]);

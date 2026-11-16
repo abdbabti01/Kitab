@@ -20,3 +20,17 @@ export const challengeCatalog = [
 
 export const lessonPath = (id: string) => `/learn/system-design/${id}`;
 export const challengePath = (id: string) => `/practice/architecture/challenges/${id}`;
+
+/** Concept units (lessons without a playground experiment) and labs. A test keeps these in step with concepts/ and labs/. */
+export const unitCatalog = [
+  { id: "idempotency", title: "Idempotency and safe retries" },
+] as const;
+
+export const labCatalog = [
+  { id: "idempotent-payments", title: "Build an idempotent payment API", version: "1" },
+] as const;
+
+export const labPath = (id: string) => `/practice/architecture/labs/${id}`;
+
+/** A unit's title, whether it is a lesson with an experiment or a concept unit. */
+export const findConceptUnitTitle = (id: string): string | undefined => [...lessonCatalog, ...unitCatalog].find((u) => u.id === id)?.title;

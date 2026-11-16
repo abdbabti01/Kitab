@@ -19,6 +19,8 @@ const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx")
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
 const ArchitecturePlayground = lazy(() => import("../architecture/ui/ArchitecturePlayground.tsx").then((m) => ({ default: m.ArchitecturePlayground })));
 const ChallengeRoute = lazy(() => import("../architecture/ui/ChallengePage.tsx").then((m) => ({ default: m.ChallengeRoute })));
+const LabRoute = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) => ({ default: m.LabRoute })));
+const LabsIndex = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) => ({ default: m.LabsIndex })));
 const ArchitectureLessonRoute = lazy(() => import("../architecture/ui/ArchitectureLessonPage.tsx").then((m) => ({ default: m.ArchitectureLessonRoute })));
 const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
@@ -52,6 +54,7 @@ export function activityIdFor(route: Route, search: string): string | null {
   if (route.name === "subnet-explorer") return "subnet-explorer";
   if (route.name === "architecture-lesson") return findTrackActivity(`sd:${route.id}`) ? `sd:${route.id}` : null;
   if (route.name === "architecture-challenge") return findTrackActivity(`challenge:${route.id}`) ? `challenge:${route.id}` : null;
+  if (route.name === "architecture-lab") return findTrackActivity(`lab:${route.id}`) ? `lab:${route.id}` : null;
   if (route.name === "network-practice") {
     const starter = new URLSearchParams(search).get("starter");
     return starter && findActivity(`starter:${starter}`) ? `starter:${starter}` : null;
@@ -63,7 +66,7 @@ export function activityIdFor(route: Route, search: string): string | null {
 export function sectionFor(route: Route, activityId: string | null): Section | null {
   if (route.name === "network-practice" || route.name === "architecture-playground") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
-  if (route.name === "practice" || route.name === "network-missions") return "practice";
+  if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs") return "practice";
   const at = activityId ? locate(activityId) : undefined;
   if (at) return at.role === "learn" ? "learn" : "practice";
   if (route.name === "mission" || route.name === "network-mission") return "practice";
@@ -91,6 +94,8 @@ export function App() {
   else if (route.name === "network-missions" || route.name === "practice") view = <PracticePage evidence={evidence} />;
   else if (route.name === "architecture-playground") view = <ArchitecturePlayground />;
   else if (route.name === "architecture-challenge") view = <ChallengeRoute key={route.id} id={route.id} notFound={<NotFound what="that challenge" />} />;
+  else if (route.name === "architecture-labs") view = <LabsIndex evidence={evidence} />;
+  else if (route.name === "architecture-lab") view = <LabRoute key={route.id} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "architecture-lesson") view = <ArchitectureLessonRoute key={route.id} id={route.id} notFound={<NotFound what="that lesson" />} />;
   else if (route.name === "network-mission") {
     view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;

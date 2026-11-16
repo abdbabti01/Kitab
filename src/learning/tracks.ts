@@ -1,10 +1,15 @@
 // Kitab's learning tracks: the networking path and a data-structures path, each a list of units (stages) of
 // existing lessons, readings, explorations and missions. Data and pure functions only; nothing is locked.
 import { activityState, concept, isRequired, lastActive, lesson, mission, networkingPath, recommend, type Activity, type Evidence, type Recommendation, type Stage } from "./networking-path.ts";
-import { challengeCatalog, challengePath, lessonCatalog, lessonPath } from "../architecture/catalog.ts";
+import { challengeCatalog, challengePath, labCatalog, labPath, lessonCatalog, lessonPath, unitCatalog } from "../architecture/catalog.ts";
 
 const sdLesson = (id: (typeof lessonCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: lessonCatalog.find((l) => l.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
-const sdChallenge = (id: (typeof challengeCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
+const sdUnit = (id: (typeof unitCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: unitCatalog.find((u) => u.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
+const sdLab = (id: (typeof labCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
+  const found = labCatalog.find((l) => l.id === id)!;
+  return { id: `lab:${id}`, title: found.title, version: found.version, detail, path: labPath(id), track: "architecture-lab", needs };
+};
+const sdChallenge =(id: (typeof challengeCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
   const found = challengeCatalog.find((c) => c.id === id)!;
   return { id: `challenge:${id}`, title: found.title, version: found.version, detail, path: challengePath(id), track: "architecture-challenge", needs };
 };
@@ -44,6 +49,13 @@ export const systemDesignPath: Stage[] = [
     objective: "Redundancy, health checks, timeouts, retries and backoff, retry storms, and keeping the inside of a design private.",
     learn: [sdLesson("reliability-security", "Fail a server with and without health checks and spare capacity.")],
     practise: [sdChallenge("resilient-api", "Stay up through a server failure without a retry storm.", ["sd:reliability-security"])],
+  },
+  {
+    id: "idempotency",
+    title: "Idempotency and safe retries",
+    objective: "Why a timeout is an unknown outcome, which operations are safe to repeat, and how idempotency keys make retries of the rest safe.",
+    learn: [sdUnit("idempotency", "Ambiguous failures, idempotent operations, idempotency keys and what “exactly once” can mean.")],
+    practise: [sdLab("idempotent-payments", "A retried payment charges the card twice. Reproduce it, then make every repeat harmless.", ["sd:idempotency"])],
   },
   {
     id: "projects",
@@ -194,7 +206,7 @@ export function trackProgress(track: LearningTrack, evidence: Evidence) {
 
 /** Anything recorded at all, in any store: the learner has been here before. */
 export function hasHistory(evidence: Evidence) {
-  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges].some((records) => Object.keys(records).length > 0);
+  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges, evidence.labs.labs, evidence.labs.units].some((records) => Object.keys(records).length > 0);
 }
 
 /** The track the learner touched most recently; networking when nothing is dated. */
@@ -231,9 +243,10 @@ export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
 }
 
 /** What kind of step an activity is, in the learner's words. */
-export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" {
+export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" | "Lab" {
   if (activity.track === "lesson" || activity.track === "architecture-lesson" || activity.id === "hello-tcp") return "Lesson";
   if (activity.track === "architecture-challenge") return "Design";
+  if (activity.track === "architecture-lab") return "Lab";
   if (activity.track === "network-mission") return "Troubleshoot";
   if (activity.track === "mission") return activity.id.endsWith("-lab") ? "Challenge" : "Predict";
   if (activity.id.startsWith("concept:")) return "Reading";
