@@ -120,6 +120,15 @@ explanation in one attempt (`kitab.architecture.labs.v1`). Concept units (`src/a
 lesson content with a check per concept. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact models and
 their limits.
 
+## Playgrounds
+
+`/playground` lists the three Playgrounds (`src/app/playgrounds.ts`); the main navigation's Playground entry opens it,
+and lessons link straight to an experiment without it. The Data Structures & Recursion Playground
+(`src/structures/`, `/practice/structures`) reuses the mission engines, adapters, scenes and playback with no
+mission shell; its setup lives in the query, and it records nothing. Supported operations and the exact limits of
+each model: [docs/DATA-STRUCTURES-PLAYGROUND.md](docs/DATA-STRUCTURES-PLAYGROUND.md). Lab pages share one shell
+(`.lab-page`, `.playground-heading` in `src/app/styles.css`) on the night palette (`.lab-theme`).
+
 ## Playback and motion
 
 `usePlayback(trace)` keys position to `trace.scenarioKey`; a stale index from a
@@ -222,12 +231,13 @@ text) from 0003.
 ## Routes
 
 `/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug` · `/learn/system-design/:id` ·
-`/practice/architecture` · `/practice/architecture/challenges/:id`. Legacy
+`/playground` (choose a Playground) · `/practice/network` · `/practice/structures` · `/practice/architecture` ·
+`/practice/architecture/challenges/:id`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
 
 ## Known simplifications (declared in content)
 
 TCP: segment 1 travels alone for inspection; timeout recovery rather than fast
-retransmit; windows counted in segments. Data structures: fixed fixtures.
+retransmit; windows counted in segments. Data structures: fixed fixtures in missions; the Playground also accepts up to 8 starting values.
 Recursion: factorial/sum with a configurable stack limit.
