@@ -28,6 +28,7 @@ export const unitCatalog = [
   { id: "transactions", title: "Transactions and concurrency" },
   { id: "messaging", title: "Messaging and event streams" },
   { id: "data-across-services", title: "Consistency across services" },
+  { id: "consistency", title: "Replication and consistency" },
 ] as const;
 
 export const labCatalog = [
@@ -40,6 +41,7 @@ export const labCatalog = [
   { id: "hot-partition", title: "Handle an overloaded Kafka partition", version: "1" },
   { id: "outbox", title: "Design a reliable event publication workflow", version: "1" },
   { id: "saga", title: "Design a resilient order-processing system", version: "1" },
+  { id: "replication-lag", title: "Scale reads without stale surprises", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

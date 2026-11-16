@@ -136,4 +136,18 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "no compensations at all", config: { state: "log", stepKeys: true }, failing: ["declined:consistent", "declined:final", "no-courier:consistent", "no-courier:final", "refund-glitch:consistent", "refund-glitch:final"] },
     ],
   },
+  "replication-lag": {
+    pass: [
+      { afterWrite: "lsn" },
+      { routing: "sticky", afterWrite: "lsn" },
+      { afterWrite: "window", windowMs: 1500 },
+      { routing: "sticky", afterWrite: "window", windowMs: 1500 },
+    ],
+    fail: [
+      { why: "all reads on the primary: consistent, but the replicas do nothing", config: { routing: "primary" }, failing: ["normal:offload", "lagging:offload", "replica-down:offload"] },
+      { why: "pinned to one replica: never back in time, but behind her own writes", config: { routing: "sticky" }, failing: ["normal:ryw", "lagging:ryw", "replica-down:ryw"] },
+      { why: "a primary window shorter than the lag", config: { afterWrite: "window", windowMs: 1000 }, failing: ["lagging:monotonic"] },
+      { why: "synchronous replication waits for the slowest replica and fails when one is down", config: { replication: "sync" }, failing: ["lagging:monotonic", "lagging:writes", "replica-down:writes"] },
+    ],
+  },
 };

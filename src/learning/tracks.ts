@@ -96,6 +96,13 @@ export const systemDesignPath: Stage[] = [
     ],
   },
   {
+    id: "consistency",
+    title: "Replication and consistency",
+    objective: "Partial failures and partitions, leader-follower replication and lag, session guarantees, consistency models, quorums, CAP and PACELC, availability arithmetic.",
+    learn: [sdUnit("consistency", "What users can observe when data lives in several places, and how to choose what they may.")],
+    practise: [sdLab("replication-lag", "Reads go to replicas, and a saved change vanishes; give each user a consistent view.", ["sd:consistency"])],
+  },
+  {
     id: "projects",
     title: "Real-world design projects",
     objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",
