@@ -24,10 +24,14 @@ export const challengePath = (id: string) => `/practice/architecture/challenges/
 /** Concept units (lessons without a playground experiment) and labs. A test keeps these in step with concepts/ and labs/. */
 export const unitCatalog = [
   { id: "idempotency", title: "Idempotency and safe retries" },
+  { id: "resilience", title: "Timeouts, backoff and circuit breakers" },
 ] as const;
 
 export const labCatalog = [
   { id: "idempotent-payments", title: "Build an idempotent payment API", version: "1" },
+  { id: "retry-storm", title: "Stop a retry storm", version: "1" },
+  { id: "deadline-budget", title: "Retries at every layer", version: "1" },
+  { id: "circuit-breaker", title: "Contain a failing dependency", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

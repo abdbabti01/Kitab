@@ -58,6 +58,17 @@ export const systemDesignPath: Stage[] = [
     practise: [sdLab("idempotent-payments", "A retried payment charges the card twice. Reproduce it, then make every repeat harmless.", ["sd:idempotency"])],
   },
   {
+    id: "resilience",
+    title: "Timeouts, backoff and circuit breakers",
+    objective: "Deadlines down a call chain, backoff with jitter, retry storms and metastable failures, circuit breakers, bulkheads and graceful degradation.",
+    learn: [sdUnit("resilience", "How callers' reactions to a failing dependency do the real damage, and how to contain them.")],
+    practise: [
+      sdLab("retry-storm", "An outage ends but the server stays down: tune retries until it recovers by itself.", ["sd:resilience"]),
+      sdLab("deadline-budget", "Retries at every layer flood a slow database; fix timeouts and pass the deadline down.", ["sd:resilience"]),
+      sdLab("circuit-breaker", "A hung dependency takes down pages that never call it; contain it.", ["sd:resilience"]),
+    ],
+  },
+  {
     id: "projects",
     title: "Real-world design projects",
     objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",

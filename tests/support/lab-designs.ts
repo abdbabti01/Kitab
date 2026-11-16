@@ -25,4 +25,47 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "a lease shorter than the slow request lets a second server take over (the provider saves the charge)", config: { keyMode: "per-order", store: "atomic", forwardKey: true, retries: 3, retryDelayMs: 500, leaseMs: 1000 }, failing: ["slow-provider:receipt"] },
     ],
   },
+  "retry-storm": {
+    pass: [
+      { policy: "exponential-jitter", timeoutMs: 2000 },
+      { policy: "exponential-jitter", baseMs: 500, timeoutMs: 2000, attempts: 6 },
+      { policy: "exponential-jitter", baseMs: 2000, timeoutMs: 2000 },
+    ],
+    fail: [
+      { why: "no retries: every request that meets an outage fails", config: { policy: "none" }, failing: ["outage:served", "long-outage:served", "restart:served"] },
+      { why: "immediate retries are spent during the outage", config: { policy: "immediate", attempts: 8, timeoutMs: 2000 }, failing: ["outage:served", "long-outage:served", "restart:served"] },
+      { why: "jitter alone: the queue's wait outlives the 1 s timeout, so the server works for clients that left", config: { policy: "exponential-jitter" }, failing: ["long-outage:served", "long-outage:recovers", "long-outage:wasted", "restart:served", "restart:recovers", "restart:wasted"] },
+      { why: "backoff without jitter: the reconnecting clients return as one wave", config: { timeoutMs: 2000 }, failing: ["restart:spread"] },
+      { why: "a fixed wait keeps the herd together and retries too often", config: { policy: "fixed", baseMs: 1000, timeoutMs: 2000, attempts: 8 }, failing: ["long-outage:recovers", "restart:spread", "restart:recovers"] },
+      { why: "a retry budget protects the server but gives up on requests a short outage could have saved", config: { policy: "exponential-jitter", timeoutMs: 2000, budget: true }, failing: ["outage:served", "long-outage:served", "restart:served"] },
+    ],
+  },
+  "deadline-budget": {
+    pass: [
+      { propagate: true },
+      { gatewayRetries: 0, serviceRetries: 2, propagate: true },
+      { gatewayRetries: 1, serviceRetries: 1, propagate: true },
+      { gatewayRetries: 0, serviceRetries: 2, serviceTimeoutMs: 800, propagate: true },
+    ],
+    fail: [
+      { why: "no retries: a flaky database fails one request in five", config: { gatewayRetries: 0, serviceRetries: 0, propagate: true }, failing: ["flaky:served"] },
+      { why: "retries at one layer, but without a deadline the database serves calls for users who left", config: { gatewayRetries: 0, serviceRetries: 2 }, failing: ["slow:wasted"] },
+      { why: "short timeouts retry on every slow call and multiply the load, even with deadlines", config: { gatewayRetries: 0, serviceRetries: 2, serviceTimeoutMs: 300, propagate: true }, failing: ["slow:amplification", "slow:wasted", "slow:recovers"] },
+      { why: "gateway retries on short timeouts, no deadline", config: { gatewayRetries: 2, gatewayTimeoutMs: 900, serviceRetries: 0, serviceTimeoutMs: 800 }, failing: ["slow:amplification", "slow:wasted", "slow:recovers"] },
+    ],
+  },
+  "circuit-breaker": {
+    pass: [
+      { timeoutMs: 200, fallback: true, breaker: true, openMs: 1000 },
+      { timeoutMs: 500, fallback: true, breaker: true, openMs: 1000 },
+      { recSlots: 10, timeoutMs: 1000, fallback: true, breaker: true, openMs: 1000 },
+    ],
+    fail: [
+      { why: "a short timeout protects the pool, but panels show errors and the failing service still gets every call", config: { timeoutMs: 200 }, failing: ["hang:panels", "hang:relief", "errors:panels", "errors:relief", "slow:panels", "slow:relief"] },
+      { why: "timeout and fallback, but no breaker: the failing service still gets every call", config: { timeoutMs: 200, fallback: true }, failing: ["hang:relief", "errors:relief", "slow:relief"] },
+      { why: "a bulkhead caps waiting calls, but fast errors still flood the service", config: { recSlots: 10, fallback: true }, failing: ["errors:relief"] },
+      { why: "a bulkhead without a short timeout stays full of hung calls after the service recovers", config: { recSlots: 10, fallback: true, breaker: true, openMs: 1000 }, failing: ["hang:resume"] },
+      { why: "a long open period keeps refusing after the service has recovered", config: { timeoutMs: 200, fallback: true, breaker: true, openMs: 5000 }, failing: ["hang:resume", "errors:resume", "slow:resume"] },
+    ],
+  },
 };

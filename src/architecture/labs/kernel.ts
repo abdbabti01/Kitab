@@ -187,11 +187,19 @@ export function predictionAnswer(lab: Lab, variant: PredictionVariant) {
   return run.facts[lab.prediction.answer];
 }
 
-/** Four whole-number options around the engine's answer, in ascending order (so position carries no hint). */
+/**
+ * Four whole-number options including the engine's answer, in ascending order. Small answers get neighbours;
+ * large ones get proportional distractors, with the answer's position varying by its value.
+ */
 export function predictionOptions(answer: number) {
-  const candidates = [answer, answer + 1, answer - 1, answer + 2, answer * 2, answer - 2, 0, 1, 3];
-  const unique = [...new Set(candidates.filter((n) => n >= 0))];
-  return unique.slice(0, 4).sort((a, b) => a - b);
+  if (answer < 20) {
+    const candidates = [answer, answer + 1, answer - 1, answer + 2, answer * 2, answer - 2, 0, 1, 3];
+    return [...new Set(candidates.filter((n) => n >= 0))].slice(0, 4).sort((a, b) => a - b);
+  }
+  const patterns = [[1, 2, 3, 4], [0.5, 1, 2, 3], [0.25, 0.5, 1, 2], [1 / 3, 0.5, 2 / 3, 1]];
+  const round = (n: number) => (n >= 100 ? Math.round(n / 10) * 10 : Math.round(n));
+  const pattern = patterns[Math.round(answer) % patterns.length];
+  return pattern.map((m) => (m === 1 ? answer : round(answer * m))).sort((a, b) => a - b);
 }
 
 /** Facts from events that carry `data`, summed per key. Most labs fold this way. */

@@ -88,7 +88,7 @@
 /* Series: lines over time, with a capacity line. */
 .series { margin: 0 0 12px; }
 .series figcaption .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .84rem; color: var(--ink-2); }
-.series svg { width: 100%; height: 200px; display: block; }
+.series svg { width: 100%; height: auto; display: block; }
 .series .axis { stroke: var(--line-strong); }
 .series .cursor { stroke: var(--accent); stroke-width: 1.5; opacity: .6; }
 .series .tick { fill: var(--muted); font: 11px var(--font); }
