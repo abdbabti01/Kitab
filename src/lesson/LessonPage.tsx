@@ -426,6 +426,27 @@ function Controls({ onBack, onNext, onReplay, canBack, canNext, canReplay, auto,
       root.removeProperty("--lesson-bar-height");
     };
   }, []);
+  // While the bar is fixed to the bottom of the screen, a focused control must never sit under it. scroll-padding asks
+  // the browser for this, but Chrome does not always scroll an element that is already inside the viewport, so a
+  // control straddling the bar's edge could stay half hidden. Measure after the browser's own scroll, then finish it.
+  useEffect(() => {
+    let frame = 0;
+    const keepClear = (event: FocusEvent) => {
+      const element = bar.current;
+      const target = event.target as HTMLElement | null;
+      if (!element || !target?.getBoundingClientRect || element.contains(target) || getComputedStyle(element).position !== "fixed") return;
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const overlap = target.getBoundingClientRect().bottom - element.getBoundingClientRect().top + 12;
+        if (overlap > 0 && document.activeElement === target) window.scrollBy({ top: overlap, behavior: "instant" });
+      });
+    };
+    document.addEventListener("focusin", keepClear);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("focusin", keepClear);
+    };
+  }, []);
   return (
     <div className="lesson-controls" role="group" aria-label="Step controls" ref={bar}>
       <button type="button" className="button" data-control="back" onClick={onBack} disabled={!canBack}><ChevronLeft aria-hidden="true" /> Previous</button>
