@@ -77,6 +77,12 @@ function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; co
   );
 }
 
+/** A stable, text-derived order, so the authored order (right answers first) never shows. */
+function shuffled<T extends { text: string }>(items: T[]) {
+  const hash = (s: string) => [...s].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 0x01000193) >>> 0, 0x811c9dc5);
+  return items.map((item, index) => ({ item, index })).sort((a, b) => hash(a.item.text) - hash(b.item.text));
+}
+
 function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
   const [choice, setChoice] = useState<number | null>(null);
   const [reasons, setReasons] = useState<number[]>([]);
@@ -96,13 +102,13 @@ function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right
       }}>
         <fieldset>
           <legend>{decision.question}</legend>
-          {decision.choices.map((o, i) => (
+          {shuffled(decision.choices).map(({ item: o, index: i }) => (
             <label key={o.text}><input type="radio" name={name} checked={choice === i} onChange={() => { setChoice(i); setResult(null); }} /><span>{o.text}</span></label>
           ))}
         </fieldset>
         <fieldset>
           <legend>Which reasons support your choice? Pick at least {decision.minReasons}, and only ones that do.</legend>
-          {decision.reasons.map((r, i) => (
+          {shuffled(decision.reasons).map(({ item: r, index: i }) => (
             <label key={r.text}><input type="checkbox" checked={reasons.includes(i)} onChange={(e) => { setReasons(e.target.checked ? [...reasons, i].sort() : reasons.filter((x) => x !== i)); setResult(null); }} /><span>{r.text}</span></label>
           ))}
         </fieldset>

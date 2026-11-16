@@ -31,7 +31,7 @@ export const systemDesignPath: Stage[] = [
   },
   {
     id: "scalability",
-    title: "Scalability and performance",
+    title: "Scalability and load balancing",
     objective: "Scale out behind a load balancer, measure utilisation and queueing, and follow the bottleneck as it moves.",
     learn: [sdLesson("scalability", "One, two or three servers: find where the bottleneck goes next.")],
     practise: [sdChallenge("scale-behind-lb", "Serve 600 requests per second and survive losing any one server.", ["sd:scalability"])],
@@ -59,7 +59,7 @@ export const systemDesignPath: Stage[] = [
   },
   {
     id: "reliability",
-    title: "Security and reliability",
+    title: "Redundancy, timeouts and retries",
     objective: "Redundancy, health checks, timeouts, retries and backoff, retry storms, and keeping the inside of a design private.",
     learn: [sdLesson("reliability-security", "Fail a server with and without health checks and spare capacity.")],
     practise: [sdChallenge("resilient-api", "Stay up through a server failure without a retry storm.", ["sd:reliability-security"])],
