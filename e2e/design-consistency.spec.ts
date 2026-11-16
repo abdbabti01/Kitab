@@ -7,6 +7,7 @@ const routes = [
   "/learn",
   "/learn/data-structures",
   "/learn/system-design",
+  "/learn/system-design/design-projects",
   "/learn/ipv4-subnets",
   "/practice",
   "/practice/missions/neighbours",

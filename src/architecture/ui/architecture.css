@@ -102,7 +102,7 @@
 .arch-inspector p { font-size: .92rem; color: var(--ink-2); }
 .modelled { margin: 0 0 10px; font-size: .88rem; }
 .modelled summary { cursor: pointer; color: var(--primary-strong); min-height: 32px; }
-.arch-field { display: grid; gap: 4px; margin: 0 0 10px; }
+.arch-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 0 0 10px; }
 .arch-field label { font-weight: 600; font-size: .88rem; }
 .arch-field .unit { color: var(--muted); font-weight: 500; }
 .arch-field small { color: var(--muted); font-size: .78rem; line-height: 1.35; }
