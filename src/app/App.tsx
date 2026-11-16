@@ -17,6 +17,8 @@ const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(
 const SubnetExplorer = lazy(() => import("../practice/SubnetExplorer.tsx").then(m => ({default:m.SubnetExplorer})));
 const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
+const StructuresPlayground = lazy(() => import("../structures/StructuresPlayground.tsx").then((m) => ({ default: m.StructuresPlayground })));
+const PlaygroundsPage = lazy(() => import("./PlaygroundsPage.tsx").then((m) => ({ default: m.PlaygroundsPage })));
 const ArchitecturePlayground = lazy(() => import("../architecture/ui/ArchitecturePlayground.tsx").then((m) => ({ default: m.ArchitecturePlayground })));
 const ChallengeRoute = lazy(() => import("../architecture/ui/ChallengePage.tsx").then((m) => ({ default: m.ChallengeRoute })));
 const LabRoute = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) => ({ default: m.LabRoute })));
@@ -64,7 +66,7 @@ export function activityIdFor(route: Route, search: string): string | null {
 
 /** The main-navigation section a page belongs to, by its role in the course rather than its address. */
 export function sectionFor(route: Route, activityId: string | null): Section | null {
-  if (route.name === "network-practice" || route.name === "architecture-playground") return "playground";
+  if (route.name === "network-practice" || route.name === "architecture-playground" || route.name === "structures-playground" || route.name === "playgrounds") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
   if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs") return "practice";
   const at = activityId ? locate(activityId) : undefined;
@@ -93,6 +95,9 @@ export function App() {
   // /practice/missions, the earlier address of the networking missions, shows the same page.
   else if (route.name === "network-missions" || route.name === "practice") view = <PracticePage evidence={evidence} />;
   else if (route.name === "architecture-playground") view = <ArchitecturePlayground />;
+  else if (route.name === "playgrounds") view = <PlaygroundsPage />;
+  // Keyed by the query, so a link to another experiment opens it even from this page.
+  else if (route.name === "structures-playground") view = <StructuresPlayground key={window.location.search} />;
   else if (route.name === "architecture-challenge") view = <ChallengeRoute key={route.id} id={route.id} notFound={<NotFound what="that challenge" />} />;
   else if (route.name === "architecture-labs") view = <LabsIndex evidence={evidence} />;
   else if (route.name === "architecture-lab") view = <LabRoute key={route.id} id={route.id} notFound={<NotFound what="that lab" />} />;

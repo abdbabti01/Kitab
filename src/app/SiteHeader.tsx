@@ -1,4 +1,5 @@
 import { BookOpen, Target, Waypoints } from "lucide-react";
+import { PLAYGROUNDS_PATH } from "./playgrounds.ts";
 import { linkProps } from "./router.ts";
 
 export type Section = "learn" | "practice" | "playground";
@@ -6,7 +7,7 @@ export type Section = "learn" | "practice" | "playground";
 const sections = [
   { id: "learn", label: "Learn", path: "/learn", Icon: BookOpen },
   { id: "practice", label: "Practice", path: "/practice", Icon: Target },
-  { id: "playground", label: "Playground", path: "/practice/network", Icon: Waypoints },
+  { id: "playground", label: "Playground", path: PLAYGROUNDS_PATH, Icon: Waypoints },
 ] as const;
 
 /** The site navigation. Progress is shown inside each subject (its Learn page), not here. */

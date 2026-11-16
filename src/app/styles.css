@@ -333,14 +333,9 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .subject-units li.more { color: var(--muted); }
 .subject-units li.more::before { background: var(--line-strong); }
 /* The Playground card: Kitab's flagship, on the navy surface it has in the lab itself. */
-.subject-card.is-playground { background: radial-gradient(120% 90% at 100% 0%, #123a5c 0%, var(--feature) 60%); border-color: #1f4a72; color: var(--feature-text); box-shadow: 0 12px 34px rgb(7 18 38 / .28); }
-.subject-card.is-playground p, .subject-card.is-playground .subject-units { color: var(--feature-muted); }
-.subject-card.is-playground .subject-kind { color: var(--accent-strong); }
-.subject-card.is-playground .subject-icon { background: rgb(34 211 238 / .14); color: var(--accent-strong); box-shadow: inset 0 0 0 1px rgb(34 211 238 / .4); }
-.subject-card.is-playground .subject-units li::before { background: var(--accent); }
-.subject-card.is-playground .button.primary, .playground-feature .button.primary { background: var(--accent); border-color: var(--accent); color: #04212b; }
-.subject-card.is-playground .button.primary:hover, .playground-feature .button.primary:hover { background: var(--accent-strong); }
-.subject-card.is-playground :focus-visible, .playground-feature :focus-visible { outline-color: var(--accent-strong); }
+.playground-feature .button.primary { background: var(--accent); border-color: var(--accent); color: #04212b; }
+.playground-feature .button.primary:hover { background: var(--accent-strong); }
+.playground-feature :focus-visible { outline-color: var(--accent-strong); }
 
 .playground-feature { margin-top: clamp(30px, 5vw, 52px); display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); align-items: center; padding: clamp(18px, 3.4vw, 44px); border-radius: calc(var(--radius) + 8px); background: radial-gradient(90% 120% at 0% 0%, #10345a 0%, var(--feature) 55%, #071226 100%); color: var(--feature-text); border: 1px solid #1c3b63; }
 .playground-feature h2 { font: 750 clamp(1.7rem, 1.3rem + 1.6vw, 2.6rem)/1.1 var(--display); letter-spacing: -.03em; margin: .2rem 0 .7rem; }
@@ -352,7 +347,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .feature-starters a { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: center; min-height: 52px; padding: 8px 14px; border: 1px solid #22426b; border-radius: var(--radius-sm); background: rgb(13 28 54 / .7); color: var(--feature-text); text-decoration: none; }
 .feature-starters a:hover { border-color: var(--accent); }
 .feature-starters small { grid-column: 1; color: var(--feature-muted); font-size: .84rem; }
-.feature-starters svg { grid-column: 2; grid-row: 1 / span 2; width: 18px; color: var(--accent-strong); }
+.feature-starters a > svg { grid-column: 2; grid-row: 1 / span 2; width: 18px; color: var(--accent-strong); }
 .playground-feature .hero-demo { border: 1px solid #22426b; }
 @media (max-width: 900px) {
   .playground-feature { grid-template-columns: minmax(0, 1fr); }
@@ -387,3 +382,51 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 /* The text wraps within the panel, however narrow the column or large the text. */
 .path-playground span { min-width: 0; overflow-wrap: anywhere; }
 .path-playground svg { width: 18px; height: 18px; flex: none; margin-top: 3px; color: var(--primary); }
+
+/* ---- Lab pages: every Playground and lab on the navy surface (.lab-theme) with the cyan accent ---- */
+.lab-page {
+  max-width: none;
+  min-height: calc(100vh - var(--nav-height));
+  background:
+    radial-gradient(60% 40% at 85% 0%, rgb(34 211 238 / 0.1), transparent 70%),
+    radial-gradient(50% 35% at 0% 0%, rgb(59 130 246 / 0.12), transparent 70%),
+    var(--bg);
+}
+.lab-page > * { max-width: 1760px; margin-inline: auto; }
+.lab-theme .button.primary { background: var(--accent); border-color: var(--accent); color: #04212b; }
+.lab-theme .button.primary:hover:not(:disabled) { background: var(--accent-strong); }
+.lab-theme .eyebrow { color: var(--accent); }
+.lab-theme input:not([type="range"], [type="checkbox"]), .lab-theme select, .lab-theme textarea {
+  min-height: 40px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-2); color: var(--ink);
+}
+.lab-theme [aria-invalid="true"] { border-color: var(--danger); }
+.playground-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+.playground-heading h1 { font: 750 clamp(1.8rem, 1.4rem + 1.6vw, 2.8rem) / 1.05 var(--display); letter-spacing: -0.03em; margin: 0 0 6px; }
+.playground-heading p { margin: 0; max-width: 70ch; color: var(--ink-2); }
+.playground-heading .playground-title { display: flex; gap: 16px; align-items: center; min-width: 0; }
+.playground-heading .playground-mark { flex: none; width: 50px; height: 50px; color: var(--accent); filter: drop-shadow(0 0 12px rgb(34 211 238 / 0.45)); }
+.heading-links a { color: var(--primary-strong); }
+.heading-links svg { width: 16px; height: 16px; vertical-align: -3px; }
+@media (max-width: 640px) {
+  .lab-page { padding-inline: 12px; }
+  .playground-heading .playground-mark { width: 36px; height: 36px; }
+}
+
+.feature-playgrounds b { display: inline-flex; align-items: center; gap: 8px; }
+.feature-playgrounds b svg { width: 18px; height: 18px; color: var(--accent-strong); }
+
+/* ---- /playground: choose a Playground ---- */
+.playground-choices { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.playground-choice { display: flex; flex-direction: column; gap: 10px; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.playground-choice h2 { margin: 0; font: 720 1.35rem/1.2 var(--display); letter-spacing: -.01em; }
+.playground-choice > p { margin: 0; color: var(--ink-2); }
+.playground-choice .playground-choice-subject { font: 650 .74rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
+.playground-choice h3 { margin: 6px 0 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.playground-choice-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: rgb(34 211 238 / .14); color: var(--accent-strong); box-shadow: inset 0 0 0 1px rgb(34 211 238 / .4); }
+.playground-choice-icon svg { width: 22px; height: 22px; }
+.playground-explore { margin: 0; padding-left: 1.1em; color: var(--ink-2); display: grid; gap: 4px; }
+.playground-examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.playground-examples a { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); text-decoration: none; }
+.playground-examples a:hover { border-color: var(--accent); }
+.playground-examples svg { width: 16px; height: 16px; flex: none; color: var(--accent-strong); }
+.playground-choice > .button { margin-top: auto; align-self: flex-start; }

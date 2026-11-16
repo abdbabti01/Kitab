@@ -61,18 +61,17 @@ test("with reduced motion nothing moves; with motion it plays once and stops whe
 test("a first visit explains Kitab by its subjects, each one click away, and keeps the Playground one click away", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".home-hero h1")).toBeInViewport();
-  // Each subject and the Playground has one entry action.
+  // Each subject has one entry action; the Playgrounds have their own feature further down.
   const entries = page.locator(".subject-card .button.primary");
-  await expect(entries).toHaveText([/Explore Networking/, /Explore Data structures/, /Explore System design/, /Open the Playground/]);
+  await expect(entries).toHaveText([/Explore Networking/, /Explore Data structures/, /Explore System design/]);
   await expect(entries.nth(0)).toHaveAttribute("href", "/learn");
   await expect(entries.nth(1)).toHaveAttribute("href", "/learn/data-structures");
   await expect(entries.nth(2)).toHaveAttribute("href", "/learn/system-design");
-  await expect(entries.nth(3)).toHaveAttribute("href", "/practice/network");
   // Learn, Practise and Experiment are explained, each with its place.
   await expect(page.locator(".ways b")).toHaveText(["Learn", "Practise", "Experiment"]);
-  await page.locator(".ways").getByRole("link", { name: "Open the Playground" }).click();
-  await expect(page).toHaveURL(/\/practice\/network$/);
-  await expect(page.getByRole("heading", { name: "Network Playground", exact: true })).toBeVisible();
+  await page.locator(".ways").getByRole("link", { name: "See the Playgrounds" }).click();
+  await expect(page).toHaveURL(/\/playground$/);
+  await expect(page.getByRole("heading", { name: "Choose a Playground", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });
 

@@ -119,8 +119,8 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
   );
 
   return (
-    <main id="main" className="page arch-playground arch-challenge lab-theme">
-      <header className="arch-heading">
+    <main id="main" className="page lab-page arch-playground arch-challenge lab-theme">
+      <header className="playground-heading">
         <div className="playground-title">
           <Target className="playground-mark" aria-hidden="true" />
           <div>

@@ -10,6 +10,8 @@ export type Route =
   | { name: "learn"; section: LearnSection }
   | { name: "practice" }
   | { name: "network-practice" }
+  | { name: "playgrounds" }
+  | { name: "structures-playground" }
   | { name: "network-missions" }
   | { name: "network-mission"; id: string }
   | { name: "access-explorer" }
@@ -51,6 +53,8 @@ export function parseRoute(pathname: string): Route {
   if (path === "/practice/connections") return { name: "access-explorer" };
   if (path === "/practice/subnets") return { name: "subnet-explorer" };
   if (path === "/practice/network") return { name: "network-practice" };
+  if (path === "/playground") return { name: "playgrounds" };
+  if (path === "/practice/structures") return { name: "structures-playground" };
   if (path === "/practice/missions") return { name: "network-missions" };
   if (path === "/practice/architecture") return { name: "architecture-playground" };
   if (path === "/practice/architecture/labs") return { name: "architecture-labs" };

@@ -1,0 +1,63 @@
+/* Data Structures & Recursion Playground. A lab page (.lab-page, .lab-theme): shared tokens only. */
+.sp-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.sp-side, .sp-main { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.sp-main { display: contents; }
+.sp-panel, .sp-stage { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.sp-panel { padding: 16px; display: grid; gap: 12px; align-content: start; }
+.sp-panel h2 { margin: 0; font-size: 1.05rem; }
+.sp-stage { overflow: hidden; box-shadow: 0 20px 60px rgb(2 8 23 / 0.35); }
+.sp-op { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); font: 600 0.86rem/1.4 var(--mono); color: var(--primary-strong); }
+.sp-scene { padding: 16px; min-height: 280px; overflow-x: auto; }
+
+/* Setup */
+.sp-structures { border: 0; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sp-structures legend { font-size: 0.82rem; font-weight: 650; margin-bottom: 6px; color: var(--ink-2); }
+.sp-structures button, .sp-guided button {
+  min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink); text-align: left; cursor: pointer; font: inherit; font-size: 0.88rem;
+}
+.sp-structures button:hover, .sp-guided button:hover { border-color: var(--line-strong); }
+.sp-structures button[aria-pressed="true"], .sp-guided button[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-strong); font-weight: 650; }
+.sp-field { display: grid; gap: 4px; min-width: 0; flex: 1; font-size: 0.82rem; font-weight: 650; color: var(--ink-2); }
+.sp-field input, .sp-field select { width: 100%; font-weight: 500; font-size: 0.95rem; }
+.sp-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.sp-values { display: grid; gap: 6px; }
+.sp-help { margin: 0; font-size: 0.8rem; color: var(--muted); }
+.sp-help.is-error { color: var(--danger); }
+.sp-check { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; }
+.sp-check input { width: 18px; height: 18px; accent-color: var(--primary); }
+.sp-reset { justify-self: start; min-height: 36px; }
+.sp-guided ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
+.sp-guided button { width: 100%; display: grid; gap: 2px; }
+.sp-guided small { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
+
+/* Explanation */
+.sp-step-kind { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--muted); }
+.sp-step-kind code { padding: 2px 6px; border-radius: 6px; background: var(--primary-soft); color: var(--primary-strong); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; }
+.sp-explain h2 { font-size: 1.25rem; line-height: 1.25; }
+.sp-narration { margin: 0; color: var(--ink-2); line-height: 1.6; }
+.sp-what { margin: 0; display: grid; gap: 6px; }
+.sp-what div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; }
+.sp-what dt { font-size: 0.78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px; }
+.sp-what dd { margin: 0; overflow-wrap: anywhere; }
+.sp-what code { font-size: 0.85rem; color: var(--ink); }
+.sp-result { display: grid; gap: 8px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--success); background: var(--success-soft); }
+.sp-result p { margin: 0; }
+.sp-details summary { cursor: pointer; font-weight: 650; min-height: 32px; }
+.sp-details .facts { margin: 8px 0; }
+.sp-limits { margin: 0; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+.structures-playground .table-wrap { overflow-x: auto; }
+
+@media (max-width: 1279px) {
+  .sp-layout { grid-template-columns: 290px minmax(0, 1fr); }
+  .sp-main { display: grid; }
+}
+@media (max-width: 859px) {
+  /* The experiment first: a learner arriving from a lesson came to see it; the controls follow. */
+  .sp-layout { grid-template-columns: minmax(0, 1fr); }
+  .sp-side { display: contents; }
+  .sp-setup { order: 2; }
+  .sp-main { order: 1; }
+  .sp-guided { order: 3; }
+  .sp-structures { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .sp-scene { padding: 12px; min-height: 0; }
+}

@@ -179,8 +179,8 @@ export function ArchitecturePlayground() {
   );
 
   return (
-    <main id="main" className="page arch-playground lab-theme">
-      <header className="arch-heading">
+    <main id="main" className="page lab-page arch-playground lab-theme">
+      <header className="playground-heading">
         <div className="playground-title">
           <Workflow className="playground-mark" aria-hidden="true" />
           <div>
