@@ -113,7 +113,12 @@ prediction), misconception messages, and reviewed source excerpts.
 `src/architecture/` is the System Design track and the Architecture Playground (`/practice/architecture`), with
 its own pure discrete-event simulator (`simulate.ts`), graph validation, challenge evaluation, editing reducer and
 browser-local persistence. It shares the site shell, tokens, track model and tutor budget, and nothing with the
-networking engine. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact model and its limits.
+networking engine. Architecture labs (`src/architecture/labs/`, `/practice/architecture/labs/:id`) are separate
+small deterministic models, one per mechanism (idempotency, retries, locking, delivery, replication...), on a shared
+kernel: one event stream per run, facts folded from it, checks per scenario, mastery from prediction + fix +
+explanation in one attempt (`kitab.architecture.labs.v1`). Concept units (`src/architecture/concepts/`) are reviewed
+lesson content with a check per concept. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact models and
+their limits.
 
 ## Playback and motion
 

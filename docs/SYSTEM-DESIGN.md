@@ -1,8 +1,10 @@
 # System Design & Architecture track
 
-The third track: six units, each a lesson with a simulator experiment, then a design challenge, plus the
-Architecture Playground (`/practice/architecture`). Everything lives in `src/architecture/`; the Network Playground
-and its engine are untouched.
+The third track: 17 units, the Architecture Playground (`/practice/architecture`) and 13 architecture labs
+(`/practice/architecture/labs`). The original six units (a lesson with a playground experiment, then a design
+challenge) are unchanged; eleven concept units sit among them, each followed by labs or, for security and
+production, by reasoning checks and design decisions. Everything lives in `src/architecture/`; the Network
+Playground and its engine are untouched. The playground is described first, then the labs and concept units.
 
 ## Layers
 
@@ -82,3 +84,85 @@ defaults (older designs load); newer versions, unknown kinds or fields and out-o
 reason; unreadable entries are reported and kept unchanged when other designs are saved; a damaged store is copied
 to `<key>.corrupt`. Edits save 400 ms after the last change and immediately on `pagehide` or when another design is
 opened. Progress records carry the challenge version; a new version starts a fresh record.
+
+## Architecture labs
+
+The playground simulator models capacity and queueing, not data contents, duplicates, lag or locks. Each lab is a
+separate, small, deterministic model of one mechanism, built on a shared kernel.
+
+```text
+labs/kernel.ts     Lab type, Timeline (event scheduler), prng (the playground's mulberry32), parseConfig,
+                   evaluateLab (one run per scenario, checks judged from that run's facts), prediction options
+labs/<lab>.ts      simulate(config, scenario) → LabEvent[]; facts(events) → numbers; checks, prediction variants,
+                   reasoning questions, assumptions and "not modelled"
+labs/progress.ts   kitab.architecture.labs.v1: lab attempts and concept-unit checks (zod, damaged data set aside)
+ui/LabPage.tsx     the one page every lab uses; ui/ConceptUnitPage.tsx renders concept units and decisions
+```
+
+One run produces one event stream. The sequence view, the chart, the numbers, the explanation and every check read
+`lab.facts(events)` (or a prefix of the events during playback). Tests prove the facts are a pure fold of the events,
+that runs replay identically, stay ordered and bounded, and that every playback prefix folds.
+
+| Lab | Unit | What is modelled | Passing designs (tests) |
+|---|---|---|---|
+| Build an idempotent payment API | Idempotency | Client timeouts and retries, two API servers, key store (memory, check-then-insert, atomic with lease), a provider that replays known keys, a receipt side effect; lost answer, slow provider, double click, crash after charge | Key per order, atomic claim, key forwarded, lease between the slow request and the retry window |
+| Stop a retry storm | Resilience | Open-loop arrivals, fixed-capacity FIFO server, client timeouts with wasted work, retry policies, jitter, a Finagle-style budget; short and long outages, a reconnecting herd | Exponential backoff with full jitter and a timeout longer than the queue's wait |
+| Retries at every layer | Resilience | Gateway → service → database, per-layer timeouts and retries, deadline propagation (per-attempt deadline), database slowdown or errors | Retries at one layer (or one each), timeouts sized to the deadline, propagation |
+| Contain a failing dependency | Resilience | Shared worker pool, timeout, circuit breaker with a half-open trial, bulkhead, fallback; hang, fast errors, slow | Short timeout, breaker and fallback; or bulkhead, timeout, breaker and fallback |
+| Correct concurrent inventory updates | Transactions | One row with row locks, lock timeouts, PostgreSQL READ COMMITTED / REPEATABLE READ; atomic, optimistic, pessimistic; slow work inside or before the critical section | Atomic update; `FOR UPDATE`, version checks or RR with retries once slow work moves first |
+| Prevent duplicate order processing | Messaging | Visibility-timeout broker, two consumers, crashes, slow processing, producer republishing; inbox in or outside the effect's transaction | Inbox by event id in the same transaction; or an idempotent upsert |
+| Handle an overloaded Kafka partition | Messaging | Keyed partitions (FNV-1a), consumers capped by partitions, per-order ordering; a big merchant at 30% and 50% | Order-id key; merchant plus an order-derived bucket (8) |
+| Design a reliable event publication workflow | Data across services | Dual writes, an outbox relay with polling, CDC, broker outage, relay crash, consumer inbox | Outbox (poll ≤ 1.5 s) or CDC, with an inbox |
+| Design a resilient order-processing system | Data across services | Reserve → charge → ship saga, compensations (none, once, retried), progress in memory, a log or outbox events, step idempotency keys | Retried compensations, durable progress, step keys |
+| Scale reads without stale surprises | Consistency | Primary and two async replicas with lag, a replica outage, sync replication with a timeout; read-your-writes and monotonic reads for one user | Log-position routing, or a primary window longer than the lag |
+| Make a distributed lock safe | Coordination | Leased lock with tokens; GC pause after the check, delayed write, slow clock, crashed holder; fencing on every operation, or compare-and-set | Fencing with a lease longer than a job; compare-and-set |
+| Handle a cache stampede | Performance | Shared cache, 20-connection database, coalescing per server or cluster-wide, stale-while-revalidate, refresh-ahead, TTL jitter | Cluster-wide coalescing, SWR or refresh-ahead, 50% jitter |
+| Protect an API from overload | Overload | Fixed-capacity server, bursty users, a scraper, a partner bursting around window boundaries, a viral spike; per-client limiters, shedding by expected wait | Sliding window, token bucket or a small fixed window, with shedding at about 200 ms |
+
+`tests/support/lab-designs.ts` lists, for every lab, at least two passing designs and several plausible wrong designs
+with the exact checks each must fail; the starter (today's broken system) must fail. Changing a lab's behaviour means
+updating that table deliberately, and bumping the lab's version if saved attempts no longer mean the same thing.
+
+**Mastery.** A lab attempt has a prediction variant (its answer is computed by running the starter in that variant's
+scenario; the four options are in ascending order, so position carries no hint) and a reasoning question. Mastery
+needs, in one attempt: the first prediction right, a configuration passing every check in every scenario, and the
+first answer to the reasoning question right. Passing the checks alone completes the lab. "Try another variant"
+starts a new attempt with the next variant and question, from today's system again. Opening or running a lab records
+nothing.
+
+**Honesty.** Each lab states its assumptions and what it leaves out, on the page. Numbers are the model's arithmetic
+(fixed delays and capacities, seeded randomness), not measurements of real systems. Where a mechanism depends on a
+product, the lab says whose behaviour it follows (PostgreSQL isolation, Finagle's retry budget, Kafka-style keyed
+partitioning with FNV-1a standing in for murmur2).
+
+## Concept units
+
+`concepts/*.ts` hold eleven units. Every concept has a plain explanation, why the problem exists, a real example, the
+mechanism, a failure, the recommended solution, trade-offs, when not to use it, optional common confusions, and one
+check question with an explanation for every option. A unit completes when every check (and every decision) has been
+answered right: completion, never mastery. Tests require every field, exactly one right option per question, and
+that the right option's position varies within each unit and within each lab's questions.
+
+Security and production have no labs: attacks, organisations and deployments can't be simulated honestly at this
+scale. The production unit ends with four decisions (`Decision` in `concepts/types.ts`): a situation, choices of
+which several may be acceptable, and reasons, of which the learner must pick at least `minReasons`, all of them
+relevant. `judgeDecision` applies those rules; no model decides. Options are shown in a stable hashed order so the
+authored order never leaks.
+
+## Track and progress
+
+Concept units are `sd:<unit>` activities (track `architecture-lesson`); labs are `lab:<id>` (track
+`architecture-lab`, version from `catalog.ts`). The original units' and challenges' ids are unchanged. A lesson
+completes by its experiment (original units) or by its checks (concept units). `recommend` offers "work towards
+mastery" only for activities that can be mastered (missions, networking missions, labs); before, a completed System
+Design lesson or challenge was offered it forever. `kitab.architecture.progress.v1` and saved designs are untouched;
+`loadEvidence` reads the new store read-only, and only the lab or unit page that owns it repairs it.
+
+## Known limits of the labs
+
+- Each lab models one mechanism in isolation; interactions between them (a retry storm hitting a stampeding cache)
+  are left to the lessons.
+- Scenarios are scripted faults with fixed seeds: results are reproducible and cover chosen cases, not every case.
+- Requirement thresholds (for example "at most 150 calls while failing") are calibrated so that the intended failure
+  modes fail and several reasonable designs pass; they aren't industry standards.
+- Labs have no AI coach; the reviewed hints and explanations are the help.
