@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import "../src/learning/engines/index.ts";
 import { findLesson } from "../src/learning/lessons/catalog.ts";
 import { resolveTrack } from "../src/learning/lessons/runtime.ts";
+import { askInput, goToChapter, lessonProgress } from "./lesson.ts";
 
 const lesson = findLesson("array-insert")!;
 const track = resolveTrack(lesson, {});
@@ -36,25 +37,34 @@ test("the array walkthrough controls fit this screen and reach the final step", 
   const box = await next(page).boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(44);
   expect(box!.y + box!.height).toBeLessThanOrEqual(page.viewportSize()!.height);
-  await page.locator(".chapter-pill", { hasText: "What it cost" }).click();
+  await goToChapter(page, "What it cost");
   await expect(title(page)).toHaveText(track.steps.at(-1)!.title);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });
 
-test("opening a level explains it, keeps the place, and returns to the journey", async ({ page }) => {
+test("one sequence: Previous and Next walk every step in order, and the level only marks where each step happens", async ({ page }) => {
   await open(page);
-  await next(page).click();
-  const before = await title(page).textContent();
-  await page.locator(".level-button", { hasText: "Memory" }).click();
-  await expect(page.locator(".level-panel")).toContainText("fixed-size slot");
-  await expect(title(page)).toHaveText(before!);
-  await page.getByRole("button", { name: "Explore these steps" }).click();
-  await expect(page.locator(".step-who .level-badge")).toHaveText("Memory level");
-  await next(page).click();
-  await expect(page.locator(".step-who .level-badge")).toHaveText("Memory level");
-  await page.getByRole("button", { name: /^Back to the journey/ }).click();
-  await expect(title(page)).toHaveText(before!);
-  await expect(page.locator(".level-panel")).toHaveCount(0);
+  // The level is an indicator: the lesson's levels, the current step's marked, and nothing to press.
+  const scale = page.locator(".step-who .level-scale");
+  await expect(scale.locator("li")).toHaveText(lesson.levels.map((level) => level.name));
+  await expect(scale.locator("button, a")).toHaveCount(0);
+  for (const [index, step] of track.steps.entries()) {
+    await expect(title(page)).toHaveText(step.title);
+    await expect(lessonProgress(page)).toHaveText(`Step ${index + 1} of ${track.steps.length}`);
+    await expect(scale.locator('li[aria-current="true"]')).toHaveText(lesson.levels.find((level) => level.id === step.level)!.name);
+    if (index < track.steps.length - 1) await next(page).click();
+  }
+  await expect(next(page)).toBeDisabled();
+  for (let index = track.steps.length - 1; index > 0; index -= 1) await page.getByRole("button", { name: "Previous" }).click();
+  await expect(title(page)).toHaveText(track.steps[0].title);
+  await expect(page.getByRole("button", { name: "Previous" })).toBeDisabled();
+  // Every level's introduction is still in the lesson, as reference.
+  await page.locator(".lesson-levels summary").click();
+  await expect(page.locator(".lesson-levels")).toContainText("fixed-size slot");
+  // Exactly one step control and one progress indicator on the page.
+  await expect(page.locator(".lesson-controls")).toHaveCount(1);
+  await expect(page.locator(".lesson-progress")).toHaveCount(1);
+  await expect(page.getByRole("button", { name: /^Next/ })).toHaveCount(1);
 });
 
 test("Back, Replay and rapid keyboard input stay consistent; refresh restores the place", async ({ page }, info) => {
@@ -62,9 +72,9 @@ test("Back, Replay and rapid keyboard input stay consistent; refresh restores th
   await open(page);
   await page.locator("body").click({ position: { x: 5, y: 300 } });
   for (let index = 0; index < 7; index += 1) await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".step-position")).toHaveText(`8 / ${track.steps.length}`);
+  await expect(lessonProgress(page)).toHaveText(`Step 8 of ${track.steps.length}`);
   await page.keyboard.press("ArrowLeft");
-  await expect(page.locator(".step-position")).toHaveText(`7 / ${track.steps.length}`);
+  await expect(lessonProgress(page)).toHaveText(`Step 7 of ${track.steps.length}`);
   const here = await title(page).textContent();
   await page.getByRole("button", { name: "Replay" }).click();
   await expect(page.locator(".replay-tag")).toContainText("Before:");
@@ -72,13 +82,13 @@ test("Back, Replay and rapid keyboard input stay consistent; refresh restores th
   await expect(title(page)).toHaveText(here!);
   await page.reload();
   await expect(title(page)).toHaveText(here!);
-  await expect(page.locator(".step-position")).toHaveText(`7 / ${track.steps.length}`);
+  await expect(lessonProgress(page)).toHaveText(`Step 7 of ${track.steps.length}`);
 });
 
 test("finishing the array walkthrough records progress and links to practice", async ({ page }) => {
   await open(page);
   for (const chapter of ["Stored side by side", "Insert 9 at index 1", "What it cost"]) {
-    await page.locator(".chapter-pill", { hasText: chapter }).click();
+    await goToChapter(page, chapter);
   }
   await expect(page.locator(".completion")).toContainText("Lesson completed");
   await expect(page.locator(".completion")).toContainText("Mastery not shown yet");
@@ -92,10 +102,10 @@ test("finishing the array walkthrough records progress and links to practice", a
 
 test("the array walkthrough uses the same runtime and recomputes the shifts for a new position", async ({ page }) => {
   await open(page);
-  await expect(page.locator(".level-button")).toHaveText([/Program/, /Array/, /Memory/]);
+  await expect(page.locator(".level-scale li")).toHaveText(["Program", "Array", "Memory"]);
   await page.locator(".example-controls summary").click();
   await page.getByText("Index 3", { exact: true }).click();
-  await page.locator(".chapter-pill", { hasText: "What it cost" }).click();
+  await goToChapter(page, "What it cost");
   await expect(page.locator(".step-what")).toContainText("2 values moved one slot right, then one write placed 9");
   await expect(page.locator(".step-what")).toContainText("8, 3, 12, 9, 1, 6");
 });
@@ -125,7 +135,7 @@ test("the example controls never widen the page: hidden radio buttons stay 1 px"
 
 test("without AI the follow-up question returns Kitab's reviewed explanation, clearly labelled", async ({ page }) => {
   await open(page);
-  await page.getByLabel(/Ask a follow-up question/).fill("Why do we use arrays?");
+  await (await askInput(page)).fill("Why do we use arrays?");
   await page.getByRole("button", { name: "Ask Kitab" }).click();
   await expect(page.locator(".tutor-answer")).toContainText("couldn't be reached, so this is the reviewed explanation");
   await expect(page.locator(".tutor-answer")).toContainText("This array holds 5 whole numbers");
@@ -146,7 +156,7 @@ test("keyboard users see focus on the controls and can operate them", async ({ p
   await open(page);
   await next(page).focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator(".step-position")).toHaveText(`2 / ${track.steps.length}`);
+  await expect(lessonProgress(page)).toHaveText(`Step 2 of ${track.steps.length}`);
   const outline = await next(page).evaluate((element) => getComputedStyle(element).outlineStyle);
   expect(outline).not.toBe("none");
 });

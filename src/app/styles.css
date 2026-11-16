@@ -65,7 +65,7 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .site-header nav a.nav-playground { border-color: var(--primary-soft-line); color: var(--primary-strong); }
 .site-header nav a.nav-playground[aria-current] { background: var(--primary-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 18px rgb(34 211 238 / .25); }
 
-/* The course location on every step page: track and unit, step n of m with the unit's steps, previous and next. */
+/* The course location on every activity page: track › unit › activity, and its place among the unit's activities. */
 .step-bar { border-bottom: 1px solid var(--line); background: var(--surface-2); }
 .step-bar-inner { max-width: var(--shell-width); margin-inline: auto; padding: 6px var(--page-gutter); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 18px; font-size: .86rem; color: var(--ink-2); }
 .step-crumbs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }
@@ -79,10 +79,8 @@ input[type="range"] { width: 100%; min-height: 44px; accent-color: var(--primary
 .step-dots i.is-in-progress { opacity: 1; background: var(--warning); }
 .step-dots i.is-completed, .step-dots i.is-mastered { opacity: 1; background: var(--primary); }
 .step-dots i.is-here { outline: 2px solid var(--ink); outline-offset: 1px; }
-.step-moves { display: inline-flex; gap: 4px; margin-left: auto; }
-.step-move { display: inline-flex; align-items: center; gap: 2px; min-height: 36px; padding: 0 8px; border-radius: var(--radius-sm); color: var(--primary-strong); font-weight: 620; text-decoration: none; }
-.step-move:hover { background: var(--surface); }
-.step-move svg { width: 16px; height: 16px; }
+.step-crumb-here { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 36ch; }
+.step-where { margin-left: auto; }
 .brand { display: inline-flex; align-items: center; gap: 9px; color: var(--ink); text-decoration: none; min-height: 44px; }
 .brand-mark { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, #0e7490, var(--accent)); color: #04212b; }
 .brand-mark svg { width: 18px; }
@@ -202,7 +200,8 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 @media (max-width: 760px) {
   .site-header { position: static; }
   .site-header nav a { padding-inline: 8px; }
-  .step-moves { margin-left: 0; }
+  .step-where { margin-left: 0; }
+  .step-crumb-here { display: none; }
   .brand-arabic, .review-chip .chip-detail { display: none; }
   #main, .section[id] { scroll-margin-top: 12px; }
 }
@@ -211,8 +210,6 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
   .site-header nav a { padding-inline: 7px; font-size: .84rem; }
   /* Icons go on a phone, so the three destinations stay on one line beside the brand. */
   .site-header nav a svg { display: none; }
-  .step-move span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-  .step-move { min-width: 44px; min-height: 44px; justify-content: center; }
 }
 @media (max-width: 400px) {
   .step-dots i { width: 10px; }

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { goToChapter } from "./lesson.ts";
 
 test("changing the printer’s subnet changes the hop and preserves the packet destination", async ({ page }) => {
   // Replaced by Lessons 1 and 2, it is no longer on the path but still opens at its address.
@@ -9,7 +10,7 @@ test("changing the printer’s subnet changes the hop and preserves the packet d
   await expect(page.getByRole("button", { name: "PC Wi-Fi interface" })).toBeVisible();
   await page.getByRole("button", { name: "PC Wi-Fi interface" }).click();
   await expect(page.locator(".object-panel")).toContainText("192.168.1.10");
-  await page.locator(".chapter-pill", { hasText: "Choose a route" }).click();
+  await goToChapter(page, "Choose a route");
 
   const scene = page.locator(".ip-scene");
   await expect(scene).toContainText("Direct on the LAN");
@@ -24,7 +25,7 @@ test("changing the printer’s subnet changes the hop and preserves the packet d
   await page.reload();
   await expect(scene).toContainText("Via the default gateway");
 
-  await page.locator(".chapter-pill", { hasText: "Read an address" }).click();
+  await goToChapter(page, "Read an address");
   await page.locator(".lesson-controls .next-button").click();
   await expect(scene).toContainText("255.255.255.128");
   await expect(scene).toContainText("192.168.1.128");
@@ -33,7 +34,7 @@ test("changing the printer’s subnet changes the hop and preserves the packet d
 
 test("the router translates the reply and the lesson opens the original Packet Journey", async ({ page }) => {
   await page.goto("/learn/ip-addressing");
-  await page.locator(".chapter-pill", { hasText: "Follow NAT" }).click();
+  await goToChapter(page, "Follow NAT");
 
   const packet = page.locator(".ip-packet");
   await expect(packet.locator(".ip-chosen")).toHaveText("203.0.113.8:62001");

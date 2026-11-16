@@ -40,10 +40,13 @@ test("every link in the walkthrough's navigation leads to existing Kitab content
   // The static page states its place in the track; it must match where the track actually puts it.
   const at = locate(packetJourney.id)!;
   assert.ok(links.some((link) => link.href === unitPath(at.track, at.stage) && link.text === `Unit ${at.stageNumber}: ${at.stage.title}`), "the walkthrough's unit");
-  assert.ok(html.match(nav)![0].includes(`Step ${at.stepNumber} of ${at.stepCount} · Lesson`), "the walkthrough's step number");
   const block = html.match(nav)![0];
-  assert.ok(block.includes(`Previous: <a href="${at.previous!.path}">${at.previous!.title}</a>`), "previous step");
-  assert.ok(block.includes(`Next: <a href="${at.next!.path}">${at.next!.title}</a>`), "next step");
+  assert.ok(block.includes(`<span aria-current="page">${at.activity.title}</span>`), "the walkthrough itself, as the last crumb");
+  assert.ok(block.includes(`Lesson · ${at.stepNumber} of ${at.stepCount} in this unit`), "its place among the unit's activities");
+  // One way forward, as on every page: what comes after this lesson. No competing Previous/Next pair.
+  assert.ok(block.includes(`After this lesson: <a href="${at.next!.path}">${at.next!.title}</a>`), "what comes next");
+  assert.ok(!block.includes("Previous:"), "no previous link in the course location");
+  assert.ok(block.includes(`<a href="/playground">Playground</a>`), "the Playground entry opens the choice of Playgrounds");
   // It records its visit in Kitab's visit store, as every other page does.
   assert.ok(html.match(nav)![0].includes(`"kitab.visits.v1"`) && html.match(nav)![0].includes(`"${packetJourney.id}"`));
 });

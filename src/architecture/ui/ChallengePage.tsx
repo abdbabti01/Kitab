@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { CircleCheck, CircleX, Lightbulb, RotateCcw, Target } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
+import { PathNext } from "../../app/NetworkingPath.tsx";
 import { linkProps } from "../../app/router.ts";
 import { challengeDesign, evaluate, findChallenge, isFixed, type Challenge, type Evaluation } from "../challenges.ts";
 import { editorReducer, initEditor } from "../editor.ts";
@@ -168,6 +169,7 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
           </section>
         )}
       </div>
+      <PathNext id={`challenge:${challenge.id}`} />
     </main>
   );
 }

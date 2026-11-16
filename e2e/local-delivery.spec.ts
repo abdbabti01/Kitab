@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chapterTitles } from "./lesson.ts";
 
 // Lesson 2 foundation (/learn/local-delivery-routing): every value comes from a real simulator run.
 const next = (page: Page) => page.locator(".lesson-controls .next-button");
@@ -21,7 +22,7 @@ test("the six chapters run end to end on the lab's own diagram, and earlier less
   const old = { lessonVersion: "1.0.0", visits: 1, lastVisitedAt: "t", seen: [], total: 13, chaptersSeen: [], completedAt: "2026-11-13T10:00:00.000Z", experimentsCompleted: [], position: null, updated: false };
   await open(page, { "kitab.learning.v1": { version: 1, lessons: { "ipv4-subnets": old } } });
   await expect(page).toHaveTitle("Local delivery, gateways and routing · Kitab");
-  await expect(page.locator(".chapter-pill")).toHaveText([/Same subnet\?/, /ARP or gateway/, /Two addresses, two jobs/, /A router between subnets/, /Leaving home: NAT/, /Try it in the lab/]);
+  await expect(chapterTitles(page)).toHaveText([/Same subnet\?/, /ARP or gateway/, /Two addresses, two jobs/, /A router between subnets/, /Leaving home: NAT/, /Try it in the lab/]);
   // The diagram is the lab's NetworkCanvas, loaded with the lesson.
   await expect(scene(page).locator(".network-canvas")).toBeVisible();
   // Prediction first: the calculation appears once the question is answered.

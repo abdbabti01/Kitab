@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { goToChapter } from "./lesson.ts";
 
 // Lesson 1 practice missions: every choice is a value from the shared IPv4 helper, wrong choices get their mistake
 // explained, and mastery needs two versions predicted and explained correctly.
@@ -79,7 +80,7 @@ test("local or remote: look-alike addresses, the device's own prefix, and no cre
 
 test("Lesson 1's completion card links to both practice missions", async ({ page }) => {
   await fresh(page, "/learn/ipv4-subnets");
-  await page.locator(".chapter-pill", { hasText: "Local or remote?" }).click();
+  await goToChapter(page, "Local or remote?");
   while (!(await page.locator(".lesson-controls .next-button").isDisabled())) await page.locator(".lesson-controls .next-button").click();
   const practice = page.locator(".practice-list");
   await expect(practice.getByRole("link", { name: /Find the network address/ })).toHaveAttribute("href", "/missions/ipv4-network-address");

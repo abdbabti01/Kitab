@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { chapterTitles, goToChapter } from "./lesson.ts";
 
 // Lesson 1 "Understanding IPv4 addresses and subnets" (/learn/ipv4-subnets). Every value comes from the shared helper.
 const next = (page: Page) => page.locator(".lesson-controls .next-button");
@@ -34,7 +35,7 @@ test("the six chapters run end to end with values from the helper, and finishing
   const old = { lessonVersion: "1.1.0", visits: 1, lastVisitedAt: "t", seen: [], total: 0, chaptersSeen: [], completedAt: "2026-11-01T10:00:00.000Z", experimentsCompleted: [], position: null, updated: false };
   await open(page, { "kitab.learning.v1": { version: 1, lessons: { "ip-addressing": old } } });
   await expect(page).toHaveTitle("Understanding IPv4 addresses and subnets · Kitab");
-  await expect(page.locator(".chapter-pill")).toHaveText([/Address & interface/, /Bits and octets/, /Prefix & mask/, /Network & broadcast/, /Special cases/, /Local or remote\?/]);
+  await expect(chapterTitles(page)).toHaveText([/Address & interface/, /Bits and octets/, /Prefix & mask/, /Network & broadcast/, /Special cases/, /Local or remote\?/]);
   await expect(page.locator(".step-what")).toContainText("10.20.30.77 with prefix /28, written together as 10.20.30.77/28");
   await toStep(page, "One octet in binary");
   await expect(page.locator(".step-what")).toContainText("Octet 4 is 77, which is 01001101 in binary. The boundary is inside octet 4: 77 = 64 + 8 + 4 + 1");
@@ -100,7 +101,7 @@ test("invalid addresses keep the learner's text and aren't applied; the slider a
   await page.keyboard.press("ArrowRight");
   await expect(page.locator(".range-control output")).toHaveText("/21");
   // Arrow keys on the slider change the prefix, not the step.
-  await expect(page.locator(".step-meta")).toContainText("Chapter 1");
+  await expect(page.locator(".lesson-outline summary")).toContainText("Chapter 1 of");
 });
 
 test("/31, /32 and /0 are described by what they are, never with a network or broadcast address", async ({ page }) => {
@@ -120,7 +121,7 @@ test("/31, /32 and /0 are described by what they are, never with a network or br
 
 test("the experiments run from the completion card, and the mask mismatch shows two devices disagreeing", async ({ page }) => {
   await open(page);
-  await page.locator(".chapter-pill", { hasText: "Local or remote?" }).click();
+  await goToChapter(page, "Local or remote?");
   while (!(await next(page).isDisabled())) await next(page).click();
   await page.getByRole("button", { name: "Experiment: Only your PC changes its prefix" }).click();
   await expect(page.locator(".step-what")).toContainText("Your PC uses 10.20.30.77/24. For 10.20.30.90 it decides: same subnet");

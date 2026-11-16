@@ -32,15 +32,25 @@ test("the mission Inspector's tabs only reference the panel that is rendered", a
   await expect(page.getByRole("tab", { name: "State", exact: true })).toBeFocused();
 });
 
-test("lesson level buttons reference the level panel only while it exists", async ({ page }) => {
+test("a lesson's outline opens and jumps from the keyboard; its level is marked, never a control", async ({ page }) => {
   await page.goto("/learn/ip-addressing");
-  const level = page.locator(".level-button").first();
-  await expect(level).toHaveAttribute("aria-expanded", "false");
+  const outline = page.locator(".lesson-outline");
+  await expect(page.locator(".lesson-progress progress")).toHaveAccessibleName(/^Step 1 of \d+$/);
+  // The level is plain text with the current one marked: nothing to press, no state to announce.
+  await expect(page.locator(".level-scale button")).toHaveCount(0);
+  await expect(page.locator('.level-scale li[aria-current="true"]')).toHaveCount(1);
+  await outline.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(outline).toHaveAttribute("open", "");
+  await expect(outline.getByRole("list", { name: "Chapters" }).locator('[aria-current="step"]')).toHaveCount(1);
   expect(await dangling(page)).toEqual([]);
-  await level.click();
-  await expect(level).toHaveAttribute("aria-expanded", "true");
-  await expect(level).toHaveAttribute("aria-controls", "level-panel");
-  await expect(page.locator("#level-panel")).toBeVisible();
+  // Tab to the third chapter and choose it: the outline closes and the step changes.
+  const third = outline.locator(".outline-item").nth(2);
+  await third.focus();
+  await page.keyboard.press("Enter");
+  await expect(outline).not.toHaveAttribute("open", "");
+  await expect(outline.locator("summary")).toContainText("Chapter 3 of");
+  await expect(page.locator(".lesson-progress-label")).not.toHaveText(/^Step 1 of /);
   expect(await dangling(page)).toEqual([]);
 });
 
