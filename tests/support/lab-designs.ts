@@ -164,4 +164,18 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "a long lease hides the pauses but blocks everyone behind a crashed holder", config: { leaseMs: 10000 }, failing: ["crash:finished"] },
     ],
   },
+  "cache-stampede": {
+    pass: [
+      { coalesce: "global", refresh: "stale", jitterPercent: 50 },
+      { coalesce: "global", refresh: "stale", jitterPercent: 50, ttlS: 20 },
+      { coalesce: "global", refresh: "ahead", jitterPercent: 50, ttlS: 20 },
+    ],
+    fail: [
+      { why: "per-server coalescing: one query per server per key, and many keys expire together", config: { coalesce: "server" }, failing: ["mass-expiry:db", "mass-expiry:p99"] },
+      { why: "coalesced and jittered, but users still wait for each refresh", config: { coalesce: "global", jitterPercent: 50 }, failing: ["hot-key:p99", "mass-expiry:p99"] },
+      { why: "serving stale without coalescing: every request refreshes", config: { refresh: "stale", jitterPercent: 50 }, failing: ["hot-key:db", "mass-expiry:db", "mass-expiry:fresh"] },
+      { why: "no jitter: 200 keys expire together", config: { coalesce: "global", refresh: "stale" }, failing: ["mass-expiry:db", "mass-expiry:fresh"] },
+      { why: "too little jitter for 200 keys", config: { coalesce: "global", refresh: "stale", jitterPercent: 40 }, failing: ["mass-expiry:db"] },
+    ],
+  },
 };

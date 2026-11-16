@@ -11,7 +11,8 @@ import { outboxLab } from "./outbox.ts";
 import { sagaLab } from "./saga.ts";
 import { replicationLagLab } from "./replication-lag.ts";
 import { fencingLab } from "./fencing.ts";
+import { cacheStampedeLab } from "./cache-stampede.ts";
 
-export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab, lostUpdateLab, duplicateDeliveryLab, hotPartitionLab, outboxLab, sagaLab, replicationLagLab, fencingLab];
+export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab, lostUpdateLab, duplicateDeliveryLab, hotPartitionLab, outboxLab, sagaLab, replicationLagLab, fencingLab, cacheStampedeLab];
 
 export const findLab = (id: string) => labs.find((lab) => lab.id === id);

@@ -37,6 +37,13 @@ export const systemDesignPath: Stage[] = [
     practise: [sdChallenge("scale-behind-lb", "Serve 600 requests per second and survive losing any one server.", ["sd:scalability"])],
   },
   {
+    id: "performance",
+    title: "Performance and caching at scale",
+    objective: "Little's law and queueing, tail latency, capacity planning, connection pools, indexes, caching strategies and invalidation, cache stampedes, sharding and cost.",
+    learn: [sdUnit("performance", "The arithmetic of capacity, the statistics of slowness, and caching and partitioning done safely.")],
+    practise: [sdLab("cache-stampede", "A hot cached value expires and the database drowns; stop the stampede.", ["sd:performance"])],
+  },
+  {
     id: "distributed",
     title: "Distributed systems",
     objective: "Queues and workers, backpressure, redelivery and dead letters, read replicas and partitions.",
