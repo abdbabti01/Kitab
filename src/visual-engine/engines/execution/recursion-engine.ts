@@ -120,7 +120,9 @@ export function buildRecursionTimeline(input: Partial<RecursionConfig>): Recursi
         id: "overflow",
         kind: "overflow",
         title: "Stack overflow",
-        explanation: `No base case stops the calls. After ${stack.length} frames the runtime refuses to push another frame and throws.`,
+        explanation: config.baseCase
+          ? `The base case exists, but it is ${n - 1} more calls away and the stack already holds its limit of ${stack.length} frames. The runtime refuses to push another frame and throws.`
+          : `No base case stops the calls. After ${stack.length} frames the runtime refuses to push another frame and throws.`,
         line: 3,
       });
       break;
@@ -148,14 +150,15 @@ export function buildRecursionTimeline(input: Partial<RecursionConfig>): Recursi
         });
         break;
       }
-      value = config.fn === "factorial" ? caller.n * value : caller.n + value;
+      const received = value;
+      value = config.fn === "factorial" ? caller.n * received : caller.n + received;
       stack = [...stack.slice(0, -1), { ...caller, status: "returning", returnValue: value }];
       emit({
         kind: "return",
         title: `Pop ${label(config.fn, finished.n)}; ${label(config.fn, caller.n)} resumes`,
-        explanation: `The returned value lets the waiting frame finish line 3: ${caller.n} ${config.fn === "factorial" ? "×" : "+"} ${config.fn === "factorial" ? value / caller.n : value - caller.n} = ${value}.`,
+        explanation: `${label(config.fn, finished.n)} returns ${received}. The waiting frame finishes line 3: ${caller.n} ${config.fn === "factorial" ? "×" : "+"} ${received} = ${value}.`,
         line: 3,
-        returned: { frameId: finished.id, value: config.fn === "factorial" ? value / caller.n : value - caller.n },
+        returned: { frameId: finished.id, value: received },
       });
     }
   }
@@ -165,7 +168,7 @@ export function buildRecursionTimeline(input: Partial<RecursionConfig>): Recursi
     kind: "complete",
     title: overflow ? "The program crashed" : `Result: ${result}`,
     explanation: overflow
-      ? "Every frame stayed on the stack because none could return. Memory for frames is finite."
+      ? "No frame ever returned a value. The error unwinds every pending frame, so none finishes its line 3. (Kitab's limit is a small teaching number; real runtimes allow thousands of frames, for example JavaScript's RangeError: Maximum call stack size exceeded.)"
       : "Frames returned in the reverse order they were pushed: last in, first out.",
     line: 4,
   });
