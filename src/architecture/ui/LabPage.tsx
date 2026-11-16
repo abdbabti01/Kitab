@@ -142,7 +142,7 @@ function RunViewer({ lab, config, scenario, title }: { lab: Lab; config: LabConf
       <div className="playback">
         <button type="button" className="icon-button" onClick={() => setCursor(0)} aria-label="First event"><SkipBack aria-hidden="true" /></button>
         <button type="button" className="icon-button" onClick={() => setCursor(cursor - 1)} aria-label="Previous event" disabled={cursor <= 0}><StepBack aria-hidden="true" /></button>
-        {playing ? <button type="button" className="button" onClick={pause}><Pause aria-hidden="true" /> Pause</button> : <button type="button" className="button" onClick={play}><Play aria-hidden="true" /> Replay step by step</button>}
+        {playing ? <button type="button" className="button" onClick={pause}><Pause aria-hidden="true" /> Pause</button> : <button type="button" className="button" onClick={play}><Play aria-hidden="true" /> Replay</button>}
         <button type="button" className="icon-button" onClick={() => setCursor(cursor + 1)} aria-label="Next event" disabled={atEnd}><StepForward aria-hidden="true" /></button>
         <button type="button" className="icon-button" onClick={() => setCursor(run.events.length - 1)} aria-label="Last event"><SkipForward aria-hidden="true" /></button>
         <span className="clock">Event {cursor + 1} of {run.events.length} · {ms(event?.t ?? 0)}</span>

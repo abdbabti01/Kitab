@@ -157,3 +157,9 @@
 .lab-controls select, .lab-controls input:not([type="checkbox"]) { width: 100%; min-width: 0; }
 .result-group h4 { margin: 10px 0 4px; font-size: .86rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .result-group ul { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+@media (max-width: 640px) {
+  .lab-card, .lab-stage { padding: 12px; }
+  .lab-run { padding: 10px; }
+  .lab-run .playback { gap: 6px; }
+  .lab-run .playback .clock { flex: 1 1 100%; }
+}
