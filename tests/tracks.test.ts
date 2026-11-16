@@ -8,7 +8,7 @@ import type { Evidence } from "../src/learning/networking-path.ts";
 import { activeTrack, dataStructuresPath, findTrack, hasHistory, kindOf, locate, nextLink, recommendFor, trackProgress, tracks } from "../src/learning/tracks.ts";
 
 const all = tracks.flatMap((track) => track.stages.flatMap((stage) => [...stage.learn, ...stage.practise]));
-const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} }, visits: { version: 1, activities: {} } });
+const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} }, visits: { version: 1, activities: {} }, architecture: { version: 1, challenges: {}, lessons: {} } });
 
 test("every activity id is unique across tracks, and every mission is in exactly one track", () => {
   const ids = all.map((a) => a.id);

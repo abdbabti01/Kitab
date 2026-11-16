@@ -108,6 +108,13 @@ prediction), misconception messages, and reviewed source excerpts.
 - The behaviour baseline (`tests/network-baseline.test.ts`) pins event order, actors, hops, headers and
   snapshots for every scenario and every mission variant's first run.
 
+## System design
+
+`src/architecture/` is the System Design track and the Architecture Playground (`/practice/architecture`), with
+its own pure discrete-event simulator (`simulate.ts`), graph validation, challenge evaluation, editing reducer and
+browser-local persistence. It shares the site shell, tokens, track model and tutor budget, and nothing with the
+networking engine. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact model and its limits.
+
 ## Playback and motion
 
 `usePlayback(trace)` keys position to `trace.scenarioKey`; a stale index from a
@@ -135,6 +142,7 @@ the ribbon bookmark is the pointer) animated with CSS keyframes.
 | Concept drafts (`POST /api/concept`) | Write schema-bound explanatory content | Nothing is verified. Drafts are labelled “not reviewed”; walkthroughs are illustrative. The engine family is chosen once in the Worker (`applyEnginePolicy`). |
 | Tutor (`POST /api/tutor`) | After the prediction only: explain/hint using provided facts | The engine trace. **Before a prediction no model is called**: the Worker returns the reviewed, answer-safe hint or frame narration. Afterwards it rebuilds the trace from validated params and rejects output that fails schema, evidence-id, attention-id, misconception-code, numeric-grounding (number words normalized), topic or spoiler checks, or an adapter's engine-derived claim checks (e.g. TCP ACK numbers and recovery; recursion depth; how many array elements an insert/delete shifts and whether it overwrites a slot, compared with the computed `shifts`). These checks cover specific claim shapes. They do not verify arbitrary prose, and a valid citation does not make a sentence true. |
 | Lesson follow-up (`POST /api/lesson-tutor`) | Answer a question the learner typed about the current step, from the server-rebuilt step facts | Nothing: the walkthrough's explanations are reviewed content. Same schema, evidence, attention, numeric-grounding, topic and adapter claim checks as the tutor; same per-user scopes and shared token allowance; one call; reviewed step text on any failure. |
+| Architecture coach (`POST /api/architecture-coach`) | Answer a question about a challenge design from facts the Worker rebuilds from the design document, plus booleans and numbers the browser reports from its last check | Nothing: the deterministic challenge checks already decided. Tutor schema, the tutor's per-user scopes and the shared Neuron allowance; evidence, component-id, number-grounding, topic and markup checks; reviewed hint on any failure. |
 | Scenario composition (`POST /api/scenario`, labs only) | Map a learner's description onto the mission's declared controls (JSON schema derived from them) | `validateComposedParams`: keys must be declared controls, values allowed options or on-range/step, the engine must build a complete trace without downgrading or normalizing anything. Only then is it saved (`composed_scenarios`) and applied. The mechanism's correctness still comes from the engine; no second model is asked. |
 
 Fallbacks (reviewed hints, frame narration, misconception messages) are
@@ -208,7 +216,8 @@ text) from 0003.
 
 ## Routes
 
-`/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug`. Legacy
+`/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug` · `/learn/system-design/:id` ·
+`/practice/architecture` · `/practice/architecture/challenges/:id`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
 

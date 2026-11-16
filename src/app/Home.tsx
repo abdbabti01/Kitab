@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { ArrowRight, Binary, BookOpen, FlaskConical, HelpCircle, Network, Waypoints } from "lucide-react";
+import { ArrowRight, Binary, BookOpen, FlaskConical, HelpCircle, Network, Waypoints, Workflow } from "lucide-react";
 import { findTrack, type LearningTrack } from "../learning/tracks.ts";
 import { linkProps } from "./router.ts";
 
@@ -14,6 +14,7 @@ const ways = [
 
 const networking = findTrack("networking")!;
 const dataStructures = findTrack("data-structures")!;
+const systemDesign = findTrack("system-design")!;
 // The Playground's starter networks, as the networking track lists them (each opens with its guided first step).
 const starters = networking.stages.flatMap((stage) => stage.learn).filter((a) => a.id.startsWith("starter:"));
 
@@ -52,6 +53,7 @@ export function Home() {
           <ul className="subject-grid">
             <SubjectCard track={networking} Icon={Network} tone="networking" action="Explore Networking" />
             <SubjectCard track={dataStructures} Icon={Binary} tone="structures" action="Explore Data structures" />
+            <SubjectCard track={systemDesign} Icon={Workflow} tone="design" action="Explore System design" />
             <li className="subject-card is-playground">
               <span className="subject-icon" aria-hidden="true"><Waypoints /></span>
               <span className="subject-kind">Interactive lab</span>
@@ -102,6 +104,11 @@ export function Home() {
 
         <section className="section" aria-labelledby="library-title">
           <h2 id="library-title">Also on Kitab</h2>
+          <a className="track-card" {...linkProps("/practice/architecture")}>
+            <span className="eyebrow">Interactive lab</span>
+            <b>Architecture Playground</b>
+            <span>Design an application from APIs, databases, caches, load balancers and queues, then send simulated traffic through it.</span>
+          </a>
           <a className="track-card" {...linkProps("/learn/library")}>
             <span className="eyebrow">Library</span>
             <b>Readings</b>

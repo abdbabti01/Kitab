@@ -44,7 +44,7 @@ test("every page shares one navigation, marks its section by its role in the cou
   await expect(page).toHaveURL(/\/$/);
   // Home is the same for a returning learner: the subjects first.
   await expect(page.locator(".home-hero h1")).toBeInViewport();
-  await expect(page.locator(".subject-card")).toHaveCount(3);
+  await expect(page.locator(".subject-card")).toHaveCount(4);
 });
 
 test("reading playback keeps the same layout after a mission", async ({ page }) => {

@@ -4,7 +4,7 @@ import { LEARNING_KEY } from "../learning/lessons/progress.ts";
 import { PROGRESS_KEY, safeStorage } from "../learning/progress.ts";
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { findActivity, loadEvidence } from "../learning/networking-path.ts";
-import { locate } from "../learning/tracks.ts";
+import { findTrackActivity, locate } from "../learning/tracks.ts";
 import { recordVisit } from "../learning/visits.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { Home } from "./Home.tsx";
@@ -17,6 +17,9 @@ const AccessExplorer = lazy(() => import("../practice/AccessExplorer.tsx").then(
 const SubnetExplorer = lazy(() => import("../practice/SubnetExplorer.tsx").then(m => ({default:m.SubnetExplorer})));
 const NetworkPlayground = lazy(() => import("../practice/NetworkPlayground.tsx").then(m => ({default:m.NetworkPlayground})));
 const NetworkMissionRoute = lazy(() => import("../practice/NetworkMissionPage.tsx").then((m) => ({ default: m.NetworkMissionRoute })));
+const ArchitecturePlayground = lazy(() => import("../architecture/ui/ArchitecturePlayground.tsx").then((m) => ({ default: m.ArchitecturePlayground })));
+const ChallengeRoute = lazy(() => import("../architecture/ui/ChallengePage.tsx").then((m) => ({ default: m.ChallengeRoute })));
+const ArchitectureLessonRoute = lazy(() => import("../architecture/ui/ArchitectureLessonPage.tsx").then((m) => ({ default: m.ArchitectureLessonRoute })));
 const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
 const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
@@ -47,6 +50,8 @@ export function activityIdFor(route: Route, search: string): string | null {
   if (route.name === "network-mission") return findActivity(route.id) ? route.id : null;
   if (route.name === "access-explorer") return "connections";
   if (route.name === "subnet-explorer") return "subnet-explorer";
+  if (route.name === "architecture-lesson") return findTrackActivity(`sd:${route.id}`) ? `sd:${route.id}` : null;
+  if (route.name === "architecture-challenge") return findTrackActivity(`challenge:${route.id}`) ? `challenge:${route.id}` : null;
   if (route.name === "network-practice") {
     const starter = new URLSearchParams(search).get("starter");
     return starter && findActivity(`starter:${starter}`) ? `starter:${starter}` : null;
@@ -56,7 +61,7 @@ export function activityIdFor(route: Route, search: string): string | null {
 
 /** The main-navigation section a page belongs to, by its role in the course rather than its address. */
 export function sectionFor(route: Route, activityId: string | null): Section | null {
-  if (route.name === "network-practice") return "playground";
+  if (route.name === "network-practice" || route.name === "architecture-playground") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
   if (route.name === "practice" || route.name === "network-missions") return "practice";
   const at = activityId ? locate(activityId) : undefined;
@@ -84,6 +89,9 @@ export function App() {
   else if (route.name === "network-practice") view = <NetworkPlayground key={window.location.search} />;
   // /practice/missions, the earlier address of the networking missions, shows the same page.
   else if (route.name === "network-missions" || route.name === "practice") view = <PracticePage evidence={evidence} />;
+  else if (route.name === "architecture-playground") view = <ArchitecturePlayground />;
+  else if (route.name === "architecture-challenge") view = <ChallengeRoute key={route.id} id={route.id} notFound={<NotFound what="that challenge" />} />;
+  else if (route.name === "architecture-lesson") view = <ArchitectureLessonRoute key={route.id} id={route.id} notFound={<NotFound what="that lesson" />} />;
   else if (route.name === "network-mission") {
     view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;
   }

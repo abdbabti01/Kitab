@@ -17,7 +17,7 @@ const memory = (initial: Record<string, string> = {}) => {
   const data = new Map(Object.entries(initial));
   return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v), removeItem: (k: string) => void data.delete(k) };
 };
-const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} }, visits: { version: 1, activities: {} } });
+const empty = (): Evidence => ({ learning: { version: 1, lessons: {} }, progress: { version: 1, missions: {} }, network: { version: 1, missions: {} }, visits: { version: 1, activities: {} }, architecture: { version: 1, challenges: {}, lessons: {} } });
 const visit = (e: Evidence, id: string, at = "2026-11-10T10:00:00.000Z") => {
   e.visits.activities[id] = { first: at, last: at, count: 1 };
 };
@@ -119,7 +119,7 @@ test("progress is read from the existing stores, including legacy challenges and
     "kitab.learning.v1": "{not json",
     "kitab.progress.v1": JSON.stringify({ version: 2 }),
   });
-  const e: Evidence = { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage), visits: loadVisits(storage) };
+  const e: Evidence = { learning: loadLearning(storage).learning, progress: loadProgress(storage).progress, network: loadMissionStore(storage), visits: loadVisits(storage), architecture: { version: 1, challenges: {}, lessons: {} } };
   assert.equal(activityState(findActivity("no-connection")!, e), "completed", "an earlier challenge counts as completed");
   assert.equal(activityState(findActivity("ipv4-subnets")!, e), "not-started");
   assert.equal(activityState(findActivity("tcp-lost-segment")!, e), "not-started");

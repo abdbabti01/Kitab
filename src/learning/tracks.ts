@@ -1,6 +1,58 @@
 // Kitab's learning tracks: the networking path and a data-structures path, each a list of units (stages) of
 // existing lessons, readings, explorations and missions. Data and pure functions only; nothing is locked.
 import { activityState, concept, isRequired, lastActive, lesson, mission, networkingPath, recommend, type Activity, type Evidence, type Recommendation, type Stage } from "./networking-path.ts";
+import { challengeCatalog, challengePath, lessonCatalog, lessonPath } from "../architecture/catalog.ts";
+
+const sdLesson = (id: (typeof lessonCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: lessonCatalog.find((l) => l.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
+const sdChallenge = (id: (typeof challengeCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
+  const found = challengeCatalog.find((c) => c.id === id)!;
+  return { id: `challenge:${id}`, title: found.title, version: found.version, detail, path: challengePath(id), track: "architecture-challenge", needs };
+};
+
+export const systemDesignPath: Stage[] = [
+  {
+    id: "fundamentals",
+    title: "Architecture fundamentals",
+    objective: "What clients, API servers and databases do, where a request's time goes, and what limits how many requests a server can serve.",
+    learn: [sdLesson("fundamentals", "Follow one request's hops, then raise the traffic until the server's queue fills.")],
+    practise: [sdChallenge("simple-web-app", "Make a notes app work: fast, reliable, and nothing lost on restart.", ["sd:fundamentals"])],
+  },
+  {
+    id: "storage-caching",
+    title: "Data storage and caching",
+    objective: "SQL and NoSQL databases, cache-aside reads and writes, and why a cache's hit rate depends on what users ask for.",
+    learn: [sdLesson("storage-caching", "Compare no cache, small and large caches, and popular versus uniform items.")],
+    practise: [sdChallenge("cache-read-heavy", "Take load off a database that can't be made bigger.", ["sd:storage-caching"])],
+  },
+  {
+    id: "scalability",
+    title: "Scalability and performance",
+    objective: "Scale out behind a load balancer, measure utilisation and queueing, and follow the bottleneck as it moves.",
+    learn: [sdLesson("scalability", "One, two or three servers: find where the bottleneck goes next.")],
+    practise: [sdChallenge("scale-behind-lb", "Serve 600 requests per second and survive losing any one server.", ["sd:scalability"])],
+  },
+  {
+    id: "distributed",
+    title: "Distributed systems",
+    objective: "Queues and workers, backpressure, redelivery and dead letters, read replicas and partitions.",
+    learn: [sdLesson("distributed", "Accept orders instantly, then watch workers keep up, or not.")],
+    practise: [sdChallenge("async-orders", "Process every order in the background and lose none during a database outage.", ["sd:distributed"])],
+  },
+  {
+    id: "reliability",
+    title: "Security and reliability",
+    objective: "Redundancy, health checks, timeouts, retries and backoff, retry storms, and keeping the inside of a design private.",
+    learn: [sdLesson("reliability-security", "Fail a server with and without health checks and spare capacity.")],
+    practise: [sdChallenge("resilient-api", "Stay up through a server failure without a retry storm.", ["sd:reliability-security"])],
+  },
+  {
+    id: "projects",
+    title: "Real-world design projects",
+    objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",
+    learn: [sdLesson("design-projects", "Estimate a URL shortener's load and test three designs against it.")],
+    practise: [sdChallenge("url-shortener", "Redirect 1,000 visitors a second, even when the cache fails.", ["sd:design-projects"])],
+  },
+];
 
 export const dataStructuresPath: Stage[] = [
   {
@@ -56,7 +108,7 @@ export const dataStructuresPath: Stage[] = [
   },
 ];
 
-export type TrackId = "networking" | "data-structures";
+export type TrackId = "networking" | "data-structures" | "system-design";
 export type LearningTrack = {
   id: TrackId;
   title: string;
@@ -81,6 +133,13 @@ export const tracks: LearningTrack[] = [
     summary: "How programs keep values in memory: arrays, linked lists, hash tables, trees and graphs, and the call stack.",
     path: "/learn/data-structures",
     stages: dataStructuresPath,
+  },
+  {
+    id: "system-design",
+    title: "System design & architecture",
+    summary: "Design real applications from APIs, databases, caches, load balancers and queues, then send simulated traffic through them and see why they slow down or fail.",
+    path: "/learn/system-design",
+    stages: systemDesignPath,
   },
 ];
 
@@ -135,7 +194,7 @@ export function trackProgress(track: LearningTrack, evidence: Evidence) {
 
 /** Anything recorded at all, in any store: the learner has been here before. */
 export function hasHistory(evidence: Evidence) {
-  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions].some((records) => Object.keys(records).length > 0);
+  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges].some((records) => Object.keys(records).length > 0);
 }
 
 /** The track the learner touched most recently; networking when nothing is dated. */
@@ -157,7 +216,11 @@ export const recommendFor = (track: LearningTrack, evidence: Evidence) => recomm
 
 /** The recommended step as a link, worded by what Kitab actually knows. */
 export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
-  if (r.kind === "done") return track.id === "networking" ? { label: "Open the Playground", path: "/practice/network" } : { label: "Browse the Library", path: "/learn/library" };
+  if (r.kind === "done") {
+    if (track.id === "networking") return { label: "Open the Playground", path: "/practice/network" };
+    if (track.id === "system-design") return { label: "Open the Architecture Playground", path: "/practice/architecture" };
+    return { label: "Browse the Library", path: "/learn/library" };
+  }
   const label = {
     start: `Start: ${r.activity.title}`,
     continue: `Continue: ${r.activity.title}`,
@@ -168,8 +231,9 @@ export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
 }
 
 /** What kind of step an activity is, in the learner's words. */
-export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" {
-  if (activity.track === "lesson" || activity.id === "hello-tcp") return "Lesson";
+export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" {
+  if (activity.track === "lesson" || activity.track === "architecture-lesson" || activity.id === "hello-tcp") return "Lesson";
+  if (activity.track === "architecture-challenge") return "Design";
   if (activity.track === "network-mission") return "Troubleshoot";
   if (activity.track === "mission") return activity.id.endsWith("-lab") ? "Challenge" : "Predict";
   if (activity.id.startsWith("concept:")) return "Reading";

@@ -30,6 +30,29 @@ async function runToEnd(page: Page) {
   await page.keyboard.press("End");
 }
 
+/**
+ * After "Show me the evidence": the page scrolls the evidence into view (smoothly, unless motion is reduced). Wait
+ * until it is on screen and the page has stopped moving, so the next click lands on the control it names rather
+ * than on whatever scrolls under the pointer (the evidence button sits below the fold at 1024 × 800).
+ */
+async function evidenceInView(page: Page, selector: string) {
+  // Where scrollIntoView({ block: "center" }) ends: the element in the middle of the window, or the page at the end
+  // of its scroll range. Checked over two frames, so a scroll still under way never counts.
+  await expect.poll(() => page.locator(selector).first().evaluate((element) => new Promise<boolean>((resolve) => {
+    const settled = () => {
+      const rect = element.getBoundingClientRect();
+      const centred = Math.abs((rect.top + rect.bottom) / 2 - window.innerHeight / 2) < window.innerHeight / 4;
+      const atLimit = window.scrollY === 0 || Math.ceil(window.scrollY + window.innerHeight) >= document.documentElement.scrollHeight;
+      return { y: window.scrollY, ok: centred || atLimit };
+    };
+    const first = settled();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const second = settled();
+      resolve(first.ok && second.ok && first.y === second.y);
+    }));
+  }))).toBe(true);
+}
+
 /** After runToEnd: steps through the run from the start until the step title matches, as a learner would. */
 async function stepTo(page: Page, title: RegExp) {
   // Ending the run from the slider keeps focus on it, so the learner steps straight back through the evidence.
@@ -68,6 +91,7 @@ test("wrong prediction → run → evidence → explanation → retry on new sce
   await expect(page.locator(".scene-title")).toHaveText("The receiver repeats ACK 2461");
   await expect(page.locator(".guide-message")).toContainText("can't skip the gap");
   await expect(page.locator('[data-entity="segment-2"]')).toHaveClass(/is-attention/);
+  await evidenceInView(page, '[data-entity="segment-2"]');
 
   // Choosing the step after it was revealed is right but doesn't count.
   await evidence.getByRole("button", { name: "This step proves it" }).click();

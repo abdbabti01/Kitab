@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Binary, FlaskConical, Router } from "lucide-react";
+import { Binary, FlaskConical, Router, Workflow } from "lucide-react";
 import { activityState, type Activity, type Evidence } from "../learning/networking-path.ts";
 import { practiceLabels, type PracticeState } from "../learning/practice-state.ts";
 import { kindOf, tracks, unitPath, type TrackId } from "../learning/tracks.ts";
@@ -18,6 +18,7 @@ const kinds = [
   { kind: "Predict", text: "Say what the simulation will do before it runs, then prove it from the evidence." },
   { kind: "Troubleshoot", text: "A network is broken. Investigate, name the cause, fix it and check." },
   { kind: "Challenge", text: "An open lab: change every setting and predict every result." },
+  { kind: "Design", text: "Design an architecture that meets the requirements. Simulator runs check it; many designs can pass." },
 ];
 
 function readQuery() {
@@ -136,6 +137,7 @@ export function PracticePage({ evidence }: { evidence: Evidence }) {
           <li><a {...linkProps("/practice/subnets")}><Binary aria-hidden="true" /><span><b>Explore subnets</b><small>Any IPv4 address and prefix: its bits, its block, and practice questions</small></span></a></li>
           <li><a {...linkProps("/practice/connections")}><Router aria-hidden="true" /><span><b>How your home connects</b><small>DSL, cable or fiber, Wi-Fi or Ethernet: follow one message</small></span></a></li>
           <li><a {...linkProps("/practice/network")}><FlaskConical aria-hidden="true" /><span><b>Playground</b><small>Build any network, send anything, break one setting and compare</small></span></a></li>
+          <li><a {...linkProps("/practice/architecture")}><Workflow aria-hidden="true" /><span><b>Architecture Playground</b><small>Design an application, send simulated traffic through it and find the bottleneck</small></span></a></li>
         </ul>
       </section>
     </main>
