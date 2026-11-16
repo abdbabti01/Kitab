@@ -190,7 +190,7 @@ export function ArchitecturePlayground() {
           </div>
         </div>
         <p className="heading-links">
-          <a {...linkProps("/learn/system-design")}>System Design track</a> · <a {...linkProps("/practice?track=system-design")}>Design challenges</a>
+          <a {...linkProps("/learn/system-design")}>System Design track</a> · <a {...linkProps("/practice?track=system-design")}>Design challenges</a> · <a {...linkProps("/practice/architecture/labs")}>Architecture labs</a>
         </p>
       </header>
       <p className="sr-only" role="status">{message}</p>
