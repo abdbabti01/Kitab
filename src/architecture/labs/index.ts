@@ -4,7 +4,10 @@ import { idempotencyLab } from "./idempotency.ts";
 import { retryStormLab } from "./retry-storm.ts";
 import { deadlineLab } from "./deadline.ts";
 import { circuitBreakerLab } from "./circuit-breaker.ts";
+import { lostUpdateLab } from "./lost-update.ts";
+import { duplicateDeliveryLab } from "./duplicate-delivery.ts";
+import { hotPartitionLab } from "./hot-partition.ts";
 
-export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab];
+export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab, lostUpdateLab, duplicateDeliveryLab, hotPartitionLab];
 
 export const findLab = (id: string) => labs.find((lab) => lab.id === id);

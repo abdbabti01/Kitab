@@ -25,6 +25,8 @@ export const challengePath = (id: string) => `/practice/architecture/challenges/
 export const unitCatalog = [
   { id: "idempotency", title: "Idempotency and safe retries" },
   { id: "resilience", title: "Timeouts, backoff and circuit breakers" },
+  { id: "transactions", title: "Transactions and concurrency" },
+  { id: "messaging", title: "Messaging and event streams" },
 ] as const;
 
 export const labCatalog = [
@@ -32,6 +34,9 @@ export const labCatalog = [
   { id: "retry-storm", title: "Stop a retry storm", version: "1" },
   { id: "deadline-budget", title: "Retries at every layer", version: "1" },
   { id: "circuit-breaker", title: "Contain a failing dependency", version: "1" },
+  { id: "lost-update", title: "Correct concurrent inventory updates", version: "1" },
+  { id: "duplicate-delivery", title: "Prevent duplicate order processing", version: "1" },
+  { id: "hot-partition", title: "Handle an overloaded Kafka partition", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

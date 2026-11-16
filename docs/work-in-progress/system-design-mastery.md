@@ -37,9 +37,9 @@ mastery challenges. UNDERSTAND → OBSERVE → FIX → MASTER. Reading or openin
 
 ## Phases
 
-- [ ] P0 slice 1: lab kernel, progress store, lab page UI, idempotent payments lab, track wiring, tests
-- [ ] P0 slice 2: retry storm (backoff/jitter), retries across layers (timeouts/deadlines), circuit breaker + bulkhead
-- [ ] P0 slice 3: lost update (OCC/pessimistic/atomic), duplicate delivery (consumer dedup)
+- [x] P0 slice 1: lab kernel, progress store, lab page UI, idempotent payments lab, track wiring, tests (19df229)
+- [x] P0 slice 2: retry storm (backoff/jitter), retries across layers (timeouts/deadlines), circuit breaker + bulkhead (df37ccf)
+- [x] P0 slice 3: lost update, duplicate delivery, hot partition; transactions + messaging units
 - [ ] P1: outbox, saga, replication lag, cache stampede, hot partition, fencing tokens, rate limiting
 - [ ] P1/P2: concept units (idempotency, resilience, overload, transactions, messaging, data across services,
       consistency, coordination, performance, security, production)
@@ -47,7 +47,11 @@ mastery challenges. UNDERSTAND → OBSERVE → FIX → MASTER. Reading or openin
 
 ## Status
 
-Phase: P0 slice 1 starting. Baseline: `npm test` 531/531 pass on b4dbcb8.
+Phase: P1 (outbox, saga, replication lag, cache stampede, fencing, rate limiting). Baseline 531/531 on b4dbcb8; 553/553 at df37ccf.
+
+How labs are tuned: `tests/support/lab-designs.ts` lists passing designs and wrong designs with the exact
+checks they must fail. Explore a lab with a scratch script that runs `evaluateLab` over candidate configs.
+Test/edit helpers used: Playwright screenshots via `node_modules/playwright` against `npx vite --port 5391`.
 
 ## Resume
 

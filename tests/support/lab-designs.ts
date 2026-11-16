@@ -68,4 +68,47 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "a long open period keeps refusing after the service has recovered", config: { timeoutMs: 200, fallback: true, breaker: true, openMs: 5000 }, failing: ["hang:resume", "errors:resume", "slow:resume"] },
     ],
   },
+  "lost-update": {
+    pass: [
+      { strategy: "atomic" },
+      { strategy: "pessimistic", slowFirst: true },
+      { strategy: "optimistic", retries: 8, slowFirst: true },
+      { isolation: "repeatable-read", retries: 8, slowFirst: true },
+    ],
+    fail: [
+      { why: "read-then-write under READ COMMITTED loses decrements and oversells", config: {}, failing: ["flash-sale:consistent", "flash-sale:oversell", "busy-day:consistent", "slow-check:consistent"] },
+      { why: "version checks without retries turn conflicts into errors", config: { strategy: "optimistic" }, failing: ["flash-sale:answered", "busy-day:answered", "slow-check:answered"] },
+      { why: "a few retries aren't enough for a flash sale's contention", config: { strategy: "optimistic", retries: 3, slowFirst: true }, failing: ["flash-sale:answered"] },
+      { why: "a lock held through the slow check queues everyone", config: { strategy: "pessimistic" }, failing: ["slow-check:answered", "slow-check:fast"] },
+      { why: "optimistic control with the slow check inside the window conflicts almost every time", config: { strategy: "optimistic", retries: 8 }, failing: ["slow-check:answered", "slow-check:fast"] },
+    ],
+  },
+  "duplicate-delivery": {
+    pass: [
+      { dedup: "same-tx", key: "event" },
+      { effect: "upsert" },
+      { dedup: "same-tx", key: "event", visibilityMs: 30000 },
+    ],
+    fail: [
+      { why: "acknowledging first loses the crashed message and still double-counts a republished event", config: { ack: "before" }, failing: ["crash-before-commit:all", "republished:once"] },
+      { why: "memory is lost in the crash and isn't shared between consumers", config: { dedup: "memory", key: "event" }, failing: ["crash-after-commit:once", "slow:once", "republished:once"] },
+      { why: "recording in a second transaction leaves a gap", config: { dedup: "separate", key: "event" }, failing: ["crash-after-commit:once", "slow:once", "republished:once"] },
+      { why: "the broker's id differs for a republished event", config: { dedup: "same-tx" }, failing: ["republished:once"] },
+      { why: "a longer visibility timeout avoids one redelivery, not crashes or republishing", config: { visibilityMs: 30000 }, failing: ["crash-after-commit:once", "republished:once"] },
+    ],
+  },
+  "hot-partition": {
+    pass: [
+      { key: "order" },
+      { key: "merchant-bucket", buckets: 8 },
+      { key: "order", partitions: 12, consumers: 12 },
+    ],
+    fail: [
+      { why: "more consumers than partitions sit idle; the hot partition stays hot", config: { consumers: 16 }, failing: ["normal:lag", "normal:cost", "sale:lag", "sale:cost"] },
+      { why: "more partitions don't split one key", config: { partitions: 32, consumers: 12 }, failing: ["normal:lag", "sale:lag"] },
+      { why: "a random salt balances but scatters an order's events", config: { key: "merchant-salt" }, failing: ["normal:order", "sale:lag", "sale:order"] },
+      { why: "no key at all: fine until the load rises, then events overtake each other", config: { key: "random" }, failing: ["sale:order"] },
+      { why: "four buckets still leave the merchant's sale on too few partitions", config: { key: "merchant-bucket", buckets: 4 }, failing: ["sale:lag"] },
+    ],
+  },
 };

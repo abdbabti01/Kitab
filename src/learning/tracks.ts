@@ -44,6 +44,13 @@ export const systemDesignPath: Stage[] = [
     practise: [sdChallenge("async-orders", "Process every order in the background and lose none during a database outage.", ["sd:distributed"])],
   },
   {
+    id: "transactions",
+    title: "Transactions and concurrency",
+    objective: "ACID, isolation levels and their anomalies, lost updates and write skew, optimistic and pessimistic concurrency control, and constraints against races.",
+    learn: [sdUnit("transactions", "What a transaction promises, what each isolation level lets through, and how to keep concurrent updates correct.")],
+    practise: [sdLab("lost-update", "Twenty buyers, five items: stop lost updates and overselling, and stay fast.", ["sd:transactions"])],
+  },
+  {
     id: "reliability",
     title: "Security and reliability",
     objective: "Redundancy, health checks, timeouts, retries and backoff, retry storms, and keeping the inside of a design private.",
@@ -66,6 +73,16 @@ export const systemDesignPath: Stage[] = [
       sdLab("retry-storm", "An outage ends but the server stays down: tune retries until it recovers by itself.", ["sd:resilience"]),
       sdLab("deadline-budget", "Retries at every layer flood a slow database; fix timeouts and pass the deadline down.", ["sd:resilience"]),
       sdLab("circuit-breaker", "A hung dependency takes down pages that never call it; contain it.", ["sd:resilience"]),
+    ],
+  },
+  {
+    id: "messaging",
+    title: "Messaging and event streams",
+    objective: "Queues and logs, Kafka partitions and consumer groups, delivery guarantees, idempotent consumers, ordering, dead letters and schema evolution.",
+    learn: [sdUnit("messaging", "What a queue promises, what it doesn't, and how consumers stay correct anyway.")],
+    practise: [
+      sdLab("duplicate-delivery", "The queue delivers twice; make each order award its points exactly once.", ["sd:messaging"]),
+      sdLab("hot-partition", "One huge merchant overloads a partition; pick a key that balances and keeps order.", ["sd:messaging"]),
     ],
   },
   {
