@@ -6,6 +6,8 @@ test("every page shares one navigation, marks its section by its role in the cou
   await expect(nav.getByRole("link", { name: "Learn" })).toBeVisible({ timeout: 3000 });
   await expect(nav.getByRole("link")).toHaveText(["Learn", "Practice", "Playground"]);
   await expect(nav.locator("[aria-current]")).toHaveCount(0);
+  // The Playground entry always opens the choice of the three Playgrounds.
+  await expect(nav.getByRole("link", { name: "Playground" })).toHaveAttribute("href", "/playground");
   const palette = () => page.evaluate(() => {
     const content = document.querySelector("#main")!;
     const style = getComputedStyle(content);
@@ -26,6 +28,10 @@ test("every page shares one navigation, marks its section by its role in the cou
     ["/practice/missions/neighbours", "Practice"],
     ["/practice/network", "Playground"],
     ["/practice/network?starter=lan", "Playground"],
+    ["/playground", "Playground"],
+    ["/practice/structures", "Playground"],
+    ["/practice/structures?structure=recursion", "Playground"],
+    ["/practice/architecture", "Playground"],
     ["/concepts/message-queues", "Learn"],
   ]) {
     await page.goto(path);
@@ -44,7 +50,7 @@ test("every page shares one navigation, marks its section by its role in the cou
   await expect(page).toHaveURL(/\/$/);
   // Home is the same for a returning learner: the subjects first.
   await expect(page.locator(".home-hero h1")).toBeInViewport();
-  await expect(page.locator(".subject-card")).toHaveCount(4);
+  await expect(page.locator(".subject-card")).toHaveCount(3);
 });
 
 test("reading playback keeps the same layout after a mission", async ({ page }) => {

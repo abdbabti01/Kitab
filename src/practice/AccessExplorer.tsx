@@ -182,8 +182,7 @@ export function AccessExplorer() {
               width={combined ? 380 : 170}
               height="215"
               rx="20"
-              fill="#edf3e8"
-              stroke="#d5e1cd"
+              className="map-box"
             />
             <text x="245" y="49" className="map-caption">
               {combined ? "ONE PHYSICAL HOME BOX" : "HOME WI-FI ROUTER"}
@@ -192,13 +191,7 @@ export function AccessExplorer() {
               <g key={i}>
                 <path
                   d={`M${x + 40} 125 H${xs[i + 1] - 40}`}
-                  stroke={
-                    i === 2
-                      ? technology === "fiber"
-                        ? "#b78949"
-                        : "#7c83a5"
-                      : "#a8bbae"
-                  }
+                  className={`map-line${i === 2 ? (technology === "fiber" ? " is-fiber" : " is-access") : ""}`}
                   strokeWidth="3"
                   strokeDasharray={
                     i === 0 && local === "wifi"
@@ -286,8 +279,7 @@ export function AccessExplorer() {
                 cx={playing ? 0 : (xs[stage.hop[0]] + xs[stage.hop[1]]) / 2}
                 cy={playing ? 0 : 125}
                 r="7"
-                fill={stage.direction === "back" ? "#b78949" : "#2f614b"}
-                className="travel-marker"
+                className={`travel-marker${stage.direction === "back" ? " is-back" : ""}`}
               >
                 {playing && (
                   <animateMotion

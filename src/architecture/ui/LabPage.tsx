@@ -302,8 +302,8 @@ export function LabPage({ lab }: { lab: Lab }) {
   const reached = { understand: unitDone, observe: Boolean(predicted), fix: passed, master: Boolean(attempt?.masteredAt) };
 
   return (
-    <main id="main" className="page arch-playground arch-lab lab-theme">
-      <header className="arch-heading">
+    <main id="main" className="page lab-page arch-playground arch-lab lab-theme">
+      <header className="playground-heading">
         <div>
           <p className="eyebrow"><FlaskConical aria-hidden="true" /> Architecture lab · {practiceLabels[status]}</p>
           <h1>{lab.title}</h1>
@@ -456,8 +456,8 @@ export function LabsIndex({ evidence }: { evidence: Evidence }) {
   const track = findTrack("system-design")!;
   const units = track.stages.filter((s) => s.practise.some((a) => a.track === "architecture-lab"));
   return (
-    <main id="main" className="page arch-playground arch-lab lab-theme">
-      <header className="arch-heading">
+    <main id="main" className="page lab-page arch-playground arch-lab lab-theme">
+      <header className="playground-heading">
         <div>
           <p className="eyebrow"><FlaskConical aria-hidden="true" /> System Design</p>
           <h1>Architecture labs</h1>

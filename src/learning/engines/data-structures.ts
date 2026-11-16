@@ -5,9 +5,16 @@ import {
   structureInfo,
   structureKinds,
   type SimulationFrame,
+  MAX_VALUES,
+  startingValues,
   type StructureKind,
   type StructureSnapshot,
 } from "../../visual-engine/data-structures/model.ts";
+
+/** "8, 3, 12" → [8, 3, 12]; anything that is not an integer is dropped. "" is an empty structure. */
+export function parseValues(text: string): number[] {
+  return text.split(/[\s,]+/).filter(Boolean).map(Number).filter(Number.isInteger);
+}
 import type { EngineAdapter, Entity, Fact, Trace } from "../types.ts";
 import { normalizeNumberWords } from "../claims.ts";
 
@@ -43,6 +50,8 @@ const params = z
     operation: z.string().optional(),
     value: z.unknown().optional(),
     index: z.unknown().optional(),
+    /** Starting contents, "8,3,12" or a number list; absent means the fixture the missions use. */
+    values: z.union([z.string().max(80), z.array(z.number()).max(MAX_VALUES)]).optional(),
   })
   .strict()
   .transform((input) => {
@@ -51,12 +60,19 @@ const params = z
     const operation = allowed.includes(input.operation ?? "") ? input.operation! : base.operation;
     const value = Number(input.value ?? base.value);
     const index = Number(input.index ?? base.index);
-    return {
+    const normalized: Record<string, string | number> = {
       kind: input.kind,
       operation,
       value: Number.isFinite(value) ? Math.max(-99, Math.min(99, Math.trunc(value))) : base.value,
-      index: Number.isFinite(index) ? Math.max(0, Math.min(5, Math.trunc(index))) : base.index,
-    } as Record<string, string | number>;
+      // Out-of-range indexes reach the engine, which refuses them in a frame of their own.
+      index: Number.isFinite(index) ? Math.max(0, Math.min(MAX_VALUES + 2, Math.trunc(index))) : base.index,
+    };
+    // Only present when given, so the missions' scenario keys (saved in progress) are unchanged.
+    if (input.values !== undefined && input.kind !== "graph") {
+      const list = typeof input.values === "string" ? parseValues(input.values) : input.values;
+      normalized.values = startingValues(input.kind, list).join(",");
+    }
+    return normalized;
   });
 
 export type DataStructureFrameData = { frame: SimulationFrame; kind: StructureKind; operation: string };
@@ -68,7 +84,7 @@ function allItems(snapshot: StructureSnapshot) {
 function entitiesFor(kind: StructureKind, snapshot: StructureSnapshot): Entity[] {
   return allItems(snapshot).map((item, index) => ({
     id: item.id,
-    label: kind === "array" ? `index ${index} (value ${item.value})` : kind === "graph" ? `vertex ${item.value}` : kind === "hash-table" ? `key ${item.value}` : `value ${item.value}`,
+    label: item.detached ? `unlinked node ${item.value}` : kind === "array" ? `index ${index} (value ${item.value})` : kind === "graph" ? `vertex ${item.value}` : kind === "hash-table" ? `key ${item.value}` : `value ${item.value}`,
     kind: kind === "graph" ? "vertex" : kind === "array" ? "slot" : "item",
   }));
 }
@@ -90,9 +106,10 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
   } else if (kind === "hash-table") {
     facts.push({ id: "buckets", label: "Occupied buckets", value: s.buckets!.filter((bucket) => bucket.items.length).map((bucket) => `${bucket.index}:[${bucket.items.map((item) => item.value).join(",")}]`).join(" ") });
   } else {
+    const live = s.items.filter((item) => !item.detached);
     facts.push(
-      { id: "values", label: "Values in order", value: s.items.map((item) => item.value).join(", ") || "empty" },
-      { id: "length", label: "Length", value: s.items.length },
+      { id: "values", label: "Values in order", value: live.map((item) => item.value).join(", ") || "empty" },
+      { id: "length", label: "Length", value: live.length },
     );
   }
   s.items.forEach((item, index) => {
@@ -102,7 +119,7 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
         { id: `addr-${index}`, label: `Address of index ${index}`, value: item.address, entityId: item.id },
       );
     }
-    if (kind === "linked-list") facts.push({ id: `node-${item.address}`, label: `Node at ${item.address}`, value: `${item.value} → ${item.next ?? "NULL"}`, entityId: item.id });
+    if (kind === "linked-list") facts.push({ id: `node-${item.address}`, label: `${item.detached ? "Unlinked node" : "Node"} at ${item.address}`, value: `${item.value} → ${item.next ?? "NULL"}`, entityId: item.id });
   });
   return facts;
 }
@@ -116,7 +133,8 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
   checkClaims: (text, _facts, trace) => arrayClaims(text, trace),
   build(input) {
     const kind = input.kind as StructureKind;
-    const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index) });
+    const values = typeof input.values === "string" ? parseValues(input.values) : undefined;
+    const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index), values });
     const frames = simulation.frames.map((frame) => ({
       id: frame.id,
       title: frame.title,
@@ -143,7 +161,7 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
         reads: final.metrics.reads,
         comparisons: final.metrics.comparisons,
         pointerChanges: final.metrics.pointerChanges,
-        length: final.snapshot.items.length,
+        length: final.snapshot.items.filter((item) => !item.detached).length,
         result: simulation.result,
         complexity: simulation.complexity,
         lastFrame: final.id,

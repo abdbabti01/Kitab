@@ -2,33 +2,13 @@
    with the cyan accent, as in the Network Playground; lessons keep the light reading page. */
 
 .arch-playground {
-  max-width: none;
-  min-height: calc(100vh - var(--nav-height));
-  background:
-    radial-gradient(60% 40% at 85% 0%, rgb(34 211 238 / 0.1), transparent 70%),
-    radial-gradient(50% 35% at 0% 0%, rgb(59 130 246 / 0.12), transparent 70%),
-    var(--bg);
   --edge-request: #7fb2f0;
   --edge-async: #f2b764;
   --edge-replication: #b69cf2;
 }
-.arch-playground > * { max-width: 1760px; margin-inline: auto; }
-.lab-theme .button.primary { background: var(--accent); border-color: var(--accent); color: #04212b; }
-.lab-theme .button.primary:hover:not(:disabled) { background: var(--accent-strong); }
 .lab-theme .button.danger, .lab-theme .icon-button.danger { color: var(--danger); }
-.lab-theme .eyebrow { color: var(--accent); }
-.lab-theme input:not([type="range"], [type="checkbox"]), .lab-theme select, .lab-theme textarea {
-  min-height: 40px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface-2); color: var(--ink);
-}
-.lab-theme [aria-invalid="true"] { border-color: var(--danger); }
 
 /* ---- Heading ---- */
-.arch-heading { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
-.arch-heading h1 { font: 750 clamp(1.8rem, 1.4rem + 1.6vw, 2.8rem) / 1.05 var(--display); letter-spacing: -0.03em; margin: 0 0 6px; }
-.arch-heading p { margin: 0; max-width: 70ch; color: var(--ink-2); }
-.arch-heading .playground-title { display: flex; gap: 16px; align-items: center; min-width: 0; }
-.arch-heading .playground-mark { flex: none; width: 50px; height: 50px; color: var(--accent); filter: drop-shadow(0 0 12px rgb(34 211 238 / 0.45)); }
-.heading-links a { color: var(--primary-strong); }
 .arch-message { padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
 
 /* ---- Workspace ---- */
@@ -122,7 +102,7 @@
 .arch-inspector p { font-size: .92rem; color: var(--ink-2); }
 .modelled { margin: 0 0 10px; font-size: .88rem; }
 .modelled summary { cursor: pointer; color: var(--primary-strong); min-height: 32px; }
-.arch-field { display: grid; gap: 4px; margin: 0 0 10px; }
+.arch-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 0 0 10px; }
 .arch-field label { font-weight: 600; font-size: .88rem; }
 .arch-field .unit { color: var(--muted); font-weight: 500; }
 .arch-field small { color: var(--muted); font-size: .78rem; line-height: 1.35; }
@@ -293,7 +273,7 @@
   .palette-group button { width: auto; min-height: 40px; }
 }
 @media (max-width: 760px) {
-  .arch-playground { padding-inline: 12px; }
+
   .arch-grid, .experiment-stage { grid-template-columns: minmax(0, 1fr); }
   .arch-canvas, .experiment-stage .arch-canvas { height: 420px; }
   .arch-inspector, .experiment-stage .arch-inspector { border-left: 0; border-top: 1px solid var(--line); max-height: none; }

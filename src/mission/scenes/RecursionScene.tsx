@@ -44,6 +44,21 @@ function Scene(props: Props) {
         </ol>
         {event.returned && <p className="scene-caption">Returned value: <b>{event.returned.value}</b></p>}
       </SceneSection>
+      <SceneSection label="Calls and returns, in order" className="rec-timeline-section">
+        <ol className="rec-timeline">
+          {props.trace.frames.map((frame) => {
+            const e = frame.data.event;
+            const top = e.stack.at(-1);
+            const text = e.kind === "call" ? `call ${top!.fn}(${top!.n})` : e.kind === "base" ? "base case → 1" : e.kind === "return" ? `return ${e.returned!.value}` : e.kind === "overflow" ? "overflow" : e.kind === "start" ? "main()" : "done";
+            const here = frame.index === props.frame.index;
+            return (
+              <li key={frame.id} className={`kind-${e.kind} ${here ? "is-current" : ""} ${frame.index > props.frame.index ? "is-future" : ""}`} aria-current={here ? "step" : undefined}>
+                {text}
+              </li>
+            );
+          })}
+        </ol>
+      </SceneSection>
     </div>
   );
 }

@@ -1,6 +1,7 @@
-import { ArrowRight, Waypoints } from "lucide-react";
+import { ArrowRight, Binary, Waypoints } from "lucide-react";
 import type { Activity } from "../learning/networking-path.ts";
 import { locate, unitPath } from "../learning/tracks.ts";
+import { experimentForUnit, setupPath } from "../structures/experiments.ts";
 import { linkProps } from "./router.ts";
 
 const links = (list: Activity[]) => list.map((a, i) => <span key={a.id}>{i > 0 && ", "}<a {...linkProps(a.path)}>{a.title}</a></span>);
@@ -15,6 +16,8 @@ export function PathNext({ id }: { id: string }) {
   // Networking steps point to the Playground: this unit's starter network, or a free one.
   const starter = at.stage.learn.find((a) => a.id.startsWith("starter:"));
   const playground = at.track.id === "networking" && !id.startsWith("starter:") && at.next;
+  // Data-structures steps open this unit's experiment, already set up, with a way back here.
+  const experiment = at.track.id === "data-structures" ? experimentForUnit(at.stage.id) : undefined;
   return (
     <nav className="path-next" aria-label="Next step">
       <p className="path-kind">{at.track.title} · Unit {at.stageNumber} of {at.track.stages.length} · {at.stage.title}</p>
@@ -23,6 +26,12 @@ export function PathNext({ id }: { id: string }) {
         <p className="path-playground">
           <Waypoints aria-hidden="true" />
           <span>Try it in the Playground: <a {...linkProps(starter?.path ?? "/practice/network")}>{starter ? `open “${starter.title}”` : "build your own network"}</a>, change one setting and send again.</span>
+        </p>
+      )}
+      {experiment && (
+        <p className="path-playground">
+          <Binary aria-hidden="true" />
+          <span>Try it in the Playground: <a {...linkProps(setupPath(experiment.setup, window.location.pathname))}>{experiment.title.toLowerCase()}</a>, then change the values and run it again.</span>
         </p>
       )}
       <div className="actions">

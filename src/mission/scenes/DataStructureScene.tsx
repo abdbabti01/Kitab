@@ -43,11 +43,13 @@ function ArrayView({ props }: { props: Props }) {
 
 function LinkedListView({ props }: { props: Props }) {
   const s = props.frame.data.frame.snapshot;
+  const live = s.items.filter((item) => !item.detached);
+  const detached = s.items.filter((item) => item.detached);
   return (
     <SceneSection label="Nodes and next pointers">
-      <p className="scene-caption">HEAD → <code>{s.items[0]?.address ?? "NULL"}</code></p>
+      <p className="scene-caption">HEAD → <code>{live[0]?.address ?? "NULL"}</code></p>
       <ol className="ds-row ds-list">
-        {s.items.map((item) => (
+        {live.map((item) => (
           <li key={item.id} data-flip={item.id}>
             <button {...entity(item.id, props, `Node ${item.value} at ${item.address}, next ${item.next ?? "null"}`, `ds-node ${visited(s, item.value)}`)}>
               <small>{item.address}</small>
@@ -59,6 +61,18 @@ function LinkedListView({ props }: { props: Props }) {
         ))}
         <li className="ds-null">NULL</li>
       </ol>
+      {detached.length > 0 && (
+        <div className="ds-detached">
+          <p className="scene-caption">Not reachable from HEAD</p>
+          {detached.map((item) => (
+            <button {...entity(item.id, props, `Unlinked node ${item.value} at ${item.address}, next ${item.next ?? "null"}`, "ds-node is-detached", item.id)} key={item.id}>
+              <small>{item.address}</small>
+              <b>{item.value}</b>
+              <code>next {item.next ?? "NULL"}</code>
+            </button>
+          ))}
+        </div>
+      )}
     </SceneSection>
   );
 }
@@ -106,43 +120,63 @@ function HashView({ props }: { props: Props }) {
   );
 }
 
-type TreeNode = { item: StructureItem; left?: TreeNode; right?: TreeNode };
+type Placed = { item: StructureItem; depth: number; column: number; parent?: Placed };
 
-function treeLevels(source: StructureItem[]) {
-  let root: TreeNode | undefined;
+/** BST nodes in insertion order, placed by in-order position (x) and depth (y): any shape fits, skewed included. */
+function placeTree(source: StructureItem[]) {
+  type Node = { item: StructureItem; depth: number; parent?: Node; left?: Node; right?: Node };
+  let root: Node | undefined;
   for (const item of source) {
-    if (!root) { root = { item }; continue; }
+    if (!root) { root = { item, depth: 0 }; continue; }
     let node = root;
-    while (true) {
-      if (item.value === node.item.value) break;
+    while (item.value !== node.item.value) {
       const side = item.value < node.item.value ? "left" : "right";
-      if (!node[side]) { node[side] = { item }; break; }
+      if (!node[side]) { node[side] = { item, depth: node.depth + 1, parent: node }; break; }
       node = node[side]!;
     }
   }
-  if (!root) return [];
-  const levels: (TreeNode | null)[][] = [[root]];
-  while (levels.length < 5) {
-    const next = levels.at(-1)!.flatMap((node) => (node ? [node.left ?? null, node.right ?? null] : [null, null]));
-    if (next.every((node) => node === null)) break;
-    levels.push(next);
-  }
-  return levels;
+  const placed: Placed[] = [];
+  const parents = new Map<StructureItem, StructureItem | undefined>();
+  const walk = (node?: Node) => {
+    if (!node) return;
+    walk(node.left);
+    parents.set(node.item, node.parent?.item);
+    placed.push({ item: node.item, depth: node.depth, column: placed.length });
+    walk(node.right);
+  };
+  walk(root);
+  // A parent is placed after its left subtree, so links are resolved once every node has a column.
+  const at = new Map(placed.map((entry) => [entry.item, entry]));
+  for (const entry of placed) entry.parent = at.get(parents.get(entry.item)!);
+  return placed;
 }
+
+const ROW = 64;
 
 function TreeView({ props }: { props: Props }) {
   const s = props.frame.data.frame.snapshot;
+  const placed = placeTree(s.items);
+  const depth = Math.max(0, ...placed.map((entry) => entry.depth));
+  const x = (entry: Placed) => ((entry.column + 0.5) / placed.length) * 100;
+  const y = (entry: Placed) => entry.depth * ROW + 22;
   return (
     <SceneSection label="Binary search tree (smaller left, larger right)">
-      <div className="ds-tree">
-        {treeLevels(s.items).map((level, depth) => (
-          <div className="ds-tree-level" style={{ gridTemplateColumns: `repeat(${level.length}, minmax(0, 1fr))` }} key={depth}>
-            {level.map((node, index) => node ? (
-              <button {...entity(node.item.id, props, `Node ${node.item.value} at depth ${depth}${s.visitedValues.includes(node.item.value) ? ", on the search path" : ""}`, `ds-chip ${visited(s, node.item.value)}`, node.item.id)} key={node.item.id}>{node.item.value}</button>
-            ) : <span key={`empty-${index}`} aria-hidden="true" />)}
-          </div>
-        ))}
-      </div>
+      {placed.length ? (
+        <div className="ds-tree" style={{ height: (depth + 1) * ROW }}>
+          <svg className="ds-tree-edges" aria-hidden="true" width="100%" height="100%">
+            {placed.filter((entry) => entry.parent).map((entry) => (
+              <line key={entry.item.id} x1={`${x(entry.parent!)}%`} y1={y(entry.parent!)} x2={`${x(entry)}%`} y2={y(entry)} className={s.visitedValues.includes(entry.item.value) && s.visitedValues.includes(entry.parent!.item.value) ? "is-path" : ""} />
+            ))}
+          </svg>
+          {placed.map((entry) => (
+            <button
+              {...entity(entry.item.id, props, `Node ${entry.item.value} at depth ${entry.depth}${s.visitedValues.includes(entry.item.value) ? ", on the search path" : ""}`, `ds-chip ds-tree-node ${visited(s, entry.item.value)}`, entry.item.id)}
+              key={entry.item.id}
+              style={{ left: `${x(entry)}%`, top: y(entry) }}
+            >{entry.item.value}</button>
+          ))}
+        </div>
+      ) : <p className="ds-null">root → null (empty tree)</p>}
     </SceneSection>
   );
 }

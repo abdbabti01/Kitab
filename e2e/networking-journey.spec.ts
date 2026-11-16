@@ -10,6 +10,13 @@ async function follow(page: Page, title: string, url: RegExp) {
   await expect(page).toHaveURL(url);
 }
 const workspace = (page: Page) => page.evaluate(() => localStorage.getItem("kitab.network.workspace.v1") ?? "");
+/** The main navigation's Playground entry, then the Network Playground among the three. */
+async function openNetworkPlayground(page: Page) {
+  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
+  await expect(page).toHaveURL(/\/playground$/);
+  await page.locator(".playground-choice", { hasText: "Network Playground" }).getByRole("link", { name: "Open Playground" }).click();
+  await expect(page).toHaveURL(/\/practice\/network$/);
+}
 
 test("networking path: home → explorer → starters → missions → both IPv4 lessons → Packet Journey → TCP missions, without Back", async ({ page }) => {
   test.setTimeout(180_000);
@@ -21,8 +28,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await page.reload();
 
   // The free playground: the learner's own design is saved.
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
-  await expect(page).toHaveURL(/\/practice\/network$/);
+  await openNetworkPlayground(page);
   await page.getByLabel("Network name").fill("My home lab");
   await page.getByLabel("Network name").press("Tab");
   await expect.poll(() => workspace(page)).toContain("My home lab");
@@ -113,7 +119,7 @@ test("networking path: home → explorer → starters → missions → both IPv4
   await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Practice" }).click();
   await expect(page.getByRole("link", { name: /The ACK that wouldn't move/ }).locator(".status-chip")).toHaveText("Completed");
   await expect(page.getByRole("link", { name: /Bring the reply home/ }).locator(".status-chip")).toHaveText("Completed");
-  await page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Playground" }).click();
+  await openNetworkPlayground(page);
   await expect(page.getByLabel("Network name")).toHaveValue("My home lab");
 
   expect(errors).toEqual([]);
