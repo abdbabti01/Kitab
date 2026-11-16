@@ -198,7 +198,8 @@ export function predictionOptions(answer: number) {
   }
   const patterns = [[1, 2, 3, 4], [0.5, 1, 2, 3], [0.25, 0.5, 1, 2], [1 / 3, 0.5, 2 / 3, 1]];
   const round = (n: number) => (n >= 100 ? Math.round(n / 10) * 10 : Math.round(n));
-  const pattern = patterns[Math.round(answer) % patterns.length];
+  const digits = [...String(Math.round(answer))].reduce((sum, d) => sum + Number(d), 0);
+  const pattern = patterns[digits % patterns.length];
   return pattern.map((m) => (m === 1 ? answer : round(answer * m))).sort((a, b) => a - b);
 }
 

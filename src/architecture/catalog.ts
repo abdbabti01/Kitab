@@ -27,6 +27,7 @@ export const unitCatalog = [
   { id: "resilience", title: "Timeouts, backoff and circuit breakers" },
   { id: "transactions", title: "Transactions and concurrency" },
   { id: "messaging", title: "Messaging and event streams" },
+  { id: "data-across-services", title: "Consistency across services" },
 ] as const;
 
 export const labCatalog = [
@@ -37,6 +38,8 @@ export const labCatalog = [
   { id: "lost-update", title: "Correct concurrent inventory updates", version: "1" },
   { id: "duplicate-delivery", title: "Prevent duplicate order processing", version: "1" },
   { id: "hot-partition", title: "Handle an overloaded Kafka partition", version: "1" },
+  { id: "outbox", title: "Design a reliable event publication workflow", version: "1" },
+  { id: "saga", title: "Design a resilient order-processing system", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

@@ -86,6 +86,16 @@ export const systemDesignPath: Stage[] = [
     ],
   },
   {
+    id: "data-across-services",
+    title: "Consistency across services",
+    objective: "The dual-write problem, two-phase commit, sagas and compensations, the transactional outbox, CQRS and event sourcing.",
+    learn: [sdUnit("data-across-services", "When one action spans several services: what breaks, and the patterns that restore correctness.")],
+    practise: [
+      sdLab("outbox", "Save the order and publish its event, through crashes and a broker outage.", ["sd:data-across-services"]),
+      sdLab("saga", "Reserve, charge, ship: end every order all done or all undone.", ["sd:data-across-services"]),
+    ],
+  },
+  {
     id: "projects",
     title: "Real-world design projects",
     objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",

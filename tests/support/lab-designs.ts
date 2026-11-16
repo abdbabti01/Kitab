@@ -111,4 +111,29 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "four buckets still leave the merchant's sale on too few partitions", config: { key: "merchant-bucket", buckets: 4 }, failing: ["sale:lag"] },
     ],
   },
+  outbox: {
+    pass: [
+      { strategy: "outbox", pollMs: 500, dedup: true },
+      { strategy: "outbox", pollMs: 1500, dedup: true },
+      { strategy: "cdc", dedup: true },
+    ],
+    fail: [
+      { why: "publishing first ships a rolled-back order and refuses orders while the broker is down", config: { strategy: "before-commit" }, failing: ["commit-fails:ghost", "broker-down:accepted"] },
+      { why: "an inbox doesn't help events that were never published", config: { dedup: true }, failing: ["crash:shipped", "broker-down:shipped"] },
+      { why: "the relay publishes at least once: shipping must deduplicate", config: { strategy: "cdc" }, failing: ["relay-crash:once"] },
+      { why: "a slow poll delays every event", config: { strategy: "outbox", pollMs: 2500, dedup: true }, failing: ["crash:prompt", "commit-fails:prompt", "broker-down:prompt", "relay-crash:prompt"] },
+    ],
+  },
+  saga: {
+    pass: [
+      { compensation: "retry", state: "log", stepKeys: true },
+      { compensation: "retry", state: "events", stepKeys: true },
+    ],
+    fail: [
+      { why: "compensations that give up leave the refund undone", config: { compensation: "once", state: "log", stepKeys: true }, failing: ["refund-glitch:consistent", "refund-glitch:final"] },
+      { why: "progress in memory is lost in the crash", config: { compensation: "retry", stepKeys: true }, failing: ["crash:consistent", "crash:final"] },
+      { why: "resuming without step keys charges again", config: { compensation: "retry", state: "log" }, failing: ["crash:consistent", "crash:charged-once"] },
+      { why: "no compensations at all", config: { state: "log", stepKeys: true }, failing: ["declined:consistent", "declined:final", "no-courier:consistent", "no-courier:final", "refund-glitch:consistent", "refund-glitch:final"] },
+    ],
+  },
 };
