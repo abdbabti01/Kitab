@@ -98,7 +98,7 @@ export type SimRun = {
 export class SimulationError extends Error {}
 
 /** mulberry32: small, fast and reproducible. Not for security. */
-function prng(seed: number) {
+export function prng(seed: number) {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
@@ -110,7 +110,7 @@ function prng(seed: number) {
 }
 
 type Task = { t: number; seq: number; run: () => void };
-class Heap {
+export class Heap {
   items: Task[] = [];
   push(task: Task) {
     const a = this.items;

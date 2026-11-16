@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { systemDesignPath } from "../src/learning/tracks.ts";
 
 // The System Design track: Architecture Playground editing, saving, loading and playback, a challenge, a lesson
 // experiment, keyboard use and narrow screens (every project width).
@@ -222,9 +223,11 @@ test("a lesson experiment runs in the simulator and counts the lesson as done", 
 test("the track appears with the others, and the Network Playground is unchanged", async ({ page }) => {
   await page.goto("/learn/system-design");
   await expect(page.getByRole("heading", { name: "System design & architecture", level: 1 })).toBeVisible();
-  await expect(page.locator(".path-stages > li")).toHaveCount(6);
+  await expect(page.locator(".path-stages > li")).toHaveCount(systemDesignPath.length);
   await page.goto("/practice?track=system-design");
-  await expect(page.locator(".mission-card")).toHaveCount(6);
+  // Every design challenge and every lab; the six original challenges are still there.
+  await expect(page.locator(".mission-card")).toHaveCount(systemDesignPath.flatMap((s) => s.practise).length);
+  await expect(page.locator(".mission-card .kind-design")).toHaveCount(6);
   await page.goto("/practice/network");
   await expect(page.getByRole("heading", { name: /Playground/, level: 1 })).toBeVisible();
   await expect(page.locator(".arch-workspace")).toHaveCount(0);

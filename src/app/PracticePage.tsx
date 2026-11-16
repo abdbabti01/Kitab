@@ -19,6 +19,7 @@ const kinds = [
   { kind: "Troubleshoot", text: "A network is broken. Investigate, name the cause, fix it and check." },
   { kind: "Challenge", text: "An open lab: change every setting and predict every result." },
   { kind: "Design", text: "Design an architecture that meets the requirements. Simulator runs check it; many designs can pass." },
+  { kind: "Lab", text: "Reproduce a real failure (a double charge, a lost update, a retry storm), predict it, fix it in every scenario and explain why." },
 ];
 
 function readQuery() {

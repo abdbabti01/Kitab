@@ -292,6 +292,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .kind-troubleshoot { color: var(--level-network); background: #f6ecdf; }
 .kind-challenge { color: var(--level-link); background: #efe8f4; }
 .kind-design { color: var(--level-transport); background: #e2f1ec; }
+.kind-lab { color: var(--level-network); background: #f6ecdc; }
 .practice-filters { display: grid; gap: 8px; margin-top: 20px; }
 .practice-filters > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .filter-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink-2); font: 620 .88rem var(--font); cursor: pointer; }

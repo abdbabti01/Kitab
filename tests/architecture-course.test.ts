@@ -34,16 +34,25 @@ test("routes: the track, its lessons, the playground and challenges", () => {
   assert.deepEqual(parseRoute("/practice/network"), { name: "network-practice" });
 });
 
-test("the System Design track: six units, each a lesson then a design challenge", () => {
+test("the System Design track: every unit is a lesson, then design challenges or labs; the first six units keep their ids", () => {
   const track = findTrack("system-design")!;
-  assert.equal(track.stages.length, 6);
+  const original = [["fundamentals", "simple-web-app"], ["storage-caching", "cache-read-heavy"], ["scalability", "scale-behind-lb"], ["distributed", "async-orders"], ["reliability-security", "resilient-api"], ["design-projects", "url-shortener"]];
+  const ids = track.stages.flatMap((s) => [...s.learn, ...s.practise].map((a) => a.id));
+  // The original units are still there, in their original order, with their original activity ids.
+  const positions = original.map(([lesson, challenge]) => [ids.indexOf(`sd:${lesson}`), ids.indexOf(`challenge:${challenge}`)]);
+  for (const [l, c] of positions) assert.ok(l !== -1 && c === l + 1, String([l, c]));
+  assert.deepEqual(positions.map(([l]) => l), [...positions.map(([l]) => l)].sort((a, b) => a - b));
+  assert.equal(new Set(ids).size, ids.length, "activity ids are unique");
   for (const stage of track.stages) {
-    assert.equal(stage.learn.length, 1);
+    assert.equal(stage.learn.length, 1, stage.id);
     assert.equal(kindOf(stage.learn[0]), "Lesson");
-    assert.equal(stage.practise.length, 1);
-    assert.equal(kindOf(stage.practise[0]), "Design");
-    assert.equal(locate(stage.practise[0].id)!.track.id, "system-design");
+    for (const activity of stage.practise) {
+      assert.ok(["Design", "Lab"].includes(kindOf(activity)), activity.id);
+      assert.equal(locate(activity.id)!.track.id, "system-design");
+    }
   }
+  // The capstone stays last.
+  assert.equal(track.stages.at(-1)!.learn[0].id, "sd:design-projects");
 });
 
 test("lesson state follows its experiment; challenge state follows checks; nothing else is touched", () => {
@@ -62,7 +71,8 @@ test("lesson state follows its experiment; challenge state follows checks; nothi
   recordChallengeCheck(storage, "simple-web-app", "1", { passed: true, cost: 6, p95: 117 });
   evidence = loadEvidence(storage);
   assert.equal(activityState(challenge, evidence), "completed");
-  assert.deepEqual(trackProgress(track, evidence), { total: 12, completed: 2, mastered: 0, started: true, percent: 17 });
+  const total = track.stages.flatMap((s) => [...s.learn, ...s.practise]).length;
+  assert.deepEqual(trackProgress(track, evidence), { total, completed: 2, mastered: 0, started: true, percent: Math.round((2 / total) * 100) });
   assert.deepEqual([...storage.data.keys()], ["kitab.architecture.progress.v1"]);
   assert.equal(trackProgress(findTrack("networking")!, evidence).completed, 0);
 });

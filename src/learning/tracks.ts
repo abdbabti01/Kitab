@@ -1,10 +1,15 @@
 // Kitab's learning tracks: the networking path and a data-structures path, each a list of units (stages) of
 // existing lessons, readings, explorations and missions. Data and pure functions only; nothing is locked.
 import { activityState, concept, isRequired, lastActive, lesson, mission, networkingPath, recommend, type Activity, type Evidence, type Recommendation, type Stage } from "./networking-path.ts";
-import { challengeCatalog, challengePath, lessonCatalog, lessonPath } from "../architecture/catalog.ts";
+import { challengeCatalog, challengePath, labCatalog, labPath, lessonCatalog, lessonPath, unitCatalog } from "../architecture/catalog.ts";
 
 const sdLesson = (id: (typeof lessonCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: lessonCatalog.find((l) => l.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
-const sdChallenge = (id: (typeof challengeCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
+const sdUnit = (id: (typeof unitCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: unitCatalog.find((u) => u.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
+const sdLab = (id: (typeof labCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
+  const found = labCatalog.find((l) => l.id === id)!;
+  return { id: `lab:${id}`, title: found.title, version: found.version, detail, path: labPath(id), track: "architecture-lab", needs };
+};
+const sdChallenge =(id: (typeof challengeCatalog)[number]["id"], detail: string, needs: string[]): Activity => {
   const found = challengeCatalog.find((c) => c.id === id)!;
   return { id: `challenge:${id}`, title: found.title, version: found.version, detail, path: challengePath(id), track: "architecture-challenge", needs };
 };
@@ -26,10 +31,17 @@ export const systemDesignPath: Stage[] = [
   },
   {
     id: "scalability",
-    title: "Scalability and performance",
+    title: "Scalability and load balancing",
     objective: "Scale out behind a load balancer, measure utilisation and queueing, and follow the bottleneck as it moves.",
     learn: [sdLesson("scalability", "One, two or three servers: find where the bottleneck goes next.")],
     practise: [sdChallenge("scale-behind-lb", "Serve 600 requests per second and survive losing any one server.", ["sd:scalability"])],
+  },
+  {
+    id: "performance",
+    title: "Performance and caching at scale",
+    objective: "Little's law and queueing, tail latency, capacity planning, connection pools, indexes, caching strategies and invalidation, cache stampedes, sharding and cost.",
+    learn: [sdUnit("performance", "The arithmetic of capacity, the statistics of slowness, and caching and partitioning done safely.")],
+    practise: [sdLab("cache-stampede", "A hot cached value expires and the database drowns; stop the stampede.", ["sd:performance"])],
   },
   {
     id: "distributed",
@@ -39,11 +51,91 @@ export const systemDesignPath: Stage[] = [
     practise: [sdChallenge("async-orders", "Process every order in the background and lose none during a database outage.", ["sd:distributed"])],
   },
   {
+    id: "transactions",
+    title: "Transactions and concurrency",
+    objective: "ACID, isolation levels and their anomalies, lost updates and write skew, optimistic and pessimistic concurrency control, and constraints against races.",
+    learn: [sdUnit("transactions", "What a transaction promises, what each isolation level lets through, and how to keep concurrent updates correct.")],
+    practise: [sdLab("lost-update", "Twenty buyers, five items: stop lost updates and overselling, and stay fast.", ["sd:transactions"])],
+  },
+  {
     id: "reliability",
-    title: "Security and reliability",
+    title: "Redundancy, timeouts and retries",
     objective: "Redundancy, health checks, timeouts, retries and backoff, retry storms, and keeping the inside of a design private.",
     learn: [sdLesson("reliability-security", "Fail a server with and without health checks and spare capacity.")],
     practise: [sdChallenge("resilient-api", "Stay up through a server failure without a retry storm.", ["sd:reliability-security"])],
+  },
+  {
+    id: "idempotency",
+    title: "Idempotency and safe retries",
+    objective: "Why a timeout is an unknown outcome, which operations are safe to repeat, and how idempotency keys make retries of the rest safe.",
+    learn: [sdUnit("idempotency", "Ambiguous failures, idempotent operations, idempotency keys and what “exactly once” can mean.")],
+    practise: [sdLab("idempotent-payments", "A retried payment charges the card twice. Reproduce it, then make every repeat harmless.", ["sd:idempotency"])],
+  },
+  {
+    id: "resilience",
+    title: "Timeouts, backoff and circuit breakers",
+    objective: "Deadlines down a call chain, backoff with jitter, retry storms and metastable failures, circuit breakers, bulkheads and graceful degradation.",
+    learn: [sdUnit("resilience", "How callers' reactions to a failing dependency do the real damage, and how to contain them.")],
+    practise: [
+      sdLab("retry-storm", "An outage ends but the server stays down: tune retries until it recovers by itself.", ["sd:resilience"]),
+      sdLab("deadline-budget", "Retries at every layer flood a slow database; fix timeouts and pass the deadline down.", ["sd:resilience"]),
+      sdLab("circuit-breaker", "A hung dependency takes down pages that never call it; contain it.", ["sd:resilience"]),
+    ],
+  },
+  {
+    id: "overload",
+    title: "Rate limiting, backpressure and load shedding",
+    objective: "Per-client rate limiting algorithms, bounded queues and backpressure, load shedding and priorities when demand exceeds capacity.",
+    learn: [sdUnit("overload", "What to refuse, and when, so a system stays useful past its capacity.")],
+    practise: [sdLab("rate-limit", "A scraper, a bursty partner and a viral spike: keep the API useful for real users.", ["sd:overload"])],
+  },
+  {
+    id: "messaging",
+    title: "Messaging and event streams",
+    objective: "Queues and logs, Kafka partitions and consumer groups, delivery guarantees, idempotent consumers, ordering, dead letters and schema evolution.",
+    learn: [sdUnit("messaging", "What a queue promises, what it doesn't, and how consumers stay correct anyway.")],
+    practise: [
+      sdLab("duplicate-delivery", "The queue delivers twice; make each order award its points exactly once.", ["sd:messaging"]),
+      sdLab("hot-partition", "One huge merchant overloads a partition; pick a key that balances and keeps order.", ["sd:messaging"]),
+    ],
+  },
+  {
+    id: "data-across-services",
+    title: "Consistency across services",
+    objective: "The dual-write problem, two-phase commit, sagas and compensations, the transactional outbox, CQRS and event sourcing.",
+    learn: [sdUnit("data-across-services", "When one action spans several services: what breaks, and the patterns that restore correctness.")],
+    practise: [
+      sdLab("outbox", "Save the order and publish its event, through crashes and a broker outage.", ["sd:data-across-services"]),
+      sdLab("saga", "Reserve, charge, ship: end every order all done or all undone.", ["sd:data-across-services"]),
+    ],
+  },
+  {
+    id: "consistency",
+    title: "Replication and consistency",
+    objective: "Partial failures and partitions, leader-follower replication and lag, session guarantees, consistency models, quorums, CAP and PACELC, availability arithmetic.",
+    learn: [sdUnit("consistency", "What users can observe when data lives in several places, and how to choose what they may.")],
+    practise: [sdLab("replication-lag", "Reads go to replicas, and a saved change vanishes; give each user a consistent view.", ["sd:consistency"])],
+  },
+  {
+    id: "coordination",
+    title: "Consensus, leaders and locks",
+    objective: "Consensus and majorities, leader election and split-brain, leases and fencing tokens, logical clocks and failure detection.",
+    learn: [sdUnit("coordination", "How machines agree on one leader, one order or one lock holder, and what enforces it.")],
+    practise: [sdLab("fencing-token", "A paused lock holder overwrites its successor; make the storage refuse stale writers.", ["sd:coordination"])],
+  },
+  {
+    id: "security",
+    title: "Security architecture",
+    objective: "Authentication and authorization, OAuth and OpenID Connect, tokens and sessions, RBAC and ABAC, least privilege, zero trust, secrets, encryption, threat modelling, API security and tenant isolation.",
+    learn: [sdUnit("security", "The security decisions made in the architecture, with a reasoning check for each.")],
+    practise: [],
+  },
+  {
+    id: "production",
+    title: "Architecture in production",
+    objective: "Monoliths and microservices, bounded contexts, API versioning, observability, SLOs and error budgets, deployment, disaster recovery, infrastructure as code and technical debt.",
+    learn: [sdUnit("production", "How systems are split, evolved, observed, deployed and recovered, ending with four design decisions.")],
+    practise: [],
   },
   {
     id: "projects",
@@ -194,7 +286,7 @@ export function trackProgress(track: LearningTrack, evidence: Evidence) {
 
 /** Anything recorded at all, in any store: the learner has been here before. */
 export function hasHistory(evidence: Evidence) {
-  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges].some((records) => Object.keys(records).length > 0);
+  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges, evidence.labs.labs, evidence.labs.units].some((records) => Object.keys(records).length > 0);
 }
 
 /** The track the learner touched most recently; networking when nothing is dated. */
@@ -231,9 +323,10 @@ export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
 }
 
 /** What kind of step an activity is, in the learner's words. */
-export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" {
+export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" | "Lab" {
   if (activity.track === "lesson" || activity.track === "architecture-lesson" || activity.id === "hello-tcp") return "Lesson";
   if (activity.track === "architecture-challenge") return "Design";
+  if (activity.track === "architecture-lab") return "Lab";
   if (activity.track === "network-mission") return "Troubleshoot";
   if (activity.track === "mission") return activity.id.endsWith("-lab") ? "Challenge" : "Predict";
   if (activity.id.startsWith("concept:")) return "Reading";

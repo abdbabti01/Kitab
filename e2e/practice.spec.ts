@@ -17,7 +17,8 @@ test("every mission is on one page, grouped by track and unit, with the lesson t
   await page.goto("/practice");
   await expect(page).toHaveTitle("Practice · Kitab");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Missions");
-  await expect(page.locator(".practice-card")).toHaveCount(26);
+  // 26 missions and challenges, plus the 13 System Design labs.
+  await expect(page.locator(".practice-card")).toHaveCount(39);
   await expect(page.locator(".practice-track > h2")).toHaveText(["Networking", "Data structures & recursion", "System design & architecture"]);
   const unit3 = page.locator(".practice-unit", { has: page.getByRole("heading", { name: "Unit 3 · IPv4 addresses and subnets" }) });
   await expect(unit3.getByRole("link", { name: "Understanding IPv4 addresses and subnets" })).toHaveAttribute("href", "/learn/ipv4-subnets");
@@ -49,7 +50,7 @@ test("filters show missions by recorded state and by track, kept in the address"
   await expect(page.locator(".practice-card b")).toHaveText(["Neighbours that look remote"]);
   await filter(page, /^Not started/).click();
   await expect(page.locator(".practice-card", { hasText: window_.title }).locator(".status-chip")).toHaveText("Opened");
-  await expect(page.locator(".practice-card")).toHaveCount(24);
+  await expect(page.locator(".practice-card")).toHaveCount(37);
 
   await page.getByRole("group", { name: "Show missions by track" }).getByRole("button", { name: "Data structures & recursion" }).click();
   await expect(page).toHaveURL(/status=to-do&track=data-structures$/);
@@ -69,5 +70,5 @@ test("filters work with the keyboard and announce how many missions are shown", 
   await page.goto("/practice");
   await filter(page, /^Mastered/).focus();
   await page.keyboard.press("Enter");
-  await expect(page.locator("[role=status]").filter({ hasText: "missions shown" })).toHaveText("0 of 26 missions shown");
+  await expect(page.locator("[role=status]").filter({ hasText: "missions shown" })).toHaveText("0 of 39 missions shown");
 });
