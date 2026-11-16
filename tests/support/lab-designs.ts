@@ -150,4 +150,18 @@ export const labExpectations: Record<string, Expectation> = {
       { why: "synchronous replication waits for the slowest replica and fails when one is down", config: { replication: "sync" }, failing: ["lagging:monotonic", "lagging:writes", "replica-down:writes"] },
     ],
   },
+  "fencing-token": {
+    pass: [
+      { lock: "fencing" },
+      { lock: "fencing", leaseMs: 1000 },
+      { lock: "cas" },
+      { lock: "cas", leaseMs: 500 },
+    ],
+    fail: [
+      { why: "no lock: concurrent read-modify-writes lose an increment even on a normal night", config: { lock: "none" }, failing: ["normal:no-lost", "gc-pause:no-lost", "slow-network:no-lost", "slow-clock:no-lost"] },
+      { why: "checking your own lease can't close the gap before the write lands", config: { lock: "lease-check" }, failing: ["gc-pause:no-lost", "slow-network:no-lost", "slow-clock:no-lost"] },
+      { why: "a lease shorter than the job: fencing keeps rejecting, nothing finishes", config: { lock: "fencing", leaseMs: 500 }, failing: ["normal:finished", "crash:finished"] },
+      { why: "a long lease hides the pauses but blocks everyone behind a crashed holder", config: { leaseMs: 10000 }, failing: ["crash:finished"] },
+    ],
+  },
 };

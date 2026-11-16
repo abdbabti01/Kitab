@@ -6,7 +6,8 @@ import { transactionsUnit } from "./transactions.ts";
 import { messagingUnit } from "./messaging.ts";
 import { dataAcrossServicesUnit } from "./data-across-services.ts";
 import { consistencyUnit } from "./consistency.ts";
+import { coordinationUnit } from "./coordination.ts";
 
-export const conceptUnits: ConceptUnit[] = [idempotencyUnit, resilienceUnit, transactionsUnit, messagingUnit, dataAcrossServicesUnit, consistencyUnit];
+export const conceptUnits: ConceptUnit[] = [idempotencyUnit, resilienceUnit, transactionsUnit, messagingUnit, dataAcrossServicesUnit, consistencyUnit, coordinationUnit];
 
 export const findConceptUnit = (id: string) => conceptUnits.find((unit) => unit.id === id);

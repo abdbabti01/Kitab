@@ -29,6 +29,7 @@ export const unitCatalog = [
   { id: "messaging", title: "Messaging and event streams" },
   { id: "data-across-services", title: "Consistency across services" },
   { id: "consistency", title: "Replication and consistency" },
+  { id: "coordination", title: "Consensus, leaders and locks" },
 ] as const;
 
 export const labCatalog = [
@@ -42,6 +43,7 @@ export const labCatalog = [
   { id: "outbox", title: "Design a reliable event publication workflow", version: "1" },
   { id: "saga", title: "Design a resilient order-processing system", version: "1" },
   { id: "replication-lag", title: "Scale reads without stale surprises", version: "1" },
+  { id: "fencing-token", title: "Make a distributed lock safe", version: "1" },
 ] as const;
 
 export const labPath = (id: string) => `/practice/architecture/labs/${id}`;

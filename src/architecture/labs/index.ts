@@ -10,7 +10,8 @@ import { hotPartitionLab } from "./hot-partition.ts";
 import { outboxLab } from "./outbox.ts";
 import { sagaLab } from "./saga.ts";
 import { replicationLagLab } from "./replication-lag.ts";
+import { fencingLab } from "./fencing.ts";
 
-export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab, lostUpdateLab, duplicateDeliveryLab, hotPartitionLab, outboxLab, sagaLab, replicationLagLab];
+export const labs: Lab[] = [idempotencyLab, retryStormLab, deadlineLab, circuitBreakerLab, lostUpdateLab, duplicateDeliveryLab, hotPartitionLab, outboxLab, sagaLab, replicationLagLab, fencingLab];
 
 export const findLab = (id: string) => labs.find((lab) => lab.id === id);

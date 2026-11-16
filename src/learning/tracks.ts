@@ -103,6 +103,13 @@ export const systemDesignPath: Stage[] = [
     practise: [sdLab("replication-lag", "Reads go to replicas, and a saved change vanishes; give each user a consistent view.", ["sd:consistency"])],
   },
   {
+    id: "coordination",
+    title: "Consensus, leaders and locks",
+    objective: "Consensus and majorities, leader election and split-brain, leases and fencing tokens, logical clocks and failure detection.",
+    learn: [sdUnit("coordination", "How machines agree on one leader, one order or one lock holder, and what enforces it.")],
+    practise: [sdLab("fencing-token", "A paused lock holder overwrites its successor; make the storage refuse stale writers.", ["sd:coordination"])],
+  },
+  {
     id: "projects",
     title: "Real-world design projects",
     objective: "Work from requirements and estimates to a design, then compare valid designs by their trade-offs.",
