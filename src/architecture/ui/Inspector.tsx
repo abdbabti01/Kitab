@@ -8,6 +8,8 @@ import { pct } from "../explain.ts";
 import type { Dispatch } from "../editor.ts";
 import type { Selection } from "./DesignCanvas.tsx";
 import { connectionNames, kindIcon } from "./kinds.tsx";
+import { RealComponentNote, RealSettingNote } from "./RealWorld.tsx";
+import { realSettings } from "../real-world.ts";
 
 /** A number input that keeps what is typed until it is a valid value, then commits it. */
 export function NumberField({ field, value, onChange, onDone, disabled }: { field: Extract<Field, { type: "number" }>; value: number; onChange: (value: number) => void; onDone?: () => void; disabled?: boolean }) {
@@ -160,6 +162,7 @@ export function Inspector({ design, dispatch, selection, onSelect, validation, f
         <summary>What the simulator models</summary>
         <p>{definition.modelled}</p>
       </details>
+      <RealComponentNote kind={node.kind} />
 
       {nodeIssues.map((issue, index) => <p key={index} className={`inline-issue is-${issue.severity}`}><AlertTriangle aria-hidden="true" /> {issue.message}</p>)}
 
@@ -203,6 +206,7 @@ export function Inspector({ design, dispatch, selection, onSelect, validation, f
                   onDone={() => dispatch?.({ type: "settle" })}
                 />
                 {fixed && <small className="fixed-note">Fixed by this challenge.</small>}
+                <RealSettingNote label={field.label} info={realSettings[node.kind][field.field]} />
               </div>
             );
           })}

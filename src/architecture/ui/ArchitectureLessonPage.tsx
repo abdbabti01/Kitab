@@ -1,4 +1,6 @@
 import { lazy, useEffect, useMemo, useState, type ReactNode } from "react";
+import { TermChips } from "../../ui/Terms.tsx";
+import { terms } from "../../learning/glossary.ts";
 import { ArrowRight, FlaskConical, Play, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps, navigate } from "../../app/router.ts";
@@ -50,8 +52,9 @@ function Experiment({ lesson }: { lesson: ArchitectureLesson }) {
 
   return (
     <section className="experiment lab-theme" aria-labelledby="experiment-title">
-      <h2 id="experiment-title"><FlaskConical aria-hidden="true" /> Experiment</h2>
+      <h2 id="experiment-title"><FlaskConical aria-hidden="true" /> Guided experiment</h2>
       <p>{experiment.intro}</p>
+      <TermChips label="Terms in this experiment" lead="Terms used here:" terms={terms("slot", "rps", "throughput", "latency", "queue")} />
       <div className="experiment-controls">
         <div className="arch-field">
           <label htmlFor="variant">Design</label>
