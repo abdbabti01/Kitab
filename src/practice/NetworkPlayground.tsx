@@ -1,4 +1,7 @@
 import { linkProps } from "../app/router.ts";
+import { ExploreGuide } from "../ui/ExploreGuide.tsx";
+import { TermChips } from "../ui/Terms.tsx";
+import { terms } from "../learning/glossary.ts";
 import { PathNext } from "../app/NetworkingPath.tsx";
 import { sameConfiguration } from "./network/editing.ts";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -805,6 +808,24 @@ export function NetworkPlayground() {
           />
         </div>
       </section>
+      <ExploreGuide
+        build="Build a network from devices and cables or Wi-Fi, set each device's addresses and services, then send traffic and follow every frame and packet across it. Your network is saved in this browser."
+        tryThis={[
+          "Send a web request in the “A request across the Internet” starter and step through it: when does Your PC ask for the gateway's MAC address, and why?",
+          "Change Your PC's default gateway to a wrong address, send again, and see where the packet stops.",
+          "Turn off the router's NAT and send to the internet server: compare the reply's path with Break and compare.",
+        ]}
+        controls={[
+          { name: "Send request and follow it", does: "Runs the chosen traffic from the source device through the network as it is now, then plays it on the diagram." },
+          { name: "Summary / Every event", does: "Previous and Next move a stage at a time (Summary) or one event at a time (Every event)." },
+          { name: "Pause and the timeline", does: "Pause freezes the diagram at the current event; choose any event on the timeline to jump to it." },
+          { name: "Restart simulation", does: "Forgets what devices have learned (address leases, MAC tables, NAT mappings), so the next run starts fresh." },
+          { name: "Predict as you go", does: "Asks what happens next before each decision. Nothing is graded or saved." },
+          { name: "Break and compare", does: "Changes one setting on a copy of your network and shows where the two runs part." },
+        ]}
+        guided={<>For a fault to find and fix, try a <a {...linkProps("/practice?track=networking")}>networking mission</a>.</>}
+      />
+      <TermChips label="Terms used here" lead="Terms used here:" terms={terms("ip", "gateway", "dns", "port")} />
       {path && <PathNext id={`starter:${path.id}`} />}
       <footer className="playground-footer">
         <span>
