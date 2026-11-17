@@ -220,6 +220,28 @@ test("a lesson experiment runs in the simulator and counts the lesson as done", 
   await expect(page.getByRole("link", { name: /Clients, servers and databases/ }).locator(".status-chip")).toHaveText("Completed");
 });
 
+// A rerun with fewer events (lower rate) or other components (another design) than the run being played back
+// once crashed the lesson: playback paired the new run with the old run's cursor and fold.
+test("a lesson experiment can be run again at a lower rate or with another design after playing to the end", async ({ page }) => {
+  for (const [lesson, field, first, then] of [
+    ["fundamentals", "Requests per second", "250", "20"],
+    ["storage-caching", "Design", "uniform", "none"],
+  ]) {
+    await page.goto(`/learn/system-design/${lesson}`);
+    await page.getByLabel(field).selectOption(first);
+    await page.getByRole("button", { name: "Run", exact: true }).click();
+    await page.getByRole("button", { name: "Skip to the end" }).click();
+    await page.getByLabel(field).selectOption(then);
+    await page.getByRole("button", { name: "Run again" }).click();
+    await expect(page.locator(".clock")).toContainText("event 0 of");
+    await expect(page.getByText("This view hit an error")).toHaveCount(0);
+    await page.getByRole("button", { name: "Step forward one event" }).click();
+    await expect(page.locator(".clock")).toContainText("event 1 of");
+    await page.getByRole("button", { name: "Skip to the end" }).click();
+    await expect(page.getByText(/What to notice:/)).toBeVisible();
+  }
+});
+
 test("the track appears with the others, and the Network Playground is unchanged", async ({ page }) => {
   await page.goto("/learn/system-design");
   await expect(page.getByRole("heading", { name: "System design & architecture", level: 1 })).toBeVisible();

@@ -18,22 +18,26 @@ export function eventsUpTo(run: SimRun, t: number) {
 
 export type Cursor = { count: number; t: number };
 
+const START: Cursor = { count: 0, t: 0 };
+
 /**
  * Playback of one run. The cursor is a number of events and a time; the fold of those events is the only state
  * the diagram, inspector, metrics and timeline read.
+ *
+ * Invariant: the cursor and the fold always belong to the current run (count ≤ run.events.length, fold built from
+ * run.design). Both are stored with the run they belong to, so a new run starts at the beginning on its very first
+ * render; resetting them in an effect would leave one render that pairs the new run with the old run's cursor.
  */
 export function useRunPlayback(run: SimRun | null) {
-  const [cursor, setCursor] = useState<Cursor>({ count: 0, t: 0 });
+  const [owned, setOwned] = useState<{ run: SimRun | null; cursor: Cursor }>({ run, cursor: START });
+  const cursor = owned.run === run ? owned.cursor : START;
+  const setCursor = (next: Cursor | ((c: Cursor) => Cursor)) =>
+    setOwned((o) => ({ run, cursor: typeof next === "function" ? next(o.run === run ? o.cursor : START) : next }));
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState<number>(1);
-  const foldRef = useRef<Fold | null>(null);
-  const lastT = useRef(0);
+  const foldRef = useRef<{ run: SimRun; fold: Fold } | null>(null);
 
-  useEffect(() => {
-    foldRef.current = null;
-    setCursor({ count: 0, t: 0 });
-    setPlaying(false);
-  }, [run]);
+  useEffect(() => setPlaying(false), [run]);
 
   useEffect(() => {
     if (!playing || !run) return;
@@ -57,13 +61,13 @@ export function useRunPlayback(run: SimRun | null) {
 
   const fold = useMemo(() => {
     if (!run) return null;
-    // Going back in time rebuilds from the start; going forward applies only the new events.
-    const previous = cursor.t < lastT.current ? null : foldRef.current;
+    // Going forward in this run applies only the new events; going back, or a new run, rebuilds from the start.
+    const kept = foldRef.current;
+    const previous = kept && kept.run === run && cursor.t >= kept.fold.t ? kept.fold : null;
     const f = foldEvents(run, previous, cursor.count);
     f.t = cursor.t;
     f.transit = f.transit.filter((item) => item.until > cursor.t);
-    foldRef.current = f;
-    lastT.current = cursor.t;
+    foldRef.current = { run, fold: f };
     return f;
   }, [run, cursor]);
 
