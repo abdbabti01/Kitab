@@ -169,7 +169,7 @@ test("a planned failure shows in the timeline and the findings", async ({ page }
   await page.locator("[data-node=api-1]").focus();
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Plan a failure of API server" }).click();
-  await page.getByText("Traffic and failures").click();
+  await page.locator("details.run-settings > summary").click();
   await expect(page.getByLabel("API server fails at (seconds)")).toHaveValue("2");
   // Down until 6 s: the load balancer checks every 2 s, so it notices at 4 s.
   await page.getByLabel("API server recovers at (seconds)").fill("6");
