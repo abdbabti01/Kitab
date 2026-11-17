@@ -267,3 +267,20 @@ device starts empty, and private windows may keep nothing. Within that:
   the run view separately). A lazy page chunk missing after a deploy is recognised and offers a reload. Each failure is
   logged to the console with the build (commit), page, area and kind (`src/app/diagnostics.ts`), never with what the
   learner typed or built; nothing is sent to a server.
+
+## Explanations tied to what the simulators have
+
+Learners see what a term means, where a setting lives in real systems and how a task is judged, from data kept next
+to the thing it explains, so it can't drift:
+
+- `src/architecture/real-world.ts` is keyed exactly like `fieldsFor` and `components`: for every Architecture
+  Playground setting, whether it is configured, offered load or a measured property; where it lives and who controls
+  it; the trade-off; how Kitab models it; and a snippet labelled "Representative:" with its technology. A test fails
+  if a setting has no explanation or an explanation has no setting. Adding a setting means adding its entry.
+- `src/practice/network/real-world.ts` does the same per network device kind.
+- `src/learning/glossary.ts` holds the terms Practice and the Playgrounds use, in the lessons' glossary shape, each
+  linking to the concept unit or track that teaches it (a test checks every link resolves).
+- Success criteria are read from assessment rules, never restated: challenges list their own checks, and networking
+  missions use `successCriteria()` (built from `masteryGaps`).
+- `ExploreGuide` marks a Playground as free exploration (no objective, no pass or fail) and lists its controls;
+  guided experiments, labs, challenges and missions keep their own goal and checks.
