@@ -82,8 +82,14 @@ fallback (first unmet requirement + next hint) is returned. The coach never grad
 Designs: `{ version: 1, designs: [...] }`, each `format: "kitab.architecture", version: 1`. Missing settings take
 defaults (older designs load); newer versions, unknown kinds or fields and out-of-range values are refused with a
 reason; unreadable entries are reported and kept unchanged when other designs are saved; a damaged store is copied
-to `<key>.corrupt`. Edits save 400 ms after the last change and immediately on `pagehide` or when another design is
-opened. Progress records carry the challenge version; a new version starts a fresh record.
+whole to `<key>.corrupt` (an earlier copy is never replaced) before anything is saved over it, and a list with
+another version is never written. Edits save 400 ms after the last change and immediately on `pagehide` or when
+another design is opened; these saves only update a design that is still saved, so a design deleted in another tab
+is not brought back. Progress records carry the challenge version; a new version starts a fresh record.
+
+Runs: a `Fold` carries the design snapshot it was built from (`fold.design`), and everything the diagram and
+inspector show about a run is read against it, never against the editor's design. The workspace keeps a run and the
+editor design it came from in one state; editing makes the run stale (not shown) until it is run again.
 
 ## Architecture labs
 
