@@ -35,6 +35,8 @@ export type Bucket = { ok: number; failed: number; latencies: number[]; queued: 
 type Totals = { requests: number; ok: number; failed: number; timeouts: number; retries: number; late: number; latencies: number[] };
 
 export type Fold = {
+  /** The design snapshot the run simulated: the only design whose component ids and settings this fold describes. */
+  design: Design;
   t: number;
   /** Events applied so far: events[0 .. next - 1]. */
   next: number;
@@ -69,7 +71,7 @@ export function createFold(design: Design): Fold {
       maxWaiting: 0, started: 0, rejected: {}, hits: 0, misses: 0, depth: 0, maxDepth: 0, published: 0, acked: 0, redelivered: 0, deadLetters: 0, ackLatencies: [], unhealthy: [],
     };
   }
-  return { t: 0, next: 0, nodes, transit: [], totals: totals(), byOp: {}, failures: {}, series: [] };
+  return { design, t: 0, next: 0, nodes, transit: [], totals: totals(), byOp: {}, failures: {}, series: [] };
 }
 
 const bucket = (fold: Fold, t: number) => {
@@ -210,11 +212,16 @@ export function percentile(values: number[], p: number) {
   return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
 }
 
-/** Share of slot time in use up to the fold's time, per slot group; null for components without a slot limit. */
-export function utilisation(design: Design, fold: Fold, id: string): number[] | null {
-  const limits = slotLimits(design, id);
-  if (!limits.length || fold.t <= 0) return null;
+/**
+ * Share of slot time in use up to the fold's time, per slot group; null for components without a slot limit.
+ * Limits come from the fold's own design snapshot: pairing a fold with another design (the live editor's, or a
+ * challenge design before its fixed settings apply) read components the run never had, or the wrong limits.
+ */
+export function utilisation(fold: Fold, id: string): number[] | null {
   const n = fold.nodes[id];
+  if (!n) throw new Error(`Invariant: component "${id}" is not part of this run`);
+  const limits = slotLimits(fold.design, id);
+  if (!limits.length || fold.t <= 0) return null;
   return limits.map((limit, p) => (n.busyArea[p] + n.busy[p] * (fold.t - n.lastAt[p])) / (limit * fold.t));
 }
 
@@ -264,7 +271,7 @@ export function summarize(run: SimRun, fold = foldTo(run, null, run.endMs)): Sum
   for (const node of run.design.nodes) {
     const n = fold.nodes[node.id];
     nodes[node.id] = {
-      utilisation: utilisation(run.design, fold, node.id),
+      utilisation: utilisation(fold, node.id),
       started: n.started,
       rejected: n.rejected,
       maxWaiting: n.maxWaiting,

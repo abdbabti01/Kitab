@@ -207,6 +207,41 @@ test("a challenge keeps an edit made just before the page is left", async ({ pag
   await expect(page.locator("[data-node=queue-1]")).toHaveCount(1);
 });
 
+// Production crashed here with "Cannot read properties of undefined (reading 'busyArea')": the rerun's first render
+// paired the new design (with its database selected) with the first run's fold, which had no database.
+test("a challenge can be run again after adding a component, with that component selected", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/practice/architecture/challenges/simple-web-app");
+  const connect = async (from: string, to: string) => {
+    await page.locator(`[data-node=${from}]`).focus();
+    await page.keyboard.press("Enter");
+    await page.getByLabel("Connect to").selectOption(to);
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+  };
+  await add(page, "API server");
+  await connect("client-1", "api-1");
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  await page.getByRole("button", { name: "Skip to the end" }).click();
+  await add(page, "SQL database");
+  await connect("api-1", "sql-1");
+  await page.locator("[data-node=sql-1]").focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Run again" }).click();
+  await expect(page.locator(".clock")).toContainText("event 0 of");
+  await page.getByRole("button", { name: "Skip to the end" }).click();
+  await expect(page.getByText("This view hit an error")).toHaveCount(0);
+  await expect(page.locator(".arch-inspector .live-state")).toContainText("Busy so far");
+});
+
+test("a challenge shows its fixed settings on a component added in the editor, as its runs use them", async ({ page }) => {
+  await page.goto("/practice/architecture/challenges/scale-behind-lb");
+  await add(page, "SQL database");
+  // The SQL database the challenge fixes at 40 queries at once; the editor's default is 10.
+  await expect(page.getByLabel("Queries at once")).toHaveValue("40");
+  await expect(page.getByLabel("Queries at once")).toBeDisabled();
+});
+
 test("a lesson experiment runs in the simulator and counts the lesson as done", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
