@@ -99,7 +99,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
     setAttempt(next);
     const updated = recordAttempt(store, mission, next);
     setStore(updated);
-    saveMissionStore(storage(), updated);
+    saveMissionStore(storage(), updated, [mission.id]);
     saveDraft(next, nextNetwork);
   }
   function saveDraft(next = attempt, nextNetwork = network) {

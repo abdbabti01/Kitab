@@ -66,10 +66,13 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
   // The working design is kept on this device, so the challenge reopens where it was left: shortly after the
   // last edit, and at once when the page is hidden or left (a debounced save alone loses the last edit).
   const unsaved = useRef<Design | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const keep = () => {
     if (!unsaved.current) return;
     const progress = saveChallengeDesign(storage, challenge.id, challenge.version, unsaved.current);
-    unsaved.current = null;
+    // A design this browser refused stays unsaved, so the next edit, check or leaving the page tries again.
+    if (progress.saved) unsaved.current = null;
+    setSaveFailed(!progress.saved);
     setRecord(challengeRecordFor(progress, challenge.id, challenge.version));
   };
   useEffect(() => {
@@ -147,6 +150,7 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
             <button type="button" className="button primary" onClick={check} disabled={checking}>{checking ? "Checking…" : "Check my design"}</button>
             <button type="button" className="button" onClick={() => window.confirm("Replace your design with the starting design?") && dispatch({ type: "load", design: challenge.starter() })}><RotateCcw aria-hidden="true" /> Start again</button>
           </div>
+          {saveFailed && <p className="inline-issue is-warning" role="alert">Your design couldn't be saved in this browser (storage is full or blocked). It stays here while this page is open.</p>}
           {record && <p className="muted">Checked {record.attempts} {record.attempts === 1 ? "time" : "times"}{record.best ? ` · cheapest passing design: ${record.best.cost} units, 95% within ${ms(record.best.p95)}` : ""}.</p>}
         </section>
       </div>

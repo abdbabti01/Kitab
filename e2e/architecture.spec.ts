@@ -234,6 +234,20 @@ test("a challenge can be run again after adding a component, with that component
   await expect(page.locator(".arch-inspector .live-state")).toContainText("Busy so far");
 });
 
+test("a challenge says so when this browser refuses to save the design, and keeps the design on screen", async ({ page }) => {
+  await page.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === "kitab.architecture.progress.v1") throw new DOMException("full", "QuotaExceededError");
+      return set.call(this, key, value);
+    };
+  });
+  await page.goto("/practice/architecture/challenges/simple-web-app");
+  await add(page, "API server");
+  await expect(page.getByRole("alert").filter({ hasText: "couldn't be saved in this browser" })).toBeVisible();
+  await expect(page.locator("[data-node=api-1]")).toHaveCount(1);
+});
+
 test("a challenge shows its fixed settings on a component added in the editor, as its runs use them", async ({ page }) => {
   await page.goto("/practice/architecture/challenges/scale-behind-lb");
   await add(page, "SQL database");

@@ -32,7 +32,7 @@ import { useJourney } from "./useJourney.ts";
 import { createDevice, type Network, type DeviceKind, type Action } from "./network/model.ts";
 import { starter, starterOptions } from "./network/starters.ts";
 import { connect, importNetwork, validateNetwork } from "./network/topology.ts";
-import { loadWorkspace, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
+import { loadWorkspace, MAX_SAVES, saveNamed, savedNetworks, SCRATCH_KEY, WORKSPACE_KEY } from "./network/storage.ts";
 import { activityState, loadEvidence, networkingPath } from "../learning/networking-path.ts";
 import { safeStorage } from "../learning/progress.ts";
 import { askingOf, PredictCard, PredictSwitch, usePredictions } from "./Predict.tsx";
@@ -513,8 +513,10 @@ export function NetworkPlayground() {
               className="icon-button"
               onClick={() => {
                 try {
-                  saveNamed(network);
-                  setNotice(`Saved “${network.name}” to My networks.`);
+                  let result = saveNamed(network);
+                  if (result === "exists" && window.confirm(`You already have a saved network named “${network.name}”. Replace it with this one?`)) result = saveNamed(network, true);
+                  if (result === "full" && window.confirm(`You have ${MAX_SAVES} saved networks. Save this one and remove the oldest?`)) result = saveNamed(network, true);
+                  setNotice(result === "saved" ? `Saved “${network.name}” to My networks.` : "Not saved. Rename the network to keep both, or export it.");
                 } catch {
                   setNotice(
                     "Could not save. Export your network to keep a copy.",
