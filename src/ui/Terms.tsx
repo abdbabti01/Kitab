@@ -1,6 +1,8 @@
 import type { Lesson } from "../learning/lessons/schema.ts";
+import { linkProps } from "../app/router.ts";
 
-type Term = Lesson["glossary"][number];
+/** A lesson's glossary term, or a shared one (src/learning/glossary.ts) that links to its full explanation. */
+type Term = Lesson["glossary"][number] & { more?: { href: string; label: string } };
 
 /** A term's meaning, the same way in lessons and missions: what it is, why we use it, and an example. */
 export function TermFields({ term }: { term: Term }) {
@@ -9,6 +11,7 @@ export function TermFields({ term }: { term: Term }) {
       <div><dt>What it is</dt><dd>{term.definition}</dd></div>
       {term.purpose && <div><dt>Why we use it</dt><dd>{term.purpose}</dd></div>}
       {term.example && <div><dt>Example</dt><dd>{term.example}</dd></div>}
+      {term.more && <div><dt>Learn more</dt><dd><a {...linkProps(term.more.href)}>{term.more.label}</a></dd></div>}
     </dl>
   );
 }

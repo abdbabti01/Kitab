@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { RealSettingNote } from "./RealWorld.tsx";
+import { realWorkload } from "../real-world.ts";
 import { CircleCheck, Info, Pause, Play, Plus, RotateCcw, StepBack, StepForward, Trash2, TriangleAlert, X } from "lucide-react";
 import type { Design } from "../model.ts";
 import { BUCKET_MS, percentile, type Fold, type Summary } from "../metrics.ts";
@@ -31,7 +33,10 @@ export function RunSettings({ design, dispatch, workloadLocked }: { design: Desi
           <fieldset className="arch-settings is-grid">
             <legend>Traffic</legend>
             {workloadFields.map((field) => (
-              <SettingField key={field.field} field={field} value={(design.workload as Record<string, unknown>)[field.field]} disabled={!dispatch} onChange={(value) => dispatch?.({ type: "set-workload", field: field.field as keyof Design["workload"], value: value as number | string })} onDone={() => dispatch?.({ type: "settle" })} />
+              <div key={field.field}>
+                <SettingField field={field} value={(design.workload as Record<string, unknown>)[field.field]} disabled={!dispatch} onChange={(value) => dispatch?.({ type: "set-workload", field: field.field as keyof Design["workload"], value: value as number | string })} onDone={() => dispatch?.({ type: "settle" })} />
+                <RealSettingNote label={field.label} info={realWorkload[field.field]} />
+              </div>
             ))}
           </fieldset>
           <p className="muted">Each client's request rate and mix are set on the client itself.</p>
@@ -243,6 +248,10 @@ export function RunView({ design, run, fold, playback, summary, findings, focus,
         <section className="run-findings" aria-labelledby="findings-title">
           <h3 id="findings-title">What the whole run shows</h3>
           <Findings findings={findings} onShow={onShowNodes} />
+          <details className="run-limits">
+            <summary>What this run does not prove</summary>
+            <p>It is one run of a simplified model: every operation takes exactly its set time, and there is no CPU, memory, garbage collection, network loss, locking or data size unless the model says so. It shows how this design behaves under those assumptions, not how fast real services are. Where you can change the seed (Traffic and failures), run again with another to check a result wasn't luck; and change one setting at a time to know which change made the difference.</p>
+          </details>
         </section>
       )}
     </div>

@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { ServerRoles } from "./RealWorld.tsx";
+import { TermChips } from "../../ui/Terms.tsx";
+import { terms } from "../../learning/glossary.ts";
 import { LayoutList, Play, Redo2, Undo2, Workflow } from "lucide-react";
 import { components, COMPONENT_KINDS, type ComponentKind, type Design } from "../model.ts";
 import { validateDesign } from "../validate.ts";
@@ -35,6 +38,7 @@ export function Palette({ onAdd, disabled }: { onAdd: (kind: ComponentKind) => v
           </ul>
         </div>
       ))}
+      <ServerRoles />
     </nav>
   );
 }
@@ -217,6 +221,7 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
           {runError && <p className="run-blocked" role="alert">{runError}</p>}
           {stale && <p className="run-stale" role="status">The design changed after this run. Run again to see the new design.</p>}
         </div>
+        <TermChips label="Terms used in runs" lead="Terms used in runs:" terms={terms("slot", "rps", "throughput", "latency", "queue", "cacheHit", "lb", "pool", "worker", "retry")} />
         <RunSettings design={design} dispatch={dispatch} workloadLocked={workloadLocked} />
         {aside}
         {!run && <p className="muted run-intro">A run sends the clients' requests through your design for {effective.workload.durationS} simulated seconds. Then play it back, step through each event, follow one request, and read what the run shows. All numbers come from this simplified model, not from real cloud services.</p>}

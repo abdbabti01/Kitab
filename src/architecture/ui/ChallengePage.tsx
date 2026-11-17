@@ -29,6 +29,7 @@ function Results({ challenge, result }: { challenge: Challenge; result: Evaluati
   const scenario = (id: string) => challenge.scenarios.find((s) => s.id === id)!;
   return (
     <section className={`check-results ${result.passed ? "is-passed" : "is-failed"}`} aria-labelledby="results-title">
+      <p className="eyebrow">Results and explanation</p>
       <h3 id="results-title" tabIndex={-1}>{result.passed ? "Every requirement is met" : `${result.checks.filter((c) => c.passed).length} of ${result.checks.length} requirements met`}</h3>
       {!result.validation.ok && <p className="inline-issue is-error">The design isn't valid yet: {result.validation.errors[0].message}</p>}
       <ul>
@@ -43,6 +44,7 @@ function Results({ challenge, result }: { challenge: Challenge; result: Evaluati
           </li>
         ))}
       </ul>
+      {!result.passed && <p>Each requirement not met shows what the runs observed. Change one thing, run the scenario to see its effect, then check again. The hints below help if you are stuck.</p>}
       <p className="muted">Judged only from simulator runs of your design with the challenge's traffic and settings. {result.validation.ok ? `Cost: ${result.cost} units.` : ""}</p>
     </section>
   );
@@ -130,20 +132,29 @@ export function ChallengePage({ challenge }: { challenge: Challenge }) {
           <div>
             <p className="eyebrow">Design challenge{passed ? " · Completed" : ""}</p>
             <h1>{challenge.title}</h1>
-            <p>{challenge.story}</p>
+            <p>{challenge.summary}</p>
           </div>
         </div>
       </header>
 
       <div className="challenge-brief">
-        <section aria-labelledby="req-title">
-          <h2 id="req-title">Requirements</h2>
+        <section aria-labelledby="problem-title">
+          <h2 id="problem-title">Problem</h2>
+          <p>{challenge.story}</p>
+          <h3>Goal</h3>
           <ul>{challenge.requirements.map((r) => <li key={r}>{r}</li>)}</ul>
-          <h3>Constraints</h3>
+          <h3>What you can change</h3>
+          <p>Add, remove, connect and configure components in the editor below. Select a component to see its settings and what each one means in a real system.</p>
+          <p>The challenge fixes:</p>
           <ul>{challenge.constraints.map((c) => <li key={c}>{c}</li>)}</ul>
         </section>
-        <section aria-labelledby="checks-title">
-          <h2 id="checks-title">How it's checked</h2>
+        <section aria-labelledby="test-title">
+          <h2 id="test-title">How to test</h2>
+          <ol className="test-steps">
+            <li><b>Run simulation</b> (below the editor) to watch one scenario play out. A run has no pass or fail: use it to see where requests wait or fail. Start with the starting design.</li>
+            <li><b>Check my design</b> runs every scenario and judges each requirement below.</li>
+          </ol>
+          <h3>Success criteria</h3>
           <ul className="check-list">{challenge.checks.map((c) => <li key={c.id}>{c.requirement} <small>({challenge.scenarios.find((s) => s.id === c.scenario)!.title})</small></li>)}</ul>
           <p className="muted">Any design that meets every check passes. There's more than one.</p>
           <div className="actions">

@@ -287,3 +287,10 @@
 }
 .arch-contained { display: grid; gap: 10px; justify-items: start; padding: 14px; border-radius: 12px; background: var(--danger-soft); color: var(--ink); }
 .arch-contained p { margin: 0; }
+.server-roles { margin-top: 12px; font-size: .85rem; }
+.server-roles summary { cursor: pointer; font-weight: 650; min-height: 32px; display: flex; align-items: center; }
+.server-roles dl { display: grid; gap: 6px; margin: 8px 0; }
+.server-roles dt { font-weight: 650; }
+.server-roles dd { margin: 0; }
+.run-limits { margin-top: 10px; font-size: .88rem; }
+.run-limits summary { cursor: pointer; font-weight: 650; color: var(--primary-strong); min-height: 32px; display: flex; align-items: center; }

@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef, useState } from "react";
+import { ExploreGuide } from "../../ui/ExploreGuide.tsx";
 import { Copy, Download, FolderOpen, Plus, Trash2, Upload, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps } from "../../app/router.ts";
@@ -203,6 +204,23 @@ export function ArchitecturePlayground() {
       <p className="sr-only" role="status">{message}</p>
       {message && <p className="arch-message">{message}</p>}
       {designsDialog}
+      <ExploreGuide
+        build="Build any design from the list of components, run it under traffic, and play the run back to see where requests wait, fail or slow down. Your designs are saved in this browser."
+        tryThis={[
+          "Start from “API with a cache”, run it, then set the cache to hold 0 items and run again. Compare the 95th percentile and how busy the database was.",
+          "Raise the client's requests per second until something refuses requests. Which component filled up first, and why that one?",
+          "Put two API servers behind a load balancer, plan a failure of one (Traffic and failures), and run with and without health checks.",
+        ]}
+        controls={[
+          { name: "Run simulation / Run again", does: "Sends the clients' traffic through the design as it is now and records every event. Editing the design afterwards makes that run out of date until you run again." },
+          { name: "Play and Pause", does: "Play the recorded run back over simulated time; Pause freezes it where it is." },
+          { name: "Step back / Step forward", does: "Move one event at a time. The diagram and the inspector show each component at that moment." },
+          { name: "Back to the start / Skip to the end", does: "Jump to the first event, or to the final numbers and the findings." },
+          { name: "Traffic and failures", does: "How long clients send, how randomly requests arrive, and planned failures. Each client's rate is set on the client." },
+          { name: "Undo and Redo", does: "Step back and forward through design edits. They don't change a run that is already recorded." },
+        ]}
+        guided={<>For a goal to meet, try a <a {...linkProps("/practice?track=system-design")}>design challenge</a> or a <a {...linkProps("/practice/architecture/labs")}>lab</a>.</>}
+      />
       {missing && <p className="inline-issue is-warning">That design isn't saved in this browser. Designs are kept on the device where they were made.</p>}
 
       {!open ? (

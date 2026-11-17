@@ -87,6 +87,15 @@ export function masteryGaps(a: MissionAttempt, mission: NetworkMission): string[
   return gaps;
 }
 
+/**
+ * Every requirement in the learner's terms, read from the rules above (never restated): what completes the
+ * mission, and what each version needs for mastery. A fresh attempt that used every hint fails every check.
+ */
+export function successCriteria(mission: NetworkMission) {
+  const all = masteryGaps({ variant: "", startedAt: "", completedAt: null, diagnosis: null, evidence: false, explanation: null, prediction: null, hints: 3 }, mission);
+  return { complete: all[0], master: all.slice(1) };
+}
+
 // Two versions count as different when their causes differ, so the same fix twice is not mastery.
 const causeOf = (mission: NetworkMission, variant: string) => {
   const v = mission.variants.find((x) => x.id === variant);

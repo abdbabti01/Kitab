@@ -19,6 +19,7 @@ import {
   recordAttempt,
   saveMissionStore,
   type MissionAttempt,
+  successCriteria,
 } from "./network/mission-progress.ts";
 import { practiceLabels } from "../learning/practice-state.ts";
 import { PathNeeds, PathNext } from "../app/NetworkingPath.tsx";
@@ -91,6 +92,7 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
   const record = store.missions[mission.id];
   const state = missionState(record, mission);
   const position = mission.variants.indexOf(variant) + 1;
+  const criteria = successCriteria(mission);
   useEffect(() => {
     document.title = `${mission.title} · Networking missions · Kitab`;
   }, [mission.title]);
@@ -487,6 +489,19 @@ export function NetworkMissionPage({ mission }: { mission: NetworkMission }) {
           <ul>
             {mission.objectives.map((o) => (
               <li key={o}>{o}</li>
+            ))}
+          </ul>
+          <h2>How to test and what counts</h2>
+          <p>
+            {mission.kind === "fix"
+              ? "Send traffic to see the problem, change the network, then press Check my fix: it runs the checks and shows where each one is proved."
+              : "Send traffic and step through the run until you can answer the question."}
+          </p>
+          <p><b>Completed:</b> {criteria.complete}</p>
+          <p><b>Mastered:</b> two versions with different causes, each solved in one attempt that also meets these:</p>
+          <ul>
+            {criteria.master.map((c) => (
+              <li key={c}>{c}</li>
             ))}
           </ul>
           {(mission.locks.length > 0 || mission.topologyLocked) && (

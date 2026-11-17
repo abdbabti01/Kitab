@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ExploreGuide } from "../ui/ExploreGuide.tsx";
+import { TermChips } from "../ui/Terms.tsx";
+import { terms } from "../learning/glossary.ts";
 import { ArrowLeft, Binary, RotateCcw, Save } from "lucide-react";
 import "../learning/engines/eager.ts";
 import { buildTrace } from "../learning/registry.ts";
@@ -27,8 +30,8 @@ import "./structures.css";
 
 /** What the model leaves out, per structure. Shown with every run so no step is mistaken for real memory. */
 const limits: Record<StructureKind | "recursion", string> = {
-  array: "A dynamic array with a spare slot after the last element; growing into a new, larger block is not shown. Addresses are illustrative (base 0x1000, 4-byte integers).",
-  "linked-list": "A singly linked list. Addresses are illustrative, and memory reclamation (garbage collection or free) is not simulated.",
+  array: "A dynamic array with a spare slot after the last element; growing into a new, larger block is not shown. Addresses are illustrative (base 0x1000, 4-byte integers). In a real program the language runtime's allocator (or garbage collector) gets memory from the operating system and picks the addresses; the program never chooses them.",
+  "linked-list": "A singly linked list. Addresses are illustrative, and memory reclamation (garbage collection or free) is not simulated. In a real program the language runtime's allocator (or garbage collector) gets memory from the operating system and picks the addresses; the program never chooses them.",
   stack: "Backed by an array with a TOP marker; capacity growth is not shown.",
   queue: "Backed by an array with FRONT and REAR markers; capacity growth and wrap-around are not shown.",
   "hash-table": "Seven buckets, bucket = key mod 7, separate chaining. It stores keys only and never resizes.",
@@ -139,6 +142,7 @@ function Guided({ setup, onPick }: { setup: Setup; onPick: (setup: Setup) => voi
   return (
     <section className="sp-panel sp-guided" aria-labelledby="guided-title">
       <h2 id="guided-title">Guided experiments</h2>
+      <p className="sp-help">Each sets up one question. Choose it, step through, and check that you see what it describes; then change one input and predict what changes.</p>
       <ul>
         {list.map((experiment) => {
           const active = setupPath(experiment.setup) === setupPath(setup);
@@ -247,6 +251,23 @@ export function StructuresPlayground() {
           <a {...linkProps("/learn/data-structures")}>Data structures track</a> · <a {...linkProps("/practice?track=data-structures")}>Missions</a> · <a {...linkProps("/playground")}>All Playgrounds</a>
         </p>
       </header>
+      <ExploreGuide
+        build="Pick any structure and operation, set the inputs and starting values, then step through every read, write, pointer change and stack frame. Nothing is graded or saved."
+        tryThis={[
+          "Insert at index 0 of an array, then at the head of a linked list: count the steps each takes.",
+          "Insert values in sorted order into a binary search tree, then search for the largest one.",
+          "Turn off the base case in recursion and watch the stack fill to its limit.",
+        ]}
+        controls={[
+          { name: "Structure, Operation and inputs", does: "Choose what to run. Every change builds a new run from the start." },
+          { name: "Starting values and Apply", does: "Set what the structure holds before the operation. Apply builds the run." },
+          { name: "Restart run, Previous step, Play, Next step", does: "Move through the run one step at a time or play it; the explanation follows each step." },
+          { name: "Start the next operation from this result", does: "Keeps the result as the starting values, so you can chain operations." },
+          { name: "Reset this structure", does: "Back to the example values and the default operation." },
+        ]}
+        guided={<>The guided experiments below each set up one question; for a graded prediction, try a <a {...linkProps("/practice?track=data-structures")}>data structures mission</a>.</>}
+      />
+      <TermChips label="Terms used here" lead="Terms used here:" terms={terms("reference", "frame", "complexity")} />
       <div className="sp-layout">
         <div className="sp-side">
           <SetupPanel setup={setup} onChange={setSetup} />

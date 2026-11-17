@@ -122,3 +122,28 @@
 .outline-item.is-current .outline-num { background: var(--primary); color: #fff; }
 .outline-title { display: grid; min-width: 0; overflow-wrap: anywhere; }
 .outline-title small { color: var(--muted); font-weight: 500; font-size: 0.8rem; }
+
+/* Free-exploration Playgrounds (ExploreGuide.tsx): one visible line, the rest on demand. */
+.explore-guide { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; font-size: .9rem; }
+.explore-guide .explore-mode { margin: 0; }
+.explore-guide .mode-chip { display: inline-block; margin-right: 6px; padding: 2px 10px; border-radius: 999px; background: var(--surface-2); font-weight: 700; font-size: .8rem; }
+.explore-guide summary { cursor: pointer; font-weight: 650; min-height: 36px; display: flex; align-items: center; color: var(--primary-strong); }
+.explore-guide h3 { margin: 12px 0 6px; font-size: .9rem; }
+.explore-guide ul { margin: 0; padding-left: 20px; }
+.explore-guide li { margin-bottom: 4px; }
+.explore-guide dl { display: grid; gap: 6px; margin: 0; }
+.explore-guide dt { font-weight: 650; }
+.explore-guide dd { margin: 0; }
+.test-steps { margin: 0 0 10px; padding-left: 20px; }
+.test-steps li { margin-bottom: 6px; }
+
+/* Real-world notes beside settings and components (architecture RealWorld.tsx, network DeviceInspector). */
+.real-note { margin: -4px 0 10px; font-size: .85rem; }
+.real-note summary { cursor: pointer; color: var(--primary-strong); font-weight: 600; min-height: 32px; display: flex; align-items: center; }
+.real-note dl { display: grid; gap: 6px; margin: 6px 0; }
+.real-note dt { font-weight: 650; }
+.real-note dd { margin: 0; }
+.real-kind { display: inline-block; margin: 4px 0; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); font-size: .78rem; font-weight: 600; }
+.real-example { margin: 6px 0 0; min-width: 0; }
+.real-example figcaption { font-size: .78rem; color: var(--muted); margin-bottom: 4px; }
+.real-example pre { margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font: .78rem/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }

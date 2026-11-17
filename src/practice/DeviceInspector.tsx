@@ -1,4 +1,6 @@
 import { useEffect, useState, useId, type ReactNode } from "react";
+import { realDevices } from "./network/real-world.ts";
+import { ExampleBlock } from "../ui/ExploreGuide.tsx";
 import { Cable, Info, Trash2, Wifi } from "lucide-react";
 import { deviceDescription, subnet } from "./network/topology.ts";
 import { effectiveInterface } from "./network/engine.ts";
@@ -124,6 +126,15 @@ export function DeviceInspector({
           onApply(draft);
         }}
       >
+        <details className="real-note">
+          <summary>Where these settings live in a real network</summary>
+          <dl>
+            {realDevices[device.kind].where.map((w) => <div key={w.setting}><dt>{w.setting}</dt><dd>{w.place}</dd></div>)}
+            <div><dt>Who sets them</dt><dd>{realDevices[device.kind].who}</dd></div>
+          </dl>
+          {realDevices[device.kind].example && <ExampleBlock example={realDevices[device.kind].example!} />}
+          <p className="field-help">Kitab applies a change at once. A real device may need its address lease renewed, a service restarted or a cable reconnected.</p>
+        </details>
         <Field
           label="Device name"
           value={draft.name}
