@@ -79,6 +79,23 @@ test("keyboard: components move with arrow keys, delete with Delete, and the lis
   expect(await unnamedControls(page)).toEqual([]);
 });
 
+test("a design deleted in another tab is not brought back by this tab's autosave", async ({ page, context }) => {
+  await fresh(page, "cached-api");
+  await page.getByLabel("Design name").fill("Shared");
+  await expect(page.getByText("Saved on this device")).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await other.getByRole("button", { name: "Designs", exact: true }).click();
+  other.once("dialog", (d) => d.accept());
+  await other.getByRole("dialog", { name: "Your designs" }).getByRole("button", { name: "Delete Shared" }).click();
+  await other.close();
+  // Back in the first tab, an edit is not saved, and the learner is told why.
+  await page.getByLabel("Design name").fill("Shared, edited");
+  await expect(page.getByText("this design isn't in your saved designs any more")).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.architecture.designs.v1") ?? "{}").designs ?? []);
+  expect(stored.map((d: { name: string }) => d.name)).not.toContain("Shared, edited");
+});
+
 test("designs are saved as you work, survive a reload, and can be renamed, duplicated and deleted", async ({ page }) => {
   await fresh(page, "cached-api");
   const name = page.getByLabel("Design name");
