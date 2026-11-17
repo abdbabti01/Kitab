@@ -3,6 +3,7 @@
 // exactly as they are, never overwritten or silently dropped.
 import { DESIGN_FORMAT, MAX_NODES, type Design } from "./model.ts";
 import { DesignFormatError, parseDesign } from "./validate.ts";
+import { keepAside } from "../learning/keyed-store.ts";
 
 export const DESIGNS_KEY = "kitab.architecture.designs.v1";
 export const MAX_DESIGNS = 50;
@@ -15,21 +16,28 @@ export function newDesignId(random = Math.random, now = Date.now()) {
   return `d-${now.toString(36)}-${Math.floor(random() * 36 ** 6).toString(36).padStart(6, "0")}`;
 }
 
-/** The raw list: whatever is stored, item by item, so unreadable items survive a save untouched. */
-function readRaw(storage: StorageLike): unknown[] {
+/**
+ * The raw list: whatever is stored, item by item, so unreadable items survive a save untouched; and whether it may
+ * be written. A list from another Kitab version is never written; an unreadable one only once a copy is kept aside.
+ */
+function readRaw(storage: StorageLike): { designs: unknown[]; writable: boolean } {
+  let text: string | null;
   try {
-    const raw = JSON.parse(storage.getItem(DESIGNS_KEY) ?? "null");
-    if (raw && raw.version === 1 && Array.isArray(raw.designs)) return raw.designs;
-    if (raw !== null) storage.setItem(`${DESIGNS_KEY}.corrupt`, JSON.stringify(raw).slice(0, 500_000));
+    text = storage.getItem(DESIGNS_KEY);
   } catch {
-    try {
-      const text = storage.getItem(DESIGNS_KEY);
-      if (text) storage.setItem(`${DESIGNS_KEY}.corrupt`, text.slice(0, 500_000));
-    } catch {
-      // storage unavailable
-    }
+    return { designs: [], writable: false };
   }
-  return [];
+  if (text === null) return { designs: [], writable: true };
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return { designs: [], writable: keepAside(storage, DESIGNS_KEY, text) };
+  }
+  const list = raw as { version?: unknown; designs?: unknown };
+  if (list && typeof list === "object" && list.version === 1 && Array.isArray(list.designs)) return { designs: list.designs, writable: true };
+  if (list && typeof list === "object" && typeof list.version === "number") return (keepAside(storage, DESIGNS_KEY, text), { designs: [], writable: false });
+  return { designs: [], writable: keepAside(storage, DESIGNS_KEY, text) };
 }
 
 function writeRaw(storage: StorageLike, designs: unknown[]) {
@@ -44,7 +52,7 @@ export type SavedDesigns = { designs: Design[]; unreadable: { id: string | null;
 export function loadDesigns(storage: StorageLike): SavedDesigns {
   const designs: Design[] = [];
   const unreadable: SavedDesigns["unreadable"] = [];
-  for (const raw of readRaw(storage)) {
+  for (const raw of readRaw(storage).designs) {
     try {
       designs.push(parseDesign(raw));
     } catch (error) {
@@ -57,24 +65,40 @@ export function loadDesigns(storage: StorageLike): SavedDesigns {
 
 /** Insert or replace by id. Returns false (and changes nothing) when storage refuses or the list is full. */
 export function saveDesign(storage: StorageLike, design: Design, now = new Date().toISOString()): boolean {
+  return write(storage, design, now, true) === "saved";
+}
+
+/**
+ * Save changes to a design that is already saved. "gone": it isn't in the list any more (deleted, perhaps in
+ * another tab), and it is not saved again: autosave never brings a deleted design back.
+ */
+export function updateDesign(storage: StorageLike, design: Design, now = new Date().toISOString()): "saved" | "gone" | "failed" {
+  return write(storage, design, now, false);
+}
+
+function write(storage: StorageLike, design: Design, now: string, insert: boolean): "saved" | "gone" | "failed" {
   const saved = { ...design, updatedAt: now };
   parseDesign(saved);
-  const raw = readRaw(storage);
+  const { designs: raw, writable } = readRaw(storage);
+  if (!writable) return "failed";
   const index = raw.findIndex((item) => idOf(item) === design.id);
-  if (index === -1 && raw.length >= MAX_DESIGNS) return false;
+  if (index === -1 && !insert) return "gone";
+  if (index === -1 && raw.length >= MAX_DESIGNS) return "failed";
   if (index === -1) raw.push(saved);
   else raw[index] = saved;
   try {
     writeRaw(storage, raw);
-    return true;
+    return "saved";
   } catch {
-    return false;
+    return "failed";
   }
 }
 
 export function deleteDesign(storage: StorageLike, id: string) {
+  const { designs, writable } = readRaw(storage);
+  if (!writable) return false;
   try {
-    writeRaw(storage, readRaw(storage).filter((item) => idOf(item) !== id));
+    writeRaw(storage, designs.filter((item) => idOf(item) !== id));
     return true;
   } catch {
     return false;

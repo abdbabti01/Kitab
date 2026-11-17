@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { NavState } from "./navigation.ts";
 import { JOURNEY, type Track } from "./runtime.ts";
 import type { Lesson } from "./schema.ts";
+import { readStore, updateStore } from "../keyed-store.ts";
 
 /**
  * Learning progress, kept apart from mission practice and mastery (progress.ts). Seeing or completing a
@@ -40,36 +41,17 @@ export const LEARNING_KEY = "kitab.learning.v1";
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 const empty = (): Learning => ({ version: 1, lessons: {} });
 
+/** Readable lessons; a damaged or newer lesson record is kept as it is (see keyed-store.ts), never removed. */
 export function loadLearning(storage: StorageLike): { learning: Learning; recovered: boolean } {
-  let raw: string | null = null;
-  try {
-    raw = storage.getItem(LEARNING_KEY);
-  } catch {
-    return { learning: empty(), recovered: true };
-  }
-  if (!raw) return { learning: empty(), recovered: false };
-  try {
-    const parsed = learningSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) return { learning: parsed.data, recovered: false };
-  } catch {
-    // malformed JSON
-  }
-  try {
-    storage.setItem(`${LEARNING_KEY}.corrupt`, raw.slice(0, 50_000));
-    storage.removeItem(LEARNING_KEY);
-  } catch {
-    // storage unavailable
-  }
-  return { learning: empty(), recovered: true };
+  const { records, status } = readStore(storage, LEARNING_KEY, 1, { lessons: record });
+  return { learning: { version: 1, lessons: records.lessons }, recovered: status !== "ok" && status !== "empty" };
 }
 
-export function saveLearning(storage: StorageLike, learning: Learning) {
-  try {
-    storage.setItem(LEARNING_KEY, JSON.stringify(learning));
-    return true;
-  } catch {
-    return false;
-  }
+/** Writes the given lessons' records (all by default) into the stored progress; other lessons are untouched. */
+export function saveLearning(storage: StorageLike, learning: Learning, ids = Object.keys(learning.lessons)) {
+  return updateStore(storage, LEARNING_KEY, 1, { lessons: record }, ({ lessons }) => {
+    for (const id of ids) if (learning.lessons[id]) lessons[id] = learning.lessons[id];
+  }).saved;
 }
 
 function base(learning: Learning, lesson: Lesson): LessonRecord {

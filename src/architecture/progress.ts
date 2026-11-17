@@ -1,6 +1,7 @@
 // System Design progress in this browser: challenge checks and passes, and lesson experiments run. Its own
 // additive store; damaged data is kept aside. Only zod: this module loads on every page, with the track.
 import { z } from "zod";
+import { readStore, updateStore } from "../learning/keyed-store.ts";
 
 export const PROGRESS_KEY = "kitab.architecture.progress.v1";
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -26,32 +27,18 @@ export type ChallengeRecord = z.infer<typeof challengeRecord>;
 
 export const emptyProgress = (): ArchitectureProgress => ({ version: 1, challenges: {}, lessons: {} });
 
-/** Damaged data reads as no progress and is kept aside. */
+const collections = { challenges: challengeRecord, lessons: progressSchema.shape.lessons.valueType };
+
+/** Readable records; a damaged or newer record is kept as it is (see keyed-store.ts), never removed. */
 export function loadArchitectureProgress(storage: StorageLike): ArchitectureProgress {
-  let raw: string | null = null;
-  try {
-    raw = storage.getItem(PROGRESS_KEY);
-    if (!raw) return emptyProgress();
-    return progressSchema.parse(JSON.parse(raw));
-  } catch {
-    try {
-      if (raw) storage.setItem(`${PROGRESS_KEY}.corrupt`, raw.slice(0, 500_000));
-    } catch {
-      // storage unavailable
-    }
-    return emptyProgress();
-  }
+  return { version: 1, ...readStore(storage, PROGRESS_KEY, 1, collections).records };
 }
 
-function updateProgress(storage: StorageLike, change: (progress: ArchitectureProgress) => void) {
-  const progress = loadArchitectureProgress(storage);
-  change(progress);
-  try {
-    storage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-  } catch {
-    // storage full or unavailable: progress is not remembered
-  }
-  return progress;
+/** The progress after the change; `saved` is false when this browser didn't keep it (storage full or blocked). */
+function updateProgress(storage: StorageLike, change: (progress: ArchitectureProgress) => void): ArchitectureProgress & { saved: boolean } {
+  let progress = emptyProgress();
+  const { saved } = updateStore(storage, PROGRESS_KEY, 1, collections, (records) => change((progress = { version: 1, ...records })));
+  return { ...progress, saved };
 }
 
 export function recordExperiment(storage: StorageLike, lessonId: string, now = new Date().toISOString()) {

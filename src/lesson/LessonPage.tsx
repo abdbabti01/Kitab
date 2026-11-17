@@ -114,7 +114,7 @@ function LessonView({ lesson }: { lesson: Lesson }) {
   useEffect(() => {
     setLearning((current) => {
       const next = recordStep(current, lesson, nav, track);
-      saveLearning(storage, next);
+      saveLearning(storage, next, [lesson.id]);
       return next;
     });
   }, [lesson, nav, track]);

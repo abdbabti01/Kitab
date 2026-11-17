@@ -248,3 +248,22 @@ text) from 0003.
 TCP: segment 1 travels alone for inspection; timeout recovery rather than fast
 retransmit; windows counted in segments. Data structures: fixed fixtures in missions; the Playground also accepts up to 8 starting values.
 Recursion: factorial/sum with a configurable stack limit.
+
+## Saved data and failures
+
+Everything a learner saves is in this browser's `localStorage`: nothing is synced, a cleared browser or another
+device starts empty, and private windows may keep nothing. Within that:
+
+- Stores of keyed records (`kitab.progress.v1`, `kitab.learning.v1`, `kitab.network-missions.v1`,
+  `kitab.architecture.progress.v1`, `kitab.architecture.labs.v1`, `kitab.visits.v1`) go through
+  `src/learning/keyed-store.ts`: each record is read on its own, a record that can't be read (damaged, or from a newer
+  Kitab) is kept and written back untouched, a store with another version is never written, and unreadable data is
+  copied whole to `<key>.corrupt` (never replacing an earlier copy) before anything is saved over it. Every save reads
+  the store again and changes only the caller's records, so another tab's progress is not overwritten. Two tabs
+  changing the *same* record still end with the last save.
+- Saves report failure (storage full or blocked) instead of looking successful; pages that save the learner's own
+  work say so.
+- Unexpected errors are contained by `ErrorBoundary` (the page, and in the architecture workspace the inspector and
+  the run view separately). A lazy page chunk missing after a deploy is recognised and offers a reload. Each failure is
+  logged to the console with the build (commit), page, area and kind (`src/app/diagnostics.ts`), never with what the
+  learner typed or built; nothing is sent to a server.

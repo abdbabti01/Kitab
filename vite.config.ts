@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { defineConfig, type Connect, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { HTTP_WALKTHROUGH_PATH } from "./src/app/routes.ts";
@@ -20,5 +21,15 @@ const httpWalkthrough: Plugin = {
     server.middlewares.use(serveHttpWalkthrough);
   },
 };
+
+// The commit a build comes from, shown in error details (Workers Builds sets WORKERS_CI_COMMIT_SHA).
+function commit() {
+  try {
+    return process.env.WORKERS_CI_COMMIT_SHA ?? execSync("git rev-parse HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "unknown";
+  }
+}
+process.env.VITE_KITAB_BUILD ??= commit().slice(0, 12);
 
 export default defineConfig({ plugins: [react(), httpWalkthrough] });

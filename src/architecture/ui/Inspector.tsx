@@ -138,9 +138,10 @@ export function Inspector({ design, dispatch, selection, onSelect, validation, f
   const incoming = design.edges.filter((e) => e.to === node.id);
   const targets = connectableTargets(design, node.id);
   const capacity = nominalCapacity(design, node.id);
+  // What the run shows is read from the run's own design snapshot (fold.design), never from the editor's design.
+  const used = fold ? utilisation(fold, node.id) : null;
   const state = fold?.nodes[node.id];
-  const limits = slotLimits(design, node.id);
-  const used = fold ? utilisation(design, fold, node.id) : null;
+  const limits = fold ? slotLimits(fold.design, node.id) : [];
   const nodeIssues = [...validation.errors, ...validation.warnings].filter((i) => i.nodes.includes(node.id));
   const isLocked = locked.includes(node.id);
 

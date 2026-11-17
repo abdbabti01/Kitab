@@ -5,7 +5,7 @@ import { linkProps } from "../../app/router.ts";
 import type { Design } from "../model.ts";
 import { DesignFormatError } from "../validate.ts";
 import { editorReducer, initEditor } from "../editor.ts";
-import { deleteDesign, duplicateDesign, exportDesign, importDesign, loadDesigns, newDesignId, saveDesign, type SavedDesigns } from "../persistence.ts";
+import { deleteDesign, duplicateDesign, exportDesign, importDesign, loadDesigns, MAX_IMPORT_BYTES, newDesignId, saveDesign, updateDesign, type SavedDesigns } from "../persistence.ts";
 import { findTemplate, templates } from "../templates.ts";
 import { Workspace } from "./Workspace.tsx";
 import "./architecture.css";
@@ -70,9 +70,10 @@ export function ArchitecturePlayground() {
   const design = state.design;
   const latest = useRef(design);
   latest.current = design;
-  // A deleted design is never saved again, whichever save would otherwise run next.
+  // A deleted design is never saved again, whichever save would otherwise run next, in this tab or another: the
+  // autosave only updates a design that is still saved (updateDesign).
   const deleted = useRef(new Set<string>());
-  const keep = (d: Design) => !deleted.current.has(d.id) && saveDesign(storage, d);
+  const keep = (d: Design) => !deleted.current.has(d.id) && updateDesign(storage, d) === "saved";
   useEffect(() => {
     if (!open) return;
     const flush = () => keep(latest.current);
@@ -83,9 +84,13 @@ export function ArchitecturePlayground() {
     if (!open) return;
     const timer = setTimeout(() => {
       if (deleted.current.has(design.id)) return;
-      const ok = saveDesign(storage, design);
-      setStatus(ok ? "Saved on this device" : "Couldn't save: storage is full or unavailable. Export the design to keep it.");
-      if (ok) setSaved(loadDesigns(storage));
+      const result = updateDesign(storage, design);
+      setStatus({
+        saved: "Saved on this device",
+        gone: "Not saved: this design isn't in your saved designs any more (it was deleted, perhaps in another tab). Export it to keep a copy.",
+        failed: "Couldn't save: storage is full or unavailable. Export the design to keep it.",
+      }[result]);
+      if (result === "saved") setSaved(loadDesigns(storage));
     }, 400);
     return () => clearTimeout(timer);
   }, [design, open]);
@@ -137,6 +142,8 @@ export function ArchitecturePlayground() {
   const upload = async (file: File | undefined) => {
     if (!file) return;
     try {
+      // Refused before reading: a huge file never has to be loaded into memory to be turned down.
+      if (file.size > MAX_IMPORT_BYTES) throw new DesignFormatError("This file is too large to be a Kitab design.");
       const imported = importDesign(await file.text());
       if (!saveDesign(storage, imported)) return setMessage("Couldn't import: you have the maximum of 50 designs, or storage is unavailable.");
       setSaved(loadDesigns(storage));

@@ -227,7 +227,7 @@ export function DesignCanvas({ design, dispatch, selection, onSelect, fold, issu
           {design.nodes.map((node) => {
             const Icon = kindIcon[node.kind];
             const state = fold?.nodes[node.id];
-            const limits = slotLimits(design, node.id);
+            const limits = fold ? slotLimits(fold.design, node.id) : [];
             const busy = state ? state.busy.reduce((a, b) => a + b, 0) : 0;
             const limit = limits.reduce((a, b) => a + b, 0);
             const waiting = state ? state.waiting.reduce((a, b) => a + b, 0) : 0;

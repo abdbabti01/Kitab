@@ -82,7 +82,7 @@ function MissionView({ mission }: { mission: Mission }) {
   useEffect(() => {
     setProgress((current) => {
       const next = recordState(current, state, trace.scenarioKey, attemptStatus(state.attempt), undefined, mission.masteryVariants ?? 1);
-      saveProgress(storage, next);
+      saveProgress(storage, next, [mission.id]);
       return next;
     });
   }, [state, trace.scenarioKey]);

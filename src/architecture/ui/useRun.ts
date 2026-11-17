@@ -21,6 +21,20 @@ export type Cursor = { count: number; t: number };
 const START: Cursor = { count: 0, t: 0 };
 
 /**
+ * The fold of `run` at `cursor`. Going forward in the same run applies only the new events to the kept fold;
+ * going back, or any other run, rebuilds from the run's own design. A fold kept from another run is never reused:
+ * it describes another design's components (the "reading 'busyArea'" crash on a rerun after adding one).
+ */
+export function foldAt(run: SimRun, cursor: Cursor, kept: { run: SimRun; fold: Fold } | null): Fold {
+  if (cursor.count > run.events.length) throw new Error(`Invariant: cursor at event ${cursor.count} of a run with ${run.events.length}`);
+  const previous = kept && kept.run === run && cursor.t >= kept.fold.t ? kept.fold : null;
+  const f = foldEvents(run, previous, cursor.count);
+  f.t = cursor.t;
+  f.transit = f.transit.filter((item) => item.until > cursor.t);
+  return f;
+}
+
+/**
  * Playback of one run. The cursor is a number of events and a time; the fold of those events is the only state
  * the diagram, inspector, metrics and timeline read.
  *
@@ -61,12 +75,7 @@ export function useRunPlayback(run: SimRun | null) {
 
   const fold = useMemo(() => {
     if (!run) return null;
-    // Going forward in this run applies only the new events; going back, or a new run, rebuilds from the start.
-    const kept = foldRef.current;
-    const previous = kept && kept.run === run && cursor.t >= kept.fold.t ? kept.fold : null;
-    const f = foldEvents(run, previous, cursor.count);
-    f.t = cursor.t;
-    f.transit = f.transit.filter((item) => item.until > cursor.t);
+    const f = foldAt(run, cursor, foldRef.current);
     foldRef.current = { run, fold: f };
     return f;
   }, [run, cursor]);

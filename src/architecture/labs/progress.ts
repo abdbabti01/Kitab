@@ -5,6 +5,7 @@
 // Mastery of a lab needs one attempt with all three: the first prediction right, a configuration that passes
 // every check, and the first answer to the reasoning question right. Passing the checks alone completes it.
 import { z } from "zod";
+import { readStore, updateStore } from "../../learning/keyed-store.ts";
 
 export const LABS_KEY = "kitab.architecture.labs.v1";
 type StorageLike = Pick<Storage, "getItem" | "setItem">;
@@ -45,31 +46,18 @@ export type LabAttempt = z.infer<typeof attemptSchema>;
 
 export const emptyLabProgress = (): LabProgress => ({ version: 1, labs: {}, units: {} });
 
+const collections = { labs: labRecord, units: unitRecord };
+
+/** Readable records; a damaged or newer record is kept as it is (see keyed-store.ts), never removed. */
 export function loadLabProgress(storage: StorageLike): LabProgress {
-  let raw: string | null = null;
-  try {
-    raw = storage.getItem(LABS_KEY);
-    if (!raw) return emptyLabProgress();
-    return schema.parse(JSON.parse(raw));
-  } catch {
-    try {
-      if (raw) storage.setItem(`${LABS_KEY}.corrupt`, raw.slice(0, 500_000));
-    } catch {
-      // storage unavailable
-    }
-    return emptyLabProgress();
-  }
+  return { version: 1, ...readStore(storage, LABS_KEY, 1, collections).records };
 }
 
-function update(storage: StorageLike, change: (progress: LabProgress) => void) {
-  const progress = loadLabProgress(storage);
-  change(progress);
-  try {
-    storage.setItem(LABS_KEY, JSON.stringify(progress));
-  } catch {
-    // storage full or unavailable: progress is not remembered
-  }
-  return progress;
+/** The progress after the change; `saved` is false when this browser didn't keep it (storage full or blocked). */
+function update(storage: StorageLike, change: (progress: LabProgress) => void): LabProgress & { saved: boolean } {
+  let progress = emptyLabProgress();
+  const { saved } = updateStore(storage, LABS_KEY, 1, collections, (records) => change((progress = { version: 1, ...records })));
+  return { ...progress, saved };
 }
 
 /** This version's record; an older version's record is not carried over. */

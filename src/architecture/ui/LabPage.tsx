@@ -16,14 +16,18 @@ import "./labs.css";
 
 const ms = (t: number) => (t >= 10_000 ? `${(t / 1000).toFixed(1)} s` : `${Math.round(t).toLocaleString("en")} ms`);
 
-/** Playback over one run's events: everything shown reads the fold up to the cursor. */
+/**
+ * Playback over one run's events: everything shown reads the fold up to the cursor. The cursor is stored with the
+ * run it belongs to, so a new run (another configuration or scenario) starts at its own end on its first render,
+ * never paired with the previous run's position.
+ */
 function useCursor(events: LabEvent[]) {
-  const [cursor, setCursor] = useState(events.length - 1);
+  const [owned, setOwned] = useState({ events, cursor: events.length - 1 });
+  const cursor = owned.events === events ? owned.cursor : events.length - 1;
+  const setCursor = (next: number | ((c: number) => number)) =>
+    setOwned((o) => ({ events, cursor: typeof next === "function" ? next(o.events === events ? o.cursor : events.length - 1) : next }));
   const [playing, setPlaying] = useState(false);
-  useEffect(() => {
-    setCursor(events.length - 1);
-    setPlaying(false);
-  }, [events]);
+  useEffect(() => setPlaying(false), [events]);
   useEffect(() => {
     if (!playing) return;
     if (cursor >= events.length - 1) {

@@ -4,6 +4,7 @@ import { z } from "zod";
 // Type imports only, so Home can read this progress without loading the networking engine.
 import type { NetworkMission } from "./missions.ts";
 import type { PracticeState } from "../../learning/practice-state.ts";
+import { readStore, updateStore } from "../../learning/keyed-store.ts";
 
 export const MISSIONS_KEY = "kitab.network-missions.v1";
 /** Completed challenges of the earlier playground. */
@@ -54,13 +55,8 @@ export type MissionStore = z.infer<typeof store>;
 
 /** Loads progress, recovering from damaged data and carrying over completions of the old challenges. */
 export function loadMissionStore(storage: StorageLike): MissionStore {
-  let saved: MissionStore = { version: 1, missions: {} };
-  try {
-    const raw = storage.getItem(MISSIONS_KEY);
-    if (raw) saved = store.parse(JSON.parse(raw));
-  } catch {
-    saved = { version: 1, missions: {} };
-  }
+  // A damaged or newer mission record is kept as it is (see keyed-store.ts), never removed.
+  const saved: MissionStore = { version: 1, missions: readStore(storage, MISSIONS_KEY, 1, { missions: record }).records.missions };
   try {
     const old = JSON.parse(storage.getItem(CHALLENGES_KEY) ?? "[]");
     for (const id of Array.isArray(old) ? old : []) {
@@ -73,13 +69,11 @@ export function loadMissionStore(storage: StorageLike): MissionStore {
   }
   return saved;
 }
-export function saveMissionStore(storage: StorageLike, value: MissionStore) {
-  try {
-    storage.setItem(MISSIONS_KEY, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
+/** Writes the given missions' records (all by default) into the stored progress; other missions are untouched. */
+export function saveMissionStore(storage: StorageLike, value: MissionStore, ids = Object.keys(value.missions)) {
+  return updateStore(storage, MISSIONS_KEY, 1, { missions: record }, ({ missions }) => {
+    for (const id of ids) if (value.missions[id]) missions[id] = value.missions[id];
+  }).saved;
 }
 
 /** The attempt's evidence of understanding, beyond fixing the network. */

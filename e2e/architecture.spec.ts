@@ -79,6 +79,23 @@ test("keyboard: components move with arrow keys, delete with Delete, and the lis
   expect(await unnamedControls(page)).toEqual([]);
 });
 
+test("a design deleted in another tab is not brought back by this tab's autosave", async ({ page, context }) => {
+  await fresh(page, "cached-api");
+  await page.getByLabel("Design name").fill("Shared");
+  await expect(page.getByText("Saved on this device")).toBeVisible();
+  const other = await context.newPage();
+  await other.goto(page.url());
+  await other.getByRole("button", { name: "Designs", exact: true }).click();
+  other.once("dialog", (d) => d.accept());
+  await other.getByRole("dialog", { name: "Your designs" }).getByRole("button", { name: "Delete Shared" }).click();
+  await other.close();
+  // Back in the first tab, an edit is not saved, and the learner is told why.
+  await page.getByLabel("Design name").fill("Shared, edited");
+  await expect(page.getByText("this design isn't in your saved designs any more")).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("kitab.architecture.designs.v1") ?? "{}").designs ?? []);
+  expect(stored.map((d: { name: string }) => d.name)).not.toContain("Shared, edited");
+});
+
 test("designs are saved as you work, survive a reload, and can be renamed, duplicated and deleted", async ({ page }) => {
   await fresh(page, "cached-api");
   const name = page.getByLabel("Design name");
@@ -205,6 +222,55 @@ test("a challenge keeps an edit made just before the page is left", async ({ pag
   await page.goto("/learn/system-design");
   await page.goBack();
   await expect(page.locator("[data-node=queue-1]")).toHaveCount(1);
+});
+
+// Production crashed here with "Cannot read properties of undefined (reading 'busyArea')": the rerun's first render
+// paired the new design (with its database selected) with the first run's fold, which had no database.
+test("a challenge can be run again after adding a component, with that component selected", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/practice/architecture/challenges/simple-web-app");
+  const connect = async (from: string, to: string) => {
+    await page.locator(`[data-node=${from}]`).focus();
+    await page.keyboard.press("Enter");
+    await page.getByLabel("Connect to").selectOption(to);
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+  };
+  await add(page, "API server");
+  await connect("client-1", "api-1");
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  await page.getByRole("button", { name: "Skip to the end" }).click();
+  await add(page, "SQL database");
+  await connect("api-1", "sql-1");
+  await page.locator("[data-node=sql-1]").focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Run again" }).click();
+  await expect(page.locator(".clock")).toContainText("event 0 of");
+  await page.getByRole("button", { name: "Skip to the end" }).click();
+  await expect(page.getByText("This view hit an error")).toHaveCount(0);
+  await expect(page.locator(".arch-inspector .live-state")).toContainText("Busy so far");
+});
+
+test("a challenge says so when this browser refuses to save the design, and keeps the design on screen", async ({ page }) => {
+  await page.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key: string, value: string) {
+      if (key === "kitab.architecture.progress.v1") throw new DOMException("full", "QuotaExceededError");
+      return set.call(this, key, value);
+    };
+  });
+  await page.goto("/practice/architecture/challenges/simple-web-app");
+  await add(page, "API server");
+  await expect(page.getByRole("alert").filter({ hasText: "couldn't be saved in this browser" })).toBeVisible();
+  await expect(page.locator("[data-node=api-1]")).toHaveCount(1);
+});
+
+test("a challenge shows its fixed settings on a component added in the editor, as its runs use them", async ({ page }) => {
+  await page.goto("/practice/architecture/challenges/scale-behind-lb");
+  await add(page, "SQL database");
+  // The SQL database the challenge fixes at 40 queries at once; the editor's default is 10.
+  await expect(page.getByLabel("Queries at once")).toHaveValue("40");
+  await expect(page.getByLabel("Queries at once")).toBeDisabled();
 });
 
 test("a lesson experiment runs in the simulator and counts the lesson as done", async ({ page }) => {

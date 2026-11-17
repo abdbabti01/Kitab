@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PracticeState } from "./practice-state.ts";
 import type { MissionState } from "./mission-controller.ts";
+import { readStore, updateStore } from "./keyed-store.ts";
 
 const factValue = z.union([z.string().max(200), z.number().finite(), z.boolean()]);
 const answer = z.union([z.object({ optionId: z.string().max(64) }).strict(), z.object({ number: z.number().finite() }).strict()]);
@@ -78,37 +79,17 @@ export function safeStorage(): StorageLike {
 
 const empty = (): Progress => ({ version: 1, missions: {} });
 
+/** Readable missions; a damaged or newer mission record is kept as it is (see keyed-store.ts), never removed. */
 export function loadProgress(storage: StorageLike): { progress: Progress; recovered: boolean } {
-  let raw: string | null = null;
-  try {
-    raw = storage.getItem(PROGRESS_KEY);
-  } catch {
-    return { progress: empty(), recovered: true };
-  }
-  if (!raw) return { progress: empty(), recovered: false };
-  try {
-    const parsed = progressSchema.safeParse(JSON.parse(raw));
-    if (parsed.success) return { progress: parsed.data, recovered: false };
-  } catch {
-    // fall through: malformed JSON
-  }
-  // Malformed or stale-shape progress: keep a copy for diagnosis, start clean.
-  try {
-    storage.setItem(`${PROGRESS_KEY}.corrupt`, raw.slice(0, 50_000));
-    storage.removeItem(PROGRESS_KEY);
-  } catch {
-    // storage unavailable; nothing else to do
-  }
-  return { progress: empty(), recovered: true };
+  const { records, status } = readStore(storage, PROGRESS_KEY, 1, { missions: record });
+  return { progress: { version: 1, missions: records.missions }, recovered: status !== "ok" && status !== "empty" };
 }
 
-export function saveProgress(storage: StorageLike, progress: Progress) {
-  try {
-    storage.setItem(PROGRESS_KEY, JSON.stringify(progress));
-    return true;
-  } catch {
-    return false;
-  }
+/** Writes the given missions' records (all by default) into the stored progress; other missions are untouched. */
+export function saveProgress(storage: StorageLike, progress: Progress, ids = Object.keys(progress.missions)) {
+  return updateStore(storage, PROGRESS_KEY, 1, { missions: record }, ({ missions }) => {
+    for (const id of ids) if (progress.missions[id]) missions[id] = progress.missions[id];
+  }).saved;
 }
 
 function base(progress: Progress, missionId: string, missionVersion: string): MissionProgress {

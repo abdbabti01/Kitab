@@ -9,18 +9,33 @@ export function loadWorkspace(): Network | null {
   const raw = localStorage.getItem(WORKSPACE_KEY);
   return raw ? importNetwork(raw) : null;
 }
-export function savedNetworks(): { name: string; network: Network }[] {
-  const raw = JSON.parse(localStorage.getItem(SAVES_KEY) ?? "[]");
+export const MAX_SAVES = 20;
+type StorageLike = Pick<Storage, "getItem" | "setItem">;
+function rawSaves(storage: StorageLike): { name?: unknown; network?: unknown }[] {
+  const raw = JSON.parse(storage.getItem(SAVES_KEY) ?? "[]");
   if (!Array.isArray(raw)) throw new Error("Saved networks could not be read.");
-  return raw
-    .slice(0, 20)
-    .map((item) => ({
-      name: String(item.name),
-      network: importNetwork(JSON.stringify(item.network)),
-    }));
+  return raw;
 }
-export function saveNamed(n: Network) {
-  const entries = savedNetworks().filter((e) => e.name !== n.name);
-  entries.unshift({ name: n.name, network: n });
-  localStorage.setItem(SAVES_KEY, JSON.stringify(entries.slice(0, 20)));
+/** Named saves that can be opened, newest first. One that can't be read is left out here and kept as it is. */
+export function savedNetworks(storage: StorageLike = localStorage): { name: string; network: Network }[] {
+  return rawSaves(storage).flatMap((item) => {
+    try {
+      return [{ name: String(item.name), network: importNetwork(JSON.stringify(item.network)) }];
+    } catch {
+      return [];
+    }
+  });
+}
+/**
+ * Saves the network under its name. Another save is never replaced without `replace`: "exists" means a save has
+ * this name, "full" means there are MAX_SAVES and `replace` would drop the oldest. Throws when storage refuses.
+ */
+export function saveNamed(n: Network, replace = false, storage: StorageLike = localStorage): "saved" | "exists" | "full" {
+  const raw = rawSaves(storage);
+  const index = raw.findIndex((item) => item?.name === n.name);
+  if (index !== -1 && !replace) return "exists";
+  if (index === -1 && raw.length >= MAX_SAVES && !replace) return "full";
+  const rest = index === -1 ? raw.slice(0, MAX_SAVES - 1) : raw.filter((_, i) => i !== index);
+  storage.setItem(SAVES_KEY, JSON.stringify([{ name: n.name, network: n }, ...rest]));
+  return "saved";
 }
