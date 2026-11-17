@@ -11,6 +11,7 @@ import { Inspector } from "./Inspector.tsx";
 import { RunSettings, RunView, type TimelineFocus } from "./SimulationPanel.tsx";
 import { useRunPlayback } from "./useRun.ts";
 import { connectionNames, kindIcon } from "./kinds.tsx";
+import { ErrorBoundary } from "../../app/ErrorBoundary.tsx";
 
 const categories = ["Clients & edge", "Compute", "Data", "Messaging"] as const;
 
@@ -93,7 +94,7 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
   const [selection, setSelection] = useState<Selection>(null);
   const [view, setView] = useState<"diagram" | "list">("diagram");
   // A run and the editor design it was made from are one piece of state, so they can never be paired wrongly.
-  const [current, setCurrent] = useState<{ run: SimRun; source: Design } | null>(null);
+  const [current, setCurrent] = useState<{ run: SimRun; source: Design; id: number } | null>(null);
   const run = current?.run ?? null;
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState("");
@@ -138,7 +139,7 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
     setTimeout(() => {
       try {
         const next = simulate(runDesign(design));
-        setCurrent({ run: next, source: design });
+        setCurrent((c) => ({ run: next, source: design, id: (c?.id ?? 0) + 1 }));
         setFocus(null);
         setShown([]);
         setAnnouncement(`Run ready: ${next.events.length.toLocaleString("en")} events over ${(next.endMs / 1000).toFixed(1)} simulated seconds. Press Play or step through it.`);
@@ -165,6 +166,15 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
   }, [run, focus, shown, playback.cursor.count]);
 
   const fold = stale ? null : playback.fold;
+  // A failure showing the run or the inspector is contained there: the design and the editor stay usable, and
+  // clearing the run (and the selection) is a recovery that works. A new run also resets it.
+  const contained = (what: string) => (reset: () => void) => (
+    <div className="arch-contained" role="alert">
+      <p><b>{what} hit an error.</b> Your design is unchanged and still saved.</p>
+      <button type="button" className="button" onClick={() => (setCurrent(null), setSelection(null), reset())}>Clear the run and continue</button>
+    </div>
+  );
+  const runKey = String(current?.id ?? 0);
   const fixed = isFixed ?? (() => false);
 
   return (
@@ -191,7 +201,9 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
             <span className="edge-key is-request">Request</span> <span className="edge-key is-async">Message</span> <span className="edge-key is-replication">Replication</span>
           </p>
         </div>
-        <Inspector design={effective} dispatch={dispatch} selection={selection} onSelect={setSelection} validation={validation} fold={fold} locked={state.locked} isFixed={fixed} />
+        <ErrorBoundary area="architecture-inspector" resetKey={runKey} fallback={contained("The inspector")}>
+          <Inspector design={effective} dispatch={dispatch} selection={selection} onSelect={setSelection} validation={validation} fold={fold} locked={state.locked} isFixed={fixed} />
+        </ErrorBoundary>
       </div>
       <p className="sr-only" role="status">{announcement}</p>
 
@@ -208,6 +220,7 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
         <RunSettings design={design} dispatch={dispatch} workloadLocked={workloadLocked} />
         {aside}
         {!run && <p className="muted run-intro">A run sends the clients' requests through your design for {effective.workload.durationS} simulated seconds. Then play it back, step through each event, follow one request, and read what the run shows. All numbers come from this simplified model, not from real cloud services.</p>}
+        <ErrorBoundary area="architecture-run" resetKey={runKey} fallback={contained("Showing this run")}>
         {run && !stale && (
           <RunView
             design={run.design}
@@ -222,6 +235,7 @@ export function Workspace({ state, dispatch, fitKey, runDesign = asIs, isFixed, 
             onShowNodes={(nodes) => (setShown(nodes), setFocus(null), setSelection(nodes[0] ? { kind: "node", id: nodes[0] } : null))}
           />
         )}
+        </ErrorBoundary>
       </section>
     </div>
   );

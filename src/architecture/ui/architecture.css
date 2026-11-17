@@ -285,3 +285,5 @@
 @media (prefers-reduced-motion: reduce) {
   .node-port { transition: none; }
 }
+.arch-contained { display: grid; gap: 10px; justify-items: start; padding: 14px; border-radius: 12px; background: var(--danger-soft); color: var(--ink); }
+.arch-contained p { margin: 0; }

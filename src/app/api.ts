@@ -27,7 +27,9 @@ export async function api<T>(path: string, init: RequestInit & { timeoutMs?: num
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), init.timeoutMs ?? 20_000);
   const outer = init.signal;
-  outer?.addEventListener("abort", () => controller.abort(), { once: true });
+  // A caller that already gave up (the learner moved on) never starts a request.
+  if (outer?.aborted) controller.abort();
+  else outer?.addEventListener("abort", () => controller.abort(), { once: true });
   try {
     const response = await fetch(path, {
       ...init,
