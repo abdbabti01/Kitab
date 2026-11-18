@@ -115,7 +115,7 @@ test("Data Structures: the answer stays hidden until committed; evidence jumps t
 
 test("Data Structures: keyboard only, from the unit's lesson link back to the lesson", async ({ page }) => {
   await fresh(page, "/concepts/recursion");
-  await page.locator(".path-playground", { hasText: "Predict, then test" }).getByRole("link", { name: "Which call returns first?" }).click();
+  await page.locator(".path-predict").getByRole("link", { name: "Which call returns first?" }).click();
   await expect(page).toHaveURL(/experiment=ds-recursion-order&from=%2Fconcepts%2Frecursion/);
   const first = page.getByRole("radio", { name: "factorial(4): it was called first" });
   await first.focus();

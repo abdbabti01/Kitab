@@ -39,7 +39,7 @@ export function PathNext({ id }: { id: string }) {
         </p>
       )}
       {predict.length > 0 && (
-        <p className="path-playground">
+        <p className="path-predict">
           <FlaskConical aria-hidden="true" />
           <span>Predict, then test: {predict.map((c, i) => <span key={c.id}>{i > 0 && ", "}<a {...linkProps(back(c.path))}>{c.title}</a></span>)}. Commit to a prediction, run it, then explain what the run shows.</span>
         </p>
