@@ -358,7 +358,7 @@ export function StructuresPlayground() {
           { name: "Start the next operation from this result", does: "Keeps the result as the starting values, so you can chain operations." },
           { name: "Reset this structure", does: "Back to the example values and the default operation." },
         ]}
-        guided={<>The guided experiments below each set up one question; for a graded prediction, try a <a {...linkProps("/practice?track=data-structures")}>data structures mission</a>.</>}
+        guided={<>The guided experiments below set up one question each; “Predict first” ones ask for your prediction and reasoning before the run (kept in this browser, not graded). For mastery, try a <a {...linkProps("/practice?track=data-structures")}>data structures mission</a>.</>}
       />
       <TermChips label="Terms used here" lead="Terms used here:" terms={terms("reference", "frame", "complexity")} />
       {cycle ? (

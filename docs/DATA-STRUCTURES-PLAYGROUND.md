@@ -3,8 +3,9 @@
 `/practice/structures` runs any supported operation on the same deterministic engines the data-structures missions
 use (`src/visual-engine/data-structures/model.ts`, `src/visual-engine/engines/execution/recursion-engine.ts`), through
 the same adapters, scenes and playback (`usePlayback`, `PlaybackBar`). Each step is a stored snapshot, so Previous and
-Restart restore the exact earlier state instead of reversing an animation. The Playground records nothing: no visit,
-no attempt, no mastery.
+Restart restore the exact earlier state instead of reversing an animation. Free exploration records nothing: no
+visit, no attempt, no mastery. A guided experiment opened with `?experiment=<id>` (predict, then test) keeps its own
+small record in `kitab.experiments.v1`; see [GUIDED-EXPERIMENTS.md](GUIDED-EXPERIMENTS.md).
 
 ## Address
 

@@ -175,3 +175,24 @@ test("no horizontal scrolling in any guided experiment", async ({ page }) => {
     expect(await noSideScroll(page), `${path} after the run`).toBe(true);
   }
 });
+
+test("guided panels: unique ids, every control labelled, a polite status region, and reduced motion respected", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  for (const path of ["/learn/system-design/distributed", "/practice/structures?experiment=ds-hash-collision", "/practice/network?experiment=net-arp-first"]) {
+    await fresh(page, path);
+    await page.locator(".cycle-option").first().click();
+    await page.getByRole("button", { name: "Test my prediction" }).click();
+    await expect(page.getByRole("button", { name: "Check my reasoning" })).toBeVisible();
+    const problems = await page.evaluate(() => {
+      const ids = [...document.querySelectorAll("[id]")].map((el) => el.id);
+      const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
+      const unlabelled = [...document.querySelectorAll(".cycle input, .cycle textarea, .cycle button")].filter((el) => {
+        const label = (el as HTMLInputElement).labels?.[0]?.textContent?.trim() || el.getAttribute("aria-label") || el.textContent?.trim();
+        return !label;
+      }).length;
+      return { duplicates, unlabelled };
+    });
+    expect(problems, path).toEqual({ duplicates: [], unlabelled: 0 });
+    await expect(page.locator(".cycle [role=status][aria-live=polite]")).toHaveCount(1);
+  }
+});
