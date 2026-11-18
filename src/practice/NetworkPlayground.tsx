@@ -43,6 +43,10 @@ import type { ExperimentData } from "./network/experiments.ts";
 import type { Trace } from "./network/model.ts";
 import type { Side } from "./BreakCompare.tsx";
 import type { JourneySnapshot } from "./useJourney.ts";
+import { navigate } from "../app/router.ts";
+import { findNetCycle, networkFor, netCycles, type NetRun } from "./network/cycles.ts";
+import { GuidedNetwork } from "./GuidedNetwork.tsx";
+import { cycleStatus, loadCycleRecords, recordKey } from "../learning/cycle-progress.ts";
 
 // Break and compare runs the engine for every fault it could offer, so it is only downloaded when opened.
 const BreakCompare = lazy(() => import("./BreakCompare.tsx"));
@@ -72,6 +76,10 @@ function scratchCopy() {
 function pathStarter() {
   const id = new URLSearchParams(location.search).get("starter");
   return starterOptions.find((s) => s.id === id);
+}
+// A guided experiment (?experiment=<id>): its own network, opened as a practice copy.
+function guidedCycle() {
+  return findNetCycle(new URLSearchParams(location.search).get("experiment"));
 }
 const INTRO_KEY = "kitab.network.intro.v1";
 /** The lab's one-time introduction: shown until dismissed on this device, worded for a learner who has been here. */
@@ -138,7 +146,11 @@ function HeadingArt() {
 export function NetworkPlayground() {
   const { intro, dismiss: dismissIntro } = useIntro();
   const [path] = useState(pathStarter);
+  const [guided] = useState(guidedCycle);
+  // While a guided prediction is open, Send stays closed for it: the run would show the answer.
+  const [guidedLocked, setGuidedLocked] = useState(false);
   const [startup] = useState(() => {
+    if (guided) return { network: networkFor(guided.base.setup), scratch: true, error: "" };
     if (path)
       return {
         network: starter(path.id),
@@ -227,7 +239,7 @@ export function NetworkPlayground() {
   );
   // A starter's guided steps: after one succeeds, the next is loaded into the send form.
   const [steps, setSteps] = useState(path?.steps ?? []);
-  const [action, setAction] = useState<Action>(() => path?.steps?.[0].action ?? {
+  const [action, setAction] = useState<Action>(() => guided?.base.setup.action ?? path?.steps?.[0].action ?? {
     kind: "http",
     source:
       startup.network.devices.find((d) => d.id === "pc")?.id ??
@@ -339,6 +351,7 @@ export function NetworkPlayground() {
   }
   function run() {
     if (locked()) return;
+    if (guidedLocked) return setNotice("Make your prediction in the guided experiment first: Test my prediction runs it. Or leave the experiment to send freely.");
     setNotice("");
     // Send plays the journey straight away; pause, step and scrub stay available throughout.
     const result = journey.run(action, undefined, { play: true });
@@ -394,6 +407,19 @@ export function NetworkPlayground() {
     if (scroll && window.matchMedia("(max-width: 850px)").matches)
       inspectorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  /** The guided experiment's own run, on this diagram and Journey: the same run its feedback is judged on. */
+  function showGuided(result: NetRun) {
+    if (locked()) return;
+    setNetwork(structuredClone(result.network));
+    journey.show(result.trace, 0);
+    journey.setPlaying(true);
+    setSelected("");
+    setTab("now");
+    setNotice("");
+  }
+  // Leaving opens the Playground afresh: the learner's own saved network, which the practice copy never touched.
+  const leaveGuided = () => navigate("/practice/network");
+  const [cycleRecords] = useState(() => loadCycleRecords(safeStorage()));
   // The starter this network came from, while it still carries the starter's name.
   const scenario = starterOptions.find((s) => s.name === network.name);
   const select = (id: string) => {
@@ -645,6 +671,17 @@ export function NetworkPlayground() {
         )}
         <div className="workspace-grid">
           <div className="lab-side">
+            {guided && (
+              <GuidedNetwork
+                key={guided.id}
+                cycle={guided}
+                onTrial={(n, a) => replace(n, a)}
+                onRun={showGuided}
+                onShow={(at) => journey.step(at)}
+                onLock={setGuidedLocked}
+                onLeave={leaveGuided}
+              />
+            )}
             <section className="lab-card scenario-card" aria-labelledby="scenario-title">
               <h2 id="scenario-title">
                 <Sparkles size={18} aria-hidden="true" /> Starter scenario
@@ -675,6 +712,22 @@ export function NetworkPlayground() {
                   </option>
                 ))}
               </select>
+              {!guided && (
+                <div className="guided-list">
+                  <p className="scenario-label">Predict, then test</p>
+                  <ul>
+                    {netCycles.map((x) => {
+                      const status = cycleStatus(cycleRecords[recordKey(x)]);
+                      return (
+                        <li key={x.id}>
+                          <a {...linkProps(`/practice/network?experiment=${x.id}`)}>{x.title}</a>
+                          {status && <small> · {status === "started" ? "Started" : "Done"}</small>}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              )}
             </section>
             <SendPanel
               network={network}
@@ -721,7 +774,7 @@ export function NetworkPlayground() {
               onAdd={add}
               start={{
                 label: `${action.kind === "dhcp" ? "Configure automatically" : "Send request"} and follow it`,
-                disabled: !action.source,
+                disabled: !action.source || guidedLocked,
                 onClick: run,
               }}
               onAbout={select}
