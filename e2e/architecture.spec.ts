@@ -278,6 +278,8 @@ test("a lesson experiment runs in the simulator and counts the lesson as done", 
   await page.evaluate(() => localStorage.clear());
   await page.goto("/learn/system-design/fundamentals");
   await expect(page.getByRole("heading", { name: "Clients, servers and databases", level: 1 })).toBeVisible();
+  // The lesson opens on its guided experiment; free runs are one switch away.
+  await page.getByRole("button", { name: "Explore freely" }).click();
   await page.getByLabel("Requests per second").selectOption("250");
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByText(/What to notice:/)).toBeVisible();
@@ -294,6 +296,7 @@ test("a lesson experiment can be run again at a lower rate or with another desig
     ["storage-caching", "Design", "uniform", "none"],
   ]) {
     await page.goto(`/learn/system-design/${lesson}`);
+    await page.getByRole("button", { name: "Explore freely" }).click();
     await page.getByLabel(field).selectOption(first);
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: "Skip to the end" }).click();

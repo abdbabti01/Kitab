@@ -17,12 +17,67 @@ import { Inspector } from "./Inspector.tsx";
 import { RunView, type TimelineFocus } from "./SimulationPanel.tsx";
 import { useRunPlayback } from "./useRun.ts";
 import { validateDesign } from "../validate.ts";
+import { cycleForLesson, setupDesign, type SdRun, type SdSetup } from "../cycles.ts";
+import type { Cycle } from "../../learning/cycle.ts";
+import { CyclePanel, useCycle } from "../../ui/PredictCycle.tsx";
 // Concept units are text-heavy: their page loads only when one is opened.
 const ConceptUnitRoute = lazy(() => import("./ConceptUnitPage.tsx").then((m) => ({ default: m.ConceptUnitRoute })));
 import "./architecture.css";
 
-/** The lesson's experiment: pick a design and a rate, run it in the simulator, and play the run back. */
+/**
+ * The lesson's guided experiment: predict, then the cycle runs the lesson's design in the simulator and the run is
+ * shown here, the same run the feedback is judged on. The canvas follows the trial's design until there is a run,
+ * then the run's own design, so a fold is never paired with a design it wasn't built from.
+ */
+function GuidedRun({ lesson, cycle }: { lesson: ArchitectureLesson; cycle: Cycle<SdSetup, SdRun> }) {
+  const c = useCycle(cycle);
+  const run = c.run?.run ?? null;
+  const design = useMemo(() => run?.design ?? setupDesign(c.trial.setup), [run, c.trial]);
+  const playback = useRunPlayback(run);
+  const summary = c.run?.summary ?? null;
+  const findings = useMemo(() => (run && summary ? findingsOf(run, summary) : []), [run, summary]);
+  const [selection, setSelection] = useState<Selection>(null);
+  const [focus, setFocus] = useState<TimelineFocus>(null);
+  // Running the lesson's experiment counts the lesson as done, as a free run always has.
+  useEffect(() => {
+    if (run) recordExperiment(safeStorage(), lesson.id);
+  }, [run, lesson.id]);
+  useEffect(() => setFocus(null), [run]);
+  return (
+    <>
+      <CyclePanel c={c} />
+      <div className="experiment-stage">
+        <DesignCanvas design={design} selection={selection} onSelect={setSelection} fold={run ? playback.fold : null} label={`Experiment diagram: ${design.nodes.map((n) => n.label).join(", ")}`} fitKey={c.trial.id} />
+        <Inspector design={design} selection={selection} onSelect={setSelection} validation={validateDesign(design)} fold={run ? playback.fold : null} />
+      </div>
+      {run && summary && <RunView design={run.design} run={run} fold={playback.fold} playback={playback} summary={summary} findings={findings} focus={focus} onFocus={setFocus} selectedNode={selection?.kind === "node" ? selection.id : null} onShowNodes={(nodes) => setSelection(nodes[0] ? { kind: "node", id: nodes[0] } : null)} />}
+    </>
+  );
+}
+
+/** The lesson's experiment: a guided prediction first when the lesson has one, or free runs of any design and rate. */
 function Experiment({ lesson }: { lesson: ArchitectureLesson }) {
+  const cycle = cycleForLesson(lesson.id);
+  const [mode, setMode] = useState<"guided" | "free">(cycle ? "guided" : "free");
+  return (
+    <section className="experiment lab-theme" aria-labelledby="experiment-title">
+      <h2 id="experiment-title"><FlaskConical aria-hidden="true" /> {cycle ? "Experiment" : "Guided experiment"}</h2>
+      {cycle && (
+        <div className="experiment-mode">
+          <div className="mode-switch" role="group" aria-label="Experiment mode">
+            <button type="button" aria-pressed={mode === "guided"} onClick={() => setMode("guided")}>Predict, then test</button>
+            <button type="button" aria-pressed={mode === "free"} onClick={() => setMode("free")}>Explore freely</button>
+          </div>
+          <p className="section-lead">{mode === "guided" ? "Commit to a prediction, run the simulator, then explain what it recorded." : "Pick any design and rate and run it. Nothing is judged."}</p>
+        </div>
+      )}
+      {mode === "guided" && cycle ? <GuidedRun key={cycle.id} lesson={lesson} cycle={cycle} /> : <FreeExperiment lesson={lesson} />}
+    </section>
+  );
+}
+
+/** Free runs: pick a design and a rate, run it in the simulator, and play the run back. */
+function FreeExperiment({ lesson }: { lesson: ArchitectureLesson }) {
   const { experiment } = lesson;
   const [variantId, setVariantId] = useState(experiment.variants[0].id);
   const [rate, setRate] = useState(experiment.rates[0]);
@@ -51,8 +106,7 @@ function Experiment({ lesson }: { lesson: ArchitectureLesson }) {
   };
 
   return (
-    <section className="experiment lab-theme" aria-labelledby="experiment-title">
-      <h2 id="experiment-title"><FlaskConical aria-hidden="true" /> Guided experiment</h2>
+    <>
       <p>{experiment.intro}</p>
       <TermChips label="Terms in this experiment" lead="Terms used here:" terms={terms("slot", "rps", "throughput", "latency", "queue")} />
       <div className="experiment-controls">
@@ -83,7 +137,7 @@ function Experiment({ lesson }: { lesson: ArchitectureLesson }) {
           <p className="notice"><b>What to notice:</b> {experiment.notice}</p>
         </>
       )}
-    </section>
+    </>
   );
 }
 

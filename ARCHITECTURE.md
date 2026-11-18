@@ -132,7 +132,7 @@ marker. Shared pieces live in `src/ui/LessonShell.tsx`. Stored progress is uncha
 `/playground` lists the three Playgrounds (`src/app/playgrounds.ts`); the main navigation's Playground entry opens it,
 and lessons link straight to an experiment without it. The Data Structures & Recursion Playground
 (`src/structures/`, `/practice/structures`) reuses the mission engines, adapters, scenes and playback with no
-mission shell; its setup lives in the query, and it records nothing. Supported operations and the exact limits of
+mission shell; its setup lives in the query, and free exploration records nothing. Supported operations and the exact limits of
 each model: [docs/DATA-STRUCTURES-PLAYGROUND.md](docs/DATA-STRUCTURES-PLAYGROUND.md). Lab pages share one shell
 (`.lab-page`, `.playground-heading` in `src/app/styles.css`) on the night palette (`.lab-theme`).
 
@@ -267,6 +267,17 @@ device starts empty, and private windows may keep nothing. Within that:
   the run view separately). A lazy page chunk missing after a deploy is recognised and offers a reload. Each failure is
   logged to the console with the build (commit), page, area and kind (`src/app/diagnostics.ts`), never with what the
   learner typed or built; nothing is sent to a server.
+
+## Guided experiments (predict, then test)
+
+One shared cycle for the three subjects: understand a scenario, commit a prediction, run the real engine, read what
+it recorded, choose the reason the evidence supports, then change one thing and compare. `src/learning/cycle.ts` holds
+the model and its reducer; `src/ui/PredictCycle.tsx` the panel; each subject keeps a thin content module that runs its
+own engine (`src/architecture/cycles.ts`, `src/structures/cycles.ts`, `src/practice/network/cycles.ts`). Every
+outcome, reason and comparison is computed from the run, never stored as an answer key. Hosts: the System Design
+lesson experiments (Predict, then test / Explore freely), the Data Structures Playground and the Network Playground
+(`?experiment=<id>`). Attempts are saved per experiment version in `kitab.experiments.v1`; mastery, missions and
+challenges are unchanged. Details and limits: [docs/GUIDED-EXPERIMENTS.md](docs/GUIDED-EXPERIMENTS.md).
 
 ## Explanations tied to what the simulators have
 

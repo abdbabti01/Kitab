@@ -375,10 +375,10 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .ways span:not(.way-number) { color: var(--ink-2); }
 .ways .text-button { justify-self: start; padding-inline: 0; }
 .way-number { position: absolute; top: 16px; right: 18px; color: var(--muted); font: 650 .8rem var(--mono); }
-.path-playground { display: flex; align-items: flex-start; gap: 8px; }
+.path-playground, .path-predict { display: flex; align-items: flex-start; gap: 8px; }
 /* The text wraps within the panel, however narrow the column or large the text. */
-.path-playground span { min-width: 0; overflow-wrap: anywhere; }
-.path-playground svg { width: 18px; height: 18px; flex: none; margin-top: 3px; color: var(--primary); }
+.path-playground span, .path-predict span { min-width: 0; overflow-wrap: anywhere; }
+.path-playground svg, .path-predict svg { width: 18px; height: 18px; flex: none; margin-top: 3px; color: var(--primary); }
 
 /* ---- Lab pages: every Playground and lab on the navy surface (.lab-theme) with the cyan accent ---- */
 .lab-page {
