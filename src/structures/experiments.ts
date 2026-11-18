@@ -81,6 +81,14 @@ export function setupPath(setup: Setup, from?: string | null): string {
   return `${PLAYGROUND_PATH}?${query}`;
 }
 
+/** A guided experiment (predict, then test) in the Playground, with an optional same-site page to return to. */
+export function cyclePath(id: string, from?: string | null): string {
+  const query = new URLSearchParams({ experiment: id });
+  const back = safeReturn(from ?? null);
+  if (back) query.set("from", back);
+  return `${PLAYGROUND_PATH}?${query}`;
+}
+
 /** Does this operation use the index control, the value control, or neither? */
 export function inputsFor(setup: StructureSetup) {
   const { structure: kind, operation } = setup;

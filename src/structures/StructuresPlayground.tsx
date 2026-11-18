@@ -21,10 +21,16 @@ import {
   parseSetup,
   safeReturn,
   setupPath,
+  cyclePath,
   structureChoices,
   type Setup,
   type StructureSetup,
 } from "./experiments.ts";
+import { findDsCycle, dsCycles } from "./cycles.ts";
+import type { Cycle } from "../learning/cycle.ts";
+import { cycleStatus, loadCycleRecords, recordKey } from "../learning/cycle-progress.ts";
+import { safeStorage } from "../learning/progress.ts";
+import { CyclePanel, useCycle } from "../ui/PredictCycle.tsx";
 import "../mission/mission.css";
 import "./structures.css";
 
@@ -136,14 +142,31 @@ function SetupPanel({ setup, onChange }: { setup: Setup; onChange: (setup: Setup
   );
 }
 
-function Guided({ setup, onPick }: { setup: Setup; onPick: (setup: Setup) => void }) {
+const statusWords = { understood: "Done · reasoning matched", completed: "Done", started: "Started" } as const;
+
+function Guided({ setup, onPick, onPredict }: { setup: Setup; onPick: (setup: Setup) => void; onPredict: (id: string) => void }) {
   const unit = unitOf[setup.structure];
   const list = [...experiments.filter((e) => e.unit === unit), ...experiments.filter((e) => e.unit !== unit)];
+  const [records] = useState(() => loadCycleRecords(safeStorage()));
   return (
     <section className="sp-panel sp-guided" aria-labelledby="guided-title">
       <h2 id="guided-title">Guided experiments</h2>
-      <p className="sp-help">Each sets up one question. Choose it, step through, and check that you see what it describes; then change one input and predict what changes.</p>
-      <ul>
+      <p className="sp-help"><b>Predict, then test:</b> commit to a prediction, run it, then explain what the run shows.</p>
+      <ul aria-label="Predict, then test">
+        {dsCycles.map((cycle) => {
+          const status = cycleStatus(records[recordKey(cycle)]);
+          return (
+            <li key={cycle.id}>
+              <button type="button" onClick={() => onPredict(cycle.id)}>
+                <b>{cycle.title}<span className="guided-tag">Predict first</span></b>
+                <small>{cycle.question}{status && <> · <span className="sp-status">{statusWords[status]}</span></>}</small>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="sp-help"><b>Set up and explore:</b> each opens a setup to step through; then change one input and see what changes.</p>
+      <ul aria-label="Set up and explore">
         {list.map((experiment) => {
           const active = setupPath(experiment.setup) === setupPath(setup);
           return (
@@ -208,32 +231,102 @@ function Explanation({ trace, index, setup, selected, onKeep }: { trace: Trace; 
   );
 }
 
-/** The Data Structures & Recursion Playground: any structure and operation, step by step. Records nothing. */
+const operationLine = (setup: Setup) =>
+  isRecursion(setup)
+    ? <>{setup.fn}({setup.n}) · {setup.baseCase ? "with" : "without"} a base case · limit {setup.stackLimit} frames</>
+    : <>{structureInfo[setup.structure].label} · {structureInfo[setup.structure].operations.find((o) => o.id === setup.operation)!.label}{inputsFor(setup).value && <> · {setup.structure === "hash-table" ? "key" : "value"} {setup.value}</>}{inputsFor(setup).index && <> · {setup.structure === "linked-list" ? "position" : "index"} {setup.index}</>}</>;
+
+/**
+ * The scene, playback and step explanation of one trace. `locked`: before a prediction only the starting state is
+ * shown: no playback, no step count, no later step and no result, so nothing gives the outcome away.
+ */
+function Workbench({ setup, trace, playback, locked, onKeep }: { setup: Setup; trace: Trace; playback: ReturnType<typeof usePlayback>; locked?: boolean; onKeep?: () => void }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => setSelected(null), [trace]);
+  const index = locked ? 0 : playback.index;
+  const frame = trace.frames[index];
+  const Scene = sceneFor(trace.engine.id)!.Scene;
+  return (
+    <div className="sp-main">
+      <section className="sp-stage" aria-label="Visualization">
+        <p className="sp-op">{operationLine(setup)}</p>
+        <div className="sp-scene scene-body">
+          <Scene frame={frame} trace={trace} selected={selected} attention={null} onSelect={(id) => setSelected((current) => (current === id ? null : id))} />
+        </div>
+        {locked ? <p className="sp-locked">Starting state. Make your prediction: the steps appear after you test it.</p> : <PlaybackBar playback={playback} trace={trace} enabled disabledReason="" />}
+        {!locked && <p className="sr-only" role="status" aria-live="polite">Step {index + 1} of {trace.frames.length}: {frame.title}</p>}
+      </section>
+      {locked ? (
+        <section className="sp-panel sp-explain" aria-labelledby="step-title">
+          <h2 id="step-title">{frame.title}</h2>
+          <p className="sp-narration">{frame.narration}</p>
+          <p className="sp-limits"><b>Model:</b> {limits[setup.structure]}</p>
+        </section>
+      ) : (
+        <Explanation trace={trace} index={index} setup={setup} selected={selected} onKeep={onKeep} />
+      )}
+    </div>
+  );
+}
+
+const traceOf = (setup: Setup) => {
+  const { engine, params } = engineParams(setup);
+  return buildTrace(engine, params);
+};
+
+/** A guided experiment: the cycle's trial on the shared workbench, locked until the prediction is committed. */
+function GuidedStructures({ cycle, onLeave }: { cycle: Cycle<Setup, Trace>; onLeave: () => void }) {
+  const c = useCycle(cycle);
+  const setup = c.trial.setup;
+  // The run the cycle judged, once there is one; before that the same deterministic trace, shown at its start only.
+  const trace = useMemo(() => c.run ?? traceOf(setup), [c.run, setup]);
+  const playback = usePlayback(trace, !c.locked);
+  return (
+    <>
+      <div className="guided-banner" role="region" aria-label="Mode">
+        <p><b>Guided experiment.</b> The setup is fixed while you predict and test it.</p>
+        <button type="button" className="button" onClick={onLeave}>Leave and explore freely</button>
+      </div>
+      <div className="sp-layout is-guided">
+        <div className="sp-side"><CyclePanel c={c} onShow={(at) => playback.dispatch({ type: "SEEK", index: at })} /></div>
+        <Workbench setup={setup} trace={trace} playback={playback} locked={c.locked} />
+      </div>
+    </>
+  );
+}
+
+/**
+ * The Data Structures & Recursion Playground: any structure and operation, step by step. Free exploration records
+ * nothing; a guided experiment (?experiment=) keeps its own small record (cycle-progress.ts).
+ */
 export function StructuresPlayground() {
   const [setup, setSetup] = useState<Setup>(() => parseSetup(window.location.search));
+  const [guided, setGuided] = useState(() => findDsCycle(new URLSearchParams(window.location.search).get("experiment"))?.id ?? null);
+  const cycle = findDsCycle(guided);
   const from = useMemo(() => safeReturn(new URLSearchParams(window.location.search).get("from")), []);
-  const [selected, setSelected] = useState<string | null>(null);
   const { engine, params } = engineParams(setup);
   const key = JSON.stringify(params);
   const trace = useMemo(() => buildTrace(engine, params), [engine, key]);
   const playback = usePlayback(trace, true);
-  const frame = trace.frames[playback.index];
-  const Scene = sceneFor(engine)!.Scene;
 
   useEffect(() => {
     document.title = "Data Structures & Recursion Playground — Kitab";
   }, []);
-  // The address always describes the experiment on screen, so it can be shared or reopened.
+  // The address always describes what is on screen, so it can be shared or reopened.
   useEffect(() => {
-    window.history.replaceState(null, "", setupPath(setup, from));
-    setSelected(null);
-  }, [key, engine]);
+    window.history.replaceState(null, "", cycle ? cyclePath(cycle.id, from) : setupPath(setup, from));
+  }, [key, engine, cycle]);
 
   const ds = !isRecursion(setup) ? setup : null;
   const changed = ["inserted", "removed", "added"].includes(String(trace.outcome.status));
   const keep = ds && ds.structure !== "graph" && changed
     ? () => setSetup({ ...ds, values: resultValues((trace.frames.at(-1)!.data as DataStructureFrameData).frame.snapshot) })
     : undefined;
+  // Leaving keeps the experiment's starting setup, so free exploration continues from what was on screen.
+  const leave = () => {
+    setSetup(cycle!.base.setup);
+    setGuided(null);
+  };
 
   return (
     <main id="main" className="page lab-page structures-playground lab-theme">
@@ -268,27 +361,17 @@ export function StructuresPlayground() {
         guided={<>The guided experiments below each set up one question; for a graded prediction, try a <a {...linkProps("/practice?track=data-structures")}>data structures mission</a>.</>}
       />
       <TermChips label="Terms used here" lead="Terms used here:" terms={terms("reference", "frame", "complexity")} />
-      <div className="sp-layout">
-        <div className="sp-side">
-          <SetupPanel setup={setup} onChange={setSetup} />
-          <Guided setup={setup} onPick={setSetup} />
-        </div>
-        <div className="sp-main">
-        <section className="sp-stage" aria-label="Visualization">
-          <p className="sp-op">
-            {isRecursion(setup)
-              ? <>{setup.fn}({setup.n}) · {setup.baseCase ? "with" : "without"} a base case · limit {setup.stackLimit} frames</>
-              : <>{structureInfo[setup.structure].label} · {structureInfo[setup.structure].operations.find((o) => o.id === setup.operation)!.label}{inputsFor(setup).value && <> · {setup.structure === "hash-table" ? "key" : "value"} {setup.value}</>}{inputsFor(setup).index && <> · {setup.structure === "linked-list" ? "position" : "index"} {setup.index}</>}</>}
-          </p>
-          <div className="sp-scene scene-body">
-            <Scene frame={frame} trace={trace} selected={selected} attention={null} onSelect={(id) => setSelected((current) => (current === id ? null : id))} />
+      {cycle ? (
+        <GuidedStructures key={cycle.id} cycle={cycle} onLeave={leave} />
+      ) : (
+        <div className="sp-layout">
+          <div className="sp-side">
+            <SetupPanel setup={setup} onChange={setSetup} />
+            <Guided setup={setup} onPick={setSetup} onPredict={setGuided} />
           </div>
-          <PlaybackBar playback={playback} trace={trace} enabled disabledReason="" />
-          <p className="sr-only" role="status" aria-live="polite">Step {playback.index + 1} of {trace.frames.length}: {frame.title}</p>
-        </section>
-        <Explanation trace={trace} index={playback.index} setup={setup} selected={selected} onKeep={keep} />
+          <Workbench setup={setup} trace={trace} playback={playback} onKeep={keep} />
         </div>
-      </div>
+      )}
     </main>
   );
 }
