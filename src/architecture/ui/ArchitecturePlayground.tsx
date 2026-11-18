@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ExploreGuide } from "../../ui/ExploreGuide.tsx";
+import { cyclesFor } from "../../learning/cycle-catalog.ts";
 import { Copy, Download, FolderOpen, Plus, Trash2, Upload, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps } from "../../app/router.ts";
@@ -219,7 +220,7 @@ export function ArchitecturePlayground() {
           { name: "Traffic and failures", does: "How long clients send, how randomly requests arrive, and planned failures. Each client's rate is set on the client." },
           { name: "Undo and Redo", does: "Step back and forward through design edits. They don't change a run that is already recorded." },
         ]}
-        guided={<>For a goal to meet, try a <a {...linkProps("/practice?track=system-design")}>design challenge</a> or a <a {...linkProps("/practice/architecture/labs")}>lab</a>.</>}
+        guided={<>For a goal to meet, try a <a {...linkProps("/practice?track=system-design")}>design challenge</a> or a <a {...linkProps("/practice/architecture/labs")}>lab</a>. To predict and then test, open a guided experiment: {cyclesFor("system-design").map((c, i) => <span key={c.id}>{i > 0 && ", "}<a {...linkProps(c.path)}>{c.title}</a></span>)}.</>}
       />
       {missing && <p className="inline-issue is-warning">That design isn't saved in this browser. Designs are kept on the device where they were made.</p>}
 

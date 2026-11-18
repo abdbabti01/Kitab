@@ -294,3 +294,6 @@
 .server-roles dd { margin: 0; }
 .run-limits { margin-top: 10px; font-size: .88rem; }
 .run-limits summary { cursor: pointer; font-weight: 650; color: var(--primary-strong); min-height: 32px; display: flex; align-items: center; }
+.experiment-mode { display: grid; gap: 6px; margin-bottom: 14px; }
+.experiment-mode .section-lead { margin: 0; font-size: 0.92rem; color: var(--ink-2); }
+.experiment .cycle { margin-bottom: 14px; }
