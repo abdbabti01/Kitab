@@ -29,9 +29,9 @@ merged). Worktree: `../Kitab-pee`.
 
 ## Status
 
-- [ ] core + tests
-- [ ] system design
-- [ ] data structures
-- [ ] networking
-- [ ] launch points, docs
-- [ ] e2e + full verification
+- [x] core + tests
+- [x] system design (5 experiments, lesson pages)
+- [x] data structures (5 experiments, Playground ?experiment=)
+- [x] networking (3 experiments, Network Playground ?experiment=)
+- [x] launch points, docs (docs/GUIDED-EXPERIMENTS.md)
+- [x] e2e + full verification (unit 644, Playwright 1303/1304 per project; 1 tablet flake passes 27/27 on repeat)
