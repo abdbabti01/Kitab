@@ -239,7 +239,7 @@ text) from 0003.
 
 `/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug` · `/learn/system-design/:id` ·
 `/playground` (choose a Playground) · `/practice/network` · `/practice/structures` · `/practice/architecture` ·
-`/practice/architecture/challenges/:id`. Legacy
+`/practice/architecture/challenges/:id` · `/lab` (Engineering Lab) · `/lab/:subject/:id`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
 
@@ -255,7 +255,7 @@ Everything a learner saves is in this browser's `localStorage`: nothing is synce
 device starts empty, and private windows may keep nothing. Within that:
 
 - Stores of keyed records (`kitab.progress.v1`, `kitab.learning.v1`, `kitab.network-missions.v1`,
-  `kitab.architecture.progress.v1`, `kitab.architecture.labs.v1`, `kitab.visits.v1`) go through
+  `kitab.architecture.progress.v1`, `kitab.architecture.labs.v1`, `kitab.visits.v1`, `kitab.engineering-labs.v1`) go through
   `src/learning/keyed-store.ts`: each record is read on its own, a record that can't be read (damaged, or from a newer
   Kitab) is kept and written back untouched, a store with another version is never written, and unreadable data is
   copied whole to `<key>.corrupt` (never replacing an earlier copy) before anything is saved over it. Every save reads
@@ -267,6 +267,27 @@ device starts empty, and private windows may keep nothing. Within that:
   the run view separately). A lazy page chunk missing after a deploy is recognised and offers a reload. Each failure is
   logged to the console with the build (commit), page, area and kind (`src/app/diagnostics.ts`), never with what the
   learner typed or built; nothing is sent to a server.
+
+## Real Engineering Lab
+
+`/lab` is the fourth kind of activity, beside Learn, Practice and the Playgrounds, and its own main-navigation entry.
+Where a Playground models a system, a lab uses the real thing, and says which: **Real execution** (the learner's
+JavaScript runs on the browser's engine) or **Real protocol** (real HTTP requests to Kitab's server). Fifteen labs,
+five per subject, in `src/lab/labs/`; things that need a real OS or server are listed as unavailable, never imitated.
+
+- **Code labs** run in a Worker inside a fresh `<iframe sandbox="allow-scripts">` per run: an opaque origin (no
+  storage, cookies or DOM of Kitab) with a CSP that blocks every request, removed at the time limit, on Stop, or when
+  the page is left. `src/lab/harness.ts` (runs in the sandbox), `sandbox.ts` (protocol), `run.ts` (launcher).
+- **HTTP labs** `fetch` same-origin `/api/lab/*` (`worker/lab.ts`): echo, status codes, caching and ETags, content
+  negotiation, a small books API and a faulty orders endpoint. No outbound requests, no D1, no AI. Dev and preview
+  serve the same handler.
+- **Judging** comes only from the real run (the lab's tests calling the learner's functions) or the real exchange.
+  Run alone never completes anything. It is browser-local, formative feedback, not a secure exam.
+- **Saved work**: `kitab.engineering-labs.v1` through `keyed-store` (code, request drafts, passed tasks, hints,
+  completion, last lab). Output and responses are never stored. Lesson, mission and mastery rules are unchanged.
+- Track units link their labs as optional extras (`src/lab/links.ts`, kept equal to the catalog by a test).
+
+Architecture decision, threat model and limits: [docs/ENGINEERING-LAB.md](docs/ENGINEERING-LAB.md).
 
 ## Guided experiments (predict, then test)
 

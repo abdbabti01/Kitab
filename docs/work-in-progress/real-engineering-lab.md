@@ -23,12 +23,13 @@ continue autonomously until completion."
 3. [x] Harness, sandbox protocol, HTTP client, persistence
 4. [x] Node tests: lab-content (solutions pass / starters fail against the real harness and handler),
    lab-endpoints, lab-harness, lab-progress
-5. [ ] UI: catalog page, lab page (code + HTTP workspaces), nav entry, roadmap links, styles
-6. [ ] Browser tests (journeys, security, layout at 5 widths), screenshots
-7. [ ] Full verification: npm test, typecheck, build, all 5 Playwright projects
-8. [ ] Docs (ARCHITECTURE.md section, routes), final report, push
+5. [x] UI: catalog page, lab page (code + HTTP workspaces), nav entry, roadmap links, styles
+6. [x] Browser tests (`e2e/engineering-lab.spec.ts`, shell + design specs updated); screenshots 40–46 in docs/screenshots
+7. [x] Full verification: npm test 732/732, typecheck, build, all 5 Playwright projects (failures under local load rerun green with one worker)
+8. [x] Docs (ARCHITECTURE.md section, routes, docs/ENGINEERING-LAB.md), push
 
-## Next action
+## Status
 
-Build `src/lab/ui/` (LabsPage, LabPage, CodeWorkspace, HttpWorkspace, lab.css), wire routes in `src/app/App.tsx`,
-add "Lab" to `SiteHeader`, then update `e2e/site-shell.spec.ts` for the fourth navigation entry.
+Complete and pushed. Not merged or deployed (PR creation, CI and merge are handled outside this session).
+Local Playwright note: this machine runs many other sessions' dev servers; use free ports
+(`KITAB_UI_PORT=7811 KITAB_API_PORT=7812`) and fewer workers.

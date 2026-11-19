@@ -135,7 +135,7 @@ export function TrackRoadmap({ track, evidence }: { track: LearningTrack; eviden
                   </p>
                 )}
                 {unitLabs[`${track.id}/${stage.id}`] && (
-                  <p className="unit-playground unit-lab">
+                  <p className="unit-lab">
                     <SquareTerminal aria-hidden="true" />
                     <span>
                       Optional, for real in the Engineering Lab:{" "}

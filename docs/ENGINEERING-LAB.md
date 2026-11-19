@@ -52,7 +52,7 @@ pasted from elsewhere. It is treated as hostile.
 | Learner code reads Kitab's storage, cookies or DOM | Runs in an `<iframe sandbox="allow-scripts">` without `allow-same-origin`: an **opaque origin**. Storage, cookies, IndexedDB and `parent.document` throw `SecurityError` (tested). | Browser sandbox bugs. |
 | Learner code sends data anywhere (fetch, WebSocket, `importScripts`, images) | The frame's CSP: `default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:`. `connect-src` falls back to `'none'`. A blocked request is tested. The code runs in a Worker: no DOM, so no `<img>`/form exfiltration. | None known; `'unsafe-eval'` applies only inside the opaque frame. |
 | Learner code navigates or pops up the Kitab page | No `allow-top-navigation`, `allow-popups`, `allow-forms`, `allow-modals` in the sandbox. | — |
-| Infinite loop / CPU burn freezes Kitab | Code runs in a dedicated Worker inside the frame, never on the page's thread. A timer on the page removes the whole frame after the lab's limit (2–4 s), which terminates the Worker. Each run gets a fresh frame. | CPU is busy for at most the limit. |
+| Infinite loop / CPU burn freezes Kitab | Code runs in a dedicated Worker inside the frame, never on the page's thread. A timer on the page removes the whole frame after the lab's limit (2–6 s), which terminates the Worker. Each run gets a fresh frame. | CPU is busy for at most the limit. |
 | Memory exhaustion | Output is capped (200 lines, 20,000 characters); runs are short. The platform offers no memory limit for a Worker. | A deliberate allocation bomb can crash the frame's renderer, and on browsers that keep sandboxed frames in Kitab's process, the tab. **Work is saved before every run**, so nothing typed is lost. |
 | Forged results from the frame | The page accepts messages only from the current frame's `contentWindow` with the current run id, and validates them with zod. Output is rendered as React text, never HTML. | A learner can fake their own *browser-local* result (see §4). |
 | Lab endpoints used as an open proxy / SSRF | `/api/lab/*` never makes an outbound request. Every response is computed from the request and fixed data. | — |
@@ -96,7 +96,30 @@ whether a Check was attempted, completion time and the lab version it was saved 
 the last lab opened. Run output and HTTP responses are never stored, so an old result can never be restored as if
 it were current. A lab whose version changed keeps the learner's code and says so.
 
-## 6. Future real-infrastructure labs (not built)
+## 6. The labs
+
+| Subject | Lab | Mode | Real | Modeled or explained |
+|---|---|---|---|---|
+| Networking | Send and inspect real HTTP requests | Real protocol | GET/POST to the echo; what the server received; dropped forbidden headers | TCP/TLS/packets (explained) |
+| Networking | Headers, status codes and caching | Real protocol | 404, 405 + Allow, Accept → text/plain, ETag → 304, the browser's own HTTP cache | — |
+| Networking | Write a DNS resolver | Real execution | The learner's resolver (CNAME chains, NXDOMAIN, NODATA, loops) | The zone is data; no DNS packets. The Network Playground simulates a lookup |
+| Networking | TCP connections versus HTTP requests | Real protocol | Protocol, connection setup and reuse as Resource Timing reports them; a real client timeout | Segments, handshakes and stream cancellation (explained) |
+| Networking | Troubleshoot a failing HTTP request | Real protocol | Five real faults in sequence: browser refusal, 404, 415, 500 (deliberate v1 defect), 422, then 201; an invalid header name; a timeout | — |
+| Data structures | Run your first program | Real execution | Output, return values, syntax and runtime errors with line numbers | — |
+| Data structures | Insert, remove and search in an array | Real execution | Slot-by-slot moves on guarded arrays; RangeErrors | Fixed-size memory (the rules impose it) |
+| Data structures | Stacks and queues | Real execution | LIFO, FIFO, bracket matching | — |
+| Data structures | Recursion and a real stack overflow | Real execution | The engine's real RangeError and measured stack depth | Frames are explained; the Playground draws a simulated stack |
+| Data structures | Debug a binary search that never finishes | Real execution | A real hang stopped at the limit; the fix verified by tests | — |
+| System design | Follow a request through an API | Real protocol | Router vs handler 404, 422 validation, 201 + Location | The API stores nothing (it says so) |
+| System design | Concurrency, throughput and capacity | Real execution | Measured concurrency and elapsed time of the learner's limiter | Each "request" is a timer standing in for I/O; Little's law is a model |
+| System design | Build a cache with expiry and invalidation | Real execution | Hits, misses, TTL and invalidation | Clock is controlled by the tests; not Redis |
+| System design | Bounded retries with backoff and timeouts | Real execution | Attempts, measured backoff delays, no retry of non-idempotent work, timeouts | The failing service is scripted |
+| System design | Troubleshoot a misbehaving API handler | Real execution | The learner's handler, called with request objects | No network (the live version is the API lab) |
+
+Every code lab's worked solution passes all its tests in the real harness, and every starter that needs work fails
+(`tests/lab-content.test.ts`). Every HTTP task's solution passes against the real Worker handler.
+
+## 7. Future real-infrastructure labs (not built)
 
 Linux terminal, Nginx, Apache, ASP.NET Core, Node.js, SQL Server, PostgreSQL, Redis, Docker, Kafka, raw TCP
 sockets, TLS certificates, firewalls, packet capture and cloud deployment need a real OS or server. The catalog
@@ -109,7 +132,7 @@ lists them as **Unavailable in the browser**. Two possible paths, both needing s
   egress blocked by default, per-user quotas, abuse detection and a hard monthly cost ceiling. Requires its own
   architecture and security review, and a budget.
 
-## 7. Limits
+## 8. Limits
 
 - Code labs run JavaScript only.
 - Resource Timing reports what the browser chooses to expose: protocol, connection and request timing. It never
