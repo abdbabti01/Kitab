@@ -3,6 +3,9 @@ export const HTTP_WALKTHROUGH_PATH = "/learn/hello-tcp";
 
 /** The Learn destination's views: a track's roadmap, or the library of readings. Never used as lesson ids. */
 export const LEARN_SECTIONS = ["data-structures", "system-design", "library"] as const;
+/** The Real Engineering Lab's subjects, as they appear in /lab/:subject/:id. */
+export const LAB_SUBJECTS = ["networking", "structures", "architecture"] as const;
+export type LabSubject = (typeof LAB_SUBJECTS)[number];
 export type LearnSection = "networking" | (typeof LEARN_SECTIONS)[number];
 
 export type Route =
@@ -21,6 +24,8 @@ export type Route =
   | { name: "architecture-lesson"; id: string }
   | { name: "architecture-labs" }
   | { name: "architecture-lab"; id: string }
+  | { name: "engineering-labs" }
+  | { name: "engineering-lab"; subject: LabSubject; id: string }
   | { name: "mission"; id: string }
   | { name: "lesson"; id: string }
   | { name: "concept"; slug: string }
@@ -56,6 +61,13 @@ export function parseRoute(pathname: string): Route {
   if (path === "/playground") return { name: "playgrounds" };
   if (path === "/practice/structures") return { name: "structures-playground" };
   if (path === "/practice/missions") return { name: "network-missions" };
+  if (path === "/lab") return { name: "engineering-labs" };
+  const engineering = /^\/lab\/([^/]+)\/([^/]+)$/.exec(path);
+  if (engineering) {
+    const id = segment(engineering[2]);
+    const subject = engineering[1] as LabSubject;
+    return id && (LAB_SUBJECTS as readonly string[]).includes(subject) ? { name: "engineering-lab", subject, id } : { name: "not-found", path };
+  }
   if (path === "/practice/architecture") return { name: "architecture-playground" };
   if (path === "/practice/architecture/labs") return { name: "architecture-labs" };
   const lab = /^\/practice\/architecture\/labs\/([^/]+)$/.exec(path);

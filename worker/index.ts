@@ -4,6 +4,7 @@ import type { Env, WorkerContext } from "./env.ts";
 import { handleEvent, handleFeedback } from "./feedback.ts";
 import { handleGenerate, handleListConcepts, handleReadLesson } from "./generation.ts";
 import { failure, HttpError } from "./http.ts";
+import { handleLab, LAB_PREFIX } from "./lab.ts";
 import { handleLessonTutor } from "./lesson-tutor.ts";
 import { handleTutor } from "./tutor.ts";
 
@@ -28,6 +29,13 @@ export async function handle(request: Request, env: Env, ctx: WorkerContext): Pr
   if (!url.pathname.startsWith("/api/")) {
     if (!env.ASSETS) return failure(503, "ASSETS_UNAVAILABLE", "Static assets are not bound.");
     return env.ASSETS.fetch(request);
+  }
+  // The Engineering Lab's endpoints answer every method themselves (a wrong method is part of the lesson).
+  if (url.pathname.startsWith(LAB_PREFIX)) {
+    return handleLab(request).catch((error) => {
+      console.error("Unhandled lab endpoint error.", error);
+      return failure(500, "INTERNAL_ERROR", "Something went wrong. Please try again.");
+    });
   }
   const candidates = routes.filter((route) => route.match(url.pathname));
   if (!candidates.length) return failure(404, "NOT_FOUND", "Unknown API route.");

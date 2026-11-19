@@ -24,6 +24,8 @@ const ChallengeRoute = lazy(() => import("../architecture/ui/ChallengePage.tsx")
 const LabRoute = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) => ({ default: m.LabRoute })));
 const LabsIndex = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) => ({ default: m.LabsIndex })));
 const ArchitectureLessonRoute = lazy(() => import("../architecture/ui/ArchitectureLessonPage.tsx").then((m) => ({ default: m.ArchitectureLessonRoute })));
+const EngineeringLabs = lazy(() => import("../lab/ui/LabsPage.tsx").then((m) => ({ default: m.LabsPage })));
+const EngineeringLabRoute = lazy(() => import("../lab/ui/LabPage.tsx").then((m) => ({ default: m.EngineeringLabRoute })));
 const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
 const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
@@ -66,6 +68,7 @@ export function activityIdFor(route: Route, search: string): string | null {
 
 /** The main-navigation section a page belongs to, by its role in the course rather than its address. */
 export function sectionFor(route: Route, activityId: string | null): Section | null {
+  if (route.name === "engineering-labs" || route.name === "engineering-lab") return "lab";
   if (route.name === "network-practice" || route.name === "architecture-playground" || route.name === "structures-playground" || route.name === "playgrounds") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
   if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs") return "practice";
@@ -102,6 +105,8 @@ export function App() {
   else if (route.name === "architecture-labs") view = <LabsIndex evidence={evidence} />;
   else if (route.name === "architecture-lab") view = <LabRoute key={route.id} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "architecture-lesson") view = <ArchitectureLessonRoute key={route.id} id={route.id} notFound={<NotFound what="that lesson" />} />;
+  else if (route.name === "engineering-labs") view = <EngineeringLabs />;
+  else if (route.name === "engineering-lab") view = <EngineeringLabRoute key={route.id} subject={route.subject} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "network-mission") {
     view = <NetworkMissionRoute key={route.id} id={route.id} notFound={<NotFound what="that mission" />} />;
   }

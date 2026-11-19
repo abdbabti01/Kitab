@@ -278,8 +278,8 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .path-number.is-complete { background: var(--primary); color: var(--feature-text); }
 .path-number svg { width: 16px; height: 16px; }
 .path-objective b { color: var(--ink); }
-.unit-playground { display: flex; align-items: flex-start; gap: 10px; margin: 0 16px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-2); font-size: .92rem; }
-.unit-playground svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--primary); }
+.unit-playground, .unit-lab { display: flex; align-items: flex-start; gap: 10px; margin: 0 16px 16px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-2); font-size: .92rem; }
+.unit-playground svg, .unit-lab svg { width: 18px; height: 18px; flex: none; margin-top: 2px; color: var(--primary); }
 
 
 /* Practice */
