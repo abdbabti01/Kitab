@@ -1,4 +1,5 @@
-import { ArrowRight, Check, FlaskConical } from "lucide-react";
+import { ArrowRight, Check, FlaskConical, SquareTerminal } from "lucide-react";
+import { unitLabs } from "../lab/links.ts";
 import { findLesson } from "../learning/lessons/catalog.ts";
 import { lessonStatus } from "../learning/lessons/progress.ts";
 import { activityState, isRequired, lastActive, stageProgress, type Activity, type Evidence } from "../learning/networking-path.ts";
@@ -131,6 +132,17 @@ export function TrackRoadmap({ track, evidence }: { track: LearningTrack; eviden
                   <p className="unit-playground">
                     <FlaskConical aria-hidden="true" />
                     <span>Experiment freely: <a {...linkProps("/practice/architecture")}>build your own design in the Architecture Playground</a>, add a component and run it again.</span>
+                  </p>
+                )}
+                {unitLabs[`${track.id}/${stage.id}`] && (
+                  <p className="unit-playground unit-lab">
+                    <SquareTerminal aria-hidden="true" />
+                    <span>
+                      Optional, for real in the Engineering Lab:{" "}
+                      {unitLabs[`${track.id}/${stage.id}`].map((lab, i, all) => (
+                        <span key={lab.path}><a {...linkProps(lab.path)}>{lab.title}</a>{i < all.length - 1 ? ", " : "."}</span>
+                      ))}
+                    </span>
                   </p>
                 )}
                 {networking && (

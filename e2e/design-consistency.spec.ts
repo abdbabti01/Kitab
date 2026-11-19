@@ -21,6 +21,9 @@ const routes = [
   "/practice/architecture",
   "/practice/architecture/labs",
   "/concepts/recursion",
+  "/lab",
+  "/lab/structures/arrays",
+  "/lab/networking/http-inspector",
 ];
 
 for (const width of [1440, 320]) {

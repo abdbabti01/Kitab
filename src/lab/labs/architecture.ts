@@ -30,7 +30,7 @@ export const architectureLabs: (CodeLab | HttpLab)[] = [
     success: "All four tasks pass, and you can say whether a 404 came from the router or from the handler.",
     computer: [
       { title: "The browser builds the request", detail: "fetch() turns your method, path, headers and body into an HTTP request.", observed: true },
-      { title: "It travels over an existing or new connection", detail: "HTTP/2 or HTTP/3 to Kitab in production, HTTP/1.1 to a local dev server. The Timing tab shows what the browser reports.", observed: true },
+      { title: "It travels over an existing or new connection", detail: "HTTP/2 or HTTP/3 to Kitab in production, HTTP/1.1 to a local dev server. The Timing section shows what the browser reports.", observed: true },
       { title: "The Worker's router matches the path and method", detail: "Kitab's server compares the request against its route table. No match is a router-level 404, with no X-Lab-Route header.", observed: true },
       { title: "A handler runs", detail: "The matched handler (listBooks, getBook, createBook) validates the input and builds a response. A handler can also answer 404 or 422.", observed: true },
       { title: "The response comes back", detail: "Status line, headers and body. Your browser hands them to the page, which shows them here.", observed: true },
@@ -66,7 +66,7 @@ export const architectureLabs: (CodeLab | HttpLab)[] = [
           { label: "The response status is 200", test: (o) => status(o) === 200 },
           { label: "The listBooks handler answered (X-Lab-Handler)", test: (o) => header(o.response?.headers, "x-lab-handler") === "listBooks" },
         ],
-        hints: ["Press Send, then open the Headers tab of the response and find X-Lab-Handler."],
+        hints: ["Press Send, then open Response headers in the response and find X-Lab-Handler."],
       },
       {
         id: "read",

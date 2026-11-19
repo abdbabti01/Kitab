@@ -5,13 +5,13 @@
 // a save from another tab, or a reset, never takes them away.
 import { z } from "zod";
 import { readStore, updateStore, type StorageLike } from "../learning/keyed-store.ts";
-import { METHODS } from "./model.ts";
+import { METHODS, type HttpMethod } from "./model.ts";
 
 export const LAB_PROGRESS_KEY = "kitab.engineering-labs.v1";
 const VERSION = 1;
 
 const draftSchema = z.object({
-  method: z.enum(METHODS as [string, ...string[]]),
+  method: z.enum(METHODS as readonly HttpMethod[] as [HttpMethod, ...HttpMethod[]]),
   path: z.string().max(500),
   headers: z.array(z.object({ name: z.string().max(200), value: z.string().max(2000) })).max(20),
   body: z.string().max(8192),

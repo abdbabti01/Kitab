@@ -38,6 +38,7 @@ export function PlaygroundsPage() {
             <p className="eyebrow">Interactive Playgrounds</p>
             <h1>Choose a Playground</h1>
             <p>Each Playground is a free simulator for one subject. Change anything, run it step by step and see why it behaves that way. Nothing here is graded.</p>
+            <p className="heading-links">Want real code and real HTTP requests instead of a simulation? <a {...linkProps("/lab")}>Open the Real Engineering Lab</a>.</p>
           </div>
         </div>
       </header>

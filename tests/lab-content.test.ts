@@ -12,6 +12,7 @@ import { tracks } from "../src/learning/tracks.ts";
 import { glossary } from "../src/learning/glossary.ts";
 import { handleLab } from "../worker/lab.ts";
 import { runInNode } from "./support/harness-node.ts";
+import { unitLabs } from "../src/lab/links.ts";
 
 const ORIGIN = "http://lab.test";
 
@@ -169,4 +170,10 @@ test("invalid header names are refused before sending, with the reason", () => {
   const result = buildHeaders([{ name: "X Api Version", value: "2" }]);
   assert.ok("error" in result && /refused/.test(result.error));
   assert.ok("headers" in buildHeaders([{ name: "", value: "" }, { name: "X-Ok", value: "1" }]));
+});
+
+test("the roadmap's lightweight unit → lab links match what the labs declare", () => {
+  const derived: Record<string, { title: string; path: string }[]> = {};
+  for (const lab of labs) for (const s of lab.stages) (derived[`${s.track}/${s.stage}`] ??= []).push({ title: lab.title, path: labPath(lab) });
+  assert.deepEqual(unitLabs, derived);
 });

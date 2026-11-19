@@ -4,7 +4,7 @@ test("every page shares one navigation, marks its section by its role in the cou
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav.getByRole("link", { name: "Learn" })).toBeVisible({ timeout: 3000 });
-  await expect(nav.getByRole("link")).toHaveText(["Learn", "Practice", "Playground"]);
+  await expect(nav.getByRole("link")).toHaveText(["Learn", "Practice", "Playground", "Lab"]);
   await expect(nav.locator("[aria-current]")).toHaveCount(0);
   // The Playground entry always opens the choice of the three Playgrounds.
   await expect(nav.getByRole("link", { name: "Playground" })).toHaveAttribute("href", "/playground");
@@ -33,12 +33,15 @@ test("every page shares one navigation, marks its section by its role in the cou
     ["/practice/structures?structure=recursion", "Playground"],
     ["/practice/architecture", "Playground"],
     ["/concepts/message-queues", "Learn"],
+    ["/lab", "Lab"],
+    ["/lab/structures/arrays", "Lab"],
   ]) {
     await page.goto(path);
     await expect(page.locator("#main h1")).toBeVisible();
     await expect(nav.getByRole("link", { name: label })).toHaveAttribute("aria-current", "page");
     await expect(nav.locator("[aria-current]")).toHaveCount(1);
-    expect(await palette()).toEqual(label === "Playground" ? nightPalette : homePalette);
+    // The Playgrounds and the Engineering Lab share the lab shell on the night palette.
+    expect(await palette()).toEqual(label === "Playground" || label === "Lab" ? nightPalette : homePalette);
   }
   await nav.getByRole("link", { name: "Learn" }).click();
   await expect(page).toHaveURL(/\/learn$/);
