@@ -4,10 +4,29 @@
 
 export const LAB_PREFIX = "/api/lab/";
 const MAX_BODY = 8_192;
-const MAX_WAIT_MS = 5_000;
+/** Longest wait /api/lab/slow will do: enough for the lab's timeout tasks (2.5 s and 3 s), no more. */
+export const MAX_WAIT_MS = 3_000;
+/** Slow requests one Worker instance will hold open at once; more get 503 + Retry-After. Best effort (per isolate). */
+export const MAX_SLOW_IN_FLIGHT = 8;
+let slowInFlight = 0;
 
-/** Request headers never echoed back: credentials and what Cloudflare or a proxy adds about the client. */
-const hidden = /^(cookie|cf-.*|x-forwarded-.*|x-real-ip|true-client-ip|cdn-loop|forwarded|x-amzn-.*)$/i;
+/**
+ * Request headers whose values the echo shows: standard, non-secret headers a lesson can use, plus the lab's own
+ * headers. Anything else (Authorization, API keys, tokens, unknown custom headers) is never reflected: the echo only
+ * says it arrived, by name. An allowlist, so a credential header nobody thought of stays hidden too.
+ */
+const ECHOED = new Set([
+  "accept", "accept-encoding", "accept-language", "cache-control", "content-length", "content-type", "host",
+  "if-match", "if-modified-since", "if-none-match", "if-unmodified-since", "origin", "pragma", "range", "referer",
+  "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform", "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site",
+  "sec-fetch-user", "user-agent", "x-api-version", "x-learner",
+]);
+/** Added by Cloudflare or proxies about the client or the infrastructure: not even named. */
+const INFRASTRUCTURE = /^(cf-|x-forwarded-|x-real-ip$|true-client-ip$|cdn-loop$|forwarded$|x-amzn-|via$|x-request-id$)/i;
+const MAX_ECHOED_VALUE = 300;
+const MAX_WITHHELD = 30;
+/** Learner-supplied text put back into a response (paths, Accept values), cut to a bounded length. */
+const clip = (value: string, max = 200) => (value.length > max ? `${value.slice(0, max)}…` : value);
 
 type Answer = { status: number; body?: unknown; text?: string; headers?: Record<string, string> };
 
@@ -79,7 +98,7 @@ const notAllowed = (allow: string, method: string, route: string): Answer => ({
 /** A JSON body, or the answer to send instead: 415 when it isn't declared as JSON, 400 when it doesn't parse. */
 async function jsonBody(request: Request): Promise<{ value: unknown } | Answer> {
   if (mediaType(request) !== "application/json") {
-    return { status: 415, body: { error: "Send the body as JSON with the header Content-Type: application/json.", received: request.headers.get("content-type") } };
+    return { status: 415, body: { error: "Send the body as JSON with the header Content-Type: application/json.", received: clip(request.headers.get("content-type") ?? "", 100) } };
   }
   const text = await readText(request);
   if (text === null) return tooLarge;
@@ -104,8 +123,10 @@ async function echo(request: Request, url: URL): Promise<Answer> {
     }
   }
   const headers: Record<string, string> = {};
+  const withheld: string[] = [];
   request.headers.forEach((value, name) => {
-    if (!hidden.test(name)) headers[name] = value;
+    if (ECHOED.has(name)) headers[name] = clip(value, MAX_ECHOED_VALUE);
+    else if (!INFRASTRUCTURE.test(name) && withheld.length < MAX_WITHHELD) withheld.push(name);
   });
   return {
     status: 200,
@@ -113,11 +134,12 @@ async function echo(request: Request, url: URL): Promise<Answer> {
       received: {
         method: request.method,
         path: url.pathname,
-        query: Object.fromEntries(url.searchParams),
+        query: Object.fromEntries([...url.searchParams].slice(0, 30).map(([k, v]) => [clip(k, 100), clip(v, MAX_ECHOED_VALUE)])),
         headers,
+        withheldHeaders: withheld,
         body: { bytes: new TextEncoder().encode(text).byteLength, text, ...(parsed ? { json } : {}) },
       },
-      note: "This is what Kitab's server received. Headers your browser refused to send, or added itself, show up here.",
+      note: "This is what Kitab's server received. Headers your browser added show up here; ones it refused to send don't. Values of headers that could carry secrets (Authorization, API keys, tokens, unknown custom headers) are never sent back: withheldHeaders only names them.",
     },
   };
 }
@@ -158,7 +180,7 @@ function negotiate(request: Request): Answer {
   const book = books[0];
   if (wants("application/json") || wants("*/*") || wants("application/*")) return { status: 200, headers: { vary: "Accept" }, body: book };
   if (wants("text/plain") || wants("text/*")) return { status: 200, headers: { vary: "Accept" }, text: `${book.title} by ${book.author} (${book.year})\n` };
-  return { status: 406, headers: { vary: "Accept" }, body: { error: `This resource is available as application/json or text/plain, not ${accept}.` } };
+  return { status: 406, headers: { vary: "Accept" }, body: { error: `This resource is available as application/json or text/plain, not ${clip(accept)}.` } };
 }
 
 async function booksRoute(request: Request, id: string | undefined): Promise<Answer> {
@@ -185,7 +207,7 @@ async function booksRoute(request: Request, id: string | undefined): Promise<Ans
   }
   if (request.method !== "GET") return tag("none", notAllowed("GET", request.method, route));
   const book = /^\d{1,6}$/.test(id) ? books.find((item) => item.id === Number(id)) : undefined;
-  return book ? tag("getBook", { status: 200, body: book }) : tag("getBook", { status: 404, body: { error: `No book has id ${JSON.stringify(id)}.` } });
+  return book ? tag("getBook", { status: 200, body: book }) : tag("getBook", { status: 404, body: { error: `No book has id ${JSON.stringify(clip(id, 40))}.` } });
 }
 
 async function orders(request: Request): Promise<Answer> {
@@ -214,8 +236,17 @@ async function orders(request: Request): Promise<Answer> {
 async function slow(url: URL): Promise<Answer> {
   const asked = Number(url.searchParams.get("ms") ?? 1000);
   const ms = Number.isFinite(asked) ? Math.max(0, Math.min(MAX_WAIT_MS, Math.round(asked))) : 1000;
+  // ponytail: per-isolate cap, not global; a Workers Rate Limiting binding would make it account-wide.
+  if (slowInFlight >= MAX_SLOW_IN_FLIGHT) {
+    return { status: 503, headers: { "retry-after": "5" }, body: { error: "Too many slow requests are waiting right now. Try again in a few seconds." } };
+  }
+  slowInFlight += 1;
   const started = Date.now();
-  await sleep(ms);
+  try {
+    await sleep(ms);
+  } finally {
+    slowInFlight -= 1;
+  }
   return { status: 200, body: { waitedMs: ms, maxMs: MAX_WAIT_MS, measuredMs: Date.now() - started } };
 }
 
@@ -235,16 +266,31 @@ async function answer(request: Request, url: URL): Promise<Answer> {
   return {
     status: 404,
     body: {
-      error: `No route matches ${method} ${url.pathname}.`,
+      error: `No route matches ${method} ${clip(url.pathname)}.`,
       routes: ["/api/lab/echo", "/api/lab/status/:code", "/api/lab/cache/:policy", "/api/lab/negotiate", "/api/lab/books", "/api/lab/books/:id", "/api/lab/orders", "/api/lab/slow?ms="],
     },
   };
 }
 
+/**
+ * Fetch metadata: a browser says where a request came from. Only Kitab's own pages (same-origin) or a direct visit
+ * ("none") may use the lab, so another site can't make its visitors' browsers call these endpoints (for example to
+ * hold slow requests open). curl and other non-browser clients send no such header and are allowed, for the
+ * lab's "try it in your terminal" steps.
+ */
+function crossSite(request: Request) {
+  const site = request.headers.get("sec-fetch-site");
+  return site !== null && site !== "same-origin" && site !== "none";
+}
+
 export async function handleLab(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  const result = await answer(request, url);
-  const headers: Record<string, string> = { "cache-control": "no-store", "x-content-type-options": "nosniff", ...result.headers };
+  const result: Answer = crossSite(request)
+    ? { status: 403, body: { error: "The Engineering Lab's endpoints only answer Kitab's own pages." } }
+    : await answer(request, url);
+  // No Access-Control-* headers: other origins can never read these responses. CORP also stops them being embedded
+  // cross-origin (for example as a script or image) and read that way.
+  const headers: Record<string, string> = { "cache-control": "no-store", "x-content-type-options": "nosniff", "cross-origin-resource-policy": "same-origin", ...result.headers };
   let body: string | null = null;
   if (result.status !== 204 && result.status !== 304 && request.method !== "HEAD") {
     if (result.text !== undefined) (headers["content-type"] = "text/plain; charset=utf-8"), (body = result.text);
