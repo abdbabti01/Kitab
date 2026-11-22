@@ -70,6 +70,15 @@
 .ds-adjacency li { display: flex; align-items: center; gap: 8px; }
 .ds-adjacency li svg { width: 14px; color: var(--muted); }
 .ds-adjacency li span { font-family: var(--mono); font-size: 0.86rem; color: var(--ink-2); }
+/* Arrays: the block, its spare capacity, and the old block while growing. */
+.ds-invented { display: inline-block; margin-left: 6px; padding: 1px 6px; border: 1px dashed var(--line-strong); border-radius: 6px; font-size: 0.7rem; font-weight: 650; color: var(--muted); vertical-align: middle; }
+.ds-block { display: grid; gap: 6px; }
+.ds-slots { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ds-cell.is-spare { border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); color: var(--muted); }
+.ds-cell.is-spare b { color: var(--muted); }
+.ds-cell.is-old { border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.ds-old-block { padding: 8px; margin-bottom: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.ds-old-block.is-unreachable { border-style: dashed; opacity: 0.7; }
 .ds-token { display: grid; place-items: center; min-width: 40px; min-height: 40px; border-radius: 8px; background: var(--warning-soft); font-weight: 700; }
 
 /* Recursion scene */
