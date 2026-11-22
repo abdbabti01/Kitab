@@ -227,7 +227,7 @@ const raw: unknown[] = [
       "miscounted-shift": { label: "Miscounted the shifts", message: "Count the elements at index {param.index} or later: {outcome.shifts} of them each move one slot right." },
       "shift-everything": { label: "Everything shifts", message: "Elements before index {param.index} keep their addresses. Only the {outcome.shifts} at or after it move." },
       "sorted-array": { label: "Arrays are sorted", message: "Nothing re-sorts the array. The value goes exactly at index {param.index}; the later elements make room." },
-      "array-has-pointers": { label: "Arrays use pointers", message: "Array slots hold values directly. Their position is computed from the index, which is why there is no gap to use." },
+      "array-has-pointers": { label: "Arrays use pointers", message: "This int array's slots hold the values themselves. Their position is computed from the index, which is why there is no gap to use." },
     },
     sources: dsSources("array"),
   },

@@ -187,7 +187,7 @@ export const glossary = {
     id: "complexity", term: "Time complexity",
     definition: "How the number of steps grows with the input size n, written in big-O: O(1) stays the same, O(n) grows in step with n.",
     purpose: "It predicts which structure stays fast as data grows.",
-    example: "Inserting at the front of an array shifts every element, O(n); on a linked list it relinks one reference, O(1).",
+    example: "Inserting at the front of an array shifts every element, O(n); on a linked list it sets the new node's next reference and moves the head, O(1).",
     more: { href: "/learn/data-structures", label: "The Data Structures track" },
   },
 } satisfies Record<string, GlossaryTerm>;

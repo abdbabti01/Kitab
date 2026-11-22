@@ -116,7 +116,7 @@ const arrayInsert: Cycle<Setup, Trace> = {
   unit: "arrays",
   title: "Make room in the middle of an array",
   concept: "An array keeps its values in consecutive slots, in index order.",
-  scenario: "An array holds 4, 7, 12 and 18 at indexes 0 to 3, with one spare slot after them. You insert 9 at index 2.",
+  scenario: "An array holds 4, 7, 12 and 18 at indexes 0 to 3, with spare slots after them (capacity 8), so no growth is needed. You insert 9 at index 2.",
   question: "What does the array hold afterwards, and what work did the insert do?",
   watch: "Which values move, in which order, and how many writes the insert needs.",
   terms: ["complexity"],

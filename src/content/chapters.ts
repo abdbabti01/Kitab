@@ -335,7 +335,7 @@ export const chapters: Chapter[] = [
     experiment: "Remove the middle node",
     normal: "Traversal follows every next pointer in order.",
     changed:
-      "One pointer is redirected around the removed node; its memory can then be released.",
+      "One pointer is redirected around the removed node. Nothing reaches it any more, so a garbage collector may reclaim it later (C would free it explicitly).",
     steps: [
       {
         title: "Create nodes",
@@ -444,7 +444,7 @@ export const chapters: Chapter[] = [
     family: "Data structures",
     mode: "tree",
     summary:
-      "Traverse a binary search tree by using ordering to discard half of the remaining direction at each node.",
+      "Traverse a binary search tree by using its ordering to discard a whole subtree at each node.",
     analogy:
       "A choose-your-own-path directory: smaller names go left and larger names go right.",
     experiment: "Make the tree unbalanced",
@@ -460,8 +460,8 @@ export const chapters: Chapter[] = [
       },
       {
         title: "Move left",
-        detail: "Every value in the right subtree can be ignored.",
-        state: "Half discarded",
+        detail: "Every value in the right subtree is larger than 8, so the whole right subtree can be ignored. In a balanced tree that is about half the nodes.",
+        state: "Right subtree discarded",
       },
       {
         title: "Compare with 4",

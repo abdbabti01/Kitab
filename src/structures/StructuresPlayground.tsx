@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ExploreGuide } from "../ui/ExploreGuide.tsx";
 import { TermChips } from "../ui/Terms.tsx";
 import { terms } from "../learning/glossary.ts";
@@ -9,8 +9,11 @@ import type { Fact, Trace } from "../learning/types.ts";
 import { linkProps } from "../app/router.ts";
 import { PlaybackBar, usePlayback } from "../mission/Playback.tsx";
 import { sceneFor } from "../mission/scenes/index.ts";
-import { MAX_VALUES, structureInfo, type StructureKind, type StructureSnapshot } from "../visual-engine/data-structures/model.ts";
+import { DEFAULT_CAPACITY, MAX_CAPACITY, MAX_VALUES, structureInfo, type StructureKind, type StructureSnapshot } from "../visual-engine/data-structures/model.ts";
 import type { DataStructureFrameData } from "../learning/engines/data-structures.ts";
+import type { RecursionFrameData } from "../learning/engines/recursion.ts";
+import { memoryChanges, recursionMemory, structureMemory } from "./guide/memory.ts";
+import type { GuideStep } from "./StructureGuide.tsx";
 import {
   defaultSetup,
   engineParams,
@@ -34,15 +37,18 @@ import { CyclePanel, useCycle } from "../ui/PredictCycle.tsx";
 import "../mission/mission.css";
 import "./structures.css";
 
+// The guide (content, code in three languages) loads after the scene, so the first step paints without it.
+const StructureGuide = lazy(() => import("./StructureGuide.tsx").then((m) => ({ default: m.StructureGuide })));
+
 /** What the model leaves out, per structure. Shown with every run so no step is mistaken for real memory. */
 const limits: Record<StructureKind | "recursion", string> = {
-  array: "A dynamic array with a spare slot after the last element; growing into a new, larger block is not shown. Addresses are illustrative (base 0x1000, 4-byte integers). In a real program the language runtime's allocator (or garbage collector) gets memory from the operating system and picks the addresses; the program never chooses them.",
+  array: "A dynamic array whose integers sit in 4-byte slots: length counts elements, capacity counts slots (8 unless you choose). A full block doubles: allocate, copy every element, switch the reference. Addresses are invented (first block 0x1000, grown block 0x2000): in a real program the runtime's allocator picks them. Shrinking and memory reclamation are not modelled.",
   "linked-list": "A singly linked list. Addresses are illustrative, and memory reclamation (garbage collection or free) is not simulated. In a real program the language runtime's allocator (or garbage collector) gets memory from the operating system and picks the addresses; the program never chooses them.",
   stack: "Backed by an array with a TOP marker; capacity growth is not shown.",
   queue: "Backed by an array with FRONT and REAR markers; capacity growth and wrap-around are not shown.",
   "hash-table": "Seven buckets, bucket = key mod 7, separate chaining. It stores keys only and never resizes.",
-  "binary-tree": "An unbalanced binary search tree: it never rebalances, and delete is not modelled.",
-  graph: "One fixed undirected graph with a cycle and an isolated vertex; breadth-first search always starts at vertex 1.",
+  "binary-tree": "An unbalanced binary search tree with explicit child pointers: it never rebalances (no AVL or red-black rotations). Delete uses the in-order successor. Addresses are invented.",
+  graph: "One fixed undirected graph with a cycle and an isolated vertex, stored as an adjacency list; breadth-first and depth-first search always start at vertex 1.",
   recursion: "A teaching model of the call stack: one frame per call and a small, configurable stack limit. It does not run JavaScript or measure real memory.",
 };
 
@@ -134,6 +140,12 @@ function SetupPanel({ setup, onChange }: { setup: Setup; onChange: (setup: Setup
             {inputsFor(setup).value && <NumberField label={setup.structure === "hash-table" ? "Key" : setup.structure === "graph" ? "Target vertex" : "Value"} value={setup.value} min={-99} max={99} onChange={(value) => onChange({ ...setup, value })} />}
             {inputsFor(setup).index && <NumberField label={setup.structure === "linked-list" ? "Position" : "Index"} value={setup.index} min={0} max={10} onChange={(index) => onChange({ ...setup, index })} />}
           </div>
+          {setup.structure === "array" && setup.operation === "insert" && (
+            <div className="sp-row">
+              <NumberField label="Capacity (slots)" value={setup.capacity ?? DEFAULT_CAPACITY} min={1} max={MAX_CAPACITY} onChange={(capacity) => onChange({ ...setup, capacity })} />
+              <p className="sp-help">Never fewer than the starting values. Insert into a full block to watch it grow.</p>
+            </div>
+          )}
           {setup.structure !== "graph" && <StartingValues setup={setup} onChange={(values) => onChange({ ...setup, values })} />}
         </>
       )}
@@ -236,6 +248,22 @@ const operationLine = (setup: Setup) =>
     ? <>{setup.fn}({setup.n}) · {setup.baseCase ? "with" : "without"} a base case · limit {setup.stackLimit} frames</>
     : <>{structureInfo[setup.structure].label} · {structureInfo[setup.structure].operations.find((o) => o.id === setup.operation)!.label}{inputsFor(setup).value && <> · {setup.structure === "hash-table" ? "key" : "value"} {setup.value}</>}{inputsFor(setup).index && <> · {setup.structure === "linked-list" ? "position" : "index"} {setup.index}</>}</>;
 
+/** The conceptual memory of one step and what changed since the step before, for the guide's Memory tab. */
+function stepMemory(setup: Setup, trace: Trace, index: number): GuideStep {
+  const rowsAt = (i: number) => {
+    if (isRecursion(setup)) return recursionMemory((trace.frames[i].data as RecursionFrameData).event.stack, setup.fn);
+    return structureMemory(setup.structure, (trace.frames[i].data as DataStructureFrameData).frame.snapshot);
+  };
+  const rows = rowsAt(index);
+  const metrics = isRecursion(setup) ? undefined : (trace.frames[index].data as DataStructureFrameData).frame.metrics;
+  return {
+    title: `step ${index + 1} of ${trace.frames.length}`,
+    rows,
+    changes: memoryChanges(index > 0 ? rowsAt(index - 1) : null, rows),
+    counts: metrics && { comparisons: metrics.comparisons, reads: metrics.reads, writes: metrics.writes, "pointer changes": metrics.pointerChanges },
+  };
+}
+
 /**
  * The scene, playback and step explanation of one trace. `locked`: before a prediction only the starting state is
  * shown: no playback, no step count, no later step and no result, so nothing gives the outcome away.
@@ -246,6 +274,7 @@ function Workbench({ setup, trace, playback, locked, onKeep }: { setup: Setup; t
   const index = locked ? 0 : playback.index;
   const frame = trace.frames[index];
   const Scene = sceneFor(trace.engine.id)!.Scene;
+  const step = useMemo(() => stepMemory(setup, trace, index), [setup, trace, index]);
   return (
     <div className="sp-main">
       <section className="sp-stage" aria-label="Visualization">
@@ -265,6 +294,12 @@ function Workbench({ setup, trace, playback, locked, onKeep }: { setup: Setup; t
       ) : (
         <Explanation trace={trace} index={index} setup={setup} selected={selected} onKeep={onKeep} />
       )}
+      <div className="sp-guide">
+        <Suspense fallback={<p className="sp-panel sp-help">Loading the guide…</p>}>
+          {/* Before a prediction the guide shows the model, not this run's step count or memory. */}
+          <StructureGuide id={setup.structure} step={locked ? undefined : step} />
+        </Suspense>
+      </div>
     </div>
   );
 }
@@ -320,7 +355,11 @@ export function StructuresPlayground() {
   const ds = !isRecursion(setup) ? setup : null;
   const changed = ["inserted", "removed", "added"].includes(String(trace.outcome.status));
   const keep = ds && ds.structure !== "graph" && changed
-    ? () => setSetup({ ...ds, values: resultValues((trace.frames.at(-1)!.data as DataStructureFrameData).frame.snapshot) })
+    ? () => {
+      const final = (trace.frames.at(-1)!.data as DataStructureFrameData).frame.snapshot;
+      // A grown array keeps its new capacity (within the control's range), so the next insert starts from it.
+      setSetup({ ...ds, values: resultValues(final), ...(ds.structure === "array" && final.block ? { capacity: Math.min(MAX_CAPACITY, final.block.capacity) } : {}) });
+    }
     : undefined;
   // Leaving keeps the experiment's starting setup, so free exploration continues from what was on screen.
   const leave = () => {
@@ -349,6 +388,7 @@ export function StructuresPlayground() {
         tryThis={[
           "Insert at index 0 of an array, then at the head of a linked list: count the steps each takes.",
           "Insert values in sorted order into a binary search tree, then search for the largest one.",
+          "Set an array's capacity to its length, then insert: watch it allocate, copy and switch blocks.",
           "Turn off the base case in recursion and watch the stack fill to its limit.",
         ]}
         controls={[
@@ -357,6 +397,7 @@ export function StructuresPlayground() {
           { name: "Restart run, Previous step, Play, Next step", does: "Move through the run one step at a time or play it; the explanation follows each step." },
           { name: "Start the next operation from this result", does: "Keeps the result as the starting values, so you can chain operations." },
           { name: "Reset this structure", does: "Back to the example values and the default operation." },
+          { name: "Memory, What & why, Code, Cost, Choose", does: "Below the run: this step's memory and what changed, the structure explained, the same idea in C#, Java or Python, its costs, and practice choosing a structure. Switching tab or language never restarts the run." },
         ]}
         guided={<>The guided experiments below set up one question each; “Predict first” ones ask for your prediction and reasoning before the run (kept in this browser, not graded). For mastery, try a <a {...linkProps("/practice?track=data-structures")}>data structures mission</a>.</>}
       />

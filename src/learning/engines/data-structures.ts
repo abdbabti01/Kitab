@@ -6,7 +6,9 @@ import {
   structureKinds,
   type SimulationFrame,
   MAX_VALUES,
+  MAX_CAPACITY,
   startingValues,
+  treeHeight,
   type StructureKind,
   type StructureSnapshot,
 } from "../../visual-engine/data-structures/model.ts";
@@ -52,6 +54,8 @@ const params = z
     index: z.unknown().optional(),
     /** Starting contents, "8,3,12" or a number list; absent means the fixture the missions use. */
     values: z.union([z.string().max(80), z.array(z.number()).max(MAX_VALUES)]).optional(),
+    /** Array only: slots in the backing block; absent means the model's default (so mission keys are unchanged). */
+    capacity: z.unknown().optional(),
   })
   .strict()
   .transform((input) => {
@@ -71,6 +75,10 @@ const params = z
     if (input.values !== undefined && input.kind !== "graph") {
       const list = typeof input.values === "string" ? parseValues(input.values) : input.values;
       normalized.values = startingValues(input.kind, list).join(",");
+    }
+    const capacity = Number(input.capacity);
+    if (input.capacity !== undefined && input.kind === "array" && Number.isFinite(capacity)) {
+      normalized.capacity = Math.max(1, Math.min(MAX_CAPACITY, Math.trunc(capacity)));
     }
     return normalized;
   });
@@ -101,16 +109,24 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
   if (kind === "graph") {
     facts.push(
       { id: "visited", label: "Visited set", value: s.visitedValues.join(", ") || "none" },
-      { id: "queue", label: "BFS queue (front first)", value: s.frontierValues.join(", ") || "empty" },
+      s.frontier === "stack"
+        ? { id: "stack", label: "DFS stack (bottom first, top last)", value: s.frontierValues.join(", ") || "empty" }
+        : { id: "queue", label: "BFS queue (front first)", value: s.frontierValues.join(", ") || "empty" },
     );
   } else if (kind === "hash-table") {
+    const keys = s.buckets!.reduce((sum, bucket) => sum + bucket.items.length, 0);
+    facts.push({ id: "load-factor", label: "Load factor (keys ÷ buckets)", value: `${keys} ÷ ${s.buckets!.length} = ${(keys / s.buckets!.length).toFixed(2)}` });
     facts.push({ id: "buckets", label: "Occupied buckets", value: s.buckets!.filter((bucket) => bucket.items.length).map((bucket) => `${bucket.index}:[${bucket.items.map((item) => item.value).join(",")}]`).join(" ") });
   } else {
     const live = s.items.filter((item) => !item.detached);
     facts.push(
       { id: "values", label: "Values in order", value: live.map((item) => item.value).join(", ") || "empty" },
-      { id: "length", label: "Length", value: live.length },
+      // While an array grows, the items are the new block being filled; the array's length is still the old one's.
+      { id: "length", label: "Length", value: s.oldBlock?.reachable ? s.oldBlock.items.length : live.length },
     );
+    if (s.block) facts.push({ id: "capacity", label: "Capacity (slots in the block)", value: s.oldBlock?.reachable ? s.oldBlock.capacity : s.block.capacity }, { id: "block", label: "Array refers to the block at", value: s.oldBlock?.reachable ? s.oldBlock.base : s.block.base });
+    if (s.oldBlock) facts.push({ id: "old-block", label: `Old block at ${s.oldBlock.base}`, value: s.oldBlock.reachable ? "still referenced by the array" : "unreachable (eligible for collection)" });
+    if (kind === "binary-tree") facts.push({ id: "height", label: "Height (edges on the longest root-to-leaf path)", value: treeHeight(s.items, s.root) });
   }
   s.items.forEach((item, index) => {
     if (kind === "array") {
@@ -118,6 +134,10 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
         { id: `slot-${index}`, label: `Index ${index} at ${item.address}`, value: item.value, entityId: item.id },
         { id: `addr-${index}`, label: `Address of index ${index}`, value: item.address, entityId: item.id },
       );
+    }
+    if (kind === "binary-tree") {
+      const name = (id?: string | null) => (id ? String(s.items.find((other) => other.id === id)?.value ?? "?") : "null");
+      facts.push({ id: `tree-${item.id}`, label: `Node ${item.value} at ${item.address}`, value: `left ${name(item.left)} · right ${name(item.right)}`, entityId: item.id });
     }
     if (kind === "linked-list") facts.push({ id: `node-${item.address}`, label: `${item.detached ? "Unlinked node" : "Node"} at ${item.address}`, value: `${item.value} → ${item.next ?? "NULL"}`, entityId: item.id });
   });
@@ -129,12 +149,13 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
   version: "2.0.0",
   title: "Data structures",
   params: params as never,
-  vocabulary: ["array", "index", "slot", "shift", "address", "write", "read", "node", "pointer", "queue", "stack", "bucket", "hash", "vertex", "visit", "bfs", "frontier", "tree", "compare", "element", "neighbor", "edge", "path", "root", "subtree", "left", "right", "smaller", "larger", "key", "list", "insert", "delet", "search", "collision", "head", "front", "rear", "top", "memory"],
+  vocabulary: ["array", "index", "slot", "shift", "address", "write", "read", "node", "pointer", "queue", "stack", "bucket", "hash", "vertex", "visit", "bfs", "dfs", "depth", "frontier", "capacity", "grow", "copy", "block", "successor", "child", "leaf", "height", "tree", "compare", "element", "neighbor", "edge", "path", "root", "subtree", "left", "right", "smaller", "larger", "key", "list", "insert", "delet", "search", "collision", "head", "front", "rear", "top", "memory"],
   checkClaims: (text, _facts, trace) => arrayClaims(text, trace),
   build(input) {
     const kind = input.kind as StructureKind;
     const values = typeof input.values === "string" ? parseValues(input.values) : undefined;
-    const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index), values });
+    const capacity = input.capacity === undefined ? undefined : Number(input.capacity);
+    const simulation = buildDataStructureSimulation({ kind, operation: input.operation as never, value: Number(input.value), index: Number(input.index), values, capacity });
     const frames = simulation.frames.map((frame) => ({
       id: frame.id,
       title: frame.title,
@@ -175,6 +196,11 @@ export const dataStructuresAdapter: EngineAdapter<Record<string, string | number
         complexity: "Cost",
         shifts: "Elements shifted",
         dequeues: "Vertices dequeued",
+        pops: "Stack pops",
+        copies: "Elements copied while growing",
+        capacity: "Capacity after the operation",
+        height: "Tree height after the operation",
+        distance: "Edges from vertex 1",
       },
     };
   },

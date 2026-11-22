@@ -1,11 +1,11 @@
 // The Data Structures & Recursion Playground's setups: what the URL holds, how it is read back, and the guided
 // experiments each unit of the data-structures track opens. Pure: no React, no DOM.
-import { fixtures, structureInfo, structureKinds, type OperationKind, type StructureKind } from "../visual-engine/data-structures/model.ts";
+import { fixtures, MAX_CAPACITY, structureInfo, structureKinds, type OperationKind, type StructureKind } from "../visual-engine/data-structures/model.ts";
 import { normalizeRecursionConfig, type RecursionConfig } from "../visual-engine/engines/execution/recursion-engine.ts";
 
 export const PLAYGROUND_PATH = "/practice/structures";
 
-export type StructureSetup = { structure: StructureKind; operation: OperationKind; value: number; index: number; values?: number[] };
+export type StructureSetup = { structure: StructureKind; operation: OperationKind; value: number; index: number; values?: number[]; /** Array only: slots in the backing block. */ capacity?: number };
 export type RecursionSetup = { structure: "recursion" } & RecursionConfig;
 export type Setup = StructureSetup | RecursionSetup;
 
@@ -16,6 +16,7 @@ export function engineParams(setup: Setup): { engine: "data-structures" | "recur
   if (isRecursion(setup)) return { engine: "recursion", params: { fn: setup.fn, n: setup.n, baseCase: setup.baseCase, stackLimit: setup.stackLimit } };
   const params: Record<string, unknown> = { kind: setup.structure, operation: setup.operation, value: setup.value, index: setup.index };
   if (setup.values) params.values = setup.values.join(",");
+  if (setup.capacity !== undefined && setup.structure === "array") params.capacity = setup.capacity;
   return { engine: "data-structures", params };
 }
 
@@ -55,6 +56,8 @@ export function parseSetup(search: string): Setup {
   };
   const values = query.get("values");
   if (values !== null && kind !== "graph") setup.values = values.split(",").filter((v) => v.trim() !== "").map(Number).filter(Number.isInteger);
+  const capacity = query.get("capacity");
+  if (capacity !== null && kind === "array") setup.capacity = Math.max(1, Math.min(MAX_CAPACITY, int(capacity, 8)));
   return setup;
 }
 
@@ -75,6 +78,7 @@ export function setupPath(setup: Setup, from?: string | null): string {
     query.set("value", String(setup.value));
     query.set("index", String(setup.index));
     if (setup.values) query.set("values", setup.values.join(","));
+    if (setup.capacity !== undefined && setup.structure === "array") query.set("capacity", String(setup.capacity));
   }
   const back = safeReturn(from ?? null);
   if (back) query.set("from", back);
@@ -105,13 +109,17 @@ export const experiments: Experiment[] = [
   { id: "array-insert-middle", unit: "arrays", title: "Make room in the middle", detail: "Insert 7 at index 2 and count the values that shift right.", setup: { structure: "array", operation: "insert", value: 7, index: 2 } },
   { id: "array-delete-front", unit: "arrays", title: "Delete the first element", detail: "Every later value moves one slot left to close the gap.", setup: { structure: "array", operation: "delete", value: 0, index: 0 } },
   { id: "array-out-of-range", unit: "arrays", title: "Ask for an index that isn't there", detail: "Delete index 5 of a five-element array: nothing changes.", setup: { structure: "array", operation: "delete", value: 0, index: 5 } },
+  { id: "array-grow", unit: "arrays", title: "Append to a full array", detail: "Four values fill a four-slot block: watch it double, copy, then append.", setup: { structure: "array", operation: "insert", value: 7, index: 4, values: [8, 3, 12, 1], capacity: 4 } },
   { id: "list-insert-head", unit: "linked-lists", title: "Insert at the head", detail: "Allocate a node, point it at the old first node, then move HEAD.", setup: { structure: "linked-list", operation: "insert", value: 5, index: 0 } },
   { id: "list-delete-middle", unit: "linked-lists", title: "Unlink a middle node", detail: "Walk to 12, then rewrite one pointer to skip it.", setup: { structure: "linked-list", operation: "delete", value: 12, index: 0 } },
   { id: "hash-collision", unit: "hash-tables", title: "Collide in bucket 1", detail: "22 mod 7 = 1, where 15 and 8 already live.", setup: { structure: "hash-table", operation: "insert", value: 22, index: 0 } },
   { id: "hash-duplicate", unit: "hash-tables", title: "Insert a key twice", detail: "15 is already stored: the table finds it and writes nothing.", setup: { structure: "hash-table", operation: "insert", value: 15, index: 0 } },
   { id: "bst-search", unit: "trees", title: "Search a balanced tree", detail: "Find 6 in three comparisons, discarding a subtree each time.", setup: { structure: "binary-tree", operation: "search", value: 6, index: 0 } },
   { id: "bst-skewed", unit: "trees", title: "Search a skewed tree", detail: "Values inserted in sorted order make a chain: 8 comparisons to find 8.", setup: { structure: "binary-tree", operation: "search", value: 8, index: 0, values: [1, 2, 3, 4, 5, 6, 7, 8] } },
+  { id: "bst-delete-two-children", unit: "trees", title: "Delete a node with two children", detail: "Delete the root 8: its in-order successor 10 takes its place.", setup: { structure: "binary-tree", operation: "delete", value: 8, index: 0 } },
+  { id: "bst-delete-leaf", unit: "trees", title: "Delete a leaf", detail: "Delete 1: one child pointer becomes null.", setup: { structure: "binary-tree", operation: "delete", value: 1, index: 0 } },
   { id: "graph-unreachable", unit: "trees", title: "Far away or unreachable?", detail: "Breadth-first search for 15, a vertex with no edges.", setup: { structure: "graph", operation: "bfs", value: 15, index: 0 } },
+  { id: "graph-dfs", unit: "trees", title: "Depth-first instead of breadth-first", detail: "Search for 12 with a stack: the walk goes deep along one path first.", setup: { structure: "graph", operation: "dfs", value: 12, index: 0 } },
   { id: "recursion-factorial", unit: "recursion", title: "Watch factorial(4) unwind", detail: "Four frames pushed, then returned in reverse order.", setup: { structure: "recursion", fn: "factorial", n: 4, baseCase: true, stackLimit: 8 } },
   { id: "recursion-no-base", unit: "recursion", title: "Remove the base case", detail: "Nothing stops the calls until the stack limit.", setup: { structure: "recursion", fn: "factorial", n: 3, baseCase: false, stackLimit: 6 } },
   { id: "recursion-too-deep", unit: "recursion", title: "A base case too deep to reach", detail: "factorial(6) needs six frames; the limit is four.", setup: { structure: "recursion", fn: "factorial", n: 6, baseCase: true, stackLimit: 4 } },
