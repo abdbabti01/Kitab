@@ -121,9 +121,10 @@ function factsFor(kind: StructureKind, frame: SimulationFrame): Fact[] {
     const live = s.items.filter((item) => !item.detached);
     facts.push(
       { id: "values", label: "Values in order", value: live.map((item) => item.value).join(", ") || "empty" },
-      { id: "length", label: "Length", value: live.length },
+      // While an array grows, the items are the new block being filled; the array's length is still the old one's.
+      { id: "length", label: "Length", value: s.oldBlock?.reachable ? s.oldBlock.items.length : live.length },
     );
-    if (s.block) facts.push({ id: "capacity", label: "Capacity (slots in the block)", value: s.block.capacity }, { id: "block", label: "Array refers to the block at", value: s.oldBlock?.reachable ? s.oldBlock.base : s.block.base });
+    if (s.block) facts.push({ id: "capacity", label: "Capacity (slots in the block)", value: s.oldBlock?.reachable ? s.oldBlock.capacity : s.block.capacity }, { id: "block", label: "Array refers to the block at", value: s.oldBlock?.reachable ? s.oldBlock.base : s.block.base });
     if (s.oldBlock) facts.push({ id: "old-block", label: `Old block at ${s.oldBlock.base}`, value: s.oldBlock.reachable ? "still referenced by the array" : "unreachable (eligible for collection)" });
     if (kind === "binary-tree") facts.push({ id: "height", label: "Height (edges on the longest root-to-leaf path)", value: treeHeight(s.items, s.root) });
   }
