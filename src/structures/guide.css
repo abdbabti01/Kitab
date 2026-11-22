@@ -1,0 +1,79 @@
+/* Structure guide (Playground and data-structures lessons). Shared tokens only; works on light and lab themes. */
+.dsg { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.dsg h2, .dsg h3 { margin: 0; font-size: 1.05rem; }
+.dsg h4 { margin: 0 0 6px; font-size: 0.95rem; }
+.dsg h4 small { font-weight: 500; color: var(--muted); }
+.dsg p { margin: 0 0 8px; line-height: 1.55; }
+.dsg-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.dsg-langs { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.dsg-langs button { min-height: 36px; min-width: 56px; padding: 0 12px; border: 0; background: var(--surface-2); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.dsg-langs button + button { border-left: 1px solid var(--line); }
+.dsg-langs button[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary-strong); }
+.dsg-tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--line); }
+.dsg-tabs [role="tab"] { min-height: 44px; padding: 0 12px; border: 0; background: none; cursor: pointer; font: inherit; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; }
+.dsg-tabs [role="tab"][aria-selected="true"] { color: var(--ink); border-bottom-color: var(--primary); }
+.dsg-tabs [role="tab"]:focus-visible, .dsg-langs button:focus-visible { outline: 2px solid var(--focus, var(--primary)); outline-offset: -2px; }
+.dsg-panel { display: grid; gap: 12px; min-width: 0; }
+.dsg-note { font-size: 0.85rem; color: var(--muted); }
+.dsg-points { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 0.9rem; color: var(--ink-2); }
+
+/* Memory */
+.dsg-memory { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; align-items: start; }
+.dsg-memory table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.dsg-memory caption { text-align: left; font-weight: 700; font-size: 0.8rem; color: var(--muted); padding-bottom: 4px; }
+.dsg-memory th, .dsg-memory td { text-align: left; padding: 4px 6px; border-top: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.dsg-memory th { font-weight: 500; color: var(--ink-2); font-family: var(--mono); font-size: 0.78rem; }
+.dsg-memory td { font-family: var(--mono); font-weight: 650; }
+.dsg-memory tr.is-changed { background: var(--warning-soft); }
+.dsg-memory s { color: var(--muted); font-weight: 400; margin-right: 4px; }
+.dsg-changes { padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 0.88rem; }
+.dsg-runtime ul { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 6px; font-size: 0.9rem; }
+.dsg-basis { display: inline-block; margin-right: 4px; padding: 0 6px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.dsg-basis.is-guaranteed { background: var(--success-soft); color: var(--ink); }
+.dsg-basis.is-implementation { background: var(--warning-soft); color: var(--ink); }
+.dsg-basis.is-concept { background: var(--primary-soft); color: var(--primary-strong); }
+
+/* Overview */
+.dsg-overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 20px; }
+.dsg-overview ul, .dsg-overview ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 0.92rem; }
+
+/* Code */
+.dsg-example { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid var(--line); min-width: 0; }
+.dsg-example header { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dsg-example h4 { margin: 0; }
+.dsg-kind { padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+.dsg-kind.is-library { background: var(--success-soft); }
+.dsg-kind.is-teaching { background: var(--primary-soft); color: var(--primary-strong); }
+.dsg-code, .dsg-output { margin: 0; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--line); overflow-x: auto; font: 0.8rem/1.5 var(--mono); max-width: 100%; }
+.dsg-code { max-height: 420px; overflow-y: auto; }
+.dsg-output-label { margin: 0; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
+.dsg-notes { margin: 0; display: grid; gap: 6px; }
+.dsg-notes div { display: grid; gap: 2px; }
+.dsg-notes dt code { font-size: 0.78rem; overflow-wrap: anywhere; }
+.dsg-notes dd { margin: 0; font-size: 0.88rem; color: var(--ink-2); }
+
+/* Cost */
+.dsg-costs { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.dsg-costs li { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.dsg-costs dl { margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 0.85rem; }
+.dsg-costs dl div { display: flex; gap: 4px; }
+.dsg-costs dt { color: var(--muted); }
+.dsg-costs dd { margin: 0; font-family: var(--mono); font-weight: 700; }
+
+/* Choose */
+.dsg-choose { display: grid; gap: 10px; }
+.dsg-field { display: grid; gap: 4px; font-size: 0.82rem; font-weight: 650; color: var(--ink-2); }
+.dsg-field select { font: inherit; font-weight: 500; min-height: 40px; max-width: 100%; }
+.dsg-choose fieldset { border: 1px solid var(--line); border-radius: var(--radius-sm); margin: 0; padding: 8px 12px; display: grid; gap: 4px; }
+.dsg-choose legend { font-weight: 650; padding: 0 4px; }
+.dsg-option { display: flex; gap: 8px; align-items: center; min-height: 40px; cursor: pointer; }
+.dsg-option input { width: 18px; height: 18px; flex: none; accent-color: var(--primary); }
+.dsg-choose .button { justify-self: start; }
+.dsg-verdict { padding: 10px 12px; border-radius: var(--radius-sm); border: 1px solid var(--line); }
+.dsg-verdict.is-good { border-color: var(--success); background: var(--success-soft); }
+.dsg-verdict.is-workable { border-color: var(--warning); background: var(--warning-soft); }
+.dsg-verdict.is-poor { border-color: var(--danger); background: var(--danger-soft); }
+.dsg-verdict p:last-child { margin: 0; }
+
+.dsg-concept { display: grid; gap: 10px; min-width: 0; }
+.dsg-concept > .dsg-langs { justify-self: start; }

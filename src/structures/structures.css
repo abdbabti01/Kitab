@@ -74,3 +74,24 @@
   .sp-layout.is-guided { grid-template-columns: minmax(0, 1fr); }
   .sp-layout.is-guided .sp-side { display: grid; order: 0; }
 }
+
+/* The guide sits under the stage and the explanation; the setup column runs beside both. */
+.sp-guide { grid-column: 2 / -1; min-width: 0; }
+@media (min-width: 1280px) {
+  /* The second row takes the setup column's extra height, so the guide starts right under the stage. */
+  .sp-layout { grid-template-rows: auto 1fr; }
+  .sp-side { grid-row: span 2; }
+}
+@media (max-width: 1279px) {
+  .sp-guide { grid-column: auto; }
+}
+@media (max-width: 859px) {
+  /* Phones: the run and its explanation, then the controls, then the guide; the guided list last. */
+  .sp-side { grid-row: auto; }
+  .sp-main { display: contents; }
+  .sp-stage { order: 1; }
+  .sp-explain { order: 2; }
+  .sp-setup { order: 3; }
+  .sp-guide { order: 4; }
+  .sp-guided { order: 5; }
+}

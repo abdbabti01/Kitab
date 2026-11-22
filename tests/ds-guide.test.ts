@@ -5,7 +5,7 @@ import test from "node:test";
 import { guideOrder, guides, languages } from "../src/structures/guide/content.ts";
 import { allExamples, examples } from "../src/structures/guide/code.ts";
 import { judge, scenarios } from "../src/structures/guide/choose.ts";
-import { memoryChanges, recursionMemory, structureMemory } from "../src/structures/guide/memory.ts";
+import { memoryChanges, recursionMemory, structureMemory, type MemoryRow } from "../src/structures/guide/memory.ts";
 import { buildDataStructureSimulation, structureInfo, structureKinds } from "../src/visual-engine/data-structures/model.ts";
 import { buildRecursionTimeline } from "../src/visual-engine/engines/execution/recursion-engine.ts";
 import { structureChoices } from "../src/structures/experiments.ts";
@@ -74,14 +74,14 @@ test("the memory table follows the engine: every step's changes are exactly the 
   for (const kind of structureKinds) {
     for (const { id: operation } of structureInfo[kind].operations) {
       const sim = buildDataStructureSimulation({ kind, operation, value: 7, index: 1, ...(kind === "array" ? { values: [1, 2, 3], capacity: 3 } : {}) });
-      let before = null as ReturnType<typeof structureMemory> | null;
+      let before: MemoryRow[] | null = null;
       for (const frame of sim.frames) {
         const rows = structureMemory(kind, frame.snapshot);
         assert.equal(new Set(rows.map((r) => r.key)).size, rows.length, `${kind}.${operation}: duplicate memory keys`);
         const changes = memoryChanges(before, rows);
         if (before) for (const change of changes) {
           const now = rows.find((r) => r.key === change.key);
-          const was = before.find((r) => r.key === change.key);
+          const was: MemoryRow | undefined = before.find((r) => r.key === change.key);
           assert.equal(change.after, now?.value);
           assert.equal(change.before, was?.value);
         }
@@ -105,12 +105,12 @@ test("memory rows: array growth, linked-list relink, BST delete and recursion", 
   assert.equal(sw.find((c) => c.key === "capacity")!.after, "4");
   assert.equal(sw.find((c) => c.key === "ref")!.after, "0x2000");
 
-  const del = buildDataStructureSimulation({ kind: "linked-list", operation: "delete", value: 12 });
+  const del = buildDataStructureSimulation({ kind: "linked-list", operation: "delete", value: 12, index: 0 });
   const unlink = del.frames.findIndex((f) => f.action === "WRITE POINTER");
   const changes = memoryChanges(structureMemory("linked-list", del.frames[unlink - 1].snapshot), structureMemory("linked-list", del.frames[unlink].snapshot));
-  assert.deepEqual(changes.map((c) => c.key).sort(), ["node-1:next", "node-2:next"], "the predecessor's next changes; the unlinked node is marked unreachable");
+  assert.deepEqual(changes.map((c) => c.key).sort(), ["node-1:next", "node-2:reach"], "the predecessor's next changes; the unlinked node is marked unreachable");
 
-  const tree = buildDataStructureSimulation({ kind: "binary-tree", operation: "delete", value: 8 });
+  const tree = buildDataStructureSimulation({ kind: "binary-tree", operation: "delete", value: 8, index: 0 });
   const copy = tree.frames.findIndex((f) => f.action === "WRITE VALUE");
   const valueChange = memoryChanges(structureMemory("binary-tree", tree.frames[copy - 1].snapshot), structureMemory("binary-tree", tree.frames[copy].snapshot));
   assert.deepEqual(valueChange.map((c) => [c.key, c.before, c.after]), [["root", "node 8", "node 10"], ["tree-0:value", "8", "10"]]);
@@ -121,4 +121,17 @@ test("memory rows: array growth, linked-list relink, BST delete and recursion", 
   assert.equal(stack.length, 4, "main() plus three frames");
   assert.match(stack[1].value, /waiting for factorial\(2\)/);
   assert.match(stack[3].value, /returning 1/);
+});
+
+test("the code-language preference: validated on read, unknown or corrupt values fall back, failed writes are survivable", async () => {
+  const { LANGUAGE_KEY, readLanguage, writeLanguage } = await import("../src/structures/guide/language.ts");
+  const store = new Map<string, string>();
+  const storage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v) };
+  assert.equal(readLanguage(storage), "csharp");
+  assert.ok(writeLanguage(storage, "python"));
+  assert.equal(store.get(LANGUAGE_KEY), "python");
+  assert.equal(readLanguage(storage), "python");
+  for (const bad of ["{", "rust", "", "PYTHON"]) { store.set(LANGUAGE_KEY, bad); assert.equal(readLanguage(storage), "csharp"); }
+  assert.equal(readLanguage({ getItem: () => { throw new Error("blocked"); } }), "csharp");
+  assert.equal(writeLanguage({ setItem: () => { throw new Error("quota"); } }, "java"), false);
 });

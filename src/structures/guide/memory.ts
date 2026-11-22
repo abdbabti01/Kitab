@@ -22,7 +22,7 @@ export function structureMemory(kind: StructureKind, s: StructureSnapshot): Memo
     // Slots are keyed by their block, so filling a new block never reads as overwriting the old one.
     const block = (base: string, items: StructureSnapshot["items"], capacity: number, group: string) => {
       items.forEach((item, i) => add(`${base}[${i}]`, group, `[${i}] at ${item.address}`, item.value));
-      for (let i = items.length; i < capacity; i++) add(`${base}[${i}]`, group, `[${i}]`, "spare (not part of the array)");
+      for (let i = items.length; i < capacity; i++) add(`${base}[${i}]`, group, `[${i}]`, "spare");
     };
     if (old) {
       add(`${old.base}:status`, `Old block at ${old.base}`, "status", old.reachable ? "the array refers to it" : "unreachable: nothing refers to it");
@@ -35,7 +35,8 @@ export function structureMemory(kind: StructureKind, s: StructureSnapshot): Memo
     add("head", "Variables", "HEAD", live[0]?.address ?? "NULL");
     for (const item of s.items) {
       add(`${item.id}:value`, "Nodes (any address)", `node at ${item.address} · value`, item.value);
-      add(`${item.id}:next`, "Nodes (any address)", `node at ${item.address} · next`, `${item.next ?? "NULL"}${item.detached ? " (not reachable from HEAD)" : ""}`);
+      add(`${item.id}:next`, "Nodes (any address)", `node at ${item.address} · next`, item.next ?? "NULL");
+      add(`${item.id}:reach`, "Nodes (any address)", `node at ${item.address} · reachable from HEAD`, item.detached ? "no" : "yes");
     }
   } else if (kind === "stack" || kind === "queue") {
     add("length", "Variables", "length", s.items.length);

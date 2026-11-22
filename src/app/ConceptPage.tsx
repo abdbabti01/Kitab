@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ArrowRight, Info } from "lucide-react";
 import { chapters, type Chapter } from "../content/chapters.ts";
 import { locate } from "../learning/tracks.ts";
@@ -8,6 +8,10 @@ import { ReadingWalkthrough } from "../ui/ReadingWalkthrough.tsx";
 import { visualizationForChapter } from "../visual-engine/lessons/curated-visualizations.ts";
 import { linkProps } from "./router.ts";
 import { PathNext } from "./NetworkingPath.tsx";
+
+// Data-structures lessons add the structure guide (what and why, memory, C#/Java/Python, cost, choosing). Loaded only there.
+const ConceptGuide = lazy(() => import("../structures/StructureGuide.tsx").then((m) => ({ default: m.ConceptGuide })));
+const guideSlugs = new Set(["arrays", "linked-lists", "hash-tables", "trees", "recursion", "data-structures"]);
 
 /** Curated concept walkthrough. Honest label: it is illustrative unless a mission computes it. */
 export function ConceptPage({ chapter }: { chapter: Chapter }) {
@@ -34,6 +38,14 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
             <p className="muted small">Described, not simulated.</p>
           </aside>
         </section>
+
+        {guideSlugs.has(chapter.slug) && (
+          <section className="section" aria-labelledby="go-deeper">
+            <h2 id="go-deeper">Go deeper</h2>
+            <p className="muted">Memory, real-world use, code in C#, Java and Python, and what each operation costs. Optional: nothing here is required to finish the lesson.</p>
+            <Suspense fallback={<p className="muted">Loading…</p>}><ConceptGuide slug={chapter.slug} /></Suspense>
+          </section>
+        )}
 
         {related.length > 0 && (
           <section className="section" aria-labelledby="practice">
