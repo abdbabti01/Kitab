@@ -135,3 +135,12 @@ test("the code-language preference: validated on read, unknown or corrupt values
   assert.equal(readLanguage({ getItem: () => { throw new Error("blocked"); } }), "csharp");
   assert.equal(writeLanguage({ setItem: () => { throw new Error("quota"); } }, "java"), false);
 });
+
+test("the guide's Engineering Lab links point at labs that exist", async () => {
+  const { unitLabs } = await import("../src/lab/links.ts");
+  const source = (await import("node:fs")).readFileSync(new URL("../src/structures/StructureGuide.tsx", import.meta.url), "utf8");
+  const paths = [...source.matchAll(/path: "(\/lab\/[^"]+)"/g)].map((m) => m[1]);
+  const known = new Set(Object.values(unitLabs).flat().map((lab) => lab.path));
+  assert.ok(paths.length >= 4);
+  for (const path of paths) assert.ok(known.has(path), path);
+});

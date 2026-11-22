@@ -42,7 +42,7 @@ const StructureGuide = lazy(() => import("./StructureGuide.tsx").then((m) => ({ 
 
 /** What the model leaves out, per structure. Shown with every run so no step is mistaken for real memory. */
 const limits: Record<StructureKind | "recursion", string> = {
-  array: "A dynamic array of 4-byte integers: length counts elements, capacity counts slots (8 unless you choose). A full block doubles: allocate, copy every element, switch the reference. Addresses are invented (first block 0x1000, grown block 0x2000): in a real program the runtime's allocator picks them. Shrinking and memory reclamation are not modelled.",
+  array: "A dynamic array whose integers sit in 4-byte slots: length counts elements, capacity counts slots (8 unless you choose). A full block doubles: allocate, copy every element, switch the reference. Addresses are invented (first block 0x1000, grown block 0x2000): in a real program the runtime's allocator picks them. Shrinking and memory reclamation are not modelled.",
   "linked-list": "A singly linked list. Addresses are illustrative, and memory reclamation (garbage collection or free) is not simulated. In a real program the language runtime's allocator (or garbage collector) gets memory from the operating system and picks the addresses; the program never chooses them.",
   stack: "Backed by an array with a TOP marker; capacity growth is not shown.",
   queue: "Backed by an array with FRONT and REAR markers; capacity growth and wrap-around are not shown.",
@@ -296,7 +296,8 @@ function Workbench({ setup, trace, playback, locked, onKeep }: { setup: Setup; t
       )}
       <div className="sp-guide">
         <Suspense fallback={<p className="sp-panel sp-help">Loading the guide…</p>}>
-          <StructureGuide id={setup.structure} step={step} />
+          {/* Before a prediction the guide shows the model, not this run's step count or memory. */}
+          <StructureGuide id={setup.structure} step={locked ? undefined : step} />
         </Suspense>
       </div>
     </div>

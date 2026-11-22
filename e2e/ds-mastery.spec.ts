@@ -145,3 +145,12 @@ test("no horizontal page overflow with the guide open on any tab", async ({ page
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   }
 });
+
+test("before a guided prediction, the guide reveals nothing about the run", async ({ page }) => {
+  await page.goto("/practice/structures?experiment=ds-array-insert");
+  await expect(page.getByRole("button", { name: "Test my prediction" })).toBeVisible();
+  await expect(guide(page)).toContainText("The memory model");
+  await expect(guide(page)).not.toContainText("This step in memory");
+  await guide(page).getByRole("tab", { name: "Cost" }).click();
+  await expect(guide(page)).not.toContainText("This run, counted by the engine");
+});

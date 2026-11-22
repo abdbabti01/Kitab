@@ -5,7 +5,17 @@ import { examples, type CodeExample } from "./guide/code.ts";
 import { judge, scenarios, verdictWords } from "./guide/choose.ts";
 import type { MemoryChange, MemoryRow } from "./guide/memory.ts";
 import { isLang, LANGUAGE_KEY, readLanguage, writeLanguage } from "./guide/language.ts";
+import { linkProps } from "../app/router.ts";
 import "./guide.css";
+
+/** The Engineering Lab where each structure is written and run for real (in JavaScript, the browser's language). */
+const labFor: Partial<Record<GuideId, { title: string; path: string }>> = {
+  array: { title: "Insert, remove and search in an array", path: "/lab/structures/arrays" },
+  stack: { title: "Stacks and queues", path: "/lab/structures/stacks-queues" },
+  queue: { title: "Stacks and queues", path: "/lab/structures/stacks-queues" },
+  recursion: { title: "Recursion and a real stack overflow", path: "/lab/structures/recursion" },
+  "binary-tree": { title: "Debug a binary search that never finishes", path: "/lab/structures/debugging" },
+};
 
 export type GuideTab = "memory" | "overview" | "code" | "cost" | "choose";
 /** The current Playground step, when there is one: its conceptual memory and what the engine counted so far. */
@@ -48,7 +58,7 @@ function Runtime({ guide, lang }: { guide: Guide; lang: Lang }) {
   const runtime = guide.runtime[lang];
   const label = languages.find((l) => l.id === lang)!.label;
   return (
-    <section className="dsg-runtime" aria-label={`What ${label} actually stores`}>
+    <section className="dsg-runtime">
       <h4>What {label} actually stores <small>({runtime.types})</small></h4>
       <ul>
         {runtime.facts.map((fact) => (
@@ -65,7 +75,7 @@ function MemoryTab({ guide, step, lang }: { guide: Guide; step?: GuideStep; lang
   return (
     <>
       {step ? (
-        <section aria-label="This step in memory">
+        <section>
           <h4>This step in memory <small>conceptual model · {step.title}</small></h4>
           <p className="dsg-changes" aria-live="polite">
             {step.changes.length
@@ -95,7 +105,7 @@ function MemoryTab({ guide, step, lang }: { guide: Guide; step?: GuideStep; lang
           )}
         </section>
       ) : (
-        <section aria-label="The memory model">
+        <section>
           <h4>The memory model</h4>
           <p>{guide.memory.summary}</p>
         </section>
@@ -156,6 +166,9 @@ function CodeTab({ id, lang }: { id: GuideId; lang: Lang }) {
     <>
       <p className="dsg-note">Each program was compiled and run with .NET, Java and Python, and prints exactly what is shown. Kitab does not run C#, Java or Python in your browser.</p>
       {examples[id][lang].map((example) => <Example key={example.id} example={example} />)}
+      {labFor[id] && (
+        <p className="dsg-note"><b>Write and run it yourself:</b> <a {...linkProps(labFor[id]!.path)}>{labFor[id]!.title}</a> in the Engineering Lab. Lab exercises run JavaScript in your browser; the ideas carry over to C#, Java and Python.</p>
+      )}
     </>
   );
 }
