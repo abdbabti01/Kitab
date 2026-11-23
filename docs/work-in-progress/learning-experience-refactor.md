@@ -46,9 +46,16 @@ Guided Predict → Experiment → Explain cycles stay where they are: they are a
 - [x] System Design lesson / Architecture Playground hand-off
 - [x] Playground → Practice, Practice → Lab links
 - [x] Unit tests (`tests/learning-modes.test.ts`), e2e (`e2e/learning-modes.spec.ts`), updated SD/DS specs
-- [ ] Full Playwright suite on all projects, build, bundle measurement, screenshots
-- [ ] Docs (`docs/LEARNING-MODES.md`), final commit and push
+- [x] Full Playwright suite on all projects (1448 passed, 48 skipped, 0 failed), `npm run build` (761 unit tests), bundle measurement, screenshots (`docs/screenshots/learning-modes/`)
+- [x] Docs (`docs/LEARNING-MODES.md`), final commit and push
 
-## Next action
+## Status
 
-Run `npm run build` and `npx playwright test` (all projects), fix any failures, measure bundles, then write docs and push.
+Complete on the branch; awaiting PR review (not merged, not deployed).
+
+## Bundle (vite build, main ce180e5 → branch)
+
+- Main `index` JS 462.51 → 462.62 kB (gzip 142.97 → 143.02); CSS 41.60 → 44.35 kB (gzip 9.14 → 9.69).
+- `ConceptPage` 12.73 → 29.18 kB (gzip 4.70 → 10.37): mostly the new lesson text; demonstrations load lazily
+  (`LessonDemo` 1.68 kB, `RecursionDemo` 2.40 kB) on the concepts that have one.
+- `ArchitectureLessonPage` 59.82 → 37.90 kB; `ArchitecturePlayground` 11.30 → 14.10 kB; `StructuresPlayground` 41.64 → 42.22 kB.
