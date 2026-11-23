@@ -1,7 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { ExploreGuide } from "../../ui/ExploreGuide.tsx";
 import { cyclesFor } from "../../learning/cycle-catalog.ts";
-import { Copy, Download, FolderOpen, Plus, Trash2, Upload, Workflow } from "lucide-react";
+import { ArrowLeft, Copy, Download, FolderOpen, Plus, Trash2, Upload, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
 import { linkProps } from "../../app/router.ts";
 import type { Design } from "../model.ts";
@@ -9,6 +9,7 @@ import { DesignFormatError } from "../validate.ts";
 import { editorReducer, initEditor } from "../editor.ts";
 import { deleteDesign, duplicateDesign, exportDesign, importDesign, loadDesigns, MAX_IMPORT_BYTES, newDesignId, saveDesign, updateDesign, type SavedDesigns } from "../persistence.ts";
 import { findTemplate, templates } from "../templates.ts";
+import { findArchitectureLesson, lessonDesign } from "../lessons.ts";
 import { Workspace } from "./Workspace.tsx";
 import "./architecture.css";
 
@@ -22,12 +23,32 @@ function fromTemplate(templateId: string): Design {
   return { ...template.design(), id: newDesignId(), name: template.id === "blank" ? "Untitled design" : template.title, createdAt: now, updatedAt: now };
 }
 
+/** ?lesson=&variant=&rate=: a lesson experiment's design, built by the lesson's own code (lessonDesign). */
+function lessonQuery(query: URLSearchParams) {
+  const id = query.get("lesson") ?? "";
+  const variantId = query.get("variant") ?? "";
+  const design = lessonDesign(id, variantId, Number(query.get("rate")));
+  if (!design) return null;
+  const lesson = findArchitectureLesson(id)!;
+  return { lesson, design, label: lesson.experiment.variants.find((v) => v.id === variantId)!.label };
+}
+
 /** Which design to open: the one in the address, a new one from a template, or the most recent. */
 function initial(saved: SavedDesigns): Design | null {
   const query = new URLSearchParams(window.location.search);
   const template = query.get("template");
   if (template && findTemplate(template)) {
     const design = fromTemplate(template);
+    saveDesign(safeStorage(), design);
+    setQuery(design.id);
+    return design;
+  }
+  // From a lesson: the lesson experiment's own design and rate, opened as a new design of the learner's own.
+  const fromLesson = lessonQuery(query);
+  if (fromLesson) {
+    const now = new Date().toISOString();
+    const design = { ...fromLesson.design, id: newDesignId(), name: `${fromLesson.lesson.title}: ${fromLesson.label}`.slice(0, 80), createdAt: now, updatedAt: now };
+    // Saved like a template's copy; if storage refuses it, the design still opens for this visit.
     saveDesign(safeStorage(), design);
     setQuery(design.id);
     return design;
@@ -55,6 +76,8 @@ function Templates({ onPick }: { onPick: (id: string) => void }) {
 export function ArchitecturePlayground() {
   const storage = safeStorage();
   const [saved, setSaved] = useState(() => loadDesigns(storage));
+  // Read before initial() replaces the address: the lesson this design was opened from, for the way back.
+  const [lesson] = useState(() => lessonQuery(new URLSearchParams(window.location.search))?.lesson);
   const [first] = useState(() => initial(saved));
   const [state, dispatch] = useReducer(editorReducer, first, (d) => initEditor(d ?? fromTemplate("blank")));
   const [open, setOpen] = useState(Boolean(first));
@@ -199,6 +222,7 @@ export function ArchitecturePlayground() {
           </div>
         </div>
         <p className="heading-links">
+          {lesson && <><a {...linkProps(`/learn/system-design/${lesson.id}#experiment-title`)}><ArrowLeft aria-hidden="true" /> Back to the lesson</a> · </>}
           <a {...linkProps("/learn/system-design")}>System Design track</a> · <a {...linkProps("/practice?track=system-design")}>Design challenges</a> · <a {...linkProps("/practice/architecture/labs")}>Architecture labs</a>
         </p>
       </header>

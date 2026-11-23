@@ -2,7 +2,8 @@ import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { ExploreGuide } from "../ui/ExploreGuide.tsx";
 import { TermChips } from "../ui/Terms.tsx";
 import { terms } from "../learning/glossary.ts";
-import { ArrowLeft, Binary, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, Binary, GraduationCap, RotateCcw, Save } from "lucide-react";
+import { dataStructuresPath } from "../learning/tracks.ts";
 import "../learning/engines/eager.ts";
 import { buildTrace } from "../learning/registry.ts";
 import type { Fact, Trace } from "../learning/types.ts";
@@ -17,6 +18,7 @@ import type { GuideStep } from "./StructureGuide.tsx";
 import {
   defaultSetup,
   engineParams,
+  unitForStructure,
   experiments,
   fixtureFor,
   inputsFor,
@@ -204,6 +206,20 @@ function StepFacts({ facts, selected }: { facts: Fact[]; selected: string | null
   );
 }
 
+/** After a run: the track's missions for this structure, where understanding is tested rather than explored. */
+function PractiseNext({ structure }: { structure: Setup["structure"] }) {
+  const stage = dataStructuresPath.find((s) => s.id === unitForStructure[structure]);
+  // Trees and graphs share a unit; each structure points to its own missions.
+  const missions = (stage?.practise ?? []).filter((m) => structure === "graph" ? m.id.startsWith("graph") : structure === "binary-tree" ? !m.id.startsWith("graph") : true);
+  if (!missions.length) return null;
+  return (
+    <p className="sp-practise">
+      <GraduationCap aria-hidden="true" />
+      <span>Test your understanding in a mission: {missions.map((m, i) => <span key={m.id}>{i > 0 && ", "}<a {...linkProps(m.path)}>{m.title}</a></span>)}. Missions check your answers; exploring here records nothing.</span>
+    </p>
+  );
+}
+
 function Explanation({ trace, index, setup, selected, onKeep }: { trace: Trace; index: number; setup: Setup; selected: string | null; onKeep?: () => void }) {
   const frame = trace.frames[index];
   const last = index === trace.frames.length - 1;
@@ -224,6 +240,7 @@ function Explanation({ trace, index, setup, selected, onKeep }: { trace: Trace; 
           <p><b>Result:</b> {String(trace.outcome.result)}</p>
           {"complexity" in trace.outcome && <p><b>Cost:</b> {String(trace.outcome.complexity)}</p>}
           {onKeep && <button type="button" className="button" onClick={onKeep}><Save aria-hidden="true" /> Start the next operation from this result</button>}
+          <PractiseNext structure={setup.structure} />
         </div>
       )}
       <details className="sp-details">

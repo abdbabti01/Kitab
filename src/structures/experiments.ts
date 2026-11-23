@@ -138,3 +138,15 @@ export const structureChoices: { id: StructureKind | "recursion"; label: string 
 ];
 
 export const fixtureFor = (kind: StructureKind) => (kind === "graph" ? [] : [...fixtures[kind]]);
+
+/** The data-structures track unit that teaches and practises each structure (the Playground's way to Practice). */
+export const unitForStructure: Record<StructureKind | "recursion", string> = {
+  array: "arrays",
+  "linked-list": "linked-lists",
+  "hash-table": "hash-tables",
+  "binary-tree": "trees",
+  graph: "trees",
+  recursion: "recursion",
+  stack: "choose-structure",
+  queue: "choose-structure",
+};

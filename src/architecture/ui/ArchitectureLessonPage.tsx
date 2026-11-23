@@ -3,15 +3,14 @@ import { TermChips } from "../../ui/Terms.tsx";
 import { terms } from "../../learning/glossary.ts";
 import { ArrowRight, FlaskConical, Play, Workflow } from "lucide-react";
 import { safeStorage } from "../../learning/progress.ts";
-import { linkProps, navigate } from "../../app/router.ts";
-import { findArchitectureLesson, type ArchitectureLesson } from "../lessons.ts";
+import { linkProps } from "../../app/router.ts";
+import { findArchitectureLesson, lessonDesign, lessonPlaygroundPath, type ArchitectureLesson } from "../lessons.ts";
 import { findChallenge } from "../challenges.ts";
 import { challengePath } from "../catalog.ts";
 import { simulate, type SimRun } from "../simulate.ts";
 import { summarize } from "../metrics.ts";
 import { findings as findingsOf } from "../explain.ts";
 import { recordExperiment } from "../progress.ts";
-import { newDesignId, saveDesign } from "../persistence.ts";
 import { DesignCanvas, type Selection } from "./DesignCanvas.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { RunView, type TimelineFocus } from "./SimulationPanel.tsx";
@@ -55,24 +54,41 @@ function GuidedRun({ lesson, cycle }: { lesson: ArchitectureLesson; cycle: Cycle
   );
 }
 
-/** The lesson's experiment: a guided prediction first when the lesson has one, or free runs of any design and rate. */
+/**
+ * The lesson's experiment. A lesson with a guided prediction runs that, and leaves free exploration to the
+ * Architecture Playground, opened on the lesson's own designs; a lesson without one keeps its free runs here, since
+ * they are its experiment (and what completes it).
+ */
 function Experiment({ lesson }: { lesson: ArchitectureLesson }) {
   const cycle = cycleForLesson(lesson.id);
-  const [mode, setMode] = useState<"guided" | "free">(cycle ? "guided" : "free");
   return (
     <section className="experiment lab-theme" aria-labelledby="experiment-title">
       <h2 id="experiment-title"><FlaskConical aria-hidden="true" /> {cycle ? "Experiment" : "Guided experiment"}</h2>
-      {cycle && (
-        <div className="experiment-mode">
-          <div className="mode-switch" role="group" aria-label="Experiment mode">
-            <button type="button" aria-pressed={mode === "guided"} onClick={() => setMode("guided")}>Predict, then test</button>
-            <button type="button" aria-pressed={mode === "free"} onClick={() => setMode("free")}>Explore freely</button>
-          </div>
-          <p className="section-lead">{mode === "guided" ? "Commit to a prediction, run the simulator, then explain what it recorded." : "Pick any design and rate and run it. Nothing is judged."}</p>
-        </div>
-      )}
-      {mode === "guided" && cycle ? <GuidedRun key={cycle.id} lesson={lesson} cycle={cycle} /> : <FreeExperiment lesson={lesson} />}
+      {cycle ? (
+        <>
+          <p className="section-lead">Commit to a prediction, run the simulator, then explain what it recorded.</p>
+          <GuidedRun key={cycle.id} lesson={lesson} cycle={cycle} />
+          <ExploreDesigns lesson={lesson} />
+        </>
+      ) : <FreeExperiment lesson={lesson} />}
     </section>
+  );
+}
+
+/** Free exploration of the lesson's designs, in the Playground: each opens there as a design of the learner's own. */
+function ExploreDesigns({ lesson }: { lesson: ArchitectureLesson }) {
+  const { experiment } = lesson;
+  const rates = experiment.rates.map((r) => r.toLocaleString("en")).join(", ");
+  return (
+    <div className="explore-designs">
+      <h3><Workflow aria-hidden="true" /> Explore freely in the Architecture Playground</h3>
+      <p>Open one of this lesson's designs, then change the request rate (this lesson uses {rates} per second), add servers or change any setting, and run it as often as you like. Nothing is judged.</p>
+      <ul>
+        {experiment.variants.map((v) => (
+          <li key={v.id}><a {...linkProps(lessonPlaygroundPath(lesson.id, v.id, experiment.rates[0]))}>{v.label} <ArrowRight aria-hidden="true" /></a></li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -84,11 +100,7 @@ function FreeExperiment({ lesson }: { lesson: ArchitectureLesson }) {
   const [run, setRun] = useState<SimRun | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [focus, setFocus] = useState<TimelineFocus>(null);
-  const design = useMemo(() => {
-    const d = experiment.variants.find((v) => v.id === variantId)!.design();
-    for (const node of d.nodes) if (node.kind === "client") (node.config as { rps: number }).rps = rate;
-    return d;
-  }, [variantId, rate, experiment]);
+  const design = useMemo(() => lessonDesign(lesson.id, variantId, rate)!, [variantId, rate, lesson.id]);
   const playback = useRunPlayback(run);
   const summary = useMemo(() => (run ? summarize(run) : null), [run]);
   const findings = useMemo(() => (run && summary ? findingsOf(run, summary) : []), [run, summary]);
@@ -98,11 +110,6 @@ function FreeExperiment({ lesson }: { lesson: ArchitectureLesson }) {
     setRun(simulate(design));
     setFocus(null);
     recordExperiment(safeStorage(), lesson.id);
-  };
-  const openInPlayground = () => {
-    const now = new Date().toISOString();
-    const copy = { ...design, id: newDesignId(), name: `${lesson.title}: ${experiment.variants.find((v) => v.id === variantId)!.label}`.slice(0, 80), createdAt: now, updatedAt: now };
-    if (saveDesign(safeStorage(), copy)) navigate(`/practice/architecture?design=${copy.id}`);
   };
 
   return (
@@ -123,7 +130,7 @@ function FreeExperiment({ lesson }: { lesson: ArchitectureLesson }) {
           </select>
         </div>
         <button type="button" className="button primary" onClick={start}><Play aria-hidden="true" /> {run ? "Run again" : "Run"}</button>
-        <button type="button" className="button" onClick={openInPlayground}><Workflow aria-hidden="true" /> Open in the Playground</button>
+        <a className="button" {...linkProps(lessonPlaygroundPath(lesson.id, variantId, rate))}><Workflow aria-hidden="true" /> Open in the Playground</a>
       </div>
       <ol className="experiment-steps">{experiment.steps.map((s) => <li key={s}>{s}</li>)}</ol>
       <div className="experiment-stage">

@@ -335,3 +335,20 @@ function shortenerDesign(kind: "simple" | "cache" | "nosql") {
 }
 
 export const findArchitectureLesson = (id: string) => architectureLessons.find((lesson) => lesson.id === id);
+
+/**
+ * One of a lesson experiment's designs at one of its request rates: what the lesson runs, and what the Playground
+ * opens from the lesson (?lesson=&variant=&rate=), so both are built by the same code. Unknown ids or rates: null.
+ */
+export function lessonDesign(lessonId: string, variantId: string, rate: number): Design | null {
+  const lesson = findArchitectureLesson(lessonId);
+  const variant = lesson?.experiment.variants.find((v) => v.id === variantId);
+  if (!lesson || !variant || !lesson.experiment.rates.includes(rate)) return null;
+  const design = variant.design();
+  for (const node of design.nodes) if (node.kind === "client") (node.config as { rps: number }).rps = rate;
+  return design;
+}
+
+/** The Playground address that opens a lesson experiment's design. */
+export const lessonPlaygroundPath = (lessonId: string, variantId: string, rate: number) =>
+  `/practice/architecture?${new URLSearchParams({ lesson: lessonId, variant: variantId, rate: String(rate) })}`;

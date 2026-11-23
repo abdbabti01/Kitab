@@ -1,4 +1,5 @@
-import { ArrowRight, Binary, FlaskConical, Waypoints } from "lucide-react";
+import { ArrowRight, Binary, FlaskConical, SquareTerminal, Waypoints } from "lucide-react";
+import { unitLabs } from "../lab/links.ts";
 import { cyclesFor } from "../learning/cycle-catalog.ts";
 import type { Activity } from "../learning/networking-path.ts";
 import { locate, unitPath } from "../learning/tracks.ts";
@@ -11,14 +12,16 @@ const links = (list: Activity[]) => list.map((a, i) => <span key={a.id}>{i > 0 &
  * The end of every step: what follows it in its track, the unit's practice after a learn step, and the way back
  * to the roadmap. It never reads progress: it only points the way, so nobody has to go back to Home.
  */
-export function PathNext({ id }: { id: string }) {
+export function PathNext({ id, playground: showPlayground = true }: { id: string; /** false when the page already opens the Playground itself. */ playground?: boolean }) {
   const at = locate(id);
   if (!at) return null;
   // Networking steps point to the Playground: this unit's starter network, or a free one.
   const starter = at.stage.learn.find((a) => a.id.startsWith("starter:"));
-  const playground = at.track.id === "networking" && !id.startsWith("starter:") && at.next;
+  const playground = showPlayground && at.track.id === "networking" && !id.startsWith("starter:") && at.next;
   // Data-structures steps open this unit's experiment, already set up, with a way back here.
-  const experiment = at.track.id === "data-structures" ? experimentForUnit(at.stage.id) : undefined;
+  const experiment = showPlayground && at.track.id === "data-structures" ? experimentForUnit(at.stage.id) : undefined;
+  // After practising, a real implementation in the Engineering Lab, where this unit has one (never from a lab itself).
+  const labs = at.role === "practise" && !id.startsWith("lab:") ? unitLabs[`${at.track.id}/${at.stage.id}`] ?? [] : [];
   // This unit's guided experiments (predict, then test), opened set up in the Playground, with a way back here.
   const predict = at.track.id === "data-structures" || at.track.id === "networking" ? cyclesFor(at.track.id, at.stage.id) : [];
   const back = (path: string) => (at.track.id === "data-structures" ? `${path}&from=${encodeURIComponent(window.location.pathname)}` : path);
@@ -42,6 +45,12 @@ export function PathNext({ id }: { id: string }) {
         <p className="path-predict">
           <FlaskConical aria-hidden="true" />
           <span>Predict, then test: {predict.map((c, i) => <span key={c.id}>{i > 0 && ", "}<a {...linkProps(back(c.path))}>{c.title}</a></span>)}. Commit to a prediction, run it, then explain what the run shows.</span>
+        </p>
+      )}
+      {labs.length > 0 && (
+        <p className="path-lab">
+          <SquareTerminal aria-hidden="true" />
+          <span>Try a real implementation: {labs.map((lab, i) => <span key={lab.path}>{i > 0 && ", "}<a {...linkProps(lab.path)}>{lab.title}</a></span>)}. Real code or real requests, run in the Engineering Lab.</span>
         </p>
       )}
       <div className="actions">
