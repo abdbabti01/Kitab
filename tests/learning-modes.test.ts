@@ -92,7 +92,7 @@ test("Learn pages no longer mount the full simulator: data-structures concepts u
     for (const heavy of ["PlaybackBar", "usePlayback", 'type="range"', "StructureGuide", "SetupPanel", "<select"]) assert.ok(!source.includes(heavy), `${file} uses ${heavy}`);
   }
   // A check and a demonstration record nothing: Learn pages only record the visit (App.tsx), as before.
-  for (const file of ["src/ui/UnderstandingCheck.tsx", "src/ui/LessonDemo.tsx", "src/ui/RecursionDemo.tsx", "src/learning/concept-learn.ts", "src/app/ConceptPage.tsx"]) {
+  for (const file of ["src/ui/UnderstandingCheck.tsx", "src/ui/ExploreLink.tsx", "src/ui/LessonDemo.tsx", "src/ui/RecursionDemo.tsx", "src/learning/concept-learn.ts", "src/app/ConceptPage.tsx"]) {
     assert.ok(!/localStorage|safeStorage|record[A-Z]/.test(read(file)), `${file} writes progress`);
   }
 });

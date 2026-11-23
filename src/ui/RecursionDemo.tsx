@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { recursionSteps, type ConceptLearn } from "../learning/concept-learn.ts";
 import type { RecursionSetup } from "../structures/experiments.ts";
-import { ExploreLink } from "./LessonDemo.tsx";
+import { ExploreLink } from "./ExploreLink.tsx";
 
 /**
  * The recursion lesson's one illustration: the call sequence of a fixed example, a call or a return per step, beside

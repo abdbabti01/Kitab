@@ -7,8 +7,7 @@ import { conceptLearn, exploreFor, type ConceptLearn } from "../learning/concept
 import { isRecursion } from "../structures/experiments.ts";
 import { LearningHeading } from "../ui/LearningHeading.tsx";
 import { ReadingWalkthrough } from "../ui/ReadingWalkthrough.tsx";
-import { ExploreLink, LessonDemo } from "../ui/LessonDemo.tsx";
-import { RecursionDemo } from "../ui/RecursionDemo.tsx";
+import { ExploreLink } from "../ui/ExploreLink.tsx";
 import { UnderstandingCheck } from "../ui/UnderstandingCheck.tsx";
 import { visualizationForChapter } from "../visual-engine/lessons/curated-visualizations.ts";
 import { linkProps } from "./router.ts";
@@ -16,6 +15,9 @@ import { PathNext } from "./NetworkingPath.tsx";
 
 // Data-structures lessons add the structure guide (what and why, memory, C#/Java/Python, cost, choosing). Loaded only there.
 const ConceptGuide = lazy(() => import("../structures/StructureGuide.tsx").then((m) => ({ default: m.ConceptGuide })));
+// A demonstration runs the Playground's engine and scene: loaded only by the concepts that have one.
+const LessonDemo = lazy(() => import("../ui/LessonDemo.tsx").then((m) => ({ default: m.LessonDemo })));
+const RecursionDemo = lazy(() => import("../ui/RecursionDemo.tsx").then((m) => ({ default: m.RecursionDemo })));
 const guideSlugs = new Set(["arrays", "linked-lists", "hash-tables", "trees", "recursion", "data-structures"]);
 
 type Section = NonNullable<ConceptLearn["sections"]>[number];
@@ -64,7 +66,10 @@ export function ConceptPage({ chapter }: { chapter: Chapter }) {
         {learn.demo ? (
           <section className="section" aria-labelledby="see-it">
             <h2 id="see-it">{isRecursion(learn.demo) ? `Follow ${learn.demo.fn}(${learn.demo.n})` : "See it happen"}</h2>
-            {isRecursion(learn.demo) ? <RecursionDemo setup={learn.demo} explore={explore} /> : <LessonDemo setup={learn.demo} explore={explore} />}
+            {/* The fallback keeps the demonstration's space, so the page doesn't jump when it arrives. */}
+            <Suspense fallback={<div className="lesson-demo card demo-loading"><p className="muted">Loading the demonstration…</p></div>}>
+              {isRecursion(learn.demo) ? <RecursionDemo setup={learn.demo} explore={explore} /> : <LessonDemo setup={learn.demo} explore={explore} />}
+            </Suspense>
             <aside className="what-if">
               <h3>What if: {chapter.experiment.toLowerCase()}?</h3>
               <p>{chapter.changed}</p>

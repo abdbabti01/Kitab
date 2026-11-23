@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { ArrowRight, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import "../learning/engines/eager.ts";
 import { buildTrace } from "../learning/registry.ts";
 import { sceneFor } from "../mission/scenes/index.ts";
 import { engineParams, type Setup } from "../structures/experiments.ts";
-import { linkProps } from "../app/router.ts";
+import { ExploreLink } from "./ExploreLink.tsx";
 import type { ConceptLearn } from "../learning/concept-learn.ts";
 
 /**
@@ -41,15 +41,5 @@ export function LessonDemo({ setup, explore }: { setup: Setup; explore?: Concept
       </div>
       {explore && <ExploreLink explore={explore} />}
     </div>
-  );
-}
-
-/** The one contextual way from a lesson into its Playground, already set up. */
-export function ExploreLink({ explore }: { explore: NonNullable<ConceptLearn["explore"]> }) {
-  return (
-    <p className="demo-explore">
-      <a className="button" {...linkProps(explore.path)}>{explore.label} <ArrowRight aria-hidden="true" /></a>
-      <span>{explore.detail}</span>
-    </p>
   );
 }
