@@ -28,7 +28,9 @@ test("System Design: predict overload, read the real run, explain it, then test 
   const at200 = runSetup({ lesson: "fundamentals", variant: "base", rate: 200 }).summary;
   const queue = runSetup({ lesson: "fundamentals", variant: "base", rate: 200, change: "queue-500" }).summary;
   await fresh(page, "/learn/system-design/fundamentals");
-  await expect(page.getByRole("button", { name: "Predict, then test" })).toHaveAttribute("aria-pressed", "true");
+  // The guided experiment is the lesson's experiment; there is no second, free-run mode to switch to.
+  await expect(panel(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Explore freely" })).toHaveCount(0);
   // Before the prediction: the design and its settings, but no run, no result and no findings.
   await expect(panel(page)).toContainText("Starting configuration");
   await expect(page.locator(".clock")).toHaveCount(0);
@@ -65,16 +67,16 @@ test("System Design: predict overload, read the real run, explain it, then test 
   await expect(page.getByRole("link", { name: /Clients, servers and databases/ }).locator(".status-chip")).toHaveText("Completed");
 });
 
-test("System Design: free exploration is one switch away and unchanged", async ({ page }) => {
+test("System Design: free exploration of the lesson's designs is in the Playground, one link away", async ({ page }) => {
   await fresh(page, "/learn/system-design/scalability");
-  await page.getByRole("button", { name: "Explore freely" }).click();
+  await expect(panel(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Explore freely" })).toHaveCount(0);
+  await page.locator(".explore-designs").getByRole("link", { name: /One API server, no load balancer/ }).click();
+  await expect(page.getByRole("heading", { name: "Architecture Playground" })).toBeVisible();
   await expect(page.locator(".cycle")).toHaveCount(0);
-  await page.getByLabel("Requests per second").selectOption("700");
-  await page.getByRole("button", { name: "Run", exact: true }).click();
-  await expect(page.getByText(/What to notice:/)).toBeVisible();
   // The lesson without a guided experiment keeps the free one alone.
   await page.goto("/learn/system-design/design-projects");
-  await expect(page.getByRole("button", { name: "Explore freely" })).toHaveCount(0);
+  await expect(page.locator(".explore-designs")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Run", exact: true })).toBeVisible();
 });
 
