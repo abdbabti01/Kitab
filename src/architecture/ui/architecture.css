@@ -294,6 +294,11 @@
 .server-roles dd { margin: 0; }
 .run-limits { margin-top: 10px; font-size: .88rem; }
 .run-limits summary { cursor: pointer; font-weight: 650; color: var(--primary-strong); min-height: 32px; display: flex; align-items: center; }
-.experiment-mode { display: grid; gap: 6px; margin-bottom: 14px; }
-.experiment-mode .section-lead { margin: 0; font-size: 0.92rem; color: var(--ink-2); }
+.explore-designs { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; }
+.explore-designs h3 { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; font-size: 1rem; }
+.explore-designs h3 svg { width: 18px; flex: none; color: var(--primary); }
+.explore-designs p { margin: 0 0 8px; color: var(--ink-2); max-width: 72ch; }
+.explore-designs ul { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.explore-designs a { display: inline-flex; gap: 6px; align-items: center; min-height: 44px; }
+.explore-designs a svg { width: 16px; flex: none; }
 .experiment .cycle { margin-bottom: 14px; }

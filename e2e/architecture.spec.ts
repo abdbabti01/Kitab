@@ -273,30 +273,50 @@ test("a challenge shows its fixed settings on a component added in the editor, a
   await expect(page.getByLabel("Queries at once")).toBeDisabled();
 });
 
-test("a lesson experiment runs in the simulator and counts the lesson as done", async ({ page }) => {
+test("a lesson without a guided experiment runs its free experiment in the simulator and counts the lesson as done", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => localStorage.clear());
-  await page.goto("/learn/system-design/fundamentals");
-  await expect(page.getByRole("heading", { name: "Clients, servers and databases", level: 1 })).toBeVisible();
-  // The lesson opens on its guided experiment; free runs are one switch away.
-  await page.getByRole("button", { name: "Explore freely" }).click();
-  await page.getByLabel("Requests per second").selectOption("250");
+  await page.goto("/learn/system-design/design-projects");
+  await expect(page.getByRole("heading", { name: "Designing from requirements", level: 1 })).toBeVisible();
+  await page.getByLabel("Requests per second").selectOption("1000");
   await page.getByRole("button", { name: "Run", exact: true }).click();
   await expect(page.getByText(/What to notice:/)).toBeVisible();
-  await expect(page.locator(".finding").filter({ hasText: "API server is a bottleneck" })).toBeVisible();
   await page.goto("/learn/system-design");
-  await expect(page.getByRole("link", { name: /Clients, servers and databases/ }).locator(".status-chip")).toHaveText("Completed");
+  await expect(page.getByRole("link", { name: /Designing from requirements/ }).locator(".status-chip")).toHaveText("Completed");
+});
+
+test("a guided lesson leaves free runs to the Playground: each design opens there as the learner's own, with the way back", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/learn/system-design/scalability");
+  await expect(page.getByRole("button", { name: "Explore freely" })).toHaveCount(0);
+  await expect(page.getByLabel("Requests per second")).toHaveCount(0);
+  const explore = page.locator(".explore-designs");
+  await expect(explore).toContainText("150, 300, 500, 700 per second");
+  await explore.getByRole("link", { name: /3 API servers behind a load balancer/ }).click();
+  await expect(page.getByRole("heading", { name: "Architecture Playground" })).toBeVisible();
+  // The lesson's own design, built by the lesson's code, saved as a design of the learner's own.
+  await expect(page).toHaveURL(/\/practice\/architecture\?design=/);
+  await expect(page.locator("[data-node]")).toHaveCount(6);
+  await expect(page.locator("[data-node^=api-]")).toHaveCount(3);
+  expect(await page.evaluate(() => localStorage.getItem("kitab.architecture.designs.v1"))).toContain("Scaling out and finding the bottleneck: 3 API servers");
+  await page.getByRole("button", { name: "Run simulation" }).click();
+  await expect(page.locator(".finding").first()).toBeVisible();
+  await page.getByRole("link", { name: "Back to the lesson" }).click();
+  await expect(page).toHaveURL(/\/learn\/system-design\/scalability#experiment-title$/);
+  // Exploring in the Playground never records the lesson's experiment: only the lesson's own run does.
+  const progress = await page.evaluate(() => localStorage.getItem("kitab.architecture.progress.v1"));
+  expect(progress ?? "").not.toContain("scalability");
 });
 
 // A rerun with fewer events (lower rate) or other components (another design) than the run being played back
 // once crashed the lesson: playback paired the new run with the old run's cursor and fold.
 test("a lesson experiment can be run again at a lower rate or with another design after playing to the end", async ({ page }) => {
-  for (const [lesson, field, first, then] of [
-    ["fundamentals", "Requests per second", "250", "20"],
-    ["storage-caching", "Design", "uniform", "none"],
+  for (const [field, first, then] of [
+    ["Requests per second", "1000", "500"],
+    ["Design", "cache", "simple"],
   ]) {
-    await page.goto(`/learn/system-design/${lesson}`);
-    await page.getByRole("button", { name: "Explore freely" }).click();
+    await page.goto("/learn/system-design/design-projects");
     await page.getByLabel(field).selectOption(first);
     await page.getByRole("button", { name: "Run", exact: true }).click();
     await page.getByRole("button", { name: "Skip to the end" }).click();

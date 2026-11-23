@@ -14,7 +14,9 @@ const storage = (page: Page) => page.evaluate(() => JSON.stringify(Object.entrie
 
 test("a data-structures lesson opens its experiment already set up, and the Playground leads back", async ({ page }) => {
   await page.goto("/concepts/linked-lists");
-  const link = page.locator(".path-playground", { hasText: "Try it in the Playground" }).getByRole("link");
+  // The lesson's own Explore link opens its demonstration's setup; the end of the page doesn't repeat it.
+  await expect(page.locator(".path-playground")).toHaveCount(0);
+  const link = page.locator(".demo-explore").getByRole("link", { name: "Explore this in the Playground" });
   await link.click();
   await expect(page).toHaveURL(/\/practice\/structures\?structure=linked-list&op=insert&value=5&index=0&from=%2Fconcepts%2Flinked-lists$/);
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Data Structures & Recursion Playground");

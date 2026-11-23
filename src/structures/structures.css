@@ -43,6 +43,9 @@
 .sp-what code { font-size: 0.85rem; color: var(--ink); }
 .sp-result { display: grid; gap: 8px; padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--success); background: var(--success-soft); }
 .sp-result p { margin: 0; }
+.sp-practise { display: flex; gap: 8px; align-items: flex-start; }
+.sp-practise > svg { width: 18px; height: 18px; flex: none; margin-top: 3px; }
+.sp-practise > span { min-width: 0; overflow-wrap: anywhere; }
 .sp-details summary { cursor: pointer; font-weight: 650; min-height: 32px; }
 .sp-details .facts { margin: 8px 0; }
 .sp-limits { margin: 0; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
