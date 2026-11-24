@@ -12,6 +12,10 @@ import { harnessSource } from "./harness.ts";
 export const SANDBOX_CSP = "default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' blob:; worker-src blob:";
 /** Messages one run may send before it is stopped, so a flood can't swamp the page. */
 const MAX_MESSAGES = 600;
+/** Web Crypto calls one run may relay through its frame (see harness.ts). */
+export const MAX_CRYPTO_CALLS = 5000;
+/** Keys one run may hold through the relay. */
+export const MAX_CRYPTO_KEYS = 1000;
 
 export const sandboxMessage = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ready") }),
@@ -48,7 +52,29 @@ export function frameDocument(runId: string, parentOrigin: string) {
   const js = (value: string) => JSON.stringify(value).replace(/</g, "\\u003c");
   return `<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${SANDBOX_CSP}"><script>
 const runId = ${js(runId)}, to = ${js(parentOrigin)}, harness = ${js(harnessSource)};
-let worker = null, count = 0;
+let worker = null, count = 0, cryptoCalls = 0;
+const CRYPTO_OPS = ["digest", "generateKey", "importKey", "exportKey", "sign", "verify"];
+// Web Crypto for the Worker (see harness.ts): an allowlisted call runs here, in this same sandboxed frame, and only
+// its result goes back to the Worker. Never forwarded to Kitab's page; capped per run. CryptoKey exists only in
+// secure contexts, so the Worker can't receive one: keys stay here and the Worker gets a handle describing the key,
+// which is swapped back for the real key when the Worker passes it to another call.
+const keys = new Map();
+const wrap = (v) => {
+  if (typeof CryptoKey !== "undefined" && v instanceof CryptoKey) {
+    if (keys.size >= ${MAX_CRYPTO_KEYS}) throw new Error("Too many keys in one run.");
+    const handle = keys.size + 1;
+    keys.set(handle, v);
+    return { __kitabKey: handle, type: v.type, algorithm: v.algorithm, extractable: v.extractable, usages: v.usages };
+  }
+  if (v && typeof v === "object" && v.privateKey && v.publicKey) return { publicKey: wrap(v.publicKey), privateKey: wrap(v.privateKey) };
+  return v;
+};
+const unwrap = (a) => (a && typeof a === "object" && typeof a.__kitabKey === "number" && keys.has(a.__kitabKey) ? keys.get(a.__kitabKey) : a);
+const cryptoFor = (d) => {
+  const answer = (m) => worker.postMessage(Object.assign({ type: "subtle-result", id: d.id }, m));
+  if (++cryptoCalls > ${MAX_CRYPTO_CALLS} || !CRYPTO_OPS.includes(d.op) || !Array.isArray(d.args) || !(crypto && crypto.subtle)) return answer({ ok: false, error: "NotSupportedError: This crypto operation isn't available in the lab." });
+  Promise.resolve().then(() => crypto.subtle[d.op](...d.args.map(unwrap))).then((value) => answer({ ok: true, value: wrap(value) })).catch((e) => answer({ ok: false, error: String((e && e.name) || "Error") + ": " + String((e && e.message) || e) }));
+};
 const send = (data) => parent.postMessage(Object.assign({}, data, { runId }), to);
 onmessage = (event) => {
   if (event.source !== parent || worker) return;
@@ -58,6 +84,7 @@ onmessage = (event) => {
     return send({ type: "error", kind: "unsupported", message: String(error && error.message || error) });
   }
   worker.onmessage = (e) => {
+    if (e.data && e.data.type === "subtle") return cryptoFor(e.data);
     count += 1;
     if (count > ${MAX_MESSAGES}) {
       if (count === ${MAX_MESSAGES} + 1) { worker.terminate(); send({ type: "error", kind: "flood", message: "Your program sent too many messages too fast, so it was stopped." }); send({ type: "done" }); }

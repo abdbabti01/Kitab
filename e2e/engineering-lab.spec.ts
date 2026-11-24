@@ -24,9 +24,10 @@ test("the catalog lists every lab by subject, says what's real, and is reached f
   for (const subject of ["Networking", "Data structures & programming", "System design"]) {
     await expect(page.getByRole("region", { name: subject }).locator(".eng-card")).toHaveCount(5);
   }
+  await expect(page.getByRole("region", { name: "Identity & security" }).locator(".eng-card")).toHaveCount(13);
   await expect(page.getByRole("region", { name: /Needs real infrastructure/ }).locator(".eng-card")).toHaveCount(8);
   await expect(page.locator(".eng-card .eng-mode.is-real-execution").first()).toBeVisible();
-  await expect(page.locator(".eng-card .eng-state", { hasText: "Not started" })).toHaveCount(15);
+  await expect(page.locator(".eng-card .eng-state", { hasText: "Not started" })).toHaveCount(28);
 });
 
 test("a code lab: run, read failures, fix, pass every test, then resume after a reload", async ({ page }) => {

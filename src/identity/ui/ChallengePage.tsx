@@ -90,8 +90,8 @@ function Configure({ challenge, variant, onSubmit, result }: { challenge: Extrac
         <h2>Settings you can change</h2>
         {scenario.controls.filter((c) => challenge.editable.includes(c.id)).map((control) => (
           <label key={control.id} className="id-field">
-            <span>{control.label}</span>
-            <select value={config[control.id]} onChange={(e) => setConfig(parseConfig(scenario, { ...config, [control.id]: e.target.value }))}>
+            <span id={`label-${control.id}`}>{control.label}</span>
+            <select aria-labelledby={`label-${control.id}`} value={config[control.id]} onChange={(e) => setConfig(parseConfig(scenario, { ...config, [control.id]: e.target.value }))}>
               {control.options.map((o) => <option key={o.value} value={o.value} disabled={o.when ? !o.when(config) : false}>{o.label}</option>)}
             </select>
             <small>{control.help}</small>

@@ -120,6 +120,18 @@ explanation in one attempt (`kitab.architecture.labs.v1`). Concept units (`src/a
 lesson content with a check per concept. See [docs/SYSTEM-DESIGN.md](docs/SYSTEM-DESIGN.md) for the exact models and
 their limits.
 
+## Identity, authentication & security
+
+`src/identity/` is the fourth track: twelve units (`/learn/identity/:unit`, the System Design `ConceptUnit` shape plus a
+walkthrough computed by the engine, C#/Java/Python examples, labs and links), the Identity Playground
+(`/practice/identity`), the Token Inspector (`/practice/identity/tokens`, real Web Crypto), the Authorization Playground
+(`/practice/identity/authorization`), thirteen challenges (`/practice/identity/challenges/:id`) and eight guided
+experiments. Ten protocol scenarios each produce one event stream; the sequence, inspector, state panel (a fold),
+outcome, walkthroughs, experiments and challenges all read it. A deny-by-default policy engine judges the
+Authorization Playground and policy challenges. Progress: `kitab.identity.v1` (keyed-store). Engineering Lab subject
+`identity` with a teaching resource server (`worker/identity-lab.ts`). Details, real-versus-modelled table, threat model
+and limits: [docs/IDENTITY.md](docs/IDENTITY.md); standards: [docs/IDENTITY-STANDARDS.md](docs/IDENTITY-STANDARDS.md).
+
 ## Lessons
 
 Track → Unit → Lesson → Step, with one control that moves through a lesson (its Previous / Next) and one way on
@@ -129,7 +141,7 @@ marker. Shared pieces live in `src/ui/LessonShell.tsx`. Stored progress is uncha
 
 ## Playgrounds
 
-`/playground` lists the three Playgrounds (`src/app/playgrounds.ts`); the main navigation's Playground entry opens it,
+`/playground` lists the four Playgrounds (`src/app/playgrounds.ts`); the main navigation's Playground entry opens it,
 and lessons link straight to an experiment without it. The Data Structures & Recursion Playground
 (`src/structures/`, `/practice/structures`) reuses the mission engines, adapters, scenes and playback with no
 mission shell; its setup lives in the query, and free exploration records nothing. Supported operations and the exact limits of
@@ -239,7 +251,9 @@ text) from 0003.
 
 `/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug` · `/learn/system-design/:id` ·
 `/playground` (choose a Playground) · `/practice/network` · `/practice/structures` · `/practice/architecture` ·
-`/practice/architecture/challenges/:id` · `/lab` (Engineering Lab) · `/lab/:subject/:id`. Legacy
+`/practice/architecture/challenges/:id` · `/learn/identity` · `/learn/identity/:unit` · `/practice/identity` ·
+`/practice/identity/tokens` · `/practice/identity/authorization` · `/practice/identity/challenges/:id` · `/lab` (Engineering
+Lab) · `/lab/:subject/:id`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
 
@@ -272,8 +286,8 @@ device starts empty, and private windows may keep nothing. Within that:
 
 `/lab` is the fourth kind of activity, beside Learn, Practice and the Playgrounds, and its own main-navigation entry.
 Where a Playground models a system, a lab uses the real thing, and says which: **Real execution** (the learner's
-JavaScript runs on the browser's engine) or **Real protocol** (real HTTP requests to Kitab's server). Fifteen labs,
-five per subject, in `src/lab/labs/`; things that need a real OS or server are listed as unavailable, never imitated.
+JavaScript runs on the browser's engine) or **Real protocol** (real HTTP requests to Kitab's server). Twenty-eight labs,
+five each for networking, data structures and system design and thirteen for identity, in `src/lab/labs/`; things that need a real OS or server are listed as unavailable, never imitated.
 
 - **Code labs** run in a Worker inside a fresh `<iframe sandbox="allow-scripts">` per run: an opaque origin (no
   storage, cookies or DOM of Kitab) with a CSP that blocks every request, removed at the time limit, on Stop, or when

@@ -110,20 +110,20 @@ export function AuthorizationPlayground() {
             <section className="az-panel" aria-labelledby="request-title">
               <h2 id="request-title">Request</h2>
               <label className="id-field"><span>Caller</span>
-                <select value={request.subject} onChange={(e) => set({ subject: e.target.value })}>
+                <select aria-label="Caller" value={request.subject} onChange={(e) => set({ subject: e.target.value })}>
                   {people.map((p) => <option key={p.id} value={p.id}>{p.name}: {p.role}{p.department ? `, ${p.department}` : ""} at {p.tenant}</option>)}
                 </select>
               </label>
               <label className="id-field"><span>Action</span>
-                <select value={request.action} onChange={(e) => set({ action: e.target.value as Action })}>{actions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select>
+                <select aria-label="Action" value={request.action} onChange={(e) => set({ action: e.target.value as Action })}>{actions.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}</select>
               </label>
               <label className="id-field"><span>Order</span>
-                <select value={request.order} onChange={(e) => set({ order: e.target.value })}>
+                <select aria-label="Order" value={request.order} onChange={(e) => set({ order: e.target.value })}>
                   {orders.map((o) => <option key={o.id} value={o.id}>#{o.id}: {o.tenant}, owner {o.owner}, {o.amount}, {o.status}</option>)}
                 </select>
               </label>
               <label className="id-field"><span>Token</span>
-                <select value={request.credential} onChange={(e) => set({ credential: e.target.value as Credential })}>{credentials.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select>
+                <select aria-label="Token" value={request.credential} onChange={(e) => set({ credential: e.target.value as Credential })}>{credentials.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select>
               </label>
               <p className="id-request"><code>{describe(request)}</code></p>
               <h2>Rules the API enforces</h2>

@@ -62,15 +62,22 @@ export function Sequence({ run, at, onSelect, revealAll = false, plain = false, 
   const column = (id: ActorId) => actors.findIndex((a) => a.id === id);
   const shown = revealAll ? run.events : run.events.slice(0, at + 1);
   const current = useRef<HTMLLIElement>(null);
+  const list = useRef<HTMLOListElement>(null);
+  const mounted = useRef(false);
+  // Keep the current message visible inside the list as the learner moves; never scroll the page, never on arrival.
   useEffect(() => {
-    current.current?.scrollIntoView?.({ block: "nearest" });
+    if (!mounted.current) return void (mounted.current = true);
+    const l = list.current, c = current.current;
+    if (!l || !c) return;
+    if (c.offsetTop < l.scrollTop) l.scrollTop = c.offsetTop;
+    else if (c.offsetTop + c.offsetHeight > l.scrollTop + l.clientHeight) l.scrollTop = c.offsetTop + c.offsetHeight - l.clientHeight;
   }, [at]);
   return (
     <div className="id-sequence" style={{ ["--cols" as string]: actors.length }}>
       <ol className="id-actors" aria-hidden="true">
         {actors.map((a) => <li key={a.id} title={a.role}>{short(a)}</li>)}
       </ol>
-      <ol className="id-events" aria-label={label}>
+      <ol ref={list} className="id-events" aria-label={label}>
         {shown.map((e) => {
           const a = column(e.from);
           const b = column(e.to);

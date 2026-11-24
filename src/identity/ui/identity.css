@@ -45,7 +45,7 @@
 .id-sequence { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
 .id-actors { list-style: none; margin: 0; padding: 8px 0; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; z-index: 1; }
 .id-actors li { text-align: center; font: 700 0.78rem/1.2 var(--display); padding: 0 2px; overflow-wrap: anywhere; color: var(--ink); }
-.id-events { list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; }
+.id-events { position: relative; list-style: none; margin: 0; padding: 0; max-height: 640px; overflow-y: auto; }
 .id-event > button, .id-event > div { display: grid; gap: 2px; width: 100%; padding: 6px 0 8px; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .id-event > div { cursor: default; }
 .id-event > button:hover { background: var(--surface-2); }
@@ -195,3 +195,9 @@
 @media (prefers-reduced-motion: reduce) {
   .id-events { scroll-behavior: auto; }
 }
+.id-examples, .id-topic, .id-example { min-width: 0; max-width: 100%; }
+.id-example pre, .id-example figure { max-width: 100%; overflow-x: auto; }
+.id-example :not(pre) > code { overflow-wrap: anywhere; word-break: break-word; }
+.id-example p, .id-example li, .id-example dd { overflow-wrap: anywhere; }
+.identity-lesson p, .identity-lesson li, .identity-lesson dd, .identity-lesson legend, .identity-lesson label { overflow-wrap: anywhere; }
+.id-outcome, .id-outcome span, .id-checks span, .id-inspector p, .id-place dd, .ti-steps span, .az-decision span { overflow-wrap: anywhere; min-width: 0; }

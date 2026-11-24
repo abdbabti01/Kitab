@@ -182,3 +182,6 @@
   .eng-lab * { scroll-behavior: auto !important; transition: none !important; }
 }
 .eng-editor > .eng-help { margin: 0; padding: 6px 12px; border-top: 1px solid var(--line); background: var(--surface-2); }
+
+/* Long identifiers (URLs, header values, code in prose) wrap instead of widening the page on phones. */
+.eng-lab p, .eng-lab li, .eng-lab dd, .eng-lab td { overflow-wrap: anywhere; }

@@ -40,8 +40,8 @@ function Controls({ scenario, config, onChange }: { scenario: Scenario; config: 
   const field = (level: "basic" | "advanced" | "fault") =>
     scenario.controls.filter((c) => c.level === level).map((control) => (
       <label key={control.id} className="id-field">
-        <span>{control.label}</span>
-        <select value={config[control.id]} onChange={(e) => onChange(parseConfig(scenario, { ...config, [control.id]: e.target.value }))} aria-describedby={`help-${control.id}`}>
+        <span id={`label-${control.id}`}>{control.label}</span>
+        <select aria-labelledby={`label-${control.id}`} value={config[control.id]} onChange={(e) => onChange(parseConfig(scenario, { ...config, [control.id]: e.target.value }))} aria-describedby={`help-${control.id}`}>
           {control.options.map((o) => <option key={o.value} value={o.value} disabled={o.when ? !o.when(config) : false}>{o.label}</option>)}
         </select>
         <small id={`help-${control.id}`}>{control.help}</small>

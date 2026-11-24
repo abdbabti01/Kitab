@@ -131,8 +131,40 @@ export function harness() {
     post({ type: "log", level: "error", text: `Unhandled promise rejection: ${format(event.reason)}` });
   };
 
+  // Web Crypto: Chromium gives this Worker (created from a blob: URL in an opaque-origin frame) no crypto.subtle,
+  // because it isn't a secure context, while the frame itself has one. The frame runs a short allowlist of
+  // operations for it (sandbox.ts) inside the same sandbox; nothing reaches Kitab's page. Browsers that already
+  // give the Worker crypto.subtle (and Node, in tests) use their own.
+  const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>();
+  let nextCall = 0;
+  const cryptoObject = (scope as { crypto?: { subtle?: unknown } }).crypto;
+  if (cryptoObject && !cryptoObject.subtle) {
+    const relay = (op: string) => (...args: unknown[]) => new Promise((resolve, reject) => {
+      const id = ++nextCall;
+      pending.set(id, { resolve, reject });
+      post({ type: "subtle", id, op, args });
+    });
+    const subtle = Object.freeze(Object.fromEntries(["digest", "generateKey", "importKey", "exportKey", "sign", "verify"].map((op) => [op, relay(op)])));
+    try {
+      Object.defineProperty(cryptoObject, "subtle", { value: subtle, configurable: false, enumerable: true });
+    } catch {
+      /* left without crypto.subtle: labs that need it report the error */
+    }
+  }
+
   let started = false;
   scope.onmessage = async (event: { data: { mode: "run" | "check"; code: string; exports: string[]; tests: string } }) => {
+    const reply = event.data as unknown as { type?: string; id?: number; ok?: boolean; value?: unknown; error?: string };
+    if (reply && reply.type === "subtle-result") {
+      const call = pending.get(reply.id as number);
+      if (!call) return;
+      pending.delete(reply.id as number);
+      if (reply.ok) return call.resolve(reply.value);
+      const [name, ...rest] = String(reply.error).split(": ");
+      const error = new Error(rest.join(": ") || name);
+      error.name = rest.length ? name : "Error";
+      return call.reject(error);
+    }
     if (started) return;
     started = true;
     const { mode, code, exports, tests } = event.data;

@@ -140,6 +140,7 @@ print("verifier matches its challenge:", hmac.compare_digest(challenge(verifier)
     source: code`
 #:sdk Microsoft.NET.Sdk.Web
 #:package Microsoft.AspNetCore.Authentication.JwtBearer@10.0.15
+#:property PublishAot=false
 
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -224,6 +225,7 @@ string Token(string sub, string tenant, string scope = "orders.read", string aud
     output: apiOutput,
     notes: [
       { code: "AddJwtBearer(...)", explain: "The authentication handler: reads Authorization: Bearer, validates signature, issuer, audience, lifetime and algorithm, and builds the ClaimsPrincipal. Any failure leaves the request unauthenticated." },
+      { code: "#:property PublishAot=false", explain: "Only for this single-file demo: .NET 10 file-based apps default to native-AOT settings, which turn off reflection-based JSON. A normal Web API project (.csproj) doesn't need it." },
       { code: "ValidAudience = Audience", explain: "A token for another API (hr.example) is rejected with 401, even though the same issuer signed it." },
       { code: "ClockSkew = TimeSpan.FromSeconds(30)", explain: "The default is 5 minutes; keep it small." },
       { code: "AddPolicy(\"orders.read\", ...)", explain: "Authorization runs after authentication: authenticated but without the scope gives 403 Forbidden; unauthenticated gives 401 with WWW-Authenticate: Bearer." },

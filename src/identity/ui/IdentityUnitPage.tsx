@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, FlaskConical, KeyRound, SquareTerminal } from "lucide-react";
 import { linkProps } from "../../app/router.ts";
 import { safeStorage } from "../../learning/progress.ts";
@@ -15,7 +15,8 @@ import { runScenario } from "../model.ts";
 import { findScenario } from "../flows/index.ts";
 import { identityChallengeCatalog, identityChallengePath } from "../catalog.ts";
 import { Sequence } from "./Trace.tsx";
-import { CodeExamples } from "./CodeExamples.tsx";
+// The C#, Java and Python examples are large; they load when the lesson does, without holding up its first paint.
+const CodeExamples = lazy(() => import("./CodeExamples.tsx").then((m) => ({ default: m.CodeExamples })));
 import "./identity.css";
 
 export function IdentityUnitRoute({ id, notFound }: { id: string; notFound: ReactNode }) {
@@ -94,7 +95,7 @@ export function IdentityUnitPage({ unit }: { unit: IdentityUnit }) {
           <ul className="unit-labs">{experiments.map((x) => <li key={x.id}><a {...linkProps(x.path)}><b><FlaskConical aria-hidden="true" className="inline-icon" /> {x.title}</b></a></li>)}</ul>
         </section>
       )}
-      {unit.examples.length > 0 && <CodeExamples topics={unit.examples} />}
+      {unit.examples.length > 0 && <Suspense fallback={<p className="muted" role="status">Loading code examples…</p>}><CodeExamples topics={unit.examples} /></Suspense>}
       {(challenges.length > 0 || labs.length > 0) && (
         <section className="lesson-section" aria-labelledby="practise-title">
           <h2 id="practise-title">Practise</h2>
