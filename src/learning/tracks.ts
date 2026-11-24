@@ -2,6 +2,7 @@
 // existing lessons, readings, explorations and missions. Data and pure functions only; nothing is locked.
 import { activityState, concept, isRequired, lastActive, lesson, mission, networkingPath, recommend, type Activity, type Evidence, type Recommendation, type Stage } from "./networking-path.ts";
 import { challengeCatalog, challengePath, labCatalog, labPath, lessonCatalog, lessonPath, unitCatalog } from "../architecture/catalog.ts";
+import { identityChallengeCatalog, identityChallengePath, identityUnitCatalog, identityUnitPath } from "../identity/catalog.ts";
 
 const sdLesson = (id: (typeof lessonCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: lessonCatalog.find((l) => l.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
 const sdUnit = (id: (typeof unitCatalog)[number]["id"], detail: string): Activity => ({ id: `sd:${id}`, title: unitCatalog.find((u) => u.id === id)!.title, detail, path: lessonPath(id), track: "architecture-lesson" });
@@ -200,7 +201,33 @@ export const dataStructuresPath: Stage[] = [
   },
 ];
 
-export type TrackId = "networking" | "data-structures" | "system-design";
+/** One Identity track unit per stage: the lesson, then its challenges. */
+const identityDetails: Record<string, { objective: string; lesson: string; challenges: Record<string, string> }> = {
+  fundamentals: { objective: "Users, accounts and claims; authentication versus authorization; identity providers, relying parties, APIs; trust boundaries.", lesson: "Who proves what to whom, and who decides what they may do.", challenges: { "authn-or-authz": "Sort real incidents into authentication and authorization problems." } },
+  "passwords-sessions": { objective: "Password hashing with Argon2id, login throttling, session cookies (Secure, HttpOnly, SameSite), fixation, CSRF, logout, and sessions versus JWTs.", lesson: "Store passwords safely and keep users signed in without handing attackers a session.", challenges: { "expired-session": "Read a trace and explain why the browser was sent back to the identity provider." } },
+  oauth: { objective: "Delegated authorization: the four roles, endpoints, redirect URIs, public and confidential clients, scopes, consent, access and refresh tokens, audiences, and why OAuth alone isn't login.", lesson: "How an app gets limited access to an API without the user's password.", challenges: { "configure-oauth": "Pick the grant and client type for a TV, a batch job, a web app and a mobile app." } },
+  "oauth-flows": { objective: "Authorization Code with PKCE, state, Client Credentials, the Device grant, refresh rotation, revocation, introspection, redirect URI validation, and why implicit and password grants are gone.", lesson: "Every grant still worth using, step by step.", challenges: { "repair-pkce": "A sign-in flow fails; change the right settings until it succeeds." } },
+  oidc: { objective: "ID tokens, the openid scope, UserInfo, discovery, JWKS, nonce, ID token validation, where each party keeps state and tokens, and OIDC logout.", lesson: "The identity layer on OAuth, and everything a client validates.", challenges: { "validate-id-token": "Find the failing step and the claim that broke it." } },
+  tokens: { objective: "JWT structure, JWS and JWE, symmetric and asymmetric keys, JWKS and rotation, validation order, clock skew, opaque tokens and introspection, replay and DPoP.", lesson: "What is inside a token, and every check before trusting it.", challenges: { "token-rejected": "An API refuses a token: find the reason in the trace." } },
+  sso: { objective: "SSO versus federation, the identity provider's session and each application's session, re-authentication and step-up, and the limits of single logout.", lesson: "One identity provider session, many application sessions.", challenges: { "sso-two-apps": "Configure two applications to meet sign-in and logout requirements." } },
+  saml: { objective: "Identity and service providers, metadata and certificates, AuthnRequest and the POST binding, assertion validation, replay, signature wrapping, and SAML versus OIDC.", lesson: "Enterprise SSO with signed XML assertions.", challenges: { "saml-failure": "Inspect a SAML response and name the rule it breaks." } },
+  authorization: { objective: "Roles, permissions, scopes and claims; RBAC, ABAC, policies and relationships; object-level checks, tenant isolation, least privilege, deny by default, confused deputies.", lesson: "Deciding what an authenticated caller may do, resource by resource.", challenges: { "fix-api-policy": "Choose the rules an orders API enforces until no request is wrongly allowed or refused." } },
+  "mfa-passkeys": { objective: "Factors, TOTP, push and SMS, phishing resistance, WebAuthn registration and authentication, passkeys, and recovery.", lesson: "Why codes can be phished and passkeys can't.", challenges: { "phishing-resistant": "Pick sign-in factors that defeat a phishing proxy." } },
+  enterprise: { objective: "Entra ID, Auth0, Okta and Keycloak in standard terms; app registrations and service principals; group and role claims; SCIM and JIT provisioning; workload identities; multi-tenant SaaS.", lesson: "The same standards in four vendors' words.", challenges: { "multi-tenant": "Stop one customer's users reaching another's data.", "enterprise-architecture": "Choose protocols, provisioning and session design for a company." } },
+  failures: { objective: "Token leakage and replay, XSS and CSRF, code interception and open redirects, state and PKCE mismatches, weak validation, excessive permissions, cross-tenant access, cookie and logout mistakes, refresh token misuse.", lesson: "The identity bugs behind real incidents, and the defence for each.", challenges: { "incident-triage": "Read incident traces and name the failure and its fix." } },
+};
+
+export const identityPath: Stage[] = identityUnitCatalog.map((unit) => ({
+  id: unit.id,
+  title: unit.title,
+  objective: identityDetails[unit.id].objective,
+  learn: [{ id: `id:${unit.id}`, title: unit.title, detail: identityDetails[unit.id].lesson, path: identityUnitPath(unit.id), track: "identity-unit" as const }],
+  practise: identityChallengeCatalog.filter((c) => c.unit === unit.id).map((c) => ({
+    id: `idc:${c.id}`, title: c.title, version: c.version, detail: identityDetails[unit.id].challenges[c.id], path: identityChallengePath(c.id), track: "identity-challenge" as const, masterable: c.variants > 1, needs: [`id:${unit.id}`],
+  })),
+}));
+
+export type TrackId = "networking" | "data-structures" | "system-design" | "identity";
 export type LearningTrack = {
   id: TrackId;
   title: string;
@@ -232,6 +259,13 @@ export const tracks: LearningTrack[] = [
     summary: "Design real applications from APIs, databases, caches, load balancers and queues, then send simulated traffic through them and see why they slow down or fail.",
     path: "/learn/system-design",
     stages: systemDesignPath,
+  },
+  {
+    id: "identity",
+    title: "Identity, authentication & security",
+    summary: "How sign-in really works: passwords and sessions, OAuth 2.0 and OpenID Connect, JWTs, single sign-on, SAML, passkeys and authorization, with every message traced and every check explained.",
+    path: "/learn/identity",
+    stages: identityPath,
   },
 ];
 
@@ -286,7 +320,7 @@ export function trackProgress(track: LearningTrack, evidence: Evidence) {
 
 /** Anything recorded at all, in any store: the learner has been here before. */
 export function hasHistory(evidence: Evidence) {
-  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges, evidence.labs.labs, evidence.labs.units].some((records) => Object.keys(records).length > 0);
+  return [evidence.visits.activities, evidence.learning.lessons, evidence.progress.missions, evidence.network.missions, evidence.architecture.lessons, evidence.architecture.challenges, evidence.labs.labs, evidence.labs.units, evidence.identity?.units ?? {}, evidence.identity?.challenges ?? {}].some((records) => Object.keys(records).length > 0);
 }
 
 /** The track the learner touched most recently; networking when nothing is dated. */
@@ -311,6 +345,7 @@ export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
   if (r.kind === "done") {
     if (track.id === "networking") return { label: "Open the Playground", path: "/practice/network" };
     if (track.id === "system-design") return { label: "Open the Architecture Playground", path: "/practice/architecture" };
+    if (track.id === "identity") return { label: "Open the Identity Playground", path: "/practice/identity" };
     return { label: "Browse the Library", path: "/learn/library" };
   }
   const label = {
@@ -324,7 +359,8 @@ export function nextLink(r: Recommendation, track: LearningTrack = tracks[0]) {
 
 /** What kind of step an activity is, in the learner's words. */
 export function kindOf(activity: Activity): "Lesson" | "Reading" | "Explore" | "Predict" | "Troubleshoot" | "Challenge" | "Design" | "Lab" {
-  if (activity.track === "lesson" || activity.track === "architecture-lesson" || activity.id === "hello-tcp") return "Lesson";
+  if (activity.track === "lesson" || activity.track === "architecture-lesson" || activity.track === "identity-unit" || activity.id === "hello-tcp") return "Lesson";
+  if (activity.track === "identity-challenge") return "Challenge";
   if (activity.track === "architecture-challenge") return "Design";
   if (activity.track === "architecture-lab") return "Lab";
   if (activity.track === "network-mission") return "Troubleshoot";

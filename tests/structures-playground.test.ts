@@ -7,11 +7,11 @@ import { buildTrace } from "../src/learning/registry.ts";
 import "../src/learning/engines/index.ts";
 import { engineParams, experimentForUnit, experiments, inputsFor, parseSetup, safeReturn, setupPath, type StructureSetup } from "../src/structures/experiments.ts";
 
-test("the Playground routes parse, and the three Playgrounds open existing tools", () => {
+test("the Playground routes parse, and the four Playgrounds open existing tools", () => {
   assert.deepEqual(parseRoute(PLAYGROUNDS_PATH), { name: "playgrounds" });
   assert.deepEqual(parseRoute("/practice/structures"), { name: "structures-playground" });
   assert.deepEqual(parseRoute("/practice/network"), { name: "network-practice" });
-  assert.deepEqual(playgrounds.map((p) => parseRoute(p.path).name), ["network-practice", "structures-playground", "architecture-playground"]);
+  assert.deepEqual(playgrounds.map((p) => parseRoute(p.path).name), ["network-practice", "structures-playground", "architecture-playground", "identity-playground"]);
 });
 
 test("every guided experiment survives the URL round trip and builds a real trace", () => {

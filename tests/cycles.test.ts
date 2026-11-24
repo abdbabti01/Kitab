@@ -6,6 +6,7 @@ import { cycleCatalog } from "../src/learning/cycle-catalog.ts";
 import { runSetup, sdCycles } from "../src/architecture/cycles.ts";
 import { dsCycles } from "../src/structures/cycles.ts";
 import { netCycles } from "../src/practice/network/cycles.ts";
+import { identityCycles } from "../src/identity/cycles.ts";
 import { PROGRESS_KEY as ARCH_KEY } from "../src/architecture/progress.ts";
 import { findArchitectureLesson } from "../src/architecture/lessons.ts";
 import { tracks } from "../src/learning/tracks.ts";
@@ -13,7 +14,7 @@ import { tracks } from "../src/learning/tracks.ts";
 // The guided experiment (predict → run → observe → explain → change one thing): its rules, its storage, and every
 // experiment's answers read from the real engines, never fixed.
 
-const all: AnyCycle[] = [...sdCycles, ...dsCycles, ...netCycles];
+const all: AnyCycle[] = [...sdCycles, ...dsCycles, ...netCycles, ...identityCycles];
 const capacity = sdCycles.find((c) => c.id === "sd-capacity")!;
 
 function memory(initial: Record<string, string> = {}, fail = false) {

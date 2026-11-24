@@ -22,9 +22,15 @@ const examples: Record<PlaygroundId, Example[]> = {
     { title: "Load-balanced API", path: "/practice/architecture?template=load-balanced" },
     { title: "Lab: a retry storm", path: "/practice/architecture/labs/retry-storm" },
   ],
+  identity: [
+    { title: "Sign in with OpenID Connect", path: "/practice/identity?scenario=oidc-login" },
+    { title: "Single sign-on across two applications", path: "/practice/identity?scenario=sso" },
+    { title: "Token Inspector: real signatures", path: "/practice/identity/tokens" },
+    { title: "Authorization Playground", path: "/practice/identity/authorization" },
+  ],
 };
 
-/** /playground: choose one of the three Playgrounds. Open to everyone; visiting records nothing. */
+/** /playground: choose one of the four Playgrounds. Open to everyone; visiting records nothing. */
 export function PlaygroundsPage() {
   useEffect(() => {
     document.title = "Playgrounds — Kitab";

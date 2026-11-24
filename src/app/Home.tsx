@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { ArrowRight, Binary, BookOpen, FlaskConical, HelpCircle, Network, Workflow } from "lucide-react";
+import { ArrowRight, Binary, BookOpen, FlaskConical, HelpCircle, KeyRound, Network, Workflow } from "lucide-react";
 import { findTrack, type LearningTrack } from "../learning/tracks.ts";
 import { playgrounds, PLAYGROUNDS_PATH } from "./playgrounds.ts";
 import { linkProps } from "./router.ts";
@@ -16,6 +16,7 @@ const ways = [
 const networking = findTrack("networking")!;
 const dataStructures = findTrack("data-structures")!;
 const systemDesign = findTrack("system-design")!;
+const identity = findTrack("identity")!;
 
 function SubjectCard({ track, Icon, tone, action }: { track: LearningTrack; Icon: typeof Network; tone: string; action: string }) {
   return (
@@ -36,7 +37,7 @@ function SubjectCard({ track, Icon, tone, action }: { track: LearningTrack; Icon
 /** Home: what Kitab offers, the same for every visitor. Progress and "Continue" live on each subject's page. */
 export function Home() {
   useEffect(() => {
-    document.title = "Kitab — learn networking, data structures and system design by watching them work";
+    document.title = "Kitab — learn networking, data structures, system design and identity by watching them work";
   }, []);
   return (
     <div className="home">
@@ -53,6 +54,7 @@ export function Home() {
             <SubjectCard track={networking} Icon={Network} tone="networking" action="Explore Networking" />
             <SubjectCard track={dataStructures} Icon={Binary} tone="structures" action="Explore Data structures" />
             <SubjectCard track={systemDesign} Icon={Workflow} tone="design" action="Explore System design" />
+            <SubjectCard track={identity} Icon={KeyRound} tone="identity" action="Explore Identity & security" />
           </ul>
         </section>
 
@@ -60,7 +62,7 @@ export function Home() {
           <div className="feature-copy">
             <p className="feature-eyebrow"><FlaskConical aria-hidden="true" /> Interactive Playgrounds</p>
             <h2 id="feature-title">Change anything. Watch every step.</h2>
-            <p>Three free simulators, one for each subject. Every step shows what happens, why it happens and what changed, and nothing is graded.</p>
+            <p>Four free simulators, one for each subject. Every step shows what happens, why it happens and what changed, and nothing is graded.</p>
             <ul className="feature-starters feature-playgrounds">
               {playgrounds.map(({ id, title, summary, path, Icon }) => (
                 <li key={id}>

@@ -178,12 +178,33 @@ export function LabPage({ lab }: { lab: Lab }) {
         <p className="notice warning" role="alert"><TriangleAlert aria-hidden="true" /><span>Your work couldn't be saved in this browser: storage is full or blocked (private windows often block it). Keep this page open, or copy your work somewhere safe.</span></p>
       )}
       {state === "completed" && <Completed lab={lab} />}
+      {lab.reference && <Reference reference={lab.reference} />}
       <div className={`eng-layout is-${lab.kind}`}>
         <Instructions lab={lab} />
         {lab.kind === "code" ? <CodeWorkspace lab={lab} record={record} save={save} /> : <HttpWorkspace lab={lab} record={record} save={save} />}
       </div>
       <Explanations lab={lab} />
     </main>
+  );
+}
+
+/** Values the tasks use, each with a copy button (copying is the learner's action; nothing is sent). */
+function Reference({ reference }: { reference: NonNullable<Lab["reference"]> }) {
+  const [copied, setCopied] = useState("");
+  return (
+    <details className="eng-panel eng-reference">
+      <summary>{reference.title}</summary>
+      <p className="eng-muted">{reference.note}</p>
+      <ul>
+        {reference.items.map((item) => (
+          <li key={item.label}>
+            <b>{item.label}</b>
+            <code>{item.value}</code>
+            <button type="button" className="text-button" onClick={() => { void navigator.clipboard?.writeText(item.value).then(() => setCopied(item.label), () => setCopied("")); }}>{copied === item.label ? "Copied" : "Copy"}</button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

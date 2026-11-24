@@ -5,7 +5,7 @@
 // happened, which reason holds and which way a variation moved a value. Nothing is a fixed answer key.
 import type { TermId } from "./glossary.ts";
 
-export type Subject = "system-design" | "networking" | "data-structures";
+export type Subject = "system-design" | "networking" | "data-structures" | "identity";
 /** `miss`: shown when the learner chose this and the run supported something else (a common misconception). */
 export type Choice = { id: string; text: string; miss?: string };
 /** One recorded value. `at`: the step or event of the run that shows it, when the view can go there. */

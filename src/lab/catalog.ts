@@ -2,9 +2,10 @@
 import { architectureLabs } from "./labs/architecture.ts";
 import { networkingLabs } from "./labs/networking.ts";
 import { structuresLabs } from "./labs/structures.ts";
+import { identityLabs } from "./labs/identity.ts";
 import type { FutureLab, Lab, StageLink, Subject } from "./model.ts";
 
-export const labs: Lab[] = [...networkingLabs, ...structuresLabs, ...architectureLabs];
+export const labs: Lab[] = [...networkingLabs, ...structuresLabs, ...architectureLabs, ...identityLabs];
 
 export const findLab = (subject: string, id: string) => labs.find((lab) => lab.subject === subject && lab.id === id);
 export const labById = (id: string) => labs.find((lab) => lab.id === id);

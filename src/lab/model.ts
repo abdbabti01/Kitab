@@ -3,12 +3,13 @@
 // worked solution, and where it connects to the rest of Kitab. Pure types and helpers: no React, no DOM.
 import type { glossary } from "../learning/glossary.ts";
 
-export type Subject = "networking" | "structures" | "architecture";
-export const SUBJECTS: readonly Subject[] = ["networking", "structures", "architecture"];
+export type Subject = "networking" | "structures" | "architecture" | "identity";
+export const SUBJECTS: readonly Subject[] = ["networking", "structures", "architecture", "identity"];
 export const subjectLabel: Record<Subject, string> = {
   networking: "Networking",
   structures: "Data structures & programming",
   architecture: "System design",
+  identity: "Identity & security",
 };
 
 export type ExecutionMode = "real-execution" | "real-protocol" | "real-configuration" | "emulated" | "simulated" | "unavailable";
@@ -50,7 +51,7 @@ export type ConfigNote = {
 };
 
 export type Related = { label: string; path: string; kind: "learn" | "practice" | "playground" };
-export type StageLink = { track: "networking" | "data-structures" | "system-design"; stage: string };
+export type StageLink = { track: "networking" | "data-structures" | "system-design" | "identity"; stage: string };
 
 type LabBase = {
   id: string;
@@ -77,6 +78,8 @@ type LabBase = {
   terms: (keyof typeof glossary)[];
   related: Related[];
   stages: StageLink[];
+  /** Values the learner uses in the tasks (for example synthetic tokens), shown beside the workspace with a copy button. */
+  reference?: { title: string; note: string; items: { label: string; value: string }[] };
 };
 
 export type CodeLab = LabBase & {

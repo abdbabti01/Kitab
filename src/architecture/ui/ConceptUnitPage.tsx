@@ -46,7 +46,7 @@ function Check({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept:
   );
 }
 
-function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept: Concept; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
+export function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept: Concept; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
   const lab = concept.lab ? labCatalog.find((l) => l.id === concept.lab) : undefined;
   return (
     <article id={concept.id} className="concept" aria-labelledby={`${concept.id}-title`}>
@@ -84,7 +84,7 @@ function shuffled<T extends { text: string }>(items: T[]) {
   return items.map((item, index) => ({ item, index })).sort((a, b) => hash(a.item.text) - hash(b.item.text));
 }
 
-function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
+export function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
   const [choice, setChoice] = useState<number | null>(null);
   const [reasons, setReasons] = useState<number[]>([]);
   const [result, setResult] = useState<ReturnType<typeof judgeDecision> | null>(null);

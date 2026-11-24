@@ -13,6 +13,7 @@ import { loadVisits, type Visits } from "./visits.ts";
 import { loadMissionStore, missionState, type MissionStore } from "../practice/network/mission-progress.ts";
 import { challengeRecordFor, loadArchitectureProgress, type ArchitectureProgress } from "../architecture/progress.ts";
 import { labRecordFor, labState, loadLabProgress, type LabProgress } from "../architecture/labs/progress.ts";
+import { challengeRecordFor as identityChallengeFor, challengeState as identityChallengeState, emptyIdentityProgress, loadIdentityProgress, type IdentityProgress } from "../identity/progress.ts";
 
 export type Activity = {
   /** Unique across tracks: a lesson or mission id, an explorer ("connections", "subnet-explorer"), "starter:<starter id>" or "concept:<chapter slug>". */
@@ -25,7 +26,9 @@ export type Activity = {
    * Where completion is recorded; absent when the activity records only visits (exploration, playground, concept,
    * Packet Journey). System Design lessons complete when their experiment has been run; challenges when passed.
    */
-  track?: "lesson" | "mission" | "network-mission" | "architecture-lesson" | "architecture-challenge" | "architecture-lab";
+  track?: "lesson" | "mission" | "network-mission" | "architecture-lesson" | "architecture-challenge" | "architecture-lab" | "identity-unit" | "identity-challenge";
+  /** Identity challenges with several variants can be mastered (passes in two different variants). */
+  masterable?: boolean;
   /** Networking missions and design challenges are loaded with their engine, so their version is repeated here (a test keeps it in step). */
   version?: string;
   /** Path activities to do first. Shown as links, never enforced. */
@@ -121,7 +124,7 @@ const steps = networkingPath.flatMap((stage) => [...stage.learn, ...stage.practi
 export const findActivity = (id: string) => steps.find((step) => step.activity.id === id)?.activity;
 
 /** The progress records the path reads: the lesson, mission and networking stores, and the visit store. */
-export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits; architecture: ArchitectureProgress; labs: LabProgress };
+export type Evidence = { learning: Learning; progress: Progress; network: MissionStore; visits: Visits; architecture: ArchitectureProgress; labs: LabProgress; identity?: IdentityProgress };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 /**
@@ -131,7 +134,7 @@ type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
  */
 export function loadEvidence(storage: Pick<Storage, "getItem">): Evidence {
   const readOnly: StorageLike = { getItem: (key) => storage.getItem(key), setItem: () => {}, removeItem: () => {} };
-  return { learning: loadLearning(readOnly).learning, progress: loadProgress(readOnly).progress, network: loadMissionStore(readOnly), visits: loadVisits(readOnly), architecture: loadArchitectureProgress(readOnly), labs: loadLabProgress(readOnly) };
+  return { learning: loadLearning(readOnly).learning, progress: loadProgress(readOnly).progress, network: loadMissionStore(readOnly), visits: loadVisits(readOnly), architecture: loadArchitectureProgress(readOnly), labs: loadLabProgress(readOnly), identity: loadIdentityProgress(readOnly) };
 }
 
 /** Lessons and missions record completion; explorations, starters, readings and Packet Journey record only visits. */
@@ -157,6 +160,11 @@ export function activityState(activity: Activity, evidence: Evidence): PracticeS
     state = evidence.architecture.lessons[architectureId(activity)] || unit?.completedAt ? "completed" : unit ? "in-progress" : "not-started";
   } else if (activity.track === "architecture-lab") {
     state = labState(labRecordFor(evidence.labs, architectureId(activity), activity.version!));
+  } else if (activity.track === "identity-unit") {
+    const unit = (evidence.identity ?? emptyIdentityProgress()).units[architectureId(activity)];
+    state = unit?.completedAt ? "completed" : unit ? "in-progress" : "not-started";
+  } else if (activity.track === "identity-challenge") {
+    state = identityChallengeState(identityChallengeFor(evidence.identity ?? emptyIdentityProgress(), architectureId(activity), activity.version!));
   } else if (activity.track === "architecture-challenge") {
     const record = challengeRecordFor(evidence.architecture, architectureId(activity), activity.version!);
     state = record?.passedAt ? "completed" : record ? "in-progress" : "not-started";
@@ -165,7 +173,7 @@ export function activityState(activity: Activity, evidence: Evidence): PracticeS
 }
 
 /** Missions and labs can be mastered; lessons and design challenges can only be completed. */
-export const canMaster = (activity: Activity) => activity.track === "mission" || activity.track === "network-mission" || activity.track === "architecture-lab";
+export const canMaster = (activity: Activity) => activity.track === "mission" || activity.track === "network-mission" || activity.track === "architecture-lab" || (activity.track === "identity-challenge" && activity.masterable === true);
 
 const done = (state: PracticeState) => state === "completed" || state === "mastered";
 const started = (state: PracticeState) => state === "in-progress" || done(state);
@@ -200,6 +208,8 @@ export function lastActive(activity: Activity, evidence: Evidence): string {
     for (const answer of Object.values(evidence.labs.units[architectureId(activity)]?.answers ?? {})) times.push(answer.at);
   }
   if (activity.track === "architecture-lab") times.push(evidence.labs.labs[architectureId(activity)]?.lastAt ?? "");
+  if (activity.track === "identity-unit") for (const answer of Object.values(evidence.identity?.units[architectureId(activity)]?.answers ?? {})) times.push(answer.at);
+  if (activity.track === "identity-challenge") times.push(evidence.identity?.challenges[architectureId(activity)]?.lastAt ?? "");
   if (activity.track === "architecture-challenge") times.push(evidence.architecture.challenges[architectureId(activity)]?.lastAt ?? "");
   // Only ISO times compare; placeholders such as "earlier" (migrated challenges) count as never.
   return times.filter((t) => /^\d{4}-/.test(t)).sort().at(-1) ?? "";

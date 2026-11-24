@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { readStore, updateStore, type StorageLike } from "../learning/keyed-store.ts";
 import { METHODS, type HttpMethod } from "./model.ts";
+import { LAB_TOKENS } from "../identity/lab-fixtures.ts";
 
 export const LAB_PROGRESS_KEY = "kitab.engineering-labs.v1";
 const VERSION = 1;
@@ -53,7 +54,7 @@ export function saveLab(storage: StorageLike, labId: string, labVersion: number,
   let next: LabRecord | undefined;
   const { saved } = updateStore(storage, LAB_PROGRESS_KEY, VERSION, collections, (records) => {
     const current = records.labs[labId] ?? emptyRecord(labVersion);
-    const changed = change({ ...current, tasksDone: [...current.tasksDone] });
+    const changed = withoutCredentials(change({ ...current, tasksDone: [...current.tasksDone] }));
     next = {
       ...changed,
       tasksDone: [...new Set([...current.tasksDone, ...changed.tasksDone])],
@@ -64,6 +65,18 @@ export function saveLab(storage: StorageLike, labId: string, labVersion: number,
     records.meta.last = { labId, at: Date.now() };
   });
   return { saved, record: next! };
+}
+
+const CREDENTIAL_HEADERS = new Set(["authorization", "proxy-authorization", "cookie", "x-api-key"]);
+const LAB_BEARERS = new Set(Object.values(LAB_TOKENS).map((t) => `Bearer ${t}`));
+/** Saved drafts never keep a credential, except the lab's own synthetic tokens: a real token typed by mistake isn't stored. */
+function withoutCredentials(record: LabRecord): LabRecord {
+  if (!record.drafts) return record;
+  const drafts = Object.fromEntries(Object.entries(record.drafts).map(([task, d]) => [task, {
+    ...d,
+    headers: d.headers.map((h) => (CREDENTIAL_HEADERS.has(h.name.trim().toLowerCase()) && !LAB_BEARERS.has(h.value.trim()) ? { ...h, value: "" } : h)),
+  }]));
+  return { ...record, drafts };
 }
 
 /** Remember the lab as the last one opened, without starting a record for it. */
