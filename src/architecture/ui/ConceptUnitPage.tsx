@@ -46,7 +46,7 @@ function Check({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept:
   );
 }
 
-function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept: Concept; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
+export function ConceptCard({ unit, concept, right, onAnswer }: { unit: ConceptUnit; concept: Concept; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
   const lab = concept.lab ? labCatalog.find((l) => l.id === concept.lab) : undefined;
   return (
     <article id={concept.id} className="concept" aria-labelledby={`${concept.id}-title`}>
@@ -84,7 +84,7 @@ function shuffled<T extends { text: string }>(items: T[]) {
   return items.map((item, index) => ({ item, index })).sort((a, b) => hash(a.item.text) - hash(b.item.text));
 }
 
-function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
+export function DecisionCard({ decision, right, onAnswer }: { decision: Decision; right: boolean | undefined; onAnswer: (correct: boolean) => void }) {
   const [choice, setChoice] = useState<number | null>(null);
   const [reasons, setReasons] = useState<number[]>([]);
   const [result, setResult] = useState<ReturnType<typeof judgeDecision> | null>(null);
@@ -172,6 +172,12 @@ export function ConceptUnitPage({ unit }: { unit: ConceptUnit }) {
         <ul>{unit.objectives.map((o) => <li key={o}>{o}</li>)}</ul>
       </section>
       <section className="lesson-section">{unit.intro.map((p) => <p key={p}>{p}</p>)}</section>
+      {unit.see && unit.see.length > 0 && (
+        <aside className="concept-callout is-example" aria-label="Go deeper">
+          <b>Go deeper</b>
+          <ul>{unit.see.map((s) => <li key={s.path}><a {...linkProps(s.path)}>{s.label}</a>: {s.detail}</li>)}</ul>
+        </aside>
+      )}
       {unit.concepts.map((c) => <ConceptCard key={c.id} unit={unit} concept={c} right={record?.answers[c.id]?.correct} onAnswer={(ok) => answer(c.id, ok)} />)}
       {unit.decisions?.map((d) => <DecisionCard key={d.id} decision={d} right={record?.answers[`decision:${d.id}`]?.correct} onAnswer={(ok) => answer(`decision:${d.id}`, ok)} />)}
       {unit.labs.length > 0 && (

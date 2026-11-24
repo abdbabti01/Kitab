@@ -7,6 +7,7 @@ export type CycleEntry = { id: string; version: number; subject: Subject; unit: 
 const sd = (id: string, unit: string, title: string): CycleEntry => ({ id, version: 1, subject: "system-design", unit, title, path: `/learn/system-design/${unit}#experiment-title` });
 const ds = (id: string, unit: string, title: string): CycleEntry => ({ id, version: 1, subject: "data-structures", unit, title, path: `/practice/structures?experiment=${id}` });
 const net = (id: string, unit: string, title: string): CycleEntry => ({ id, version: 1, subject: "networking", unit, title, path: `/practice/network?experiment=${id}` });
+const idn = (id: string, unit: string, title: string, page = "/practice/identity"): CycleEntry => ({ id, version: 1, subject: "identity", unit, title, path: `${page}?experiment=${id}` });
 
 export const cycleCatalog: CycleEntry[] = [
   sd("sd-capacity", "fundamentals", "Traffic grows, capacity doesn't"),
@@ -22,6 +23,14 @@ export const cycleCatalog: CycleEntry[] = [
   net("net-arp-first", "lan", "What does your PC send first?"),
   net("net-dhcp-order", "lan", "How does a phone get an address?"),
   net("net-gateway-frame", "routing", "Where does the first frame go?"),
+  idn("id-redirect", "oauth-flows", "A redirect URI with one extra slash"),
+  idn("id-state", "oauth-flows", "A callback this browser never asked for"),
+  idn("id-signature", "tokens", "An ID token signed with an unknown key"),
+  idn("id-audience", "authorization", "A valid token at the wrong API"),
+  idn("id-sso-session", "sso", "Can Application B reuse Application A's session?"),
+  idn("id-key-rotation", "tokens", "The identity provider rotates its signing key"),
+  idn("id-refresh-reuse", "oauth-flows", "A stolen refresh token is used after rotation"),
+  idn("id-tenant", "authorization", "An admin from another tenant", "/practice/identity/authorization"),
 ];
 
 export const cyclesFor = (subject: Subject, unit?: string) => cycleCatalog.filter((c) => c.subject === subject && (unit === undefined || c.unit === unit));

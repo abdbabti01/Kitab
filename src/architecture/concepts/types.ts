@@ -58,6 +58,8 @@ export type ConceptUnit = {
   /** Labs that practise the unit, in order. */
   labs: string[];
   takeaways: string[];
+  /** Where the subject is taught in depth elsewhere in Kitab. */
+  see?: { label: string; path: string; detail: string }[];
   /** Decisions to practise; each counts towards completing the unit like a concept's check. */
   decisions?: Decision[];
 };

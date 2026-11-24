@@ -362,6 +362,7 @@ code, pre, kbd { font-variant-ligatures: none; font-feature-settings: "liga" 0, 
 .subject-icon svg { width: 24px; height: 24px; }
 .subject-card.is-structures .subject-icon { background: #ede7f6; color: #5b3d8a; }
 .subject-card.is-design .subject-icon { background: #e2f1ec; color: #1d5c4a; }
+.subject-card.is-identity .subject-icon { background: #fbeee0; color: #8a4b12; }
 .subject-kind { color: var(--muted); font: 650 .72rem/1.4 var(--mono); text-transform: uppercase; letter-spacing: .07em; }
 .subject-units { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; align-content: start; color: var(--ink-2); font-size: .92rem; }
 .subject-units li { display: flex; gap: 8px; align-items: baseline; }

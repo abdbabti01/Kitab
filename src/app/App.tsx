@@ -26,6 +26,11 @@ const LabsIndex = lazy(() => import("../architecture/ui/LabPage.tsx").then((m) =
 const ArchitectureLessonRoute = lazy(() => import("../architecture/ui/ArchitectureLessonPage.tsx").then((m) => ({ default: m.ArchitectureLessonRoute })));
 const EngineeringLabs = lazy(() => import("../lab/ui/LabsPage.tsx").then((m) => ({ default: m.LabsPage })));
 const EngineeringLabRoute = lazy(() => import("../lab/ui/LabPage.tsx").then((m) => ({ default: m.EngineeringLabRoute })));
+const IdentityUnitRoute = lazy(() => import("../identity/ui/IdentityUnitPage.tsx").then((m) => ({ default: m.IdentityUnitRoute })));
+const IdentityPlayground = lazy(() => import("../identity/ui/IdentityPlayground.tsx").then((m) => ({ default: m.IdentityPlayground })));
+const TokenInspector = lazy(() => import("../identity/ui/TokenInspector.tsx").then((m) => ({ default: m.TokenInspector })));
+const AuthorizationPlayground = lazy(() => import("../identity/ui/AuthorizationPlayground.tsx").then((m) => ({ default: m.AuthorizationPlayground })));
+const IdentityChallengeRoute = lazy(() => import("../identity/ui/ChallengePage.tsx").then((m) => ({ default: m.IdentityChallengeRoute })));
 const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
 const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
@@ -59,6 +64,8 @@ export function activityIdFor(route: Route, search: string): string | null {
   if (route.name === "architecture-lesson") return findTrackActivity(`sd:${route.id}`) ? `sd:${route.id}` : null;
   if (route.name === "architecture-challenge") return findTrackActivity(`challenge:${route.id}`) ? `challenge:${route.id}` : null;
   if (route.name === "architecture-lab") return findTrackActivity(`lab:${route.id}`) ? `lab:${route.id}` : null;
+  if (route.name === "identity-unit") return findTrackActivity(`id:${route.id}`) ? `id:${route.id}` : null;
+  if (route.name === "identity-challenge") return findTrackActivity(`idc:${route.id}`) ? `idc:${route.id}` : null;
   if (route.name === "network-practice") {
     const starter = new URLSearchParams(search).get("starter");
     return starter && findActivity(`starter:${starter}`) ? `starter:${starter}` : null;
@@ -69,7 +76,7 @@ export function activityIdFor(route: Route, search: string): string | null {
 /** The main-navigation section a page belongs to, by its role in the course rather than its address. */
 export function sectionFor(route: Route, activityId: string | null): Section | null {
   if (route.name === "engineering-labs" || route.name === "engineering-lab") return "lab";
-  if (route.name === "network-practice" || route.name === "architecture-playground" || route.name === "structures-playground" || route.name === "playgrounds") return "playground";
+  if (route.name === "network-practice" || route.name === "architecture-playground" || route.name === "structures-playground" || route.name === "playgrounds" || route.name === "identity-playground" || route.name === "identity-tokens" || route.name === "identity-authorization") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
   if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs") return "practice";
   const at = activityId ? locate(activityId) : undefined;
@@ -105,6 +112,12 @@ export function App() {
   else if (route.name === "architecture-labs") view = <LabsIndex evidence={evidence} />;
   else if (route.name === "architecture-lab") view = <LabRoute key={route.id} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "architecture-lesson") view = <ArchitectureLessonRoute key={route.id} id={route.id} notFound={<NotFound what="that lesson" />} />;
+  else if (route.name === "identity-unit") view = <IdentityUnitRoute key={route.id} id={route.id} notFound={<NotFound what="that lesson" />} />;
+  // Keyed by the query, so a link to another scenario or experiment opens it even from this page.
+  else if (route.name === "identity-playground") view = <IdentityPlayground key={window.location.search} />;
+  else if (route.name === "identity-tokens") view = <TokenInspector />;
+  else if (route.name === "identity-authorization") view = <AuthorizationPlayground />;
+  else if (route.name === "identity-challenge") view = <IdentityChallengeRoute key={route.id} id={route.id} notFound={<NotFound what="that challenge" />} />;
   else if (route.name === "engineering-labs") view = <EngineeringLabs />;
   else if (route.name === "engineering-lab") view = <EngineeringLabRoute key={route.id} subject={route.subject} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "network-mission") {

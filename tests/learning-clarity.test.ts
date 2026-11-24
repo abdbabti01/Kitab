@@ -5,6 +5,7 @@ import { COMPONENT_KINDS } from "../src/architecture/model.ts";
 import { realComponents, realSettings, realWorkload } from "../src/architecture/real-world.ts";
 import { realDevices } from "../src/practice/network/real-world.ts";
 import { glossary, type GlossaryTerm } from "../src/learning/glossary.ts";
+import { identityUnits } from "../src/identity/content/index.ts";
 import { conceptUnits } from "../src/architecture/concepts/index.ts";
 import { HTTP_WALKTHROUGH_PATH, parseRoute } from "../src/app/routes.ts";
 import { masteryGaps, successCriteria } from "../src/practice/network/mission-progress.ts";
@@ -51,12 +52,14 @@ test("every network device kind says where its settings live and who sets them",
 
 test("every glossary term explains itself and links to a page or concept that exists", () => {
   const concepts = new Set(conceptUnits.flatMap((u) => u.concepts.map((c) => `${u.id}#${c.id}`)));
+  const identityConcepts = new Set(identityUnits.flatMap((u) => u.concepts.map((c) => `${u.id}#${c.id}`)));
   for (const term of Object.values(glossary) as GlossaryTerm[]) {
     assert.ok(term.definition && term.purpose && term.example, term.id);
     if (!term.more) continue;
     const [path, hash] = term.more.href.split("#");
     const route = parseRoute(path);
     if (route.name === "architecture-lesson") assert.ok(concepts.has(`${route.id}#${hash}`), term.more.href);
+    else if (route.name === "identity-unit") assert.ok(identityConcepts.has(`${route.id}#${hash}`), term.more.href);
     else if (route.name === "lesson") assert.equal(path, HTTP_WALKTHROUGH_PATH, `${term.more.href} is not a lesson`);
     else assert.equal(route.name, "learn", term.more.href);
   }

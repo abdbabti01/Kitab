@@ -1,10 +1,10 @@
 // Kitab's three Playgrounds: one list for Home, the selection page (/playground) and tests. Each opens its own
 // existing tool; nothing here runs a simulation.
-import { Binary, Waypoints, Workflow } from "lucide-react";
+import { Binary, KeyRound, Waypoints, Workflow } from "lucide-react";
 
 export const PLAYGROUNDS_PATH = "/playground";
 
-export type PlaygroundId = "network" | "structures" | "architecture";
+export type PlaygroundId = "network" | "structures" | "architecture" | "identity";
 
 export const playgrounds = [
   {
@@ -33,5 +33,14 @@ export const playgrounds = [
     Icon: Workflow,
     summary: "Design an application from APIs, databases, caches, load balancers and queues, then send simulated traffic through it.",
     explore: ["Start from a template or a blank canvas", "Find the bottleneck as traffic grows", "Watch failures spread, then design them out"],
+  },
+  {
+    id: "identity",
+    title: "Identity Playground",
+    subject: "Identity, authentication & security",
+    path: "/practice/identity",
+    Icon: KeyRound,
+    summary: "Run a sign-in, SSO, a service-to-service call or a SAML login and inspect every redirect, request, token and check. Includes a Token Inspector with real signatures and an Authorization Playground.",
+    explore: ["Follow OpenID Connect with PKCE message by message", "Break one setting and see which check catches it", "Verify real JWT signatures and test access policies"],
   },
 ] as const;

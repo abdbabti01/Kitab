@@ -1,6 +1,7 @@
 // The Real Engineering Lab's HTTP endpoints (/api/lab/*). Every response is computed from the request and fixed
 // data: no outbound request is ever made (not a proxy), nothing touches D1 or Workers AI, and nothing is stored.
 // Bodies are JSON or text/plain with nosniff, so a reflected value can never become a page.
+import { identityAnswer } from "./identity-lab.ts";
 
 export const LAB_PREFIX = "/api/lab/";
 const MAX_BODY = 8_192;
@@ -253,6 +254,8 @@ async function slow(url: URL): Promise<Answer> {
 async function answer(request: Request, url: URL): Promise<Answer> {
   const path = url.pathname.replace(/\/+$/, "");
   const method = request.method;
+  const identity = await identityAnswer(request, url, path);
+  if (identity) return identity;
   if (path === "/api/lab/echo") return echo(request, url);
   const code = /^\/api\/lab\/status\/(\d{3})$/.exec(path);
   if (code) return method === "GET" || method === "HEAD" ? status(Number(code[1])) : notAllowed("GET", method, "/api/lab/status/:code");
@@ -267,7 +270,7 @@ async function answer(request: Request, url: URL): Promise<Answer> {
     status: 404,
     body: {
       error: `No route matches ${method} ${clip(url.pathname)}.`,
-      routes: ["/api/lab/echo", "/api/lab/status/:code", "/api/lab/cache/:policy", "/api/lab/negotiate", "/api/lab/books", "/api/lab/books/:id", "/api/lab/orders", "/api/lab/slow?ms="],
+      routes: ["/api/lab/echo", "/api/lab/status/:code", "/api/lab/cache/:policy", "/api/lab/negotiate", "/api/lab/books", "/api/lab/books/:id", "/api/lab/orders", "/api/lab/slow?ms=", "/api/lab/identity/jwks", "/api/lab/identity/orders/:id"],
     },
   };
 }

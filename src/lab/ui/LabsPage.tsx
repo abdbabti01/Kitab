@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { ArrowRight, Binary, Clock, SquareTerminal, Waypoints, Workflow } from "lucide-react";
+import { ArrowRight, Binary, Clock, KeyRound, SquareTerminal, Waypoints, Workflow } from "lucide-react";
 import { linkProps } from "../../app/router.ts";
 import { safeStorage } from "../../learning/progress.ts";
 import { futureLabs, labById, labsFor } from "../catalog.ts";
@@ -8,7 +8,7 @@ import { lastLab, labStateLabel, readLabs, stateOf } from "../progress.ts";
 import { ModeBadges } from "./LabPage.tsx";
 import "./lab.css";
 
-const icons: Record<Subject, typeof Waypoints> = { networking: Waypoints, structures: Binary, architecture: Workflow };
+const icons: Record<Subject, typeof Waypoints> = { networking: Waypoints, structures: Binary, architecture: Workflow, identity: KeyRound };
 const legend: ExecutionMode[] = ["real-execution", "real-protocol", "simulated", "unavailable"];
 
 /** /lab: every Engineering Lab by subject, with saved progress, and what can't run in a browser (yet). */

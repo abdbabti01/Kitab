@@ -24,4 +24,33 @@ export const unitLabs: Record<string, UnitLab[]> = {
   "system-design/reliability": [retries],
   "system-design/resilience": [retries],
   "system-design/production": [{ title: "Troubleshoot a misbehaving API handler", path: "/lab/architecture/troubleshooting" }],
+  "identity/oauth": [{ title: "Build a correct authorization request", path: "/lab/identity/auth-request" }],
+  "identity/oauth-flows": [
+    { title: "Build a correct authorization request", path: "/lab/identity/auth-request" },
+    { title: "Generate a PKCE verifier and challenge with Web Crypto", path: "/lab/identity/pkce" },
+    { title: "Validate an authorization callback", path: "/lab/identity/callback" },
+    { title: "Diagnose a broken redirect URI check", path: "/lab/identity/redirect-uri" },
+    { title: "Refresh tokens without a stampede", path: "/lab/identity/refresh-single-flight" },
+  ],
+  "identity/oidc": [
+    { title: "Validate an authorization callback", path: "/lab/identity/callback" },
+    { title: "Decode a JWT and validate its claims", path: "/lab/identity/jwt-claims" },
+  ],
+  "identity/failures": [
+    { title: "Diagnose a broken redirect URI check", path: "/lab/identity/redirect-uri" },
+    { title: "Debug an audience check", path: "/lab/identity/audience-bug" },
+    { title: "Session cookies and safe token handling", path: "/lab/identity/cookie-vs-bearer" },
+  ],
+  "identity/tokens": [
+    { title: "Decode a JWT and validate its claims", path: "/lab/identity/jwt-claims" },
+    { title: "Select a key from a JWKS and verify a signature", path: "/lab/identity/jwks-verify" },
+    { title: "Debug an audience check", path: "/lab/identity/audience-bug" },
+    { title: "Call a protected API with real tokens", path: "/lab/identity/protected-api" },
+  ],
+  "identity/authorization": [
+    { title: "Build a scope-based API authorization decision", path: "/lab/identity/scope-authz" },
+    { title: "Write a role, attribute and tenant policy", path: "/lab/identity/policy" },
+  ],
+  "identity/passwords-sessions": [{ title: "Session cookies and safe token handling", path: "/lab/identity/cookie-vs-bearer" }],
+  "identity/mfa-passkeys": [{ title: "Passkey-style challenge-response, for real", path: "/lab/identity/challenge-response" }],
 };

@@ -95,6 +95,7 @@ export function TrackRoadmap({ track, evidence }: { track: LearningTrack; eviden
           <a className="button primary" {...linkProps(next.path)}>{next.label} <ArrowRight aria-hidden="true" /></a>
           {networking && recommendation.kind !== "done" && <a className="button" {...linkProps("/practice/network")}>Build freely in the Playground</a>}
           {track.id === "system-design" && recommendation.kind !== "done" && <a className="button" {...linkProps("/practice/architecture")}>Design freely in the Architecture Playground</a>}
+          {track.id === "identity" && recommendation.kind !== "done" && <a className="button" {...linkProps("/practice/identity")}>Trace sign-ins in the Identity Playground</a>}
         </div>
       </section>
       <div className="track-meter">
@@ -132,6 +133,12 @@ export function TrackRoadmap({ track, evidence }: { track: LearningTrack; eviden
                   <p className="unit-playground">
                     <FlaskConical aria-hidden="true" />
                     <span>Experiment freely: <a {...linkProps("/practice/architecture")}>build your own design in the Architecture Playground</a>, add a component and run it again.</span>
+                  </p>
+                )}
+                {track.id === "identity" && (
+                  <p className="unit-playground">
+                    <FlaskConical aria-hidden="true" />
+                    <span>Experiment freely: <a {...linkProps("/practice/identity")}>trace a sign-in in the Identity Playground</a>, inspect tokens in the <a {...linkProps("/practice/identity/tokens")}>Token Inspector</a> or test policies in the <a {...linkProps("/practice/identity/authorization")}>Authorization Playground</a>.</span>
                   </p>
                 )}
                 {unitLabs[`${track.id}/${stage.id}`] && (

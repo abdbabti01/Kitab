@@ -16,15 +16,15 @@ const resume = (page: Page) => page.locator(".track-resume");
 /** Home's content, without the demonstration (it plays on its own). */
 const homeText = (page: Page) => page.locator("#main > :not(.playground-feature)").allInnerTexts();
 
-test("Home leads with the three subjects and one Playground feature, the same for a first visit and a returning learner", async ({ page }) => {
+test("Home leads with the four subjects and one Playground feature, the same for a first visit and a returning learner", async ({ page }) => {
   await seed(page, {});
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("See how computers really work, one step at a time.");
   const cards = page.locator(".subject-card");
-  await expect(cards.locator("h3")).toHaveText(["Networking", "Data structures & recursion", "System design & architecture"]);
-  // One large feature introduces all three Playgrounds; there is no Playground card among the subjects.
+  await expect(cards.locator("h3")).toHaveText(["Networking", "Data structures & recursion", "System design & architecture", "Identity, authentication & security"]);
+  // One large feature introduces all four Playgrounds; there is no Playground card among the subjects.
   await expect(page.locator(".playground-feature")).toHaveCount(1);
-  await expect(page.locator(".feature-playgrounds a")).toHaveText([/Network Playground/, /Data Structures & Recursion Playground/, /Architecture Playground/]);
+  await expect(page.locator(".feature-playgrounds a")).toHaveText([/Network Playground/, /Data Structures & Recursion Playground/, /Architecture Playground/, /Identity Playground/]);
   // The subjects are on the first screen: all three side by side on a wide screen, the first one on a phone.
   const shown = page.viewportSize()!.width >= 1024 ? await cards.all() : [cards.first()];
   for (const card of shown) await expect(card).toBeInViewport();
@@ -35,7 +35,7 @@ test("Home leads with the three subjects and one Playground feature, the same fo
   await page.goto("/learn/ipv4-subnets");
   await page.locator(".lesson-controls .next-button").click();
   await page.goto("/");
-  await expect(page.locator(".subject-card")).toHaveCount(3);
+  await expect(page.locator(".subject-card")).toHaveCount(4);
   expect(await homeText(page)).toEqual(first);
   await expect(page.locator(".site-header").getByText(/Continue/)).toHaveCount(0);
 });
@@ -45,6 +45,7 @@ test("each subject on Home opens its own track, and the Playground feature opens
     ["Explore Networking", /\/learn$/, "Networking"],
     ["Explore Data structures", /\/learn\/data-structures$/, "Data structures & recursion"],
     ["Explore System design", /\/learn\/system-design$/, "System design & architecture"],
+    ["Explore Identity & security", /\/learn\/identity$/, "Identity, authentication & security"],
   ] as const) {
     await page.goto("/");
     await page.locator(".subject-card").getByRole("link", { name }).click();
@@ -56,11 +57,12 @@ test("each subject on Home opens its own track, and the Playground feature opens
     ["Network Playground", /\/practice\/network$/],
     ["Data Structures & Recursion Playground", /\/practice\/structures\?structure=array/],
     ["Architecture Playground", /\/practice\/architecture$/],
+    ["Identity Playground", /\/practice\/identity/],
   ] as const) {
     await page.goto("/");
     await page.locator(".playground-feature").getByRole("link", { name: "Explore the Playgrounds" }).click();
     await expect(page).toHaveURL(/\/playground$/);
-    await expect(page.locator(".playground-choice h2")).toHaveText(["Network Playground", "Data Structures & Recursion Playground", "Architecture Playground"]);
+    await expect(page.locator(".playground-choice h2")).toHaveText(["Network Playground", "Data Structures & Recursion Playground", "Architecture Playground", "Identity Playground"]);
     await page.locator(".playground-choice", { hasText: title }).getByRole("link", { name: "Open Playground" }).click();
     await expect(page).toHaveURL(url);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
@@ -155,7 +157,7 @@ test("progress saved before the redesign shows as before, and nothing in it is r
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/");
-  await expect(page.locator(".subject-card")).toHaveCount(3);
+  await expect(page.locator(".subject-card")).toHaveCount(4);
   await page.goto("/learn");
   await expect(page.locator(".track-meter")).toContainText("3 of 14 lessons and missions completed · 1 mastered");
   await page.goto("/practice/network");

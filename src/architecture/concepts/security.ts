@@ -13,6 +13,10 @@ export const securityUnit: ConceptUnit = {
   intro: [
     "Many breaches aren't clever exploits: they're an endpoint that checks who you are but not what you may touch, a database password in a repository, or a service that trusts anything on the internal network. These are architecture decisions. Kitab doesn't simulate attacks; this unit teaches the decisions and tests your reasoning about them.",
   ],
+  see: [
+    { label: "Identity, authentication & security track", path: "/learn/identity", detail: "this unit places identity in an architecture; the track teaches the protocols message by message: OAuth 2.0, OpenID Connect, JWTs, SSO, SAML, passkeys and authorization." },
+    { label: "Identity Playground", path: "/practice/identity", detail: "trace a sign-in, SSO or a service-to-service call and break one check at a time." },
+  ],
   concepts: [
     {
       id: "authn-authz",
