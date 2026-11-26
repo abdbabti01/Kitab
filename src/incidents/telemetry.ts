@@ -443,7 +443,7 @@ export const DIAGNOSTICS: Diagnostic[] = [
       if (!bad.length) findings.push(f("latency.normal", "No slow or failed requests", "Every request in the window finished within 1 s", false));
       else {
         // Every category that takes at least 30% of the time is a finding: a request can wait on two things in turn.
-        for (const [cat, ms] of ranked.filter(([c, ms], i) => i === 0 || (ms * 100) / sum >= 30)) if (CATEGORY_FINDINGS[cat]) findings.push(f(CATEGORY_FINDINGS[cat]!, `Time goes to: ${cat}`, `In the ${bad.length} slowest or failed traces, ${cat} took ${pct((ms * 100) / sum)} of the time`, true));
+        for (const [cat, ms] of ranked.filter(([, ms], i) => i === 0 || (ms * 100) / sum >= 30)) if (CATEGORY_FINDINGS[cat]) findings.push(f(CATEGORY_FINDINGS[cat]!, `Time goes to: ${cat}`, `In the ${bad.length} slowest or failed traces, ${cat} took ${pct((ms * 100) / sum)} of the time`, true));
       }
       if (holds) findings.push(f("pool.held-during-payment", "Connection held during the payment call", `In ${holds} of ${checkouts} checkout traces the payment call runs inside db.transaction, so the request keeps its database connection while it waits for the provider`, true));
       else if (bad.some((t) => t.endpoint === "checkout")) findings.push(f("pool.not-held", "No connection held across the payment call", "In the inspected checkout traces every query finishes, and its connection is released, before the payment call starts", false));

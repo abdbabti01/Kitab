@@ -113,7 +113,7 @@ const features = (on: Partial<Features>): Features => ({ dns: false, cache: fals
 // ---- Shared measures for criteria and invariants ----
 const errorRate = (endpoint?: Endpoint) => (run: Run, w: Window) => requestFacts(run, w, endpoint).errorRate;
 const p95 = (endpoint?: Endpoint) => (run: Run, w: Window) => requestFacts(run, w, endpoint).p95;
-const lastWindow = (run: Run, w: Window, ms: number): Window => ({ from: Math.max(w.from, w.to - ms), to: w.to });
+const lastWindow = (_run: Run, w: Window, ms: number): Window => ({ from: Math.max(w.from, w.to - ms), to: w.to });
 /** Duplicate charges for orders placed after `from`: duplicates of earlier orders were caused before the change. */
 const duplicates = (run: Run, from: number) => {
   const started = new Set(run.events.filter((e) => e.type === "request" && e.t >= from).map((e) => e.req));
@@ -136,7 +136,7 @@ const RECOVERY_WHY = "Scenario teaching objective for this store's checkout, set
 
 // ---- Controls reused by several scenarios ----
 const c = {
-  poolSize: { id: "pool.size", component: "store-api", type: "number", label: "Connection pool size (per instance)", help: "How many database connections each API instance may hold open.", min: 2, max: 40, step: 1, unit: "connections", tradeoff: "Every instance's pool counts against the database's connection limit." } as IncidentControl,
+  poolSize: { id: "pool.size", component: "store-api", type: "number", label: "Connection pool size per instance", help: "How many database connections each API instance may hold open.", min: 2, max: 40, step: 1, unit: "connections", tradeoff: "Every instance's pool counts against the database's connection limit." } as IncidentControl,
   acquireTimeout: { id: "pool.acquireTimeoutMs", component: "store-api", type: "number", label: "Pool acquire timeout", help: "How long a request waits for a free connection before failing.", min: 250, max: 5000, step: 250, unit: "ms", tradeoff: "Longer waits turn errors into slow requests; they don't add capacity." } as IncidentControl,
   replicas: { id: "api.replicas", component: "store-api", type: "number", label: "API instances", help: "How many store-api instances run behind the gateway. New ones take 3 s to start.", min: 1, max: 6, step: 1, tradeoff: "More instances means more pools and more database connections." } as IncidentControl,
   concurrency: { id: "api.concurrency", component: "store-api", type: "number", label: "Worker threads per instance", help: "Requests each instance works on at once; more wait in a bounded queue.", min: 8, max: 64, step: 8, unit: "threads" } as IncidentControl,
@@ -246,7 +246,7 @@ const poolExhaustion: Scenario = {
     "The pool is full while the database is mostly idle: connections are held, not used. Compare what a checkout does while it holds one in v60 and in v61 (and whether every one comes back). Roll back or deploy the hotfix, then verify under stress.",
   ],
   architecture: "Customers' browsers call the gateway, which spreads requests over two store-api instances. Each instance keeps a pool of 10 database connections. A product page reads Redis and, on a miss, the database. A checkout writes the order to Postgres and charges the card at an external payment provider.",
-  terms: ["pool", "latency", "saturation", "queue", "span", "trace", "rollback"],
+  terms: ["pool", "latency", "saturation", "queue", "span", "trace", "correlationId", "slo", "rollback"],
   learn: [sd("performance", "connection-pooling", "Connection pools"), sd("performance", "littles-law", "Little's law"), sd("performance", "tail-latency", "Tail latency"), sd("resilience", "timeouts-deadlines", "Timeouts and deadlines"), { kind: "Playground", label: "Architecture Playground: find the bottleneck", href: "/practice/architecture" }, lab("architecture", "capacity", "Lab: capacity and queueing in real code")],
   prevention: ["Never hold a database connection across a network call to another service", "Release connections in finally blocks (or a using/try-with-resources scope) and enable pool leak detection", "Alert on pool waiters and acquire time, not only on errors", "Load-test new versions at peak traffic before full rollout"],
   limitations: [...commonLimits, "The pool opens connections lazily and never closes idle ones. The database's CPU slots and contention are a declared model, not Postgres internals. Row locks held by an open transaction aren't modelled."],
@@ -815,7 +815,7 @@ const failedDeploy: Scenario = {
     "Roll back to v42 or deploy v43.1, then verify.",
   ],
   architecture: "Three store-api instances serve product pages and checkouts. Deployments roll out one instance every 2.5 s: each instance drains, restarts on the new version and rejoins.",
-  terms: ["rollback", "canary"],
+  terms: ["rollback", "canary", "errorBudget", "mttr", "partialFailure"],
   learn: [sd("production", "deployment-strategies", "Deployment strategies"), sd("production", "slo-error-budgets", "SLOs and error budgets"), sd("production", "observability", "Observability")],
   prevention: ["Canary new versions on a small share of traffic, with automatic rollback on error rate", "Test checkout with and without discount codes", "Make rollback one command"],
   limitations: [...commonLimits, "The bug is deterministic: every discounted checkout fails on v43."],
