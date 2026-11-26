@@ -3,21 +3,18 @@
 - Branch: `feature/production-incident-simulator` (from main `63dd9ba`)
 - Do not merge or deploy: ChatGPT opens the PR, checks CI and merges.
 
-## Done
+## Status: feature complete
 
-- Engine (`src/incidents/engine.ts`), telemetry (`telemetry.ts`), twelve scenarios (`scenarios.ts`), verification,
-  rubric and postmortem (`assess.ts`), persistence (`progress.ts`, `kitab.incidents.v1`), worker (`sim.worker.ts`).
-- UI: `/practice/incidents` and `/practice/incidents/:id` (`src/incidents/ui/`), Practice page entry, glossary terms.
-- `tests/incidents.test.ts` (28 tests); full `npm test` and `npm run typecheck` pass.
+- Engine, telemetry, twelve scenarios (fifteen versions), verification, rubric, postmortem, persistence, worker, UI,
+  glossary terms, Practice page entry, docs (`docs/PRODUCTION-INCIDENT-SIMULATOR.md`, ARCHITECTURE.md) and screenshots
+  `docs/screenshots/70-78`.
+- `npm test`, `npm run typecheck`, `npx vite build` pass. `e2e/incidents.spec.ts` passes on desktop-1440, laptop-1024,
+  tablet-768 and phone-390 (and 320 inside phone-390), and at 390 in the Linux Playwright image together with
+  `e2e/journeys.spec.ts` (the earlier "This step proves it" report does not reproduce on main).
 
-## Remaining
+## If resuming
 
-1. Browser tests (`e2e/incidents.spec.ts`): database, retry storm, identity, multi-factor journeys; guided and
-   independent; 1440/1024/768/390/320 overflow and reachability.
-2. Docs (`docs/PRODUCTION-INCIDENT-SIMULATOR.md`), ARCHITECTURE.md section and route list, screenshots.
-3. Performance numbers (bundle, run times), full Playwright suite, Linux run in Docker.
-
-## Resume
+Check official CI on the branch; investigate any failure there first.
 
 "Resume Kitab Production Incident Simulator from docs/work-in-progress/production-incident-simulator.md and continue
 autonomously until all deliverables are finished."

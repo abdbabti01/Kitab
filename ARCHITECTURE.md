@@ -132,6 +132,17 @@ Authorization Playground and policy challenges. Progress: `kitab.identity.v1` (k
 `identity` with a teaching resource server (`worker/identity-lab.ts`). Details, real-versus-modelled table, threat model
 and limits: [docs/IDENTITY.md](docs/IDENTITY.md); standards: [docs/IDENTITY-STANDARDS.md](docs/IDENTITY-STANDARDS.md).
 
+## Production Incident Simulator
+
+`src/incidents/` is a Practice activity that applies all four tracks: twelve incidents in one simulated online store
+(`/practice/incidents`, `/practice/incidents/:id`). A deterministic discrete-event engine (`engine.ts`, on the Architecture
+simulator's event heap, with the identity track's token-check order and authorization policy) produces one run of events
+and spans; metrics, logs, traces, topology health and diagnostic findings are all read from it (`telemetry.ts`).
+Learners collect findings as evidence, confirm hypotheses, apply validated remediation steps that the run continues
+with, and verify under today's and a stress workload (`assess.ts`, in a dedicated worker). Outcomes separate mitigation
+from root-cause resolution; safety invariants make unsafe shortcuts count as no recovery. Progress: `kitab.incidents.v1`.
+Details, model, rubric and limits: [docs/PRODUCTION-INCIDENT-SIMULATOR.md](docs/PRODUCTION-INCIDENT-SIMULATOR.md).
+
 ## Lessons
 
 Track → Unit → Lesson → Step, with one control that moves through a lesson (its Previous / Next) and one way on
@@ -252,7 +263,8 @@ text) from 0003.
 `/` · `/learn/:id` · `/missions/:id` · `/concepts/:slug` · `/drafts/:slug` · `/learn/system-design/:id` ·
 `/playground` (choose a Playground) · `/practice/network` · `/practice/structures` · `/practice/architecture` ·
 `/practice/architecture/challenges/:id` · `/learn/identity` · `/learn/identity/:unit` · `/practice/identity` ·
-`/practice/identity/tokens` · `/practice/identity/authorization` · `/practice/identity/challenges/:id` · `/lab` (Engineering
+`/practice/identity/tokens` · `/practice/identity/authorization` · `/practice/identity/challenges/:id` · `/practice/incidents` ·
+`/practice/incidents/:id` · `/lab` (Engineering
 Lab) · `/lab/:subject/:id`. Legacy
 `/lesson/tcp`, `/visual-lab` → `/missions/tcp-lab`; `/lesson/data-structures` →
 `/missions/ds-lab`. Malformed encodings render “Not found”.
@@ -269,7 +281,7 @@ Everything a learner saves is in this browser's `localStorage`: nothing is synce
 device starts empty, and private windows may keep nothing. Within that:
 
 - Stores of keyed records (`kitab.progress.v1`, `kitab.learning.v1`, `kitab.network-missions.v1`,
-  `kitab.architecture.progress.v1`, `kitab.architecture.labs.v1`, `kitab.visits.v1`, `kitab.engineering-labs.v1`) go through
+  `kitab.architecture.progress.v1`, `kitab.architecture.labs.v1`, `kitab.visits.v1`, `kitab.engineering-labs.v1`, `kitab.incidents.v1`) go through
   `src/learning/keyed-store.ts`: each record is read on its own, a record that can't be read (damaged, or from a newer
   Kitab) is kept and written back untouched, a store with another version is never written, and unreadable data is
   copied whole to `<key>.corrupt` (never replacing an earlier copy) before anything is saved over it. Every save reads
