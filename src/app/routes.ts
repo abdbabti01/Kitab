@@ -29,6 +29,8 @@ export type Route =
   | { name: "identity-tokens" }
   | { name: "identity-authorization" }
   | { name: "identity-challenge"; id: string }
+  | { name: "incidents" }
+  | { name: "incident"; id: string }
   | { name: "engineering-labs" }
   | { name: "engineering-lab"; subject: LabSubject; id: string }
   | { name: "mission"; id: string }
@@ -67,6 +69,12 @@ export function parseRoute(pathname: string): Route {
   if (path === "/practice/structures") return { name: "structures-playground" };
   if (path === "/practice/missions") return { name: "network-missions" };
   if (path === "/lab") return { name: "engineering-labs" };
+  if (path === "/practice/incidents") return { name: "incidents" };
+  const incident = /^\/practice\/incidents\/([^/]+)$/.exec(path);
+  if (incident) {
+    const id = segment(incident[1]);
+    return id ? { name: "incident", id } : { name: "not-found", path };
+  }
   const engineering = /^\/lab\/([^/]+)\/([^/]+)$/.exec(path);
   if (engineering) {
     const id = segment(engineering[2]);

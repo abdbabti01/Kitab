@@ -3,6 +3,7 @@
 // criteria, safety invariants, hypotheses with the findings that support or refute them, hints and links. The
 // engine decides what happens; nothing here states an outcome.
 import type { Control } from "../architecture/labs/kernel.ts";
+import type { TermId } from "../learning/glossary.ts";
 import { applyPatch, type ApiBuild, type Builds, type Change, type ChangeKind, type Endpoint, type Features, type Operation, type Patch, type Run, type State } from "./engine.ts";
 import { gaugeStats, requestFacts, spanStats, type ComponentId, type Window } from "./telemetry.ts";
 
@@ -71,7 +72,7 @@ export type Scenario = {
   hints: string[];
   /** For guided mode: the system in a few sentences, before any investigation. */
   architecture: string;
-  terms: string[];
+  terms: TermId[];
   learn: LearnLink[];
   prevention: string[];
   limitations: string[];
@@ -322,7 +323,7 @@ const stampede: Scenario = {
     "Turn on request coalescing and keep the TTL at 10 s or less, then verify under the sale peak.",
   ],
   architecture: "Three store-api instances serve product pages cache-aside: they read Redis first and, on a miss, build the page from Postgres (about 400 ms of database work, with reviews and live stock) and store it. Catalogue pages stay cached for 5 minutes; during the sale the sale product has its own TTL.",
-  terms: ["cache-hit", "stampede", "ttl", "saturation", "latency"],
+  terms: ["cacheHit", "stampede", "ttl", "saturation", "latency"],
   learn: [sd("performance", "cache-stampede", "Cache stampedes"), sd("performance", "caching-strategies", "Caching strategies"), sd("performance", "cache-invalidation", "Cache invalidation"), archLab("cache-stampede", "Lab: stop a cache stampede"), lab("architecture", "caching", "Lab: caching in real code")],
   prevention: ["Coalesce concurrent misses (single flight) for expensive entries", "Add jitter to TTLs so popular keys don't expire together", "Refresh hot entries early (stale-while-revalidate) when the freshness budget allows", "Load-test configuration changes, not only code"],
   limitations: [...commonLimits, "Coalescing is per instance (three instances can still rebuild one key three times). Prices change every 20 s per product on a fixed schedule; no cache invalidation on price change is modelled."],
@@ -390,7 +391,7 @@ const retryStorm: Scenario = {
     "Cut the amplification: fewer retries, exponential backoff with jitter, or a circuit breaker. If you keep any retries, turn on idempotency keys. Verify under the stress slowdown.",
   ],
   architecture: "Checkouts charge the card at an external payment provider, with the payments SDK's timeout and retry settings. The provider processes up to 40 charges at once and queues the rest; it keeps working on a charge even after the store stops waiting for it.",
-  terms: ["retry-amplification", "backoff", "circuit-breaker", "idempotency", "timeout"],
+  terms: ["retryAmplification", "backoff", "breaker", "idempotency", "timeout"],
   learn: [sd("resilience", "retry-storms", "Retry storms"), sd("resilience", "backoff-jitter", "Backoff and jitter"), sd("resilience", "circuit-breakers", "Circuit breakers"), sd("idempotency", "idempotency-keys", "Idempotency keys"), archLab("retry-storm", "Lab: tame a retry storm"), lab("architecture", "retries-timeouts", "Lab: real retries and timeouts over HTTP")],
   prevention: ["Retry with exponential backoff and jitter, under a retry budget", "Put a circuit breaker on calls to third parties", "Send idempotency keys on every retried write", "Alert on calls-per-request to a dependency"],
   limitations: [...commonLimits, "The provider is a queue with fixed capacity and seeded latency; it never sheds load below 1,500 queued calls."],
@@ -458,7 +459,7 @@ const unhealthy: Scenario = {
     "Route by readiness so failing instances leave rotation, and replace api-3. Verify while a second instance fails.",
   ],
   architecture: "The gateway sends requests round-robin to three store-api instances, checking each one every 2 s. An instance that fails two checks in a row leaves rotation until it passes two again.",
-  terms: ["health-check", "readiness", "partial-failure", "failover"],
+  terms: ["healthCheck", "partialFailure"],
   learn: [sd("consistency", "partial-failure", "Partial failure"), sd("coordination", "failure-detection", "Failure detection"), sd("production", "observability", "Observability"), { kind: "Playground", label: "Architecture Playground: fail a server behind a load balancer", href: "/practice/architecture" }],
   prevention: ["Route by readiness, restart by liveness", "Alert on per-instance error rates", "Monitor disk space; ship logs off the node", "Replace unhealthy instances automatically"],
   limitations: [...commonLimits, "Health checks bypass the request queue and are never slow; a readiness check here only knows whether the instance's local state is broken."],
@@ -524,7 +525,7 @@ const dnsFailure: Scenario = {
     "Correct the A record. Resolvers that cached the wrong answer keep it until their TTL expires, so wait one TTL before judging the fix.",
   ],
   architecture: "Browsers look up api.store.example through public DNS resolvers, which cache the answer for the record's TTL, then connect to that address. The gateway listens on 203.0.113.10.",
-  terms: ["dns", "ttl", "rum", "correlation"],
+  terms: ["dns", "ttl", "rum", "correlationId"],
   learn: [{ kind: "Learn", label: "How DNS turns a name into an address", href: "/concepts/dns" }, { kind: "Playground", label: "Network Playground: a request across the Internet, with DNS", href: "/practice/network?starter=internet" }, lab("networking", "dns-resolver", "Lab: resolve names with real DNS-over-HTTPS")],
   prevention: ["Lower the TTL well before a planned migration", "Validate DNS changes against the target (a synthetic check) before and after applying them", "Monitor from outside: synthetic checks and real-user monitoring see what server logs can't"],
   limitations: [...commonLimits, "Ten resolver groups stand for every customer's resolver; no negative caching, no TCP handshake or packet is simulated: a connection attempt to an address nothing answers on simply waits until the client gives up."],
@@ -614,7 +615,7 @@ const apiAuth: Scenario = {
     "Fix what the API expects (keys, audience or issuer) without weakening a check, then verify, including under stress.",
   ],
   architecture: "Partner apps get access tokens from the identity provider (30-second lifetime here) and call GET /api/orders with them. The orders API validates each token in order: algorithm allowlist, key by kid from the cached JWKS, signature, issuer, audience, expiry. Then a deny-by-default policy checks the orders.read scope. A few attackers send forged tokens.",
-  terms: ["401-403", "jwks", "audience", "issuer"],
+  terms: ["authnStatus", "jwks", "audience", "issuer"],
   learn: [idu("tokens", "JSON Web Tokens and token security"), idu("fundamentals", "Authentication or authorization"), { kind: "Playground", label: "Token Inspector: verify real JWT signatures", href: "/practice/identity/tokens" }, { kind: "Practice", label: "Challenge: why did the API reject the token?", href: "/practice/identity/challenges/token-rejected" }, lab("identity", "jwks-verify", "Lab: verify a JWT against a JWKS"), lab("identity", "audience-bug", "Lab: the audience bug"), lab("identity", "protected-api", "Lab: real 401 and 403 from a protected API")],
   prevention: ["Refetch the JWKS on an unknown kid (rate-limited) and cache it with an expiry", "Keep issuer and audience in reviewed configuration with a startup self-test", "Subscribe to the identity provider's change notices", "Alert on 401 rate separately from 5xx"],
   limitations: [...commonLimits, "Tokens are modelled facts (kid, iss, aud, exp, who signed them), never real JWTs; real signature verification is in the Token Inspector and the identity labs."],
@@ -681,7 +682,7 @@ const ssoOutage: Scenario = {
     "Register https://finance.store.example/callback exactly (or send the old URI again). Don't use a wildcard or longer sessions.",
   ],
   architecture: "The Finance app signs staff in with OpenID Connect. Without a session it redirects to the identity provider's /authorize with its client_id and redirect_uri; the provider signs the person in and redirects back to that URI with a code, which the app exchanges for tokens and turns into a session.",
-  terms: ["sso", "redirect-uri", "session"],
+  terms: ["sso", "redirectUri", "session"],
   learn: [idu("sso", "Single sign-on"), idu("oidc", "OpenID Connect"), { kind: "Playground", label: "Identity Playground: SSO, message by message", href: "/practice/identity" }, { kind: "Practice", label: "Challenge: set up SSO for two applications", href: "/practice/identity/challenges/sso-two-apps" }, lab("identity", "redirect-uri", "Lab: exact redirect URI matching")],
   prevention: ["Register the new redirect URI before moving an app", "Add a synthetic sign-in check per app", "Keep app registrations in reviewed configuration"],
   limitations: [...commonLimits, "The identity provider is simulated, not a real one; sign-in itself (passwords, MFA) always succeeds and takes a fixed time."],
@@ -750,7 +751,7 @@ const queueBacklog: Scenario = {
     "Add workers (staying within the fraud service's 24 calls at once) or roll back to w17, and turn on the dead-letter queue. Check that the backlog is gone by the end.",
   ],
   architecture: "A checkout writes the order, then publishes an order.created message and answers the customer. Fulfilment workers take messages from the queue, record the shipment and tell the warehouse. A message that fails goes back to the queue.",
-  terms: ["queue", "dead-letter", "throughput", "littles-law"],
+  terms: ["queue", "deadLetter", "throughput"],
   learn: [sd("messaging", "queues-and-logs", "Queues and logs"), sd("messaging", "poison-dlq", "Poison messages and dead-letter queues"), sd("overload", "backpressure", "Backpressure"), sd("performance", "littles-law", "Little's law"), { kind: "Playground", label: "Architecture Playground: queues and workers", href: "/practice/architecture" }],
   prevention: ["Alert on oldest-message age, not only depth", "Load-test worker changes against the publish rate", "Always configure a dead-letter queue with a receive limit", "Make slow checks asynchronous or batch them"],
   limitations: [...commonLimits, "One worker pool, no visibility timeout or ordering; a failed message returns after 100 ms. The warehouse call is folded into the shipment write."],
@@ -814,7 +815,7 @@ const failedDeploy: Scenario = {
     "Roll back to v42 or deploy v43.1, then verify.",
   ],
   architecture: "Three store-api instances serve product pages and checkouts. Deployments roll out one instance every 2.5 s: each instance drains, restarts on the new version and rejoins.",
-  terms: ["rollback", "canary", "deployment"],
+  terms: ["rollback", "canary"],
   learn: [sd("production", "deployment-strategies", "Deployment strategies"), sd("production", "slo-error-budgets", "SLOs and error budgets"), sd("production", "observability", "Observability")],
   prevention: ["Canary new versions on a small share of traffic, with automatic rollback on error rate", "Test checkout with and without discount codes", "Make rollback one command"],
   limitations: [...commonLimits, "The bug is deterministic: every discounted checkout fails on v43."],
@@ -879,7 +880,7 @@ const slowQuery: Scenario = {
     "Add the index on orders(customer_id) (or roll back), then verify under twice the account-page traffic.",
   ],
   architecture: "Product pages, checkouts and the account page all query one Postgres database with 8 CPU slots. Queries beyond 8 wait for CPU, and a busy database runs every query a little slower.",
-  terms: ["index", "saturation", "query-plan"],
+  terms: ["dbIndex", "saturation"],
   learn: [sd("performance", "indexing", "Indexing"), sd("performance", "capacity-planning", "Capacity planning"), { kind: "Playground", label: "Data Structures Playground: why a search tree beats a scan", href: "/practice/structures" }],
   prevention: ["Review query plans (EXPLAIN) for new queries in code review", "Track database CPU per statement", "Build indexes concurrently before the feature that needs them ships"],
   limitations: [...commonLimits, "Query costs are fixed numbers per plan (120 ms for the scan, 4 ms with the index); the table doesn't grow during the run."],
@@ -952,7 +953,7 @@ const rateLimit: Scenario = {
     "Key the limiter by API key again. Raising the limit or turning it off would let the scraper through. Verify under stress.",
   ],
   architecture: "Customers' requests reach the gateway through four CDN edge servers. The gateway limits each key to 10 requests a second (burst 20) with a token bucket and answers 429 with Retry-After when a bucket is empty. One API key belongs to a scraper sending 25 requests a second.",
-  terms: ["rate-limit", "429-503", "retry-after"],
+  terms: ["rateLimit"],
   learn: [sd("overload", "rate-limiting", "Rate limiting"), sd("overload", "load-shedding", "Load shedding"), archLab("rate-limit", "Lab: rate limiting, fair and unfair"), lab("networking", "headers-status", "Lab: real status codes and Retry-After")],
   prevention: ["Key limits by authenticated identity; behind a proxy, read the client address only from a trusted forwarding header", "Review default changes in infrastructure upgrades", "Alert on 429 rate for non-abusive clients"],
   limitations: [...commonLimits, "One token bucket per key with a fixed rate and burst, no sliding windows or per-route limits; clients honour Retry-After."],
@@ -1018,7 +1019,7 @@ const multiFactor: Scenario = {
     "Bound the wait (short timeout or a circuit breaker), bound the retries (with jitter and idempotency keys if you keep any), or roll back to v43. Verify isolation while the provider is still degraded.",
   ],
   architecture: "Two store-api instances with 32 threads each serve product pages and checkouts. A checkout holds its thread while it calls the payment provider; product pages only use the cache and the database.",
-  terms: ["bulkhead", "timeout", "retry-amplification", "graceful-degradation", "mttr"],
+  terms: ["bulkhead", "timeout", "retryAmplification", "mttr"],
   learn: [sd("resilience", "bulkheads", "Bulkheads"), sd("resilience", "graceful-degradation", "Graceful degradation"), sd("resilience", "timeouts-deadlines", "Timeouts and deadlines"), sd("resilience", "retry-storms", "Retry storms"), archLab("circuit-breaker", "Lab: circuit breakers"), lab("architecture", "troubleshooting", "Lab: troubleshoot a real faulty endpoint")],
   prevention: ["Pin and review dependency client settings (timeouts, retries) in code, with tests", "Isolate calls to third parties (separate thread pool or a concurrency limit: a bulkhead)", "Circuit breakers on third-party calls", "Alert on thread saturation"],
   limitations: [...commonLimits, "One shared thread pool per instance; no bulkhead option is modelled, so isolation comes from timeouts, retries and the breaker."],

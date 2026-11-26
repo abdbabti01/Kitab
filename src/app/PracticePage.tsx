@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Binary, FlaskConical, KeyRound, Router, ShieldCheck, Workflow } from "lucide-react";
+import { Binary, FlaskConical, KeyRound, Router, ShieldCheck, Siren, Workflow } from "lucide-react";
 import { activityState, type Activity, type Evidence } from "../learning/networking-path.ts";
 import { practiceLabels, type PracticeState } from "../learning/practice-state.ts";
 import { kindOf, tracks, unitPath, type TrackId } from "../learning/tracks.ts";
@@ -130,6 +130,14 @@ export function PracticePage({ evidence }: { evidence: Evidence }) {
           })}
         </section>
       ))}
+
+      <section className="section" aria-labelledby="incidents-title">
+        <h2 id="incidents-title">Production incidents</h2>
+        <p className="section-lead">Apply all four tracks at once: a simulated online store breaks, and you investigate, fix, verify and write the postmortem.</p>
+        <ul className="concept-list">
+          <li><a {...linkProps("/practice/incidents")}><Siren aria-hidden="true" /><span><b>Production Incident Simulator</b><small>Twelve incidents: connection pools, caches, retries, DNS, tokens, SSO, queues, deployments and more</small></span></a></li>
+        </ul>
+      </section>
 
       <section className="section" aria-labelledby="tools-title">
         <h2 id="tools-title">Tools to practise with</h2>

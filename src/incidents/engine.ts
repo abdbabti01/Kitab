@@ -232,7 +232,7 @@ export function checkToken(token: ModelToken, rs: { issuer: string; audience: st
 /** Failures from the customer's side: no answer, 5xx, 429 and 401. 402 (declined card) and 403 (missing scope) are correct answers. */
 export const isFailure = (status: number) => status === 0 || status >= 500 || status === 429 || status === 401;
 
-type Pool = { open: number; idle: number; inUse: number; leaked: number; waiters: { cb: (ok: boolean) => void; timer: { live: boolean } }[]; size: () => number };
+type Pool = { open: number; idle: number; inUse: number; leaked: number; waiters: { cb: (ok: boolean) => void; fail: () => void; timer: { live: boolean } }[]; size: () => number };
 type Instance = {
   id: string;
   n: number;
@@ -364,17 +364,18 @@ export function simulate(input: RunInput): Run {
       });
     }
     const timer = { live: true };
-    pool.waiters.push({ timer, cb: (ok) => {
-      close(span, ok);
-      cb(ok);
-    } });
-    at(now + s.pool.acquireTimeoutMs, () => {
+    const giveUp = (error: Failure) => {
       if (!timer.live) return;
       timer.live = false;
       pool.waiters = pool.waiters.filter((w) => w.timer !== timer);
-      close(span, false, { code: "POOL_TIMEOUT", message: `Timed out after ${s.pool.acquireTimeoutMs} ms waiting for a database connection (pool ${pool.inUse}/${pool.size()} in use, ${pool.waiters.length} waiting)` });
-      cb(false, 503, span.error);
-    });
+      close(span, false, error);
+      cb(false, 503, error);
+    };
+    pool.waiters.push({ timer, fail: () => giveUp({ code: "POOL_CLOSED", message: "The connection pool was closed while this request waited (instance restarting)" }), cb: (ok) => {
+      close(span, ok);
+      cb(ok);
+    } });
+    at(now + s.pool.acquireTimeoutMs, () => giveUp({ code: "POOL_TIMEOUT", message: `Timed out after ${s.pool.acquireTimeoutMs} ms waiting for a database connection (pool ${pool.inUse}/${pool.size()} in use, ${pool.waiters.length - 1} others waiting)` }));
   }
   function release(pool: Pool) {
     // A pool that shrank closes connections as they come back.
@@ -423,7 +424,7 @@ export function simulate(input: RunInput): Run {
       db.connections -= old.open;
       old.open = old.idle = old.inUse = 0;
       if (old.leaked) emit({ type: "instance", service: inst.id, label: "connections closed", message: `${inst.id} closed ${old.leaked} leaked connection${old.leaked === 1 ? "" : "s"} on restart` });
-      for (const w of old.waiters) w.timer.live = false;
+      for (const w of [...old.waiters]) w.fail();
       inst.pool = newPool();
       inst.queue = [];
       at(now + RESTART_MS, () => {
@@ -1007,6 +1008,7 @@ export function simulate(input: RunInput): Run {
       complete(status, status !== 200, 1);
     });
     const attempt = (n: number) => {
+      const giveUpAt = now + s.client.timeoutMs;
       const span = open(req, req.root, req.root.service, `${ROUTES[endpoint]} (attempt ${n})`, "client", { attempt: n });
       let settled = false;
       const after = (status: number, error?: { code: string; message: string }, retryAfterS?: number) => {
@@ -1036,7 +1038,7 @@ export function simulate(input: RunInput): Run {
         if (address === "203.0.113.10") return send();
         // Nothing listens at the wrong address: the connection attempt gets no answer until the client gives up.
         const connect = open(req, span, req.root.service, `tcp.connect ${address}:443`, "client", { "net.peer.ip": address, modelled: true });
-        at(now + Math.min(3000, s.client.timeoutMs), () => {
+        at(Math.min(now + 3000, giveUpAt), () => {
           close(connect, false, { code: "CONNECT_TIMEOUT", message: `connect ETIMEDOUT ${address}:443` });
           deliver(0, connect.error);
         });
@@ -1053,7 +1055,6 @@ export function simulate(input: RunInput): Run {
     { key: "scraper", endpoint: "browse", legit: false, scraper: true },
     { key: "attack", endpoint: "orders", legit: false, scraper: false },
   ];
-  const arrivalsEnd = endMs - 3000;
   for (const stream of streams) {
     let k = 0;
     const next = () => {
@@ -1061,7 +1062,6 @@ export function simulate(input: RunInput): Run {
       if (rate <= 0) return at(now + 250, next);
       const gap = (-Math.log(1 - hash01(seed, salt(stream.key), ++k)) * 1000) / rate;
       at(now + gap, () => {
-        if (now >= arrivalsEnd) return;
         startRequest(stream.endpoint, stream.legit, stream.scraper);
         next();
       });
