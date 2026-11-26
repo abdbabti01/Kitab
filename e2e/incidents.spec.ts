@@ -130,8 +130,11 @@ test("retry storm, independent: amplification found, retries tamed, duplicates p
   await expect(page.locator(".inc-criteria")).toContainText("No customer is charged twice");
   await page.getByLabel("Idempotency keys on charges").check();
   await verify(page, "Service fully recovered");
+  // Verified first, cause confirmed afterwards: the completion is still recorded.
   await confirm(page, /Our immediate retries keep the provider overloaded/, ["Retries multiply the load"]);
   await expect(notebook(page).getByText(/Incident resolved/)).toBeVisible();
+  await page.goto("/practice/incidents");
+  await expect(page.locator(".inc-grid > li").nth(2).locator(".status-chip")).toHaveText("Resolved");
 });
 
 test("identity: 401 not 403, an unsafe shortcut refused, the key refresh fixed and verified", async ({ page }) => {

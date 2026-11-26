@@ -29,7 +29,7 @@ const record = z.object({
   version: text(20),
   attempts: z.number().int().min(0).max(1000),
   current: attemptSchema.nullable(),
-  history: z.array(z.object({ variant: text(40), finishedAt: time, assisted: z.boolean(), mode: z.enum(["guided", "independent"]) }).strict()).max(30),
+  history: z.array(z.object({ variant: text(40), startedAt: time.optional(), finishedAt: time, assisted: z.boolean(), mode: z.enum(["guided", "independent"]) }).strict()).max(30),
   completedAt: time.optional(),
 }).strict();
 
@@ -77,7 +77,8 @@ export function startAttempt(storage: StorageLike, id: string, version: string, 
 export function finish(storage: StorageLike, id: string, version: string, attempt: StoredAttempt, assisted: boolean) {
   return update(storage, id, version, (r) => {
     const at = new Date().toISOString();
-    if (!r.history.some((h) => h.variant === attempt.variant && h.finishedAt.slice(0, 16) === at.slice(0, 16))) r.history = [...r.history, { variant: attempt.variant, finishedAt: at, assisted, mode: attempt.mode }].slice(-30);
+    // Once per attempt: reopening a finished attempt doesn't record it again.
+    if (!r.history.some((h) => h.startedAt === attempt.startedAt)) r.history = [...r.history, { variant: attempt.variant, startedAt: attempt.startedAt, finishedAt: at, assisted, mode: attempt.mode }].slice(-30);
     r.completedAt ??= at;
     r.current = attempt;
   });

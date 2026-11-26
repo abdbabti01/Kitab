@@ -112,8 +112,6 @@ function IncidentPage({ scenario: s }: { scenario: Scenario }) {
       setViewed("target");
       setAt(result.target.endMs);
       setAnnounce(`Verification finished: ${result.outcome.label}.`);
-      const assessment = assess(s, variant, next);
-      if (assessment.completed) finish(safeStorage(), s.id, s.version, next, assessment.assisted);
     } catch (e) {
       setSimError((e as Error).message);
     } finally {
@@ -122,6 +120,14 @@ function IncidentPage({ scenario: s }: { scenario: Scenario }) {
   }
 
   const assessment = assess(s, variant, attempt);
+  // Completion is recorded once per attempt, whichever came last: the verification or the confirmed cause.
+  const finished = useRef<string | null>(null);
+  useEffect(() => {
+    if (!assessment.completed || finished.current === attempt.startedAt) return;
+    finished.current = attempt.startedAt;
+    const result = finish(safeStorage(), s.id, s.version, attempt, assessment.assisted);
+    setSaveFailed(!result.saved);
+  }, [assessment.completed, attempt]);
   const facts = incident ? requestFacts(incident, incidentWindow(s)) : null;
   const det = incident ? detection(incident, s.timing.faultAtMs) : null;
   const last = attempt.verifications.at(-1);

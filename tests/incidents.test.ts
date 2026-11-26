@@ -436,6 +436,8 @@ test("incident progress is bounded, versioned and never written over data it can
   saveAttempt(storage, pool.id, pool.version, { ...a, hints: 2 });
   assert.equal(loadIncidents(storage).records[pool.id].current!.hints, 2);
   finish(storage, pool.id, pool.version, a, false);
+  finish(storage, pool.id, pool.version, a, false);
+  assert.equal(loadIncidents(storage).records[pool.id].history.length, 1, "one attempt is recorded once");
   assert.equal(stateOf(loadIncidents(storage).records[pool.id]), "completed");
   resetAttempt(storage, pool.id, pool.version);
   assert.equal(stateOf(loadIncidents(storage).records[pool.id]), "completed", "a reset keeps the completion");
