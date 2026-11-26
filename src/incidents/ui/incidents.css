@@ -22,7 +22,8 @@
 
 .inc-runbar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; padding: 10px 12px; margin-bottom: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); position: relative; z-index: 1; }
 .inc-runbar label, .inc-filters label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); min-width: 0; }
-.inc-runbar select { max-width: min(100%, 26rem); }
+.inc-runbar > label:first-child { flex: 1 1 18rem; max-width: 30rem; }
+.inc-runbar select { width: 100%; min-width: 0; text-overflow: ellipsis; }
 .inc-runbar .grow, .inc-filters .grow { flex: 1 1 14rem; }
 .inc-runbar input[type="range"] { width: 100%; accent-color: var(--accent); min-height: 32px; }
 
