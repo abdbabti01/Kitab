@@ -8,7 +8,7 @@ import { INCIDENTS_KEY, finish, loadIncidents, newAttempt, resetAttempt, saveAtt
 import { parseRoute } from "../src/app/routes.ts";
 import { conceptUnits } from "../src/architecture/concepts/index.ts";
 import { identityUnits } from "../src/identity/content/index.ts";
-import { glossary } from "../src/learning/glossary.ts";
+import { glossary, type GlossaryTerm } from "../src/learning/glossary.ts";
 import { chapters } from "../src/content/chapters.ts";
 
 const set = (path: string, value: string | number | boolean): Step => ({ kind: "set", path, value });
@@ -290,7 +290,7 @@ test("learning links resolve to real pages and sections", () => {
     if (path.startsWith("/learn/identity/")) assert.ok(identityUnits.some((u) => u.id === path.split("/").pop()), `${s.id} → ${link.href}`);
     if (path.startsWith("/concepts/")) assert.ok(chapters.some((c) => c.slug === path.split("/").pop()), `${s.id} → ${link.href}`);
   }
-  for (const [key, term] of Object.entries(glossary)) {
+  for (const [key, term] of Object.entries(glossary) as [string, GlossaryTerm][]) {
     if (!term.more) continue;
     const [path, anchor] = term.more.href.split("#");
     if (path.startsWith("/learn/system-design/")) assert.ok(conceptUnits.find((u) => u.id === path.split("/").pop())?.concepts.some((c) => c.id === anchor), `glossary ${key}`);
