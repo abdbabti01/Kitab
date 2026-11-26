@@ -31,6 +31,8 @@ const IdentityPlayground = lazy(() => import("../identity/ui/IdentityPlayground.
 const TokenInspector = lazy(() => import("../identity/ui/TokenInspector.tsx").then((m) => ({ default: m.TokenInspector })));
 const AuthorizationPlayground = lazy(() => import("../identity/ui/AuthorizationPlayground.tsx").then((m) => ({ default: m.AuthorizationPlayground })));
 const IdentityChallengeRoute = lazy(() => import("../identity/ui/ChallengePage.tsx").then((m) => ({ default: m.IdentityChallengeRoute })));
+const IncidentsPage = lazy(() => import("../incidents/ui/IncidentsPage.tsx").then((m) => ({ default: m.IncidentsPage })));
+const IncidentRoute = lazy(() => import("../incidents/ui/IncidentPage.tsx").then((m) => ({ default: m.IncidentRoute })));
 const PracticePage = lazy(() => import("./PracticePage.tsx").then((m) => ({ default: m.PracticePage })));
 
 const LearnPage = lazy(() => import("./LearnPage.tsx").then((m) => ({ default: m.LearnPage })));
@@ -78,7 +80,7 @@ export function sectionFor(route: Route, activityId: string | null): Section | n
   if (route.name === "engineering-labs" || route.name === "engineering-lab") return "lab";
   if (route.name === "network-practice" || route.name === "architecture-playground" || route.name === "structures-playground" || route.name === "playgrounds" || route.name === "identity-playground" || route.name === "identity-tokens" || route.name === "identity-authorization") return "playground";
   if (route.name === "learn" || route.name === "lesson" || route.name === "concept" || route.name === "draft") return "learn";
-  if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs") return "practice";
+  if (route.name === "practice" || route.name === "network-missions" || route.name === "architecture-labs" || route.name === "incidents" || route.name === "incident") return "practice";
   const at = activityId ? locate(activityId) : undefined;
   if (at) return at.role === "learn" ? "learn" : "practice";
   if (route.name === "mission" || route.name === "network-mission") return "practice";
@@ -118,6 +120,8 @@ export function App() {
   else if (route.name === "identity-tokens") view = <TokenInspector />;
   else if (route.name === "identity-authorization") view = <AuthorizationPlayground />;
   else if (route.name === "identity-challenge") view = <IdentityChallengeRoute key={route.id} id={route.id} notFound={<NotFound what="that challenge" />} />;
+  else if (route.name === "incidents") view = <IncidentsPage />;
+  else if (route.name === "incident") view = <IncidentRoute key={route.id} id={route.id} notFound={<NotFound what="that incident" />} />;
   else if (route.name === "engineering-labs") view = <EngineeringLabs />;
   else if (route.name === "engineering-lab") view = <EngineeringLabRoute key={route.id} subject={route.subject} id={route.id} notFound={<NotFound what="that lab" />} />;
   else if (route.name === "network-mission") {
